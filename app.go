@@ -133,3 +133,7 @@ func (a *App) OpenTerminal() {
 	cmd := service.NewTerminal(a.cfg.WWWRoot, env)
 	cmd.Start()
 }
+
+func (a *App) DeleteVersion(taskName, version string) error {
+	return a.downloader.DeleteVersion(taskName, version)
+}

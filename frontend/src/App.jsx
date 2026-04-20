@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Play, Square, Download, Settings, Terminal as TerminalIcon, Database, Globe, FolderOpen, MoreVertical, ExternalLink, CheckCircle2, AlertCircle, XCircle, X, Loader2, List } from 'lucide-react';
+import { Play, Square, Download, Settings, Terminal as TerminalIcon, Database, Globe, FolderOpen, MoreVertical, ExternalLink, CheckCircle2, AlertCircle, XCircle, X, Loader2, List, Trash2 } from 'lucide-react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
-import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal } from '../wailsjs/go/main/App';
+import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion } from '../wailsjs/go/main/App';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -52,6 +52,42 @@ function CircularProgress({ percentage, status, speed, downloaded, onCancel }) {
             <span className="text-[10px] font-black text-white uppercase tracking-widest">Cancel</span>
          </div>
       </div>
+    </div>
+  );
+}
+
+function VersionDropdown({ current, options, onChange, isOpen, onToggle }) {
+  return (
+    <div className="relative">
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+        className="flex items-center gap-1.5 bg-black/40 border border-white/10 rounded-md px-2 py-0.5 hover:border-blue-500/30 transition-colors group cursor-pointer"
+      >
+        <span className="text-[10px] font-black text-blue-400">v{current}</span>
+        <MoreVertical size={10} className={cn("text-slate-500 group-hover:text-blue-400 transition-all", isOpen && "rotate-90")} />
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-[60]" onClick={onToggle} />
+          <div className="absolute top-full left-0 mt-2 w-32 max-h-48 overflow-y-auto bg-slate-900 shadow-2xl border border-white/10 rounded-xl backdrop-blur-xl z-[70] animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-1">
+              {options.map((v) => (
+                <div
+                  key={v}
+                  onClick={() => { onChange(v); onToggle(); }}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer transition-all",
+                    v === current ? "bg-blue-600 text-white" : "text-slate-400 hover:bg-white/10 hover:text-white"
+                  )}
+                >
+                  v{v}
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -128,6 +164,7 @@ function App() {
   const [toasts, setToasts] = useState([]);
   const [logs, setLogs] = useState([]);
   const [isLogOpen, setIsLogOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState(null);
 
   const addLog = (msg) => {
     setLogs(prev => [{ time: new Date().toLocaleTimeString(), msg }, ...prev].slice(0, 500));
@@ -143,26 +180,44 @@ function App() {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
-  const refreshPrerequisites = () => {
+  const [loading, setLoading] = useState(true);
+  const [selectedVersions, setSelectedVersions] = useState({});
+
+  const refreshPrerequisites = async () => {
     if (window.go) {
-      GetPrerequisites().then(tasks => {
-        setPrerequisites(tasks);
-        const initialProgress = {};
-        tasks.forEach(t => {
-          if (t.isInstalled) {
-            initialProgress[t.name] = { name: t.name, percentage: 100, status: 'Installed' };
-          }
-        });
-        setDownloadProgress(prev => ({ ...initialProgress, ...prev }));
-      });
-    } else {
-      const mockTasks = [
-        { name: 'PHP', version: '8.3.6', isInstalled: false },
-        { name: 'Apache', version: '2.4.59', isInstalled: false },
-        { name: 'MySQL', version: '8.0.37', isInstalled: false },
-        { name: 'HeidiSQL', version: '12.7', isInstalled: false },
-      ];
-      setPrerequisites(mockTasks);
+      try {
+        const tasks = await GetPrerequisites();
+        setPrerequisites(tasks || []);
+        
+        if (tasks) {
+          setSelectedVersions(prev => {
+            const next = { ...prev };
+            tasks.forEach(t => {
+              if (!next[t.name]) {
+                if (t.installedVers && t.installedVers.length > 0) {
+                  // Prefer the first installed version found
+                  next[t.name] = t.installedVers[0];
+                } else if (t.version) {
+                  next[t.name] = t.version;
+                }
+              }
+            });
+            return next;
+          });
+
+          const initialProgress = {};
+          tasks.forEach(t => {
+            if (t.isInstalled) {
+              initialProgress[t.name] = { name: t.name, percentage: 100, status: 'Installed' };
+            }
+          });
+          setDownloadProgress(prev => ({ ...initialProgress, ...prev }));
+        }
+      } catch (err) {
+        addLog(`Error fetching prerequisites: ${err}`);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -203,7 +258,6 @@ function App() {
     addLog(`Requesting cancellation for ${name}...`);
     if (window.go) {
       CancelDownload(name);
-      // Immediately reset local state for this item to stop the UI from moving
       setDownloadProgress(prev => ({
         ...prev,
         [name]: { name, percentage: 0, status: 'Cancelled', speed: '', downloaded: '' }
@@ -212,37 +266,65 @@ function App() {
   };
 
   const handleInstallSingle = async (task) => {
-    addLog(`Initiating installation for ${task.name}...`);
+    const selectedVer = selectedVersions[task.name] || task.version;
+    addLog(`Initiating installation for ${task.name} v${selectedVer}...`);
+    
+    const modifiedTask = { ...task };
+    const arch = navigator.userAgent.includes('Win64') || navigator.userAgent.includes('x64') ? 'x64' : 'x86';
+
+    if (task.name === 'PHP' && task.versions) {
+       modifiedTask.version = selectedVer;
+       modifiedTask.target = `php/php-${selectedVer}`;
+       modifiedTask.url = `https://downloads.php.net/~windows/releases/php-${selectedVer}-Win32-vs16-${arch}.zip`;
+    }
+
+    if (task.name === 'Apache' && task.versions && task.versionUrls) {
+       modifiedTask.version = selectedVer;
+       modifiedTask.target = `apache/httpd-${selectedVer}`;
+       modifiedTask.url = task.versionUrls[selectedVer];
+    }
+
+    if (task.name === 'MySQL' && task.versions && task.versionUrls) {
+       modifiedTask.version = selectedVer;
+       modifiedTask.target = `mysql/mysql-${selectedVer}`;
+       modifiedTask.url = task.versionUrls[selectedVer];
+    }
+
     if (window.go) {
       try {
-        await InstallPrerequisite(task);
+        await InstallPrerequisite(modifiedTask);
       } catch (err) {
         addLog(`Installation process for ${task.name} ended: ${err}`);
       }
-    } else {
-      // Mock progress
-      const steps = ['Downloading...', 'Extracting 1/10...', 'Extracting 5/10...', 'Completed'];
-      for (let i = 0; i <= 100; i += 25) {
-        setDownloadProgress(prev => ({
-          ...prev,
-          [task.name]: { 
-            name: task.name, 
-            percentage: i, 
-            status: steps[Math.floor(i / 26)],
-            speed: i < 75 ? '15.4 MB/s' : '',
-            downloaded: i < 75 ? `${(i * 1.5).toFixed(1)} MB` : '150 MB'
-          }
-        }));
-        await new Promise(r => setTimeout(r, i === 0 ? 500 : 300));
-      }
-      addToast(task.name, 'Installed successfully (MOCK)', 'success');
     }
     refreshPrerequisites();
   };
 
-  const someInstalled = prerequisites.some(p => p.isInstalled);
-  const essentialReady = prerequisites.length > 0 && prerequisites.filter(p => !['HeidiSQL'].includes(p.name)).every(p => p.isInstalled);
-  const allReady = prerequisites.length > 0 && prerequisites.every(p => p.isInstalled);
+  const handleDeleteVersion = async (taskName, version) => {
+    addLog(`Deleting ${taskName} v${version}...`);
+    if (window.go) {
+      try {
+        await DeleteVersion(taskName, version);
+        addToast("Deleted", `${taskName} v${version} has been removed.`, "success");
+      } catch (err) {
+        addLog(`Failed to delete ${taskName} v${version}: ${err}`);
+        addToast("Error", `Failed to remove ${taskName} v${version}.`, "error");
+      }
+      refreshPrerequisites();
+    }
+  };
+
+  const essentialReady = prerequisites && prerequisites.length > 0 && prerequisites.filter(p => !['HeidiSQL'].includes(p.name)).every(p => p.isInstalled);
+  const allReady = prerequisites && prerequisites.length > 0 && prerequisites.every(p => p.isInstalled);
+  const someInstalled = prerequisites && prerequisites.length > 0 && prerequisites.some(p => p.isInstalled);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+        <Loader2 className="animate-spin text-blue-500" size={40} />
+      </div>
+    );
+  }
 
   if (!allReady) {
     return (
@@ -280,9 +362,16 @@ function App() {
               {prerequisites.map((task) => {
                 const progress = downloadProgress[task.name];
                 const isActive = progress && progress.percentage > 0 && progress.percentage < 100;
+                const isDropdownOpen = openDropdown === task.name;
                 
                 return (
-                  <div key={task.name} className="bg-slate-900/40 backdrop-blur-md rounded-2xl p-4 border border-white/5 hover:border-white/10 transition-all group flex items-center gap-6">
+                  <div 
+                    key={task.name} 
+                    className={cn(
+                      "bg-slate-900/40 backdrop-blur-md rounded-2xl p-4 border border-white/5 hover:border-white/10 transition-all group flex items-center gap-6 relative",
+                      isDropdownOpen ? "z-[100]" : "z-0"
+                    )}
+                  >
                     <div className={cn(
                       "w-12 h-12 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-105",
                       task.isInstalled ? "bg-emerald-500/10 text-emerald-400" : "bg-blue-500/10 text-blue-400"
@@ -294,18 +383,35 @@ function App() {
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <h3 className="font-bold text-white text-sm tracking-tight uppercase italic">{task.name}</h3>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">v{task.version}</span>
-                        {task.isInstalled && (
-                           <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[8px] font-black uppercase tracking-widest rounded-md border border-emerald-500/20">
-                             <CheckCircle2 size={10} />
-                             Ready
-                           </div>
+                        
+                        {task.versions ? (
+                          <VersionDropdown 
+                            current={selectedVersions[task.name] || task.version}
+                            options={[...new Set([...task.versions, ...(task.installedVers || [])])]}
+                            isOpen={isDropdownOpen}
+                            onToggle={() => setOpenDropdown(isDropdownOpen ? null : task.name)}
+                            onChange={(v) => setSelectedVersions(prev => ({ ...prev, [task.name]: v }))}
+                          />
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">v{task.version}</span>
                         )}
+
+                        {task.installedVers && task.installedVers.map(ver => (
+                          <div 
+                            key={ver} 
+                            onClick={(e) => { e.stopPropagation(); handleDeleteVersion(task.name, ver); }}
+                            className="group/tag flex items-center gap-1.5 px-2 py-0.5 bg-slate-800/80 border border-white/10 text-slate-400 text-[9px] font-bold uppercase tracking-widest rounded-md hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400 transition-all cursor-pointer shadow-sm"
+                            title={`Delete v${ver}`}
+                          >
+                            <Trash2 size={10} className="w-0 opacity-0 group-hover/tag:w-2.5 group-hover/tag:opacity-100 transition-all text-rose-500" />
+                            v{ver}
+                          </div>
+                        ))}
                       </div>
                       <p className="text-[10px] font-medium text-slate-500 mt-1">
-                        {isActive ? progress.status : task.isInstalled ? 'Component verified and linked' : 'Pending installation'}
+                        {isActive ? progress.status : task.isInstalled ? 'Component verified' : 'Pending installation'}
                       </p>
                     </div>
 
@@ -322,20 +428,28 @@ function App() {
                         </div>
                       )}
 
-                      {!task.isInstalled && !isActive && (
-                        <button
-                          onClick={() => handleInstallSingle(task)}
-                          className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-600/20 transition-all hover:scale-105"
-                        >
-                          Download
-                        </button>
-                      )}
-                      
-                      {task.isInstalled && (
-                        <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400 border border-emerald-500/20 shadow-inner">
-                          <CheckCircle2 size={20} />
-                        </div>
-                      )}
+                      {(() => {
+                        const selectedVer = selectedVersions[task.name] || task.version;
+                        const isSelectedInstalled = task.installedVers?.includes(selectedVer);
+                        
+                        if (isActive) return null;
+
+                        return (
+                          <button
+                            disabled={isSelectedInstalled}
+                            onClick={() => !isSelectedInstalled && handleInstallSingle(task)}
+                            className={cn(
+                              "px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2",
+                              isSelectedInstalled 
+                                ? "bg-slate-800/50 text-emerald-500 border border-emerald-500/20 shadow-inner cursor-not-allowed opacity-80"
+                                : "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 hover:scale-105"
+                            )}
+                          >
+                            {isSelectedInstalled && <CheckCircle2 size={14} />}
+                            {isSelectedInstalled ? 'Ready' : 'Download'}
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                 );

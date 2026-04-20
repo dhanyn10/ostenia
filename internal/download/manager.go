@@ -9,20 +9,121 @@ import (
 	"os"
 	"ostenia/internal/config"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
+func getSystemArch() string {
+	if runtime.GOARCH == "amd64" {
+		return "x64"
+	}
+	return "x86"
+}
+
+func detectAllPHPVersions() ([]string, string) {
+	arch := getSystemArch()
+	baseURL := "https://downloads.php.net/~windows/releases/"
+
+	resp, err := http.Get(baseURL)
+	if err != nil {
+		return []string{"8.3.6"}, baseURL
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	content := string(body)
+
+	re := regexp.MustCompile(`php-(8\.\d+\.\d+)-Win32-vs16-` + arch + `\.zip`)
+	matches := re.FindAllStringSubmatch(content, -1)
+
+	var versions []string
+	seen := make(map[string]bool)
+	for _, m := range matches {
+		v := m[1]
+		if !seen[v] {
+			versions = append(versions, v)
+			seen[v] = true
+		}
+	}
+
+	if len(versions) == 0 {
+		return []string{"8.3.6"}, baseURL
+	}
+	
+	// Reverse versions to get newest first
+	for i, j := 0, len(versions)-1; i < j; i, j = i+1, j-1 {
+		versions[i], versions[j] = versions[j], versions[i]
+	}
+	
+	return versions, baseURL
+}
+
+func detectAllApacheVersions() ([]string, map[string]string) {
+	arch := getSystemArch()
+	baseURL := "https://www.apachelounge.com/download/"
+	
+	// Default fallbacks
+	defaultVer := "2.4.66-260223"
+	defaultURL := "https://www.apachelounge.com/download/httpd-2.4.66-260223-Win64-VS18.zip"
+	if arch == "x86" {
+		defaultVer = "2.4.66-260131"
+		defaultURL = "https://www.apachelounge.com/download/httpd-2.4.66-260131-win32-vs18.zip"
+	}
+
+	resp, err := http.Get(baseURL)
+	if err != nil {
+		return []string{defaultVer}, map[string]string{defaultVer: defaultURL}
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	content := string(body)
+
+	// Regex to find httpd-2.4.x-y-Win64-VSz.zip or win32
+	var re *regexp.Regexp
+	if arch == "x64" {
+		re = regexp.MustCompile(`httpd-(2\.4\.\d+-\d+)-Win64-VS\d+\.zip`)
+	} else {
+		re = regexp.MustCompile(`httpd-(2\.4\.\d+-\d+)-win32-vs\d+\.zip`)
+	}
+	
+	matches := re.FindAllStringSubmatch(content, -1)
+	
+	versions := []string{}
+	urlMap := make(map[string]string)
+	seen := make(map[string]bool)
+	
+	for _, m := range matches {
+		v := m[1]
+		if !seen[v] {
+			versions = append(versions, v)
+			urlMap[v] = "https://www.apachelounge.com/download/" + m[0]
+			seen[v] = true
+		}
+	}
+
+	if len(versions) == 0 {
+		return []string{defaultVer}, map[string]string{defaultVer: defaultURL}
+	}
+
+	return versions, urlMap
+}
+
 type DownloadTask struct {
-	Name        string `json:"name"`
-	URL         string `json:"url"`
-	Version     string `json:"version"`
-	Target      string `json:"target"`    // relative to bin/
-	CheckFile   string `json:"checkFile"` // file that must exist to verify installation
-	IsInstalled bool   `json:"isInstalled"`
+	Name          string            `json:"name"`
+	URL           string            `json:"url"`
+	Version       string            `json:"version"`
+	Versions      []string          `json:"versions"`      // Optional: available versions
+	VersionURLs   map[string]string `json:"versionUrls"`   // Map version to URL
+	InstalledVers []string          `json:"installedVers"` // Local installed versions
+	Target        string            `json:"target"`        // relative to bin/
+	CheckFile     string            `json:"checkFile"`     // file that must exist to verify installation
+	IsInstalled   bool              `json:"isInstalled"`
 }
 
 type Progress struct {
@@ -55,29 +156,100 @@ func (m *Manager) CancelDownload(name string) {
 	}
 }
 
+func detectAllMySQLVersions() ([]string, map[string]string) {
+	arch := getSystemArch()
+	mysqlFileArch := "winx64"
+	if arch == "x86" {
+		mysqlFileArch = "win32"
+	}
+
+	baseURL := "https://downloads.mysql.com/archives/community/"
+	
+	// Default fallbacks
+	defaultVers := []string{"8.0.37", "8.4.0", "9.1.0"}
+	urlMap := make(map[string]string)
+	for _, v := range defaultVers {
+		urlMap[v] = fmt.Sprintf("https://downloads.mysql.com/archives/get/p/23/file/mysql-%s-%s.zip", v, mysqlFileArch)
+	}
+
+	resp, err := http.Get(baseURL)
+	if err != nil {
+		return defaultVers, urlMap
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	content := string(body)
+
+	// Regex for mysql-8.0.37-winx64.zip
+	re := regexp.MustCompile(`mysql-(\d+\.\d+\.\d+)-` + mysqlFileArch + `\.zip`)
+	matches := re.FindAllStringSubmatch(content, -1)
+
+	var versions []string
+	seen := make(map[string]bool)
+	for _, m := range matches {
+		v := m[1]
+		if !seen[v] {
+			versions = append(versions, v)
+			urlMap[v] = fmt.Sprintf("https://downloads.mysql.com/archives/get/p/23/file/mysql-%s-%s.zip", v, mysqlFileArch)
+			seen[v] = true
+		}
+	}
+
+	if len(versions) == 0 {
+		return defaultVers, urlMap
+	}
+
+	// Reverse to get newest first
+	for i, j := 0, len(versions)-1; i < j; i, j = i+1, j-1 {
+		versions[i], versions[j] = versions[j], versions[i]
+	}
+
+	return versions, urlMap
+}
+
 // GetLatestKnownVersions returns a list of prerequisite downloads
 func GetLatestKnownVersions() []DownloadTask {
+	phpVers, baseURL := detectAllPHPVersions()
+	apacheVers, apacheURLs := detectAllApacheVersions()
+	mysqlVers, mysqlURLs := detectAllMySQLVersions()
+	arch := getSystemArch()
+
+	latestPHP := phpVers[0] // Now newest is first
+	phpURL := baseURL + fmt.Sprintf("php-%s-Win32-vs16-%s.zip", latestPHP, arch)
+
+	latestApache := apacheVers[0]
+	apacheURL := apacheURLs[latestApache]
+
+	latestMySQL := mysqlVers[0]
+	mysqlURL := mysqlURLs[latestMySQL]
+
 	tasks := []DownloadTask{
 		{
-			Name:      "PHP",
-			URL:       "https://windows.php.net/downloads/releases/php-8.3.6-Win32-vs16-x64.zip",
-			Version:   "8.3.6",
-			Target:    "php/php-8.3.6",
+			Name:     "PHP",
+			URL:      phpURL,
+			Version:  latestPHP,
+			Versions: phpVers,
+			Target:   "php/php-" + latestPHP,
 			CheckFile: "php.exe",
 		},
 		{
-			Name:      "Apache",
-			URL:       "https://www.apachelounge.com/download/VS17/binaries/httpd-2.4.59-win64-VS17.zip",
-			Version:   "2.4.59",
-			Target:    "apache/httpd-2.4.59",
-			CheckFile: "bin/httpd.exe",
+			Name:        "Apache",
+			URL:         apacheURL,
+			Version:     latestApache,
+			Versions:    apacheVers,
+			VersionURLs: apacheURLs,
+			Target:      "apache/httpd-" + latestApache,
+			CheckFile:   "bin/httpd.exe",
 		},
 		{
-			Name:      "MySQL",
-			URL:       "https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-8.0.37-winx64.zip",
-			Version:   "8.0.37",
-			Target:    "mysql/mysql-8.0.37",
-			CheckFile: "bin/mysqld.exe",
+			Name:        "MySQL",
+			URL:         mysqlURL,
+			Version:     latestMySQL,
+			Versions:    mysqlVers,
+			VersionURLs: mysqlURLs,
+			Target:      "mysql/mysql-" + latestMySQL,
+			CheckFile:   "bin/mysqld.exe",
 		},
 		{
 			Name:      "HeidiSQL",
@@ -88,17 +260,112 @@ func GetLatestKnownVersions() []DownloadTask {
 		},
 	}
 
+
 	for i := range tasks {
 		baseDir := config.GetBaseDir()
-		// Verification: target folder exists AND check file exists
+		tasks[i].InstalledVers = []string{}
+		
+		targetParts := strings.Split(tasks[i].Target, "/")
+		if len(targetParts) == 2 {
+			compDir := filepath.Join(baseDir, "bin", targetParts[0])
+			entries, err := os.ReadDir(compDir)
+			if err == nil {
+				for _, entry := range entries {
+					if entry.IsDir() && entry.Name() != "current" {
+						// Extract version from folder name
+						// If name is "httpd-2.4.66", ver is "2.4.66"
+						// If name is "php-8.2.0", ver is "8.2.0"
+						ver := entry.Name()
+						dashIdx := strings.Index(ver, "-")
+						if dashIdx != -1 {
+							ver = ver[dashIdx+1:]
+						}
+
+						// Verify check file (handle potential wrapping like Apache24/)
+						checkPaths := []string{
+							filepath.Join(compDir, entry.Name(), tasks[i].CheckFile),
+						}
+						
+						// Add common wrapped paths
+						if tasks[i].Name == "Apache" {
+							checkPaths = append(checkPaths, filepath.Join(compDir, entry.Name(), "Apache24", tasks[i].CheckFile))
+						} else if tasks[i].Name == "MySQL" {
+							// MySQL often wraps in a folder named after the zip
+							// but since we don't know the exact name easily here, 
+							// we'll rely on the unwrap logic during extraction.
+							// However, let's try to detect if bin/mysqld.exe is one level deeper
+							subEntries, _ := os.ReadDir(filepath.Join(compDir, entry.Name()))
+							for _, sub := range subEntries {
+								if sub.IsDir() {
+									checkPaths = append(checkPaths, filepath.Join(compDir, entry.Name(), sub.Name(), tasks[i].CheckFile))
+								}
+							}
+						}
+
+						found := false
+						for _, cp := range checkPaths {
+							if _, err := os.Stat(cp); err == nil {
+								found = true
+								break
+							}
+						}
+
+						if found {
+							tasks[i].InstalledVers = append(tasks[i].InstalledVers, ver)
+						}
+					}
+				}
+			}
+		} else {
+			// HeidiSQL case
+			checkPath := filepath.Join(baseDir, "bin", tasks[i].Target, tasks[i].CheckFile)
+			if _, err := os.Stat(checkPath); err == nil {
+				tasks[i].InstalledVers = append(tasks[i].InstalledVers, tasks[i].Version)
+			}
+		}
+
+		// Verification for the currently targeted version folder
+		// We should also check for wrapped folders here
 		checkPath := filepath.Join(baseDir, "bin", tasks[i].Target, tasks[i].CheckFile)
 		if _, err := os.Stat(checkPath); err == nil {
 			tasks[i].IsInstalled = true
+		} else if tasks[i].Name == "Apache" {
+			if _, err := os.Stat(filepath.Join(baseDir, "bin", tasks[i].Target, "Apache24", tasks[i].CheckFile)); err == nil {
+				tasks[i].IsInstalled = true
+			}
 		}
 	}
 
 	return tasks
 }
+
+func (m *Manager) DeleteVersion(taskName, version string) error {
+	baseDir := config.GetBaseDir()
+	prefix := ""
+	switch strings.ToLower(taskName) {
+	case "php":
+		prefix = "php/php"
+	case "apache":
+		prefix = "apache/httpd"
+	case "mysql":
+		prefix = "mysql/mysql"
+	case "heidisql":
+		prefix = "heidisql"
+	default:
+		return fmt.Errorf("unknown task name")
+	}
+
+	// Try both prefix-version and just version if prefix is empty or if we can't find it
+	targetDir := filepath.Join(baseDir, "bin", prefix+"-"+version)
+	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+		// Try without prefix part of the folder name if it was detected differently
+		category := strings.Split(prefix, "/")[0]
+		targetDir = filepath.Join(baseDir, "bin", category, version)
+	}
+
+	return os.RemoveAll(targetDir)
+}
+
 
 func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 	fmt.Printf("[Downloader] Starting task: %s\n", task.Name)
@@ -118,12 +385,20 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 		cancel()
 	}()
 
-	// Robust installed check
-	checkPath := filepath.Join(targetDir, task.CheckFile)
-	if _, err := os.Stat(checkPath); err == nil {
-		fmt.Printf("[Downloader] %s verified at %s\n", task.Name, checkPath)
+	// Robust installed check (including wrapped)
+	isAlreadyInstalled := false
+	if _, err := os.Stat(filepath.Join(targetDir, task.CheckFile)); err == nil {
+		isAlreadyInstalled = true
+	} else if task.Name == "Apache" {
+		if _, err := os.Stat(filepath.Join(targetDir, "Apache24", task.CheckFile)); err == nil {
+			isAlreadyInstalled = true
+		}
+	}
+
+	if isAlreadyInstalled {
+		fmt.Printf("[Downloader] %s verified at %s\n", task.Name, targetDir)
 		m.ensureCurrentLink(task)
-		runtime.EventsEmit(m.ctx, "download_progress", Progress{
+		wruntime.EventsEmit(m.ctx, "download_progress", Progress{
 			Name:       task.Name,
 			Percentage: 100,
 			Status:     "Ready",
@@ -153,9 +428,9 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 	err = m.downloadFileWithContext(taskCtx, task.URL, tmpFile, task.Name)
 	if err != nil {
 		if taskCtx.Err() != nil {
-			runtime.EventsEmit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: "Cancelled"})
+			wruntime.EventsEmit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: "Cancelled"})
 		} else {
-			runtime.EventsEmit(m.ctx, "download_error", map[string]string{"name": task.Name, "error": "Download failed: " + err.Error()})
+			wruntime.EventsEmit(m.ctx, "download_error", map[string]string{"name": task.Name, "error": "Download failed: " + err.Error()})
 		}
 		return err
 	}
@@ -175,11 +450,23 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 	if err != nil {
 		os.RemoveAll(extractTmp)
 		if taskCtx.Err() != nil {
-			runtime.EventsEmit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: "Cancelled"})
+			wruntime.EventsEmit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: "Cancelled"})
 		} else {
-			runtime.EventsEmit(m.ctx, "download_error", map[string]string{"name": task.Name, "error": "Extraction failed: " + err.Error()})
+			wruntime.EventsEmit(m.ctx, "download_error", map[string]string{"name": task.Name, "error": "Extraction failed: " + err.Error()})
 		}
 		return err
+	}
+
+	// AUTO-UNWRAP: If there is only one directory in extractTmp, move its contents up
+	entries, _ := os.ReadDir(extractTmp)
+	if len(entries) == 1 && entries[0].IsDir() {
+		subDir := filepath.Join(extractTmp, entries[0].Name())
+		fmt.Printf("[Downloader] Unwrapping %s\n", subDir)
+		subEntries, _ := os.ReadDir(subDir)
+		for _, se := range subEntries {
+			os.Rename(filepath.Join(subDir, se.Name()), filepath.Join(extractTmp, se.Name()))
+		}
+		os.Remove(subDir)
 	}
 
 	// Rename to final targetDir
@@ -187,13 +474,13 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 	err = os.Rename(extractTmp, targetDir)
 	if err != nil {
 		fmt.Printf("[Downloader] Rename error: %v, trying manual move if cross-device\n", err)
-		// Fallback for cross-device if necessary, but here it should be same disk
 		return err
 	}
 
 	fmt.Printf("[Downloader] Task %s completed successfully\n", task.Name)
 	return m.ensureCurrentLink(task)
 }
+
 
 func (m *Manager) ensureCurrentLink(task DownloadTask) error {
 	baseDir := config.GetBaseDir()
@@ -266,7 +553,7 @@ func (m *Manager) downloadFileWithContext(ctx context.Context, url string, filep
 			} else {
 				status = "Downloading (Streaming)..."
 			}
-			runtime.EventsEmit(m.ctx, "download_progress", Progress{
+			wruntime.EventsEmit(m.ctx, "download_progress", Progress{
 				Name:       name,
 				Percentage: percentage,
 				Status:     status,
@@ -317,14 +604,14 @@ func (m *Manager) unzip(ctx context.Context, src string, dest string, name strin
 			return err
 		}
 		percentage := (float64(i+1) / float64(totalFiles)) * 100
-		runtime.EventsEmit(m.ctx, "download_progress", Progress{
+		wruntime.EventsEmit(m.ctx, "download_progress", Progress{
 			Name:       name,
 			Percentage: percentage,
 			Status:     fmt.Sprintf("Extracting %d/%d...", i+1, totalFiles),
 		})
 	}
 
-	runtime.EventsEmit(m.ctx, "download_progress", Progress{
+	wruntime.EventsEmit(m.ctx, "download_progress", Progress{
 		Name:       name,
 		Percentage: 100,
 		Status:     "Completed",
