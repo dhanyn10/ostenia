@@ -1,0 +1,45 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+ostenia
+ostenia.exe
+
+# Wails
+build/bin/*
+!build/bin/*.md
+frontend/dist
+frontend/package-lock.json
+
+# Node
+node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local Development Downloads (Ostenia specific)
+bin/
+www/
+config.json
+
+# Go
+go.work
+.env
