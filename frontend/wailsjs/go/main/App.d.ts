@@ -6,6 +6,8 @@ export function GetPrerequisites():Promise<Array<download.DownloadTask>>;
 
 export function InstallPrerequisite(arg1:download.DownloadTask):Promise<void>;
 
+export function OpenTerminal():Promise<void>;
+
 export function StartAllServices():Promise<void>;
 
 export function StopAllServices():Promise<void>;

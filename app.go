@@ -103,3 +103,29 @@ func (a *App) updateVHosts() {
 func (a *App) StopAllServices() {
 	a.orchestrator.StopAll()
 }
+
+func (a *App) OpenTerminal() {
+	baseDir := config.GetBaseDir()
+	phpPath := filepath.Join(baseDir, "bin", "php", "current")
+	mysqlPath := filepath.Join(baseDir, "bin", "mysql", "current", "bin")
+	nodePath := filepath.Join(baseDir, "bin", "nodejs", "current")
+
+	// Prepare environment
+	env := os.Environ()
+	pathFound := false
+	for i, e := range env {
+		if len(e) >= 5 && e[:5] == "PATH=" {
+			env[i] = "PATH=" + phpPath + ";" + mysqlPath + ";" + nodePath + ";" + e[5:]
+			pathFound = true
+			break
+		}
+	}
+	if !pathFound {
+		env = append(env, "PATH="+phpPath+";"+mysqlPath+";"+nodePath)
+	}
+
+	// Laragon style terminal (CMD)
+	// We'll try to start it in the WWWRoot
+	cmd := service.NewTerminal(a.cfg.WWWRoot, env)
+	cmd.Start()
+}

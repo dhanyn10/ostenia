@@ -3,10 +3,9 @@
 > vite
 
 
-  VITE v3.2.11  ready in 491 ms
+  VITE v3.2.11  ready in 482 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
-3:29:52 PM [vite] hmr update /src/App.jsx
-3:30:35 PM [vite] hmr update /src/App.jsx
-3:32:11 PM [vite] page reload src/main.jsx
+5:30:37 PM [vite] ✨ new dependencies optimized: clsx, tailwind-merge
+5:30:37 PM [vite] ✨ optimized dependencies changed. reloading

@@ -10,6 +10,10 @@ export function InstallPrerequisite(arg1) {
   return window['go']['main']['App']['InstallPrerequisite'](arg1);
 }
 
+export function OpenTerminal() {
+  return window['go']['main']['App']['OpenTerminal']();
+}
+
 export function StartAllServices() {
   return window['go']['main']['App']['StartAllServices']();
 }
