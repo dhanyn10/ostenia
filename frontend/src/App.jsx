@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Play, Square, Download, Settings, Terminal as TerminalIcon, Database, Globe, FolderOpen, MoreVertical, ExternalLink, CheckCircle2, AlertCircle, XCircle, X, Loader2, List, Trash2, ChevronRight, Search, Home } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Play, Square, Download, Settings, Terminal as TerminalIcon, Database, Globe, FolderOpen, MoreVertical, ExternalLink, CheckCircle2, AlertCircle, XCircle, X, Loader2, List, Trash2, ChevronRight, Search, Home, Plus } from 'lucide-react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
 import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService } from '../wailsjs/go/main/App';
 import { clsx } from 'clsx';
@@ -8,6 +8,14 @@ import { twMerge } from 'tailwind-merge';
 function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
+
+const ICON_MAP = {
+  'Apache': Globe,
+  'MySQL': Database,
+  'PHP': Settings,
+  'HeidiSQL': ExternalLink,
+  'default': Database
+};
 
 function CircularProgress({ percentage, status, speed, downloaded, onCancel }) {
   const radius = 16;
@@ -153,8 +161,8 @@ function LogViewer({ logs, isOpen, onClose }) {
 function App() {
   const [activeTab, setActiveTab] = useState('activity'); // 'activity' or 'plugins'
   const [services, setServices] = useState([
-    { name: 'Apache', status: 'Stopped', icon: Globe },
-    { name: 'MySQL', status: 'Stopped', icon: Database },
+    { name: 'Apache', status: 'Stopped' },
+    { name: 'MySQL', status: 'Stopped' },
   ]);
   const [prerequisites, setPrerequisites] = useState([]);
   const [downloadProgress, setDownloadProgress] = useState({});
@@ -164,6 +172,7 @@ function App() {
   const [openDropdown, setOpenDropdown] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedVersions, setSelectedVersions] = useState({});
+  const [isAddingPlugin, setIsAddingPlugin] = useState(false);
 
   const addLog = (msg) => {
     setLogs(prev => [{ time: new Date().toLocaleTimeString(), msg }, ...prev].slice(0, 500));
@@ -256,6 +265,19 @@ function App() {
     }
   };
 
+  const handleRemoveFromHome = (name) => {
+    setServices(prev => prev.filter(s => s.name !== name));
+    addLog(`Removed ${name} from home screen.`);
+  };
+
+  const handleAddToHome = (task) => {
+    if (!services.find(s => s.name === task.name)) {
+      setServices(prev => [...prev, { name: task.name, status: 'Stopped' }]);
+      addLog(`Added ${task.name} to home screen.`);
+    }
+    setIsAddingPlugin(false);
+  };
+
   const handleCancel = (name) => {
     addLog(`Requesting cancellation for ${name}...`);
     if (window.go) {
@@ -328,11 +350,11 @@ function App() {
       <Toast toasts={toasts} removeToast={removeToast} />
       <LogViewer logs={logs} isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} />
 
-      {/* Vertical Navigation (VS Code Activity Bar style) */}
+      {/* Vertical Navigation */}
       <aside className="w-20 flex flex-col items-center py-8 gap-8 bg-[#1e293b] border-r border-white/5 z-20 shrink-0">
         <button 
           onClick={() => setActiveTab('activity')}
-          title="Activity" 
+          title="Home" 
           className={cn(
             "p-4 rounded-2xl transition-all relative group",
             activeTab === 'activity' ? "bg-blue-600 text-white shadow-xl shadow-blue-900/30 ring-4 ring-blue-600/10" : "text-slate-400 hover:bg-white/5 hover:text-white"
@@ -363,7 +385,6 @@ function App() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
-        {/* Backdrop gradients */}
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-full animate-pulse pointer-events-none" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[120px] rounded-full animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
 
@@ -373,7 +394,7 @@ function App() {
             <h2 className="text-2xl font-black text-white tracking-tight uppercase italic">{activeTab === 'activity' ? 'Activity Center' : 'Plugin Management'}</h2>
             <div className="flex items-center gap-2">
                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{activeTab === 'activity' ? 'Service Monitor' : 'Installed Extensions'}</p>
+               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{activeTab === 'activity' ? 'Dashboard' : 'Available Plugins'}</p>
             </div>
           </div>
 
@@ -396,9 +417,49 @@ function App() {
           <div className="max-w-5xl mx-auto space-y-4">
             {activeTab === 'activity' ? (
               <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* Add Plugin Button Card (At the top) */}
+                <div className="relative">
+                   <button 
+                     onClick={() => setIsAddingPlugin(!isAddingPlugin)}
+                     className="w-full bg-white/[0.02] border-2 border-dashed border-white/5 hover:border-blue-500/20 hover:bg-blue-500/5 rounded-[2rem] p-6 transition-all flex items-center justify-center gap-4 group"
+                   >
+                     <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-500 group-hover:bg-blue-500 group-hover:text-white transition-all shrink-0">
+                        <Plus size={20} />
+                     </div>
+                     <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 group-hover:text-blue-400">Add Plugin to Home</span>
+                   </button>
+
+                   {isAddingPlugin && (
+                     <div className="absolute top-full left-0 right-0 mt-4 p-4 bg-slate-900 border border-white/10 rounded-3xl shadow-3xl z-50 animate-in fade-in slide-in-from-top-2">
+                        <div className="flex items-center justify-between mb-4 px-2">
+                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available to Pin</span>
+                           <button onClick={() => setIsAddingPlugin(false)}><X size={14} /></button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                           {prerequisites.filter(p => !services.find(s => s.name === p.name)).map(task => (
+                             <button 
+                               key={task.name}
+                               onClick={() => handleAddToHome(task)}
+                               className="flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl text-left transition-all"
+                             >
+                               <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
+                                  {(() => { const Icon = ICON_MAP[task.name] || ICON_MAP.default; return <Icon size={16} /> })()}
+                               </div>
+                               <span className="text-sm font-bold text-white">{task.name}</span>
+                             </button>
+                           ))}
+                           {prerequisites.filter(p => !services.find(s => s.name === p.name)).length === 0 && (
+                             <p className="col-span-2 text-center py-4 text-[10px] text-slate-600 uppercase tracking-widest">All plugins are on home</p>
+                           )}
+                        </div>
+                     </div>
+                   )}
+                </div>
+
                 {services.map((service) => {
                   const task = prerequisites.find(p => p.name === service.name);
                   const isInstalled = task?.installedVers && task.installedVers.length > 0;
+                  const Icon = ICON_MAP[service.name] || ICON_MAP.default;
 
                   return (
                     <div key={service.name} className="bg-slate-900/40 backdrop-blur-xl rounded-[2rem] p-6 border border-white/5 hover:border-white/10 transition-all group flex items-center gap-8 relative shadow-xl">
@@ -406,7 +467,7 @@ function App() {
                         "w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-2xl transition-transform group-hover:scale-105",
                         service.status === 'Running' ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-800 text-slate-400"
                       )}>
-                        <service.icon size={28} />
+                        <Icon size={28} />
                       </div>
 
                       <div className="flex-1 min-w-0">
@@ -423,11 +484,11 @@ function App() {
                           </div>
                         </div>
                         <p className="text-[11px] font-medium text-slate-500 mt-1.5 uppercase tracking-wider">
-                          {isInstalled ? `Version ${task?.version || 'Unknown'} - Stable` : 'Component missing'}
+                          {isInstalled ? `Version ${task?.version || 'Ready'} - Active` : 'Component missing'}
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-8">
+                      <div className="flex items-center gap-4">
                         {!isInstalled ? (
                           <button onClick={() => setActiveTab('plugins')} className="px-6 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
                         ) : (
@@ -446,6 +507,13 @@ function App() {
                             )} />
                           </button>
                         )}
+
+                        <button 
+                          onClick={() => handleRemoveFromHome(service.name)}
+                          className="h-7 px-4 bg-white/5 hover:bg-rose-500/10 text-slate-500 hover:text-rose-400 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border border-white/5 hover:border-rose-500/20"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </div>
                   );
@@ -457,6 +525,7 @@ function App() {
                   const progress = downloadProgress[task.name];
                   const isActive = progress && progress.percentage > 0 && progress.percentage < 100;
                   const isDropdownOpen = openDropdown === task.name;
+                  const Icon = ICON_MAP[task.name] || ICON_MAP.default;
                   
                   return (
                     <div 
@@ -470,10 +539,7 @@ function App() {
                         "w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-2xl transition-transform group-hover:scale-105",
                         task.isInstalled ? "bg-emerald-500/10 text-emerald-400" : "bg-blue-500/10 text-blue-400"
                       )}>
-                        {task.name === 'Apache' && <Globe size={28} />}
-                        {task.name === 'MySQL' && <Database size={28} />}
-                        {task.name === 'PHP' && <Settings size={28} />}
-                        {task.name === 'HeidiSQL' && <ExternalLink size={28} />}
+                        <Icon size={28} />
                       </div>
 
                       <div className="flex-1 min-w-0">
@@ -553,21 +619,20 @@ function App() {
           </div>
         </main>
 
-        {/* Mini Footer / Status Bar */}
+        {/* Status Bar */}
         <footer className="h-8 bg-[#1e293b] border-t border-white/5 flex items-center justify-between px-6 shrink-0 z-10">
            <div className="flex items-center gap-6">
               <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                 <Globe size={12} />
-                 Ostenia Runtime 2026
+                 <Home size={12} />
+                 Ostenia Dashboard
               </div>
               <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
                  <CheckCircle2 size={12} />
-                 Environment Stable
+                 Ready
               </div>
            </div>
            <div className="flex items-center gap-4 text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em]">
-              <span>UTF-8</span>
-              <span>Go / React Stack</span>
+              <span>Go / React Runtime</span>
            </div>
         </footer>
       </div>
