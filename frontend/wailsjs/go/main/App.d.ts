@@ -14,4 +14,8 @@ export function OpenTerminal():Promise<void>;
 
 export function StartAllServices():Promise<void>;
 
+export function StartService(name:string):Promise<void>;
+
 export function StopAllServices():Promise<void>;
+
+export function StopService(name:string):Promise<void>;

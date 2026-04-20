@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"ostenia/internal/config"
 	"ostenia/internal/download"
@@ -55,25 +56,32 @@ func (a *App) CancelDownload(name string) {
 	a.downloader.CancelDownload(name)
 }
 
-func (a *App) StartAllServices() error {
+func (a *App) StartService(name string) error {
 	baseDir := config.GetBaseDir()
+	switch name {
+	case "MySQL":
+		mysqlBin := filepath.Join(baseDir, "bin", "mysql", "current", "bin", "mysqld.exe")
+		return a.orchestrator.StartService("MySQL", mysqlBin, []string{"--defaults-file=" + filepath.Join(baseDir, "bin", "mysql", "current", "my.ini")})
+	case "Apache":
+		apacheBin := filepath.Join(baseDir, "bin", "apache", "current", "bin", "httpd.exe")
+		// Set dynamic PATH
+		phpPath := filepath.Join(baseDir, "bin", "php", "current")
+		nodePath := filepath.Join(baseDir, "bin", "nodejs", "current")
+		os.Setenv("PATH", os.Getenv("PATH")+";"+phpPath+";"+nodePath)
+		a.updateVHosts()
+		return a.orchestrator.StartService("Apache", apacheBin, []string{})
+	default:
+		return fmt.Errorf("unknown service: %s", name)
+	}
+}
 
-	// 1. Start MySQL
-	mysqlBin := filepath.Join(baseDir, "bin", "mysql", "current", "bin", "mysqld.exe")
-	a.orchestrator.StartService("MySQL", mysqlBin, []string{"--defaults-file=" + filepath.Join(baseDir, "bin", "mysql", "current", "my.ini")})
+func (a *App) StopService(name string) {
+	a.orchestrator.StopService(name)
+}
 
-	// 2. Start Apache
-	apacheBin := filepath.Join(baseDir, "bin", "apache", "current", "bin", "httpd.exe")
-
-	// Set dynamic PATH so Apache/PHP can find each other and Node.js
-	phpPath := filepath.Join(baseDir, "bin", "php", "current")
-	nodePath := filepath.Join(baseDir, "bin", "nodejs", "current")
-	os.Setenv("PATH", os.Getenv("PATH")+";"+phpPath+";"+nodePath)
-
-	// Update Apache Config with VHosts
-	a.updateVHosts()
-
-	return a.orchestrator.StartService("Apache", apacheBin, []string{})
+func (a *App) StartAllServices() error {
+	a.StartService("MySQL")
+	return a.StartService("Apache")
 }
 
 func (a *App) updateVHosts() {

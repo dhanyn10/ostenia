@@ -32,7 +32,17 @@ export function StartAllServices() {
   return window.go.main.App.StartAllServices();
 }
 
+export function StartService(name) {
+  // @ts-ignore
+  return window.go.main.App.StartService(name);
+}
+
 export function StopAllServices() {
   // @ts-ignore
   return window.go.main.App.StopAllServices();
+}
+
+export function StopService(name) {
+  // @ts-ignore
+  return window.go.main.App.StopService(name);
 }
