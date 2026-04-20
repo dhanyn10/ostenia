@@ -51,6 +51,10 @@ func (a *App) InstallPrerequisite(task download.DownloadTask) error {
 	return a.downloader.DownloadAndExtract(task)
 }
 
+func (a *App) CancelDownload(name string) {
+	a.downloader.CancelDownload(name)
+}
+
 func (a *App) StartAllServices() error {
 	baseDir := config.GetBaseDir()
 

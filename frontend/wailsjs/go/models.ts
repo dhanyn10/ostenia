@@ -5,6 +5,8 @@ export namespace download {
 	    url: string;
 	    version: string;
 	    target: string;
+	    checkFile: string;
+	    isInstalled: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new DownloadTask(source);
@@ -16,6 +18,8 @@ export namespace download {
 	        this.url = source["url"];
 	        this.version = source["version"];
 	        this.target = source["target"];
+	        this.checkFile = source["checkFile"];
+	        this.isInstalled = source["isInstalled"];
 	    }
 	}
 
