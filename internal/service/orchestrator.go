@@ -32,7 +32,7 @@ func NewOrchestrator(ctx context.Context) *Orchestrator {
 	}
 }
 
-func (o *Orchestrator) StartService(name string, binaryPath string, args []string) error {
+func (o *Orchestrator) StartService(name string, binaryPath string, args []string, workingDir string) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
@@ -60,6 +60,9 @@ func (o *Orchestrator) StartService(name string, binaryPath string, args []strin
 	}
 
 	cmd := exec.Command(absPath, args...)
+	if workingDir != "" {
+		cmd.Dir = workingDir
+	}
 
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()

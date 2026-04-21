@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"ostenia/internal/config"
 	"path/filepath"
 	"regexp"
@@ -67,12 +68,15 @@ func detectAllApacheVersions() ([]string, map[string]string) {
 	arch := getSystemArch()
 	baseURL := "https://www.apachelounge.com/download/"
 	
-	// Default fallbacks
+	// Updated base for binaries
+	binaryBaseURL := "https://www.apachelounge.com/download/VS18/binaries/"
+	
+	// Default fallbacks with correct new paths
 	defaultVer := "2.4.66-260223"
-	defaultURL := "https://www.apachelounge.com/download/httpd-2.4.66-260223-Win64-VS18.zip"
+	defaultURL := binaryBaseURL + "httpd-2.4.66-260223-Win64-VS18.zip"
 	if arch == "x86" {
 		defaultVer = "2.4.66-260131"
-		defaultURL = "https://www.apachelounge.com/download/httpd-2.4.66-260131-win32-vs18.zip"
+		defaultURL = "https://www.apachelounge.com/download/vs18/binaries/httpd-2.4.66-260131-win32-vs18.zip"
 	}
 
 	resp, err := http.Get(baseURL)
@@ -102,7 +106,12 @@ func detectAllApacheVersions() ([]string, map[string]string) {
 		v := m[1]
 		if !seen[v] {
 			versions = append(versions, v)
-			urlMap[v] = "https://www.apachelounge.com/download/" + m[0]
+			// Constructing the correct URL based on the pattern
+			if arch == "x64" {
+				urlMap[v] = binaryBaseURL + m[0]
+			} else {
+				urlMap[v] = "https://www.apachelounge.com/download/vs18/binaries/" + m[0]
+			}
 			seen[v] = true
 		}
 	}
@@ -508,13 +517,17 @@ func (m *Manager) ensureCurrentLink(task DownloadTask) error {
 	}
 
 	// Create symlink/junction
-	// On Windows, Symlink needs privilege, but Junction doesn't necessarily or we can create it via cmd.
-	// For simplicity and portability, let's just use os.Symlink but log failure.
-	err := os.Symlink(targetAbs, currentLink)
-	if err != nil {
-		// Fallback: If symlink fails (e.g. no privileges), we could try a Directory Junction (Windows)
-		// But for now, we'll just log it.
-		fmt.Printf("Warning: Could not create symlink for %s: %v\n", task.Name, err)
+	if runtime.GOOS == "windows" {
+		cmd := exec.Command("cmd", "/c", "mklink", "/J", currentLink, targetAbs)
+		err := cmd.Run()
+		if err != nil {
+			fmt.Printf("Warning: Could not create junction for %s: %v\n", task.Name, err)
+		}
+	} else {
+		err := os.Symlink(targetAbs, currentLink)
+		if err != nil {
+			fmt.Printf("Warning: Could not create symlink for %s: %v\n", task.Name, err)
+		}
 	}
 
 	return nil

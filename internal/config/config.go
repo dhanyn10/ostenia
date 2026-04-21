@@ -13,6 +13,9 @@ type Config struct {
 }
 
 func GetBaseDir() string {
+	if envDir := os.Getenv("OSTENIA_HOME"); envDir != "" {
+		return envDir
+	}
 	exePath, _ := os.Executable()
 	return filepath.Dir(exePath)
 }

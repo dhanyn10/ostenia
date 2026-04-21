@@ -413,116 +413,122 @@ function App() {
         </header>
 
         {/* Dynamic Tab Content */}
-        <main className="flex-1 overflow-y-auto p-10 scrollbar-thin scrollbar-thumb-white/5">
-          <div className="max-w-5xl mx-auto space-y-4">
+        <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="max-w-5xl w-full mx-auto flex flex-col h-full px-10 pb-10">
             {activeTab === 'activity' ? (
-              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                {/* Add Plugin Button Card (At the top) */}
-                <div className="relative">
-                   <button 
-                     onClick={() => setIsAddingPlugin(!isAddingPlugin)}
-                     className="w-full bg-white/[0.02] border-2 border-dashed border-white/5 hover:border-blue-500/20 hover:bg-blue-500/5 rounded-[2rem] p-6 transition-all flex items-center justify-center gap-4 group"
-                   >
-                     <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-500 group-hover:bg-blue-500 group-hover:text-white transition-all shrink-0">
-                        <Plus size={20} />
-                     </div>
-                     <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 group-hover:text-blue-400">Add Plugin to Home</span>
-                   </button>
+              <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* Fixed Add Plugin Section at the top */}
+                <div className="shrink-0 pt-6 pb-4">
+                  <div className="relative">
+                    <button 
+                      onClick={() => setIsAddingPlugin(!isAddingPlugin)}
+                      className="w-full bg-white/[0.02] border-2 border-dashed border-white/5 hover:border-blue-500/20 hover:bg-blue-500/5 rounded-[2rem] p-6 transition-all flex items-center justify-center gap-4 group"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-500 group-hover:bg-blue-500 group-hover:text-white transition-all shrink-0">
+                          <Plus size={20} />
+                      </div>
+                      <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 group-hover:text-blue-400">Add Plugin to Home</span>
+                    </button>
 
-                   {isAddingPlugin && (
-                     <div className="absolute top-full left-0 right-0 mt-4 p-4 bg-slate-900 border border-white/10 rounded-3xl shadow-3xl z-50 animate-in fade-in slide-in-from-top-2">
-                        <div className="flex items-center justify-between mb-4 px-2">
-                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available to Pin</span>
-                           <button onClick={() => setIsAddingPlugin(false)}><X size={14} /></button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                           {prerequisites.filter(p => !services.find(s => s.name === p.name)).map(task => (
-                             <button 
-                               key={task.name}
-                               onClick={() => handleAddToHome(task)}
-                               className="flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl text-left transition-all"
-                             >
-                               <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
-                                  {(() => { const Icon = ICON_MAP[task.name] || ICON_MAP.default; return <Icon size={16} /> })()}
-                               </div>
-                               <span className="text-sm font-bold text-white">{task.name}</span>
-                             </button>
-                           ))}
-                           {prerequisites.filter(p => !services.find(s => s.name === p.name)).length === 0 && (
-                             <p className="col-span-2 text-center py-4 text-[10px] text-slate-600 uppercase tracking-widest">All plugins are on home</p>
-                           )}
-                        </div>
-                     </div>
-                   )}
+                    {isAddingPlugin && (
+                      <div className="absolute top-full left-0 right-0 mt-4 p-4 bg-slate-900 border border-white/10 rounded-3xl shadow-3xl z-50 animate-in fade-in slide-in-from-top-2">
+                          <div className="flex items-center justify-between mb-4 px-2">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available to Pin</span>
+                            <button onClick={() => setIsAddingPlugin(false)}><X size={14} /></button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            {prerequisites.filter(p => !services.find(s => s.name === p.name)).map(task => (
+                              <button 
+                                key={task.name}
+                                onClick={() => handleAddToHome(task)}
+                                className="flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl text-left transition-all"
+                              >
+                                <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
+                                    {(() => { const Icon = ICON_MAP[task.name] || ICON_MAP.default; return <Icon size={16} /> })()}
+                                </div>
+                                <span className="text-sm font-bold text-white">{task.name}</span>
+                              </button>
+                            ))}
+                            {prerequisites.filter(p => !services.find(s => s.name === p.name)).length === 0 && (
+                              <p className="col-span-2 text-center py-4 text-[10px] text-slate-600 uppercase tracking-widest">All plugins are on home</p>
+                            )}
+                          </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {services.map((service) => {
-                  const task = prerequisites.find(p => p.name === service.name);
-                  const isInstalled = task?.installedVers && task.installedVers.length > 0;
-                  const Icon = ICON_MAP[service.name] || ICON_MAP.default;
+                {/* Scrollable Services List */}
+                <div className="flex-1 overflow-y-auto pr-4 -mr-4 scrollbar-thin scrollbar-thumb-white/5 space-y-4">
+                  {services.map((service) => {
+                    const task = prerequisites.find(p => p.name === service.name);
+                    const isInstalled = task?.installedVers && task.installedVers.length > 0;
+                    const Icon = ICON_MAP[service.name] || ICON_MAP.default;
 
-                  return (
-                    <div key={service.name} className="bg-slate-900/40 backdrop-blur-xl rounded-[2rem] p-6 border border-white/5 hover:border-white/10 transition-all group flex items-center gap-8 relative shadow-xl">
-                      <div className={cn(
-                        "w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-2xl transition-transform group-hover:scale-105",
-                        service.status === 'Running' ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-800 text-slate-400"
-                      )}>
-                        <Icon size={28} />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-4 flex-wrap">
-                          <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">{service.name}</h3>
-                          <div className={cn(
-                            "text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-lg border flex items-center gap-2",
-                            service.status === 'Running'
-                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                              : "bg-slate-900/80 text-slate-500 border-white/5"
-                          )}>
-                            {service.status === 'Running' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />}
-                            {service.status}
-                          </div>
+                    return (
+                      <div key={service.name} className="bg-slate-900/40 backdrop-blur-xl rounded-[2rem] p-6 border border-white/5 hover:border-white/10 transition-all group flex items-center gap-8 relative shadow-xl">
+                        <div className={cn(
+                          "w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-2xl transition-transform group-hover:scale-105",
+                          service.status === 'Running' ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-800 text-slate-400"
+                        )}>
+                          <Icon size={28} />
                         </div>
-                        <p className="text-[11px] font-medium text-slate-500 mt-1.5 uppercase tracking-wider">
-                          {isInstalled ? `Version ${task?.version || 'Ready'} - Active` : 'Component missing'}
-                        </p>
-                      </div>
 
-                      <div className="flex items-center gap-4">
-                        {!isInstalled ? (
-                          <button onClick={() => setActiveTab('plugins')} className="px-6 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
-                        ) : (
-                          <button
-                            onClick={() => handleToggleService(service.name, service.status)}
-                            className={cn(
-                              "w-14 h-7 rounded-full p-1 transition-all duration-300 ease-in-out relative ring-1 ring-inset shadow-2xl",
-                              service.status === 'Running' 
-                                ? "bg-gradient-to-r from-emerald-500 to-teal-500 ring-emerald-400/50" 
-                                : "bg-slate-800 ring-white/5"
-                            )}
-                          >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-4 flex-wrap">
+                            <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">{service.name}</h3>
                             <div className={cn(
-                              "w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-xl",
-                              service.status === 'Running' ? "translate-x-7" : "translate-x-0"
-                            )} />
-                          </button>
-                        )}
+                              "text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-lg border flex items-center gap-2",
+                              service.status === 'Running'
+                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                : "bg-slate-900/80 text-slate-500 border-white/5"
+                            )}>
+                              {service.status === 'Running' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />}
+                              {service.status}
+                            </div>
+                          </div>
+                          <p className="text-[11px] font-medium text-slate-500 mt-1.5 uppercase tracking-wider">
+                            {isInstalled ? `Version ${task?.version || 'Ready'} - Active` : 'Component missing'}
+                          </p>
+                        </div>
 
-                        <button 
-                          onClick={() => handleRemoveFromHome(service.name)}
-                          className="h-7 px-4 bg-white/5 hover:bg-rose-500/10 text-slate-500 hover:text-rose-400 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border border-white/5 hover:border-rose-500/20"
-                        >
-                          Delete
-                        </button>
+                        <div className="flex items-center gap-4">
+                          {!isInstalled ? (
+                            <button onClick={() => setActiveTab('plugins')} className="px-6 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
+                          ) : (
+                            <button
+                              onClick={() => handleToggleService(service.name, service.status)}
+                              className={cn(
+                                "w-14 h-7 rounded-full p-1 transition-all duration-300 ease-in-out relative ring-1 ring-inset shadow-2xl",
+                                service.status === 'Running' 
+                                  ? "bg-gradient-to-r from-emerald-500 to-teal-500 ring-emerald-400/50" 
+                                  : "bg-slate-800 ring-white/5"
+                              )}
+                            >
+                              <div className={cn(
+                                "w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-xl",
+                                service.status === 'Running' ? "translate-x-7" : "translate-x-0"
+                              )} />
+                            </button>
+                          )}
+
+                          <button 
+                            onClick={() => handleRemoveFromHome(service.name)}
+                            className="h-7 px-4 bg-white/5 hover:bg-rose-500/10 text-slate-500 hover:text-rose-400 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border border-white/5 hover:border-rose-500/20"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             ) : (
-              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                {prerequisites.map((task) => {
-                  const progress = downloadProgress[task.name];
+              <div className="flex flex-col h-full pt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex-1 overflow-y-auto pr-4 -mr-4 scrollbar-thin scrollbar-thumb-white/5 space-y-4">
+                  {prerequisites.map((task) => {
+                    const progress = downloadProgress[task.name];
                   const isActive = progress && progress.percentage > 0 && progress.percentage < 100;
                   const isDropdownOpen = openDropdown === task.name;
                   const Icon = ICON_MAP[task.name] || ICON_MAP.default;
@@ -614,6 +620,7 @@ function App() {
                     </div>
                   );
                 })}
+                </div>
               </div>
             )}
           </div>
