@@ -11,6 +11,8 @@ import (
 	"ostenia/internal/ssl"
 	"path/filepath"
 	"strings"
+
+	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
@@ -49,8 +51,8 @@ func (a *App) GetPrerequisites() []download.DownloadTask {
 	return download.GetLatestKnownVersions()
 }
 
-func (a *App) GetServiceStatus(name string) service.ServiceDetailedInfo {
-	return a.orchestrator.GetDetailedInfo(name)
+func (a *App) GetServiceStatus(serviceName string) service.ServiceDetailedInfo {
+	return a.orchestrator.GetDetailedInfo(serviceName)
 }
 
 func (a *App) GetServerRoot() string {
@@ -60,9 +62,9 @@ func (a *App) GetServerRoot() string {
 	return a.cfg.WWWRoot
 }
 
-func (a *App) SetServerRoot(path string) error {
-	fmt.Printf("[App] Setting Server Root to: %s\n", path)
-	a.cfg.WWWRoot = path
+func (a *App) SetServerRoot(rootPath string) error {
+	fmt.Printf("[App] Setting Server Root to: %s\n", rootPath)
+	a.cfg.WWWRoot = rootPath
 	err := config.SaveConfig(a.cfg)
 	if err != nil {
 		return err
@@ -93,6 +95,22 @@ func (a *App) SetServerRoot(path string) error {
 	return nil
 }
 
+func (a *App) SelectServerRoot() (string, error) {
+	selectedDir, err := wruntime.OpenDirectoryDialog(a.ctx, wruntime.OpenDialogOptions{
+		Title: "Select Server Root Directory",
+	})
+	if err != nil {
+		return "", err
+	}
+	if selectedDir != "" {
+		err = a.SetServerRoot(selectedDir)
+		if err != nil {
+			return "", err
+		}
+	}
+	return selectedDir, nil
+}
+
 func (a *App) InstallPrerequisite(task download.DownloadTask) error {
 	fmt.Printf("[App] Installing prerequisite: %s (%s)\n", task.Name, task.URL)
 	err := a.downloader.DownloadAndExtract(task)
@@ -102,17 +120,17 @@ func (a *App) InstallPrerequisite(task download.DownloadTask) error {
 	return err
 }
 
-func (a *App) CancelDownload(name string) {
-	a.downloader.CancelDownload(name)
+func (a *App) CancelDownload(taskName string) {
+	a.downloader.CancelDownload(taskName)
 }
 
-func (a *App) StartService(name string) error {
+func (a *App) StartService(serviceName string) error {
 	baseDir := config.GetBaseDir()
 	binDir := filepath.Join(baseDir, "bin")
 
-	fmt.Printf("[App] Starting service: %s\n", name)
+	fmt.Printf("[App] Starting service: %s\n", serviceName)
 
-	switch name {
+	switch serviceName {
 	case "MySQL":
 		var mysqlBin string
 		var mysqlBase string
@@ -191,15 +209,46 @@ func (a *App) StartService(name string) error {
 		}
 		return a.orchestrator.StartService("HeidiSQL", heidisqlBin, []string{}, filepath.Dir(heidisqlBin))
 
+	case "PHP":
+		phpPath := filepath.Join(baseDir, "bin", "php", "current")
+		phpCgi := filepath.Join(phpPath, "php-cgi.exe")
+		if _, err := os.Stat(phpCgi); os.IsNotExist(err) {
+			return fmt.Errorf("php-cgi.exe not found")
+		}
+
+		port, err := network.GetAvailablePort([]int{9000, 9001, 9002})
+		if err != nil {
+			return fmt.Errorf("no available ports for PHP: %v", err)
+		}
+
+		os.Setenv("PHP_FCGI_MAX_REQUESTS", "1000")
+
+		err = a.orchestrator.StartServiceWithPort("PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, phpPath, port)
+
+		if err == nil && a.orchestrator.IsRunning("Apache") {
+			var apacheBase string
+			filepath.Walk(filepath.Join(binDir, "apache"), func(path string, info os.FileInfo, err error) error {
+				if info != nil && !info.IsDir() && info.Name() == "httpd.exe" {
+					apacheBase = filepath.Dir(filepath.Dir(path))
+					return filepath.SkipDir
+				}
+				return nil
+			})
+			if apacheBase != "" {
+				a.updateApacheConfig(apacheBase, 0)
+			}
+		}
+		return err
+
 	default:
-		return fmt.Errorf("unknown service: %s", name)
+		return fmt.Errorf("unknown service: %s", serviceName)
 	}
 }
 
-func (a *App) StopService(name string) {
-	a.orchestrator.StopService(name)
+func (a *App) StopService(serviceName string) {
+	a.orchestrator.StopService(serviceName)
 
-	if name == "Apache" {
+	if serviceName == "Apache" || serviceName == "PHP" {
 		baseDir := config.GetBaseDir()
 		binDir := filepath.Join(baseDir, "bin")
 		var apacheBase string
@@ -218,6 +267,7 @@ func (a *App) StopService(name string) {
 
 func (a *App) StartAllServices() error {
 	a.StartService("MySQL")
+	a.StartService("PHP")
 	return a.StartService("Apache")
 }
 
@@ -278,14 +328,20 @@ func (a *App) updateApacheConfig(apachePath string, port int) error {
 		}
 	}
 
-	return service.UpdateApacheConfig(apachePath, phpDll, phpPath, vhostsContent, port, wwwDir)
+	phpInfo := a.orchestrator.GetDetailedInfo("PHP")
+	phpPort := 0
+	if phpInfo.Status == "Running" {
+		phpPort = phpInfo.Port
+	}
+
+	return service.UpdateApacheConfig(apachePath, phpDll, phpPath, vhostsContent, port, wwwDir, phpPort)
 }
 
 func (a *App) StopAllServices() {
 	a.orchestrator.StopAll()
 }
 
-func (a *App) OpenTerminal() {
+func (a *App) OpenTerminal(terminalType string) {
 	baseDir := config.GetBaseDir()
 	phpPath := filepath.Join(baseDir, "bin", "php", "current")
 	mysqlPath := filepath.Join(baseDir, "bin", "mysql", "current", "bin")
@@ -305,9 +361,9 @@ func (a *App) OpenTerminal() {
 	}
 
 	cmd := service.NewTerminal(a.cfg.WWWRoot, env)
-	cmd.Start()
+	cmd.Open(terminalType)
 }
 
-func (a *App) DeleteVersion(taskName, version string) error {
-	return a.downloader.DeleteVersion(taskName, version)
+func (a *App) DeleteVersion(serviceName string, version string) error {
+	return a.downloader.DeleteVersion(serviceName, version)
 }
