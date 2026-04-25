@@ -69,6 +69,8 @@ func (o *Orchestrator) GetDetailedInfo(name string) ServiceDetailedInfo {
 			exeName = "mysqld.exe"
 		case "HeidiSQL":
 			exeName = "heidisql.exe"
+		case "Nginx":
+			exeName = "nginx.exe"
 		}
 
 		if exeName != "" {
@@ -127,6 +129,7 @@ func (o *Orchestrator) StartServiceWithPort(name string, binaryPath string, args
 
 	go func() {
 		cmd.Wait()
+		time.Sleep(500 * time.Millisecond) // Give system time to clean up
 		o.mu.Lock()
 		delete(o.services, name)
 		o.mu.Unlock()
@@ -150,6 +153,8 @@ func (o *Orchestrator) StopService(name string) error {
 			exeNames = []string{"mysqld.exe"}
 		case "HeidiSQL":
 			exeNames = []string{"heidisql.exe"}
+		case "Nginx":
+			exeNames = []string{"nginx.exe"}
 		case "PHP":
 			exeNames = []string{"php.exe", "php-cgi.exe"}
 		}
@@ -157,7 +162,7 @@ func (o *Orchestrator) StopService(name string) error {
 		for _, exe := range exeNames {
 			exec.Command("taskkill", "/F", "/IM", exe, "/T").Run()
 		}
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond) // Wait for process to fully terminate
 	}
 
 	o.mu.Lock()

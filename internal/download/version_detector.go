@@ -4,8 +4,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 )
 
 // getSystemArch is a helper to determine the system architecture for download URLs.
@@ -14,6 +18,57 @@ func getSystemArch() string {
 		return "x64"
 	}
 	return "x86"
+}
+
+// getInstalledVersionPaths checks for installed versions and returns their full paths.
+func getInstalledVersionPaths(baseDir string, category string, checkFile string) map[string]string {
+	installedPaths := make(map[string]string)
+	compDir := filepath.Join(baseDir, "bin", category)
+	entries, err := os.ReadDir(compDir)
+	if err != nil {
+		return installedPaths
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() && entry.Name() != "current" {
+			ver := entry.Name()
+			if idx := strings.Index(ver, "-"); idx != -1 {
+				ver = ver[idx+1:]
+			}
+
+			potentialPaths := []string{
+				filepath.Join(compDir, entry.Name(), checkFile),
+				filepath.Join(compDir, entry.Name(), "Apache24", checkFile), // Apache specific
+				filepath.Join(compDir, entry.Name(), "bin", checkFile),      // OpenSSL specific
+			}
+
+			for _, p := range potentialPaths {
+				if _, err := os.Stat(p); err == nil {
+					installedPaths[ver] = p
+					break
+				}
+			}
+		}
+	}
+	return installedPaths
+}
+
+// getOpenSSLVersion executes 'openssl version' and parses the output.
+// It can take an absolute path to the exe or just "openssl" for global check.
+func getOpenSSLVersion(opensslCmd string) string {
+	cmd := exec.Command(opensslCmd, "version")
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	// Example output: OpenSSL 3.2.1 1 Feb 2024 (Library: OpenSSL 3.2.1 1 Feb 2024)
+	re := regexp.MustCompile(`OpenSSL\s+([\d\.]+[a-z]?)`)
+	matches := re.FindStringSubmatch(string(output))
+	if len(matches) > 1 {
+		return matches[1]
+	}
+	return "Installed" // Fallback if parsing fails but command works
 }
 
 // fetchContent fetches content from a given URL.
@@ -81,7 +136,7 @@ func DetectApacheVersions() ([]string, map[string]string) {
 		v := m[1]
 		if !seen[v] {
 			versions = append(versions, v)
-			urlMap[v] = binBase + m[0] // m[0] is the full matched string (e.g., httpd-2.4.x-Win64-VS18.zip)
+			urlMap[v] = binBase + m[0] // m[0] is the full matched string
 			seen[v] = true
 		}
 	}

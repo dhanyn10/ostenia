@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
-import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService, GetServerRoot, SetServerRoot, GetServiceStatus, SelectServerRoot } from '../wailsjs/go/main/App';
+import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService, GetServerRoot, SetServerRoot, GetServiceStatus, SelectServerRoot, OpenPluginFolder, OpenServerRootFolder } from '../wailsjs/go/main/App';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -12,8 +12,8 @@ import LogViewer from './components/LogViewer';
 import ActivityTab from './components/ActivityTab';
 import PluginsTab from './components/PluginsTab';
 
-// Icons for components
-import { Globe, Database, Settings, ExternalLink } from 'lucide-react';
+// Icons
+import { Globe, Database, Settings, ExternalLink, Server, Loader2, Shield } from 'lucide-react';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -21,9 +21,11 @@ function cn(...inputs) {
 
 const ICON_MAP = {
   'Apache': Globe,
+  'Nginx': Server,
   'MySQL': Database,
   'PHP': Settings,
   'HeidiSQL': ExternalLink,
+  'OpenSSL': Shield,
   'default': Database
 };
 
@@ -32,6 +34,7 @@ function App() {
   const [theme, setTheme] = useState('dark');
   const [services, setServices] = useState([
     { name: 'Apache', status: 'Stopped', pid: 0, port: 0 },
+    { name: 'Nginx', status: 'Stopped', pid: 0, port: 0 },
     { name: 'MySQL', status: 'Stopped', pid: 0, port: 0 },
     { name: 'PHP', status: 'Stopped', pid: 0, port: 0 },
     { name: 'HeidiSQL', status: 'Stopped', pid: 0, port: 0 },
@@ -204,6 +207,30 @@ function App() {
     }
   };
 
+  const handleOpenServerRootFolder = async () => {
+    if (window.go) {
+      try {
+        await OpenServerRootFolder();
+        addLog(`Opened Server Root folder`);
+      } catch (err) {
+        addToast('Error', `Failed to open folder: ${err}`, 'error');
+        addLog(`Error opening server root folder: ${err}`);
+      }
+    }
+  };
+
+  const handleOpenPluginFolder = async (serviceName) => {
+    if (window.go) {
+      try {
+        await OpenPluginFolder(serviceName);
+        addLog(`Opened folder for ${serviceName}`);
+      } catch (err) {
+        addToast('Error', `Failed to open folder: ${err}`, 'error');
+        addLog(`Error opening folder for ${serviceName}: ${err}`);
+      }
+    }
+  };
+
   const handleToggleService = (name, currentStatus) => {
     if (!window.go) return;
     if (currentStatus === 'Running') {
@@ -340,6 +367,8 @@ function App() {
                 handleToggleService={handleToggleService}
                 handleRemoveFromHome={handleRemoveFromHome}
                 setActiveTab={setActiveTab}
+                handleOpenPluginFolder={handleOpenPluginFolder}
+                handleOpenServerRootFolder={handleOpenServerRootFolder}
               />
             ) : (
               <PluginsTab 

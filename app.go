@@ -70,26 +70,14 @@ func (a *App) SetServerRoot(rootPath string) error {
 		return err
 	}
 
+	// Restart active web servers
 	if a.orchestrator.IsRunning("Apache") {
-		fmt.Println("[App] Apache is running, restarting...")
 		a.StopService("Apache")
-		return a.StartService("Apache")
+		a.StartService("Apache")
 	}
-
-	baseDir := config.GetBaseDir()
-	binDir := filepath.Join(baseDir, "bin")
-	var apacheBase string
-	filepath.Walk(filepath.Join(binDir, "apache"), func(path string, info os.FileInfo, err error) error {
-		if info != nil && !info.IsDir() && info.Name() == "httpd.exe" {
-			apacheBase = filepath.Dir(filepath.Dir(path))
-			return filepath.SkipDir
-		}
-		return nil
-	})
-
-	if apacheBase != "" {
-		fmt.Printf("[App] Updating Apache config at: %s\n", apacheBase)
-		return a.updateApacheConfig(apacheBase, 80)
+	if a.orchestrator.IsRunning("Nginx") {
+		a.StopService("Nginx")
+		a.StartService("Nginx")
 	}
 
 	return nil
@@ -109,6 +97,30 @@ func (a *App) SelectServerRoot() (string, error) {
 		}
 	}
 	return selectedDir, nil
+}
+
+func (a *App) OpenServerRootFolder() error {
+	if a.cfg == nil || a.cfg.WWWRoot == "" {
+		return fmt.Errorf("server root directory not set")
+	}
+	return service.OpenExplorer(a.cfg.WWWRoot)
+}
+
+func (a *App) OpenPluginFolder(serviceName string) error {
+	baseDir := config.GetBaseDir()
+	binDir := filepath.Join(baseDir, "bin")
+
+	// Determine category folder
+	category := strings.ToLower(serviceName)
+	folderPath := filepath.Join(binDir, category)
+
+	// Check if the directory exists
+	if _, err := os.Stat(folderPath); os.IsNotExist(err) {
+		return fmt.Errorf("folder for %s not found: %s", serviceName, folderPath)
+	}
+
+	// Open folder in explorer
+	return service.OpenExplorer(folderPath)
 }
 
 func (a *App) InstallPrerequisite(task download.DownloadTask) error {
@@ -154,22 +166,19 @@ func (a *App) StartService(serviceName string) error {
 		}
 
 		os.Setenv("PATH", filepath.Dir(mysqlBin)+";"+os.Getenv("PATH"))
-
-		fmt.Printf("[App] MySQL port: %d, Base: %s\n", port, mysqlBase)
-
 		err = a.updateMySQLConfig(mysqlBase, port)
-		if err != nil {
-			fmt.Printf("[App] Error updating MySQL config: %v\n", err)
-			return err
-		}
+		if err != nil { return err }
 
 		iniPath := filepath.Join(mysqlBase, "my.ini")
 		return a.orchestrator.StartServiceWithPort("MySQL", mysqlBin, []string{"--defaults-file=" + iniPath, "--console"}, filepath.Dir(mysqlBin), port)
 
 	case "Apache":
+		if a.orchestrator.IsRunning("Nginx") {
+			a.StopService("Nginx")
+		}
+
 		var apacheBase string
 		var apacheBin string
-		
 		filepath.Walk(filepath.Join(binDir, "apache"), func(path string, info os.FileInfo, err error) error {
 			if info == nil { return nil }
 			if !info.IsDir() && info.Name() == "httpd.exe" {
@@ -182,61 +191,66 @@ func (a *App) StartService(serviceName string) error {
 			return nil
 		})
 
-		if apacheBase == "" {
-			return fmt.Errorf("apache installation not found")
-		}
+		if apacheBase == "" { return fmt.Errorf("apache installation not found") }
 
 		port, err := network.GetAvailablePort([]int{80, 8080, 8081, 9000})
-		if err != nil {
-			return fmt.Errorf("no available ports for apache: %v", err)
-		}
+		if err != nil { return fmt.Errorf("no available ports for apache: %v", err) }
 
 		phpPath := filepath.Join(baseDir, "bin", "php", "current")
 		nodePath := filepath.Join(baseDir, "bin", "nodejs", "current")
 		os.Setenv("PATH", phpPath+";"+os.Getenv("PATH")+";"+nodePath)
 		
 		err = a.updateApacheConfig(apacheBase, port)
-		if err != nil {
-			return err
-		}
+		if err != nil { return err }
 
 		return a.orchestrator.StartServiceWithPort("Apache", apacheBin, []string{}, apacheBase, port)
 
+	case "Nginx":
+		if a.orchestrator.IsRunning("Apache") {
+			a.StopService("Apache")
+		}
+
+		var nginxBase string
+		var nginxBin string
+		filepath.Walk(filepath.Join(binDir, "nginx"), func(path string, info os.FileInfo, err error) error {
+			if info == nil { return nil }
+			if !info.IsDir() && info.Name() == "nginx.exe" {
+				nginxBin = path
+				nginxBase = filepath.Dir(path)
+				return filepath.SkipDir
+			}
+			return nil
+		})
+
+		if nginxBase == "" { return fmt.Errorf("nginx installation not found") }
+
+		port, err := network.GetAvailablePort([]int{80, 8080, 8081, 9000})
+		if err != nil { return fmt.Errorf("no available ports for nginx: %v", err) }
+
+		err = a.updateNginxConfig(nginxBase, port)
+		if err != nil { return err }
+
+		return a.orchestrator.StartServiceWithPort("Nginx", nginxBin, []string{"-p", nginxBase}, nginxBase, port)
+
 	case "HeidiSQL":
 		heidisqlBin := filepath.Join(binDir, "heidisql", "heidisql.exe")
-		if _, err := os.Stat(heidisqlBin); os.IsNotExist(err) {
-			return fmt.Errorf("heidisql.exe not found")
-		}
+		if _, err := os.Stat(heidisqlBin); os.IsNotExist(err) { return fmt.Errorf("heidisql.exe not found") }
 		return a.orchestrator.StartService("HeidiSQL", heidisqlBin, []string{}, filepath.Dir(heidisqlBin))
 
 	case "PHP":
 		phpPath := filepath.Join(baseDir, "bin", "php", "current")
 		phpCgi := filepath.Join(phpPath, "php-cgi.exe")
-		if _, err := os.Stat(phpCgi); os.IsNotExist(err) {
-			return fmt.Errorf("php-cgi.exe not found")
-		}
+		if _, err := os.Stat(phpCgi); os.IsNotExist(err) { return fmt.Errorf("php-cgi.exe not found") }
 
 		port, err := network.GetAvailablePort([]int{9000, 9001, 9002})
-		if err != nil {
-			return fmt.Errorf("no available ports for PHP: %v", err)
-		}
+		if err != nil { return fmt.Errorf("no available ports for PHP: %v", err) }
 
 		os.Setenv("PHP_FCGI_MAX_REQUESTS", "1000")
-
 		err = a.orchestrator.StartServiceWithPort("PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, phpPath, port)
 
-		if err == nil && a.orchestrator.IsRunning("Apache") {
-			var apacheBase string
-			filepath.Walk(filepath.Join(binDir, "apache"), func(path string, info os.FileInfo, err error) error {
-				if info != nil && !info.IsDir() && info.Name() == "httpd.exe" {
-					apacheBase = filepath.Dir(filepath.Dir(path))
-					return filepath.SkipDir
-				}
-				return nil
-			})
-			if apacheBase != "" {
-				a.updateApacheConfig(apacheBase, 0)
-			}
+		if err == nil {
+			if a.orchestrator.IsRunning("Apache") { a.StopService("Apache"); a.StartService("Apache") }
+			if a.orchestrator.IsRunning("Nginx") { a.StopService("Nginx"); a.StartService("Nginx") }
 		}
 		return err
 
@@ -247,22 +261,6 @@ func (a *App) StartService(serviceName string) error {
 
 func (a *App) StopService(serviceName string) {
 	a.orchestrator.StopService(serviceName)
-
-	if serviceName == "Apache" || serviceName == "PHP" {
-		baseDir := config.GetBaseDir()
-		binDir := filepath.Join(baseDir, "bin")
-		var apacheBase string
-		filepath.Walk(filepath.Join(binDir, "apache"), func(path string, info os.FileInfo, err error) error {
-			if info != nil && !info.IsDir() && info.Name() == "httpd.exe" {
-				apacheBase = filepath.Dir(filepath.Dir(path))
-				return filepath.SkipDir
-			}
-			return nil
-		})
-		if apacheBase != "" {
-			a.updateApacheConfig(apacheBase, 80)
-		}
-	}
 }
 
 func (a *App) StartAllServices() error {
@@ -276,65 +274,33 @@ func (a *App) updateMySQLConfig(mysqlPath string, port int) error {
 	tmpDir := filepath.Join(mysqlPath, "tmp")
 	binDir := filepath.Join(mysqlPath, "bin")
 	iniPath := filepath.Join(mysqlPath, "my.ini")
-
-	fmt.Printf("[App] Updating MySQL Config at: %s\n", mysqlPath)
-
 	err := service.UpdateMySQLConfig(mysqlPath, dataDir, tmpDir, port)
-	if err != nil {
-		return err
-	}
-
+	if err != nil { return err }
 	return service.InitializeMySQLDataDir(binDir, mysqlPath, dataDir, iniPath)
 }
 
 func (a *App) updateApacheConfig(apachePath string, port int) error {
-	baseDir := config.GetBaseDir()
+	if port <= 0 { port = 80 }
 	wwwDir := a.cfg.WWWRoot
-
 	os.MkdirAll(wwwDir, 0755)
-
-	files, _ := os.ReadDir(wwwDir)
-	var vhostsContent string
-	for _, f := range files {
-		if f.IsDir() {
-			projectName := f.Name()
-			projectPath := filepath.Join(wwwDir, projectName)
-			vhostsContent += service.GenerateVHost(projectName, projectPath, port)
-			network.AddHost("127.0.0.1", projectName+".test")
-			caDir := filepath.Join(baseDir, "ssl")
-			certDir := filepath.Join(projectPath, ".ssl")
-			os.MkdirAll(certDir, 0755)
-			ssl.SignCertificate(caDir, projectName+".test", certDir)
-		}
-	}
-
-	phpPath := filepath.Join(baseDir, "bin", "php", "current")
-	
-	var phpDll string
-	if entries, err := os.ReadDir(phpPath); err == nil {
-		for _, entry := range entries {
-			name := strings.ToLower(entry.Name())
-			if !entry.IsDir() && strings.HasPrefix(name, "php") && strings.Contains(name, "apache2_4") && strings.HasSuffix(name, ".dll") {
-				phpDll = filepath.Join(phpPath, entry.Name())
-				break
-			}
-		}
-	}
-
-	if phpDll == "" {
-		potentialDll := filepath.Join(phpPath, "php8apache2_4.dll")
-		if _, err := os.Stat(potentialDll); err == nil {
-			phpDll = potentialDll
-		}
-	}
 
 	phpInfo := a.orchestrator.GetDetailedInfo("PHP")
 	phpPort := 0
-	if phpInfo.Status == "Running" {
-		phpPort = phpInfo.Port
-	}
+	if phpInfo.Status == "Running" { phpPort = phpInfo.Port }
 
-	return service.UpdateApacheConfig(apachePath, phpDll, phpPath, vhostsContent, port, wwwDir, phpPort)
+	return service.UpdateApacheConfig(apachePath, "", "", "", port, wwwDir, phpPort)
+}
+
+func (a *App) updateNginxConfig(nginxPath string, port int) error {
+	if port <= 0 { port = 80 }
+	wwwDir := a.cfg.WWWRoot
+	os.MkdirAll(wwwDir, 0755)
+
+	phpInfo := a.orchestrator.GetDetailedInfo("PHP")
+	phpPort := 0
+	if phpInfo.Status == "Running" { phpPort = phpInfo.Port }
+
+	return service.UpdateNginxConfig(nginxPath, wwwDir, phpPort, port)
 }
 
 func (a *App) StopAllServices() {
@@ -356,9 +322,7 @@ func (a *App) OpenTerminal(terminalType string) {
 			break
 		}
 	}
-	if !pathFound {
-		env = append(env, "PATH="+phpPath+";"+mysqlPath+";"+nodePath)
-	}
+	if !pathFound { env = append(env, "PATH="+phpPath+";"+mysqlPath+";"+nodePath) }
 
 	cmd := service.NewTerminal(a.cfg.WWWRoot, env)
 	cmd.Open(terminalType)

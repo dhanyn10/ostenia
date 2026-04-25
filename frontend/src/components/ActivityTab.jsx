@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, X, FolderOpen, Activity, Globe, Trash2 } from 'lucide-react';
+import { Plus, X, Activity, Globe, Trash2, FolderOpen } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -10,7 +10,8 @@ function cn(...inputs) {
 function ActivityTab({ 
   serverRoot, handleServerRootChange, handleBrowseServerRoot,
   isAddingPlugin, setIsAddingPlugin, prerequisites, services, handleAddToHome,
-  ICON_MAP, handleToggleService, handleRemoveFromHome 
+  ICON_MAP, handleToggleService, handleRemoveFromHome, setActiveTab,
+  handleOpenPluginFolder, handleOpenServerRootFolder // Added handleOpenServerRootFolder
 }) {
   return (
     <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -28,12 +29,21 @@ function ActivityTab({
                 placeholder="C:/ostenia/www"
                 className="flex-1 bg-slate-100 dark:bg-black/20 border border-slate-200 dark:border-white/5 rounded-sm px-3 py-1.5 text-[11px] text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all font-mono"
               />
-              <button 
-                onClick={handleBrowseServerRoot}
-                className="px-3 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20"
-              >
-                Browse
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button 
+                  onClick={handleBrowseServerRoot}
+                  className="px-3 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20"
+                >
+                  Browse
+                </button>
+                <button 
+                  onClick={handleOpenServerRootFolder}
+                  title="Open Server Root in Explorer"
+                  className="p-1.5 bg-slate-100 dark:bg-white/5 hover:bg-blue-600/10 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-sm transition-all border border-slate-200 dark:border-white/5"
+                >
+                  <FolderOpen size={16} />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -113,14 +123,20 @@ function ActivityTab({
                     </div>
                   )}
                 </div>
-                <p className="text-[10px] font-medium text-slate-500 mt-1 uppercase tracking-wider">
-                  {isInstalled ? `Version ${task?.version || 'Ready'}` : 'Component missing'}
-                </p>
               </div>
 
               <div className="flex items-center gap-3">
+                {isInstalled && (
+                  <button 
+                    onClick={() => handleOpenPluginFolder(service.name)}
+                    className="h-6 px-3 bg-slate-100 dark:bg-white/5 hover:bg-blue-600/10 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-white/5"
+                    title={`Open ${service.name} Folder`}
+                  >
+                    <FolderOpen size={12} />
+                  </button>
+                )}
                 {!isInstalled ? (
-                  <button onClick={() => {}} className="px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
+                  <button onClick={() => setActiveTab('plugins')} className="px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
                 ) : (
                   <button
                     onClick={() => handleToggleService(service.name, service.status)}

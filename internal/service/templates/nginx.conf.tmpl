@@ -1,0 +1,59 @@
+worker_processes  1;
+
+error_log  logs/error.log;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    sendfile        on;
+    keepalive_timeout  65;
+
+    charset utf-8;
+    client_max_body_size 100M;
+
+    client_body_temp_path temp/client_body_temp;
+    proxy_temp_path       temp/proxy_temp;
+    fastcgi_temp_path     temp/fastcgi_temp;
+
+    server {
+        listen       {{.Port}};
+        server_name  localhost;
+        root         "{{.WWWRoot}}";
+        index        index.php index.html index.htm;
+
+        access_log off;
+
+        location / {
+            try_files $uri $uri/ @fallback_ostenia;
+        }
+
+        location @fallback_ostenia {
+            root "{{.NginxPath}}/html";
+            index index.html index.htm;
+        }
+
+        {{if gt .PHPPort 0}}
+        location ~ \.php$ {
+            try_files $uri =404;
+            fastcgi_pass   127.0.0.1:{{.PHPPort}};
+            fastcgi_index  index.php;
+            fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+            include        fastcgi_params;
+        }
+        {{else}}
+        location ~ \.php$ {
+            return 502 "PHP is not running in Ostenia";
+        }
+        {{end}}
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+    }
+}
