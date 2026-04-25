@@ -15,7 +15,7 @@ export function GetServiceStatus(arg1:string):Promise<service.ServiceDetailedInf
 
 export function InstallPrerequisite(arg1:download.DownloadTask):Promise<void>;
 
-export function OpenTerminal():Promise<void>;
+export function OpenTerminal(arg1:string):Promise<void>;
 
 export function SetServerRoot(arg1:string):Promise<void>;
 

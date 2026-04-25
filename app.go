@@ -323,7 +323,7 @@ func (a *App) StopAllServices() {
 	a.orchestrator.StopAll()
 }
 
-func (a *App) OpenTerminal() {
+func (a *App) OpenTerminal(terminalType string) {
 	baseDir := config.GetBaseDir()
 	phpPath := filepath.Join(baseDir, "bin", "php", "current")
 	mysqlPath := filepath.Join(baseDir, "bin", "mysql", "current", "bin")
@@ -343,7 +343,7 @@ func (a *App) OpenTerminal() {
 	}
 
 	cmd := service.NewTerminal(a.cfg.WWWRoot, env)
-	cmd.Start()
+	cmd.Open(terminalType)
 }
 
 func (a *App) DeleteVersion(serviceName string, version string) error {

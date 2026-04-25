@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Play, Square, Download, Settings, Terminal as TerminalIcon, Database, Globe, FolderOpen, MoreVertical, ExternalLink, CheckCircle2, AlertCircle, XCircle, X, Loader2, List, Trash2, ChevronRight, Search, Home, Plus, Activity } from 'lucide-react';
+import { Play, Square, Download, Settings, Terminal as TerminalIcon, Database, Globe, FolderOpen, MoreVertical, ExternalLink, CheckCircle2, AlertCircle, XCircle, X, Loader2, List, Trash2, ChevronRight, Search, Home, Plus, Activity, ChevronDown, Monitor } from 'lucide-react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
 import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService, GetServerRoot, SetServerRoot, GetServiceStatus } from '../wailsjs/go/main/App';
 import { clsx } from 'clsx';
@@ -172,6 +172,7 @@ function App() {
   const [logs, setLogs] = useState([]);
   const [isLogOpen, setIsLogOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
+  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedVersions, setSelectedVersions] = useState({});
   const [isAddingPlugin, setIsAddingPlugin] = useState(false);
@@ -276,7 +277,12 @@ function App() {
 
   const handleStartAll = () => { addLog('Starting all services...'); if (window.go) StartAllServices(); };
   const handleStopAll = () => { addLog('Stopping all services...'); if (window.go) StopAllServices(); };
-  const handleTerminal = () => { addLog('Opening terminal...'); if (window.go) OpenTerminal(); };
+  
+  const handleTerminal = (type) => { 
+    addLog(`Opening ${type || 'default'} terminal...`); 
+    if (window.go) OpenTerminal(type || 'cmd'); 
+    setIsTerminalOpen(false);
+  };
 
   const handleServerRootChange = async (e) => {
     const newRoot = e.target.value;
@@ -445,9 +451,48 @@ function App() {
                 <Square size={12} fill="currentColor" className="group-hover:scale-110 transition-transform" /> Stop All
              </button>
              <div className="w-px h-5 bg-white/10 mx-1" />
-             <button onClick={handleTerminal} className="p-2 bg-slate-800/50 hover:bg-slate-700/50 rounded-sm text-slate-400 hover:text-white transition-all border border-white/5">
-                <TerminalIcon size={16} />
-             </button>
+             
+             {/* Integrated Terminal Dropdown */}
+             <div className="relative">
+                <button 
+                  onClick={() => setIsTerminalOpen(!isTerminalOpen)}
+                  className={cn(
+                    "flex items-center gap-1.5 p-2 rounded-sm transition-all border border-white/5",
+                    isTerminalOpen ? "bg-slate-700 text-white" : "bg-slate-800/50 text-slate-400 hover:text-white"
+                  )}
+                >
+                  <TerminalIcon size={16} />
+                  <ChevronDown size={10} className={cn("transition-transform", isTerminalOpen && "rotate-180")} />
+                </button>
+
+                {isTerminalOpen && (
+                  <>
+                    <div className="fixed inset-0 z-[60]" onClick={() => setIsTerminalOpen(false)} />
+                    <div className="absolute top-full right-0 mt-2 w-48 bg-slate-900 border border-white/10 rounded-sm shadow-2xl z-[70] animate-in fade-in zoom-in-95 duration-200">
+                      <div className="p-1">
+                        <button 
+                          onClick={() => handleTerminal('cmd')}
+                          className="w-full flex items-center gap-3 px-3 py-2 rounded-sm text-[11px] font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all"
+                        >
+                          <Monitor size={14} className="text-blue-400" /> Command Prompt (CMD)
+                        </button>
+                        <button 
+                          onClick={() => handleTerminal('powershell')}
+                          className="w-full flex items-center gap-3 px-3 py-2 rounded-sm text-[11px] font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all"
+                        >
+                          <Monitor size={14} className="text-blue-500" /> PowerShell
+                        </button>
+                        <button 
+                          onClick={() => handleTerminal('gitbash')}
+                          className="w-full flex items-center gap-3 px-3 py-2 rounded-sm text-[11px] font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all"
+                        >
+                          <ExternalLink size={14} className="text-orange-400" /> Git Bash
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+             </div>
           </div>
         </header>
 

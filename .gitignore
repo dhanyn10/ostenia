@@ -6,6 +6,7 @@
 *.dylib
 ostenia
 ostenia.exe
+frontend/wailsjs/go/main/App.js
 
 # Wails
 build/bin/*
