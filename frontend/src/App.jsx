@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
-import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService, GetServerRoot, SetServerRoot, GetServiceStatus, SelectServerRoot, OpenPluginFolder } from '../wailsjs/go/main/App';
+import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService, GetServerRoot, SetServerRoot, GetServiceStatus, SelectServerRoot, OpenPluginFolder, OpenServerRootFolder } from '../wailsjs/go/main/App';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -207,6 +207,18 @@ function App() {
     }
   };
 
+  const handleOpenServerRootFolder = async () => {
+    if (window.go) {
+      try {
+        await OpenServerRootFolder();
+        addLog(`Opened Server Root folder`);
+      } catch (err) {
+        addToast('Error', `Failed to open folder: ${err}`, 'error');
+        addLog(`Error opening server root folder: ${err}`);
+      }
+    }
+  };
+
   const handleOpenPluginFolder = async (serviceName) => {
     if (window.go) {
       try {
@@ -356,6 +368,7 @@ function App() {
                 handleRemoveFromHome={handleRemoveFromHome}
                 setActiveTab={setActiveTab}
                 handleOpenPluginFolder={handleOpenPluginFolder}
+                handleOpenServerRootFolder={handleOpenServerRootFolder}
               />
             ) : (
               <PluginsTab 

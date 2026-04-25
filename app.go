@@ -99,6 +99,13 @@ func (a *App) SelectServerRoot() (string, error) {
 	return selectedDir, nil
 }
 
+func (a *App) OpenServerRootFolder() error {
+	if a.cfg == nil || a.cfg.WWWRoot == "" {
+		return fmt.Errorf("server root directory not set")
+	}
+	return service.OpenExplorer(a.cfg.WWWRoot)
+}
+
 func (a *App) OpenPluginFolder(serviceName string) error {
 	baseDir := config.GetBaseDir()
 	binDir := filepath.Join(baseDir, "bin")
@@ -242,13 +249,8 @@ func (a *App) StartService(serviceName string) error {
 		err = a.orchestrator.StartServiceWithPort("PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, phpPath, port)
 
 		if err == nil {
-			// Trigger config updates for active servers to link with the new PHP port
-			if a.orchestrator.IsRunning("Apache") {
-				// We don't have the current port here, so we try to find it from orchestrator
-				info := a.orchestrator.GetDetailedInfo("Apache")
-				a.updateApacheConfig(info.Name, info.Port)
-				// Note: updateApacheConfig expects path, not name. This needs careful handling.
-			}
+			if a.orchestrator.IsRunning("Apache") { a.StopService("Apache"); a.StartService("Apache") }
+			if a.orchestrator.IsRunning("Nginx") { a.StopService("Nginx"); a.StartService("Nginx") }
 		}
 		return err
 

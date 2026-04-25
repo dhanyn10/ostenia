@@ -69,11 +69,12 @@ func (t *Terminal) Start() error {
 func OpenExplorer(path string) error {
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("explorer", filepath.FromSlash(path))
+		// Using 'start' instead of 'explorer' directly to avoid the "exit status 1" quirk of explorer.exe
+		cmd = exec.Command("cmd", "/c", "start", "", filepath.FromSlash(path))
 	} else if runtime.GOOS == "darwin" {
 		cmd = exec.Command("open", path)
 	} else {
 		cmd = exec.Command("xdg-open", path)
 	}
-	return cmd.Run()
+	return cmd.Start() // Use Start() instead of Run() to avoid waiting for exit status
 }
