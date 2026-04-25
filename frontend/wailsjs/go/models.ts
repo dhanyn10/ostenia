@@ -31,3 +31,26 @@ export namespace download {
 
 }
 
+export namespace service {
+	
+	export class ServiceDetailedInfo {
+	    name: string;
+	    status: string;
+	    pid: number;
+	    port: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ServiceDetailedInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.status = source["status"];
+	        this.pid = source["pid"];
+	        this.port = source["port"];
+	    }
+	}
+
+}
+

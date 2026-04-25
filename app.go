@@ -49,11 +49,8 @@ func (a *App) GetPrerequisites() []download.DownloadTask {
 	return download.GetLatestKnownVersions()
 }
 
-func (a *App) GetServiceStatus(name string) string {
-	if a.orchestrator.IsRunning(name) {
-		return "Running"
-	}
-	return "Stopped"
+func (a *App) GetServiceStatus(name string) service.ServiceDetailedInfo {
+	return a.orchestrator.GetDetailedInfo(name)
 }
 
 func (a *App) GetServerRoot() string {
@@ -149,7 +146,7 @@ func (a *App) StartService(name string) error {
 		}
 
 		iniPath := filepath.Join(mysqlBase, "my.ini")
-		return a.orchestrator.StartService("MySQL", mysqlBin, []string{"--defaults-file=" + iniPath, "--console"}, filepath.Dir(mysqlBin))
+		return a.orchestrator.StartServiceWithPort("MySQL", mysqlBin, []string{"--defaults-file=" + iniPath, "--console"}, filepath.Dir(mysqlBin), port)
 
 	case "Apache":
 		var apacheBase string
@@ -185,7 +182,7 @@ func (a *App) StartService(name string) error {
 			return err
 		}
 
-		return a.orchestrator.StartService("Apache", apacheBin, []string{}, apacheBase)
+		return a.orchestrator.StartServiceWithPort("Apache", apacheBin, []string{}, apacheBase, port)
 
 	case "HeidiSQL":
 		heidisqlBin := filepath.Join(binDir, "heidisql", "heidisql.exe")
