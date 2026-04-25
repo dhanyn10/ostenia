@@ -9,6 +9,9 @@ import (
 )
 
 func GenerateVHost(projectName string, projectPath string, port int) string {
+	if port <= 0 {
+		port = 80
+	}
 	return fmt.Sprintf(`
 <VirtualHost *:%d>
     DocumentRoot "%s"
@@ -45,7 +48,7 @@ func UpdateApacheConfig(apachePath string, phpDllPath string, phpIniDir string, 
 		content = re.ReplaceAllString(content, "LoadModule "+mod)
 	}
 
-	// 3. Clean all absolute paths that point to an external Apache folder (like Laragon)
+	// 3. Clean all absolute paths (make portable)
 	reAnyAbsPath := regexp.MustCompile(`[A-Za-z]:/[^" \n\t\r]+`)
 	content = reAnyAbsPath.ReplaceAllStringFunc(content, func(match string) string {
 		if strings.Contains(match, "/bin/apache/") && !strings.Contains(match, normalizedApachePath) {
@@ -58,17 +61,17 @@ func UpdateApacheConfig(apachePath string, phpDllPath string, phpIniDir string, 
 		return match
 	})
 
-	// 4. Remove ALL existing Ostenia blocks and common hardcoded directives
+	// 4. Remove ALL existing Ostenia blocks
 	patterns := []string{
-		`(?s)# Ostenia System Config.*?# End Ostenia System Config\n?`, // Main config block
-		`(?s)# Ostenia PHP Configuration.*?# End Ostenia PHP\n?`,       // Old PHP block
+		`(?s)# Ostenia System Config.*?# End Ostenia System Config\n?`,
+		`(?s)# Ostenia PHP Configuration.*?# End Ostenia PHP\n?`,
 		`(?m)^Define\s+SRVROOT\s+.*?\n`,
 		`(?m)^ServerRoot\s+.*?\n`,
 		`(?m)^DocumentRoot\s+.*?\n`,
 		`(?m)^ServerName\s+.*?\n`,
 		`(?m)^DirectoryIndex\s+.*?\n`,
 		`(?s)<Directory\s+".*?">\s*#\s*MainDocRoot.*?</Directory>.*?\n`,
-		`(?m)^Include\s+conf/extra/httpd-ostenia-php.conf\n?`, // Remove old include
+		`(?m)^Include\s+conf/extra/httpd-ostenia-php.conf\n?`,
 	}
 
 	for _, p := range patterns {
@@ -83,7 +86,6 @@ func UpdateApacheConfig(apachePath string, phpDllPath string, phpIniDir string, 
 	header += "ServerName localhost\n"
 	header += fmt.Sprintf("DocumentRoot \"%s\"\n", normalizedWWWRoot)
 
-	// Main Directory Config
 	header += fmt.Sprintf("<Directory \"%s\">\n", normalizedWWWRoot)
 	header += "    # MainDocRoot\n"
 	header += "    Options Indexes FollowSymLinks\n"
@@ -91,9 +93,7 @@ func UpdateApacheConfig(apachePath string, phpDllPath string, phpIniDir string, 
 	header += "    Require all granted\n"
 	header += "</Directory>\n"
 
-	// Fallback Configuration
 	header += `
-# Ostenia Fallback Configuration
 Alias /__ostenia_default "${SRVROOT}/htdocs"
 <Directory "${SRVROOT}/htdocs">
     AllowOverride None
@@ -103,42 +103,33 @@ DirectoryIndex index.php index.html /__ostenia_default/index.html
 # End Ostenia System Config
 `
 
-	// 6. Update Listen Port
-	rePort := regexp.MustCompile(`(?m)^Listen\s+\d+`)
-	if !rePort.MatchString(content) {
-		content = "Listen 80\n" + content
-	} else {
-		content = rePort.ReplaceAllString(content, fmt.Sprintf(`Listen %d`, port))
+	// 6. Update Listen Port (Only if valid)
+	if port > 0 {
+		rePort := regexp.MustCompile(`(?m)^Listen\s+\d+`)
+		if !rePort.MatchString(content) {
+			content = fmt.Sprintf("Listen %d\n", port) + content
+		} else {
+			content = rePort.ReplaceAllString(content, fmt.Sprintf(`Listen %d`, port))
+		}
 	}
 
 	// 7. Include PHP config file
 	content += "\nInclude conf/extra/httpd-ostenia-php.conf\n"
 
-	// 8. Final Combine
 	finalContent := header + "\n" + strings.TrimSpace(content)
 
 	if !strings.Contains(finalContent, "Include conf/extra/httpd-vhosts.conf") {
 		finalContent += "\nInclude conf/extra/httpd-vhosts.conf"
 	}
 
-	// 9. Write vhosts
 	vhostsPath := filepath.Join(apachePath, "conf", "extra", "httpd-vhosts.conf")
 	os.MkdirAll(filepath.Dir(vhostsPath), 0755)
 	os.WriteFile(vhostsPath, []byte(vhostsContent), 0644)
 
-	// 10. Write PHP config to its own file
+	// 10. Write PHP config
 	phpConfContent := "# Ostenia PHP Configuration\n"
 	if phpPort > 0 {
 		phpConfContent += fmt.Sprintf("<FilesMatch \\.php$>\n    SetHandler \"proxy:fcgi://127.0.0.1:%d\"\n</FilesMatch>\n", phpPort)
-	} else if phpDllPath != "" {
-		// Fallback to Module if DLL exists and FastCGI not active
-		normalizedPhpDll := strings.ReplaceAll(phpDllPath, "\\", "/")
-		normalizedPhpIni := strings.ReplaceAll(phpIniDir, "\\", "/")
-		phpConfContent += fmt.Sprintf(`
-LoadModule php_module "%s"
-AddHandler application/x-httpd-php .php
-PHPIniDir "%s"
-`, normalizedPhpDll, normalizedPhpIni)
 	}
 	phpConfContent += "# End Ostenia PHP\n"
 

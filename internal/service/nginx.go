@@ -1,54 +1,62 @@
 package service
 
 import (
-	"fmt"
+	"bytes"
+	"embed"
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 )
 
+//go:embed templates/nginx.conf.tmpl
+var nginxTemplates embed.FS
+
+// NginxConfigData holds the variables for the nginx.conf template.
+type NginxConfigData struct {
+	Port      int
+	WWWRoot   string
+	NginxPath string
+	PHPPort   int
+}
+
 func UpdateNginxConfig(nginxPath string, wwwRoot string, phpPort int, port int) error {
+	// Fallback to default port if invalid
+	if port <= 0 {
+		port = 80
+	}
+
+	// Ensure essential directories exist for Windows stability
+	os.MkdirAll(filepath.Join(nginxPath, "logs"), 0755)
+	os.MkdirAll(filepath.Join(nginxPath, "temp", "client_body_temp"), 0755)
+	os.MkdirAll(filepath.Join(nginxPath, "temp", "proxy_temp"), 0755)
+	os.MkdirAll(filepath.Join(nginxPath, "temp", "fastcgi_temp"), 0755)
+
+	// Prepare data for template
+	data := NginxConfigData{
+		Port:      port,
+		WWWRoot:   strings.ReplaceAll(wwwRoot, "\\", "/"),
+		NginxPath: strings.ReplaceAll(nginxPath, "\\", "/"),
+		PHPPort:   phpPort,
+	}
+
+	// Load template from embedded filesystem
+	tmplBytes, err := nginxTemplates.ReadFile("templates/nginx.conf.tmpl")
+	if err != nil {
+		return err
+	}
+
+	tmpl, err := template.New("nginx_conf").Parse(string(tmplBytes))
+	if err != nil {
+		return err
+	}
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, data)
+	if err != nil {
+		return err
+	}
+
 	confPath := filepath.Join(nginxPath, "conf", "nginx.conf")
-
-	normalizedWWWRoot := strings.ReplaceAll(wwwRoot, "\\", "/")
-
-	// Basic optimized Nginx configuration
-	content := fmt.Sprintf(`
-worker_processes  1;
-
-events {
-    worker_connections  1024;
-}
-
-http {
-    include       mime.types;
-    default_type  application/octet-stream;
-    sendfile        on;
-    keepalive_timeout  65;
-
-    server {
-        listen       %d;
-        server_name  localhost;
-        root         "%s";
-        index        index.php index.html index.htm;
-
-        location / {
-            try_files $uri $uri/ /index.php?$query_string;
-        }
-
-        # PHP-FPM / FastCGI pass
-        location ~ \.php$ {
-            fastcgi_pass   127.0.0.1:%d;
-            fastcgi_index  index.php;
-            fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
-            include        fastcgi_params;
-        }
-
-        # Fallback to Ostenia default if root is empty (simulated via error_page or rewrite)
-        error_page 404 /index.php;
-    }
-}
-`, port, normalizedWWWRoot, phpPort)
-
-	return os.WriteFile(confPath, []byte(content), 0644)
+	return os.WriteFile(confPath, buf.Bytes(), 0644)
 }

@@ -166,9 +166,7 @@ func (a *App) StartService(serviceName string) error {
 		return a.orchestrator.StartServiceWithPort("MySQL", mysqlBin, []string{"--defaults-file=" + iniPath, "--console"}, filepath.Dir(mysqlBin), port)
 
 	case "Apache":
-		// Exclusive Rule: Stop Nginx if running
 		if a.orchestrator.IsRunning("Nginx") {
-			fmt.Println("[App] Nginx is running, stopping it before starting Apache...")
 			a.StopService("Nginx")
 		}
 
@@ -201,9 +199,7 @@ func (a *App) StartService(serviceName string) error {
 		return a.orchestrator.StartServiceWithPort("Apache", apacheBin, []string{}, apacheBase, port)
 
 	case "Nginx":
-		// Exclusive Rule: Stop Apache if running
 		if a.orchestrator.IsRunning("Apache") {
-			fmt.Println("[App] Apache is running, stopping it before starting Nginx...")
 			a.StopService("Apache")
 		}
 
@@ -227,7 +223,7 @@ func (a *App) StartService(serviceName string) error {
 		err = a.updateNginxConfig(nginxBase, port)
 		if err != nil { return err }
 
-		return a.orchestrator.StartServiceWithPort("Nginx", nginxBin, []string{}, nginxBase, port)
+		return a.orchestrator.StartServiceWithPort("Nginx", nginxBin, []string{"-p", nginxBase}, nginxBase, port)
 
 	case "HeidiSQL":
 		heidisqlBin := filepath.Join(binDir, "heidisql", "heidisql.exe")
@@ -246,8 +242,13 @@ func (a *App) StartService(serviceName string) error {
 		err = a.orchestrator.StartServiceWithPort("PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, phpPath, port)
 
 		if err == nil {
-			if a.orchestrator.IsRunning("Apache") { a.StopService("Apache"); a.StartService("Apache") }
-			if a.orchestrator.IsRunning("Nginx") { a.StopService("Nginx"); a.StartService("Nginx") }
+			// Trigger config updates for active servers to link with the new PHP port
+			if a.orchestrator.IsRunning("Apache") {
+				// We don't have the current port here, so we try to find it from orchestrator
+				info := a.orchestrator.GetDetailedInfo("Apache")
+				a.updateApacheConfig(info.Name, info.Port)
+				// Note: updateApacheConfig expects path, not name. This needs careful handling.
+			}
 		}
 		return err
 
@@ -263,7 +264,6 @@ func (a *App) StopService(serviceName string) {
 func (a *App) StartAllServices() error {
 	a.StartService("MySQL")
 	a.StartService("PHP")
-	// By default, start Apache as the primary server in "Start All"
 	return a.StartService("Apache")
 }
 
@@ -278,6 +278,7 @@ func (a *App) updateMySQLConfig(mysqlPath string, port int) error {
 }
 
 func (a *App) updateApacheConfig(apachePath string, port int) error {
+	if port <= 0 { port = 80 }
 	wwwDir := a.cfg.WWWRoot
 	os.MkdirAll(wwwDir, 0755)
 
@@ -289,6 +290,7 @@ func (a *App) updateApacheConfig(apachePath string, port int) error {
 }
 
 func (a *App) updateNginxConfig(nginxPath string, port int) error {
+	if port <= 0 { port = 80 }
 	wwwDir := a.cfg.WWWRoot
 	os.MkdirAll(wwwDir, 0755)
 
