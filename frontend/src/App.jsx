@@ -12,8 +12,8 @@ import LogViewer from './components/LogViewer';
 import ActivityTab from './components/ActivityTab';
 import PluginsTab from './components/PluginsTab';
 
-// Icons for components
-import { Globe, Database, Settings, ExternalLink } from 'lucide-react';
+// Icons
+import { Globe, Database, Settings, ExternalLink, Server, Loader2 } from 'lucide-react';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -21,6 +21,7 @@ function cn(...inputs) {
 
 const ICON_MAP = {
   'Apache': Globe,
+  'Nginx': Server,
   'MySQL': Database,
   'PHP': Settings,
   'HeidiSQL': ExternalLink,
@@ -32,6 +33,7 @@ function App() {
   const [theme, setTheme] = useState('dark');
   const [services, setServices] = useState([
     { name: 'Apache', status: 'Stopped', pid: 0, port: 0 },
+    { name: 'Nginx', status: 'Stopped', pid: 0, port: 0 },
     { name: 'MySQL', status: 'Stopped', pid: 0, port: 0 },
     { name: 'PHP', status: 'Stopped', pid: 0, port: 0 },
     { name: 'HeidiSQL', status: 'Stopped', pid: 0, port: 0 },

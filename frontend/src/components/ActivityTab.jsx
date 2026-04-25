@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, X, FolderOpen, Activity, Globe, Trash2 } from 'lucide-react';
+import { Plus, X, Activity, Globe, Trash2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -10,7 +10,7 @@ function cn(...inputs) {
 function ActivityTab({ 
   serverRoot, handleServerRootChange, handleBrowseServerRoot,
   isAddingPlugin, setIsAddingPlugin, prerequisites, services, handleAddToHome,
-  ICON_MAP, handleToggleService, handleRemoveFromHome 
+  ICON_MAP, handleToggleService, handleRemoveFromHome, setActiveTab
 }) {
   return (
     <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -113,14 +113,12 @@ function ActivityTab({
                     </div>
                   )}
                 </div>
-                <p className="text-[10px] font-medium text-slate-500 mt-1 uppercase tracking-wider">
-                  {isInstalled ? `Version ${task?.version || 'Ready'}` : 'Component missing'}
-                </p>
+                {/* Removed status text */}
               </div>
 
               <div className="flex items-center gap-3">
                 {!isInstalled ? (
-                  <button onClick={() => {}} className="px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
+                  <button onClick={() => setActiveTab('plugins')} className="px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
                 ) : (
                   <button
                     onClick={() => handleToggleService(service.name, service.status)}

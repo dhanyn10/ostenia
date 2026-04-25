@@ -15,13 +15,20 @@ function PluginsTab({
   handleInstallSingle, handleCancel, ICON_MAP 
 }) {
   return (
-    <div className="flex flex-col h-full pt-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+    <div className="flex flex-col h-full pt-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="flex-1 overflow-y-auto pr-3 -mr-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5 space-y-2">
         {prerequisites.map((task) => {
+          if (!task) return null;
+          
           const progress = downloadProgress[task.name];
           const isActive = progress && progress.percentage > 0 && progress.percentage < 100;
           const isDropdownOpen = openDropdown === task.name;
           const Icon = ICON_MAP[task.name] || ICON_MAP.default;
+          
+          // Safety check for versions to prevent "not iterable" error
+          const availableVersions = task.versions || [];
+          const installedVersions = task.installedVers || [];
+          const dropdownOptions = [...new Set([...availableVersions, ...installedVersions])];
           
           return (
             <div 
@@ -42,10 +49,10 @@ function PluginsTab({
                 <div className="flex items-center gap-3 flex-wrap">
                   <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{task.name}</h3>
                   
-                  {task.versions ? (
+                  {availableVersions.length > 0 ? (
                     <VersionDropdown 
                       current={selectedVersions[task.name] || task.version}
-                      options={[...new Set([...task.versions, ...(task.installedVers || [])])]}
+                      options={dropdownOptions}
                       isOpen={isDropdownOpen}
                       onToggle={() => setOpenDropdown(isDropdownOpen ? null : task.name)}
                       onChange={(v) => setSelectedVersions(prev => ({ ...prev, [task.name]: v }))}
@@ -54,11 +61,11 @@ function PluginsTab({
                     <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded-sm">v{task.version}</span>
                   )}
 
-                  {task.installedVers && task.installedVers.map(ver => (
+                  {installedVersions.map(ver => (
                     <div 
                       key={ver} 
                       onClick={(e) => { e.stopPropagation(); handleDeleteVersion(task.name, ver); }}
-                      className="group/tag flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 text-[8px] font-bold uppercase tracking-widest rounded-sm hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 transition-all cursor-pointer shadow-sm"
+                      className="group/tag flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 text-[8px] font-bold uppercase tracking-widest rounded-sm hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400 transition-all cursor-pointer shadow-sm"
                       title={`Delete v${ver}`}
                     >
                       <Trash2 size={10} className="w-0 opacity-0 group-hover/tag:w-2.5 group-hover/tag:opacity-100 transition-all text-rose-500" />
@@ -66,9 +73,6 @@ function PluginsTab({
                     </div>
                   ))}
                 </div>
-                <p className="text-[10px] font-medium text-slate-500 mt-1 uppercase tracking-wider">
-                  {isActive ? progress.status : task.isInstalled ? 'Component verified' : 'Available'}
-                </p>
               </div>
 
               <div className="flex items-center gap-6">
@@ -86,7 +90,7 @@ function PluginsTab({
 
                 {(() => {
                   const selectedVer = selectedVersions[task.name] || task.version;
-                  const isSelectedInstalled = task.installedVers?.includes(selectedVer);
+                  const isSelectedInstalled = installedVersions.includes(selectedVer);
                   
                   if (isActive) return null;
 
