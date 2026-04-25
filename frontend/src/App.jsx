@@ -163,6 +163,7 @@ function App() {
   const [services, setServices] = useState([
     { name: 'Apache', status: 'Stopped', pid: 0, port: 0 },
     { name: 'MySQL', status: 'Stopped', pid: 0, port: 0 },
+    { name: 'PHP', status: 'Stopped', pid: 0, port: 0 },
     { name: 'HeidiSQL', status: 'Stopped', pid: 0, port: 0 },
   ]);
   const [prerequisites, setPrerequisites] = useState([]);
@@ -519,7 +520,7 @@ function App() {
                     return (
                       <div key={service.name} className="bg-slate-900/40 backdrop-blur-xl rounded-sm p-4 border border-white/5 hover:border-white/10 transition-all group flex items-center gap-5 relative shadow-lg">
                         <div className="flex-1 min-w-0 px-2">
-                          <div className="flex items-center gap-4 flex-wrap">
+                          <div className="flex items-center gap-3 flex-wrap">
                             <h3 className="text-base font-black text-white uppercase italic tracking-tighter">{service.name}</h3>
                             <div className={cn(
                               "text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-sm border flex items-center gap-1.5",
