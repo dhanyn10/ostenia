@@ -1,9 +1,19 @@
-import { useState, useEffect, useRef } from 'react';
-import { Play, Square, Download, Settings, Terminal as TerminalIcon, Database, Globe, FolderOpen, MoreVertical, ExternalLink, CheckCircle2, AlertCircle, XCircle, X, Loader2, List, Trash2, ChevronRight, Search, Home, Plus, Activity, ChevronDown, Monitor, Sun, Moon } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
 import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService, GetServerRoot, SetServerRoot, GetServiceStatus, SelectServerRoot } from '../wailsjs/go/main/App';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+
+// Components
+import VerticalNav from './components/VerticalNav';
+import AppHeader from './components/AppHeader';
+import Toast from './components/Toast';
+import LogViewer from './components/LogViewer';
+import ActivityTab from './components/ActivityTab';
+import PluginsTab from './components/PluginsTab';
+
+// Icons for components
+import { Globe, Database, Settings, ExternalLink } from 'lucide-react';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -16,147 +26,6 @@ const ICON_MAP = {
   'HeidiSQL': ExternalLink,
   'default': Database
 };
-
-function CircularProgress({ percentage, status, speed, downloaded, onCancel }) {
-  const radius = 12;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
-  const isStreaming = status?.includes('Streaming');
-
-  return (
-    <div className="relative group/progress cursor-pointer overflow-hidden p-0.5 rounded-sm" onClick={onCancel}>
-      <div className="flex items-center gap-3 group-hover/progress:opacity-0 transition-opacity duration-200">
-        <div className="text-right">
-          <p className="text-[9px] font-black text-slate-800 dark:text-white">{downloaded || '...'}</p>
-          <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest leading-none">{speed || '...'}</p>
-        </div>
-        <div className="relative w-8 h-8">
-          <svg className="w-full h-full -rotate-90">
-            <circle className="text-slate-200 dark:text-white/5" strokeWidth="2.5" stroke="currentColor" fill="transparent" r={radius} cx="16" cy="16" />
-            <circle
-              className={cn("text-blue-500 transition-all duration-500", isStreaming && "animate-[spin_2s_linear_infinite]")}
-              strokeWidth="2.5"
-              strokeDasharray={circumference}
-              strokeDashoffset={isStreaming ? circumference * 0.7 : strokeDashoffset}
-              strokeLinecap="round"
-              stroke="currentColor"
-              fill="transparent"
-              r={radius}
-              cx="16"
-              cy="16"
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center text-[7px] font-black text-blue-400">
-             {isStreaming ? <Loader2 size={8} className="animate-spin" /> : `${Math.round(percentage)}%`}
-          </div>
-        </div>
-      </div>
-      <div className="absolute inset-0 flex items-center justify-center translate-y-full group-hover/progress:translate-y-0 transition-transform duration-200 bg-rose-600 rounded-sm">
-         <div className="flex items-center gap-1.5 px-4">
-            <X size={12} className="text-white" />
-            <span className="text-[9px] font-black text-white uppercase tracking-widest">Cancel</span>
-         </div>
-      </div>
-    </div>
-  );
-}
-
-function VersionDropdown({ current, options, onChange, isOpen, onToggle }) {
-  return (
-    <div className="relative">
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggle(); }}
-        className="flex items-center gap-1.5 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-sm px-1.5 py-0.5 hover:border-blue-500/30 transition-colors group cursor-pointer"
-      >
-        <span className="text-[9px] font-black text-blue-600 dark:text-blue-400">v{current}</span>
-        <MoreVertical size={9} className={cn("text-slate-400 dark:text-slate-500 group-hover:text-blue-500 transition-all", isOpen && "rotate-90")} />
-      </button>
-
-      {isOpen && (
-        <>
-          <div className="fixed inset-0 z-[60]" onClick={onToggle} />
-          <div className="absolute top-full left-0 mt-1 w-28 max-h-40 overflow-y-auto bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-white/10 rounded-sm backdrop-blur-xl z-[70] animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-1">
-              {options.map((v) => (
-                <div
-                  key={v}
-                  onClick={() => { onChange(v); onToggle(); }}
-                  className={cn(
-                    "px-2 py-1 rounded-sm text-[9px] font-bold cursor-pointer transition-all",
-                    v === current ? "bg-blue-600 text-white" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white"
-                  )}
-                >
-                  v{v}
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function Toast({ toasts, removeToast }) {
-  return (
-    <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2.5 w-72">
-      {toasts.map((toast) => (
-        <div key={toast.id} className={cn(
-          "p-3 rounded-sm shadow-2xl flex items-start gap-3 transition-all duration-300 animate-in slide-in-from-right-4",
-          toast.type === 'error' ? "bg-rose-50 dark:bg-rose-950/90 border border-rose-200 dark:border-rose-500/30 text-rose-800 dark:text-rose-200" :
-          toast.type === 'success' ? "bg-emerald-50 dark:bg-emerald-950/90 border border-emerald-500/30 text-emerald-800 dark:text-emerald-200" :
-          "bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white"
-        )}>
-          <div className="mt-0.5">
-            {toast.type === 'error' ? <XCircle size={16} /> : 
-             toast.type === 'success' ? <CheckCircle2 size={16} /> : 
-             <AlertCircle size={16} />}
-          </div>
-          <div className="flex-1 space-y-0.5">
-            <h5 className="font-bold text-[10px] uppercase tracking-widest">{toast.title}</h5>
-            <p className="text-[10px] opacity-80">{toast.message}</p>
-          </div>
-          <button onClick={() => removeToast(toast.id)} className="opacity-40 hover:opacity-100 transition-opacity">
-            <X size={12} />
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function LogViewer({ logs, isOpen, onClose }) {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-8 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white dark:bg-[#1e293b] w-full max-w-4xl h-[70vh] rounded-sm border border-slate-200 dark:border-white/5 flex flex-col shadow-3xl overflow-hidden animate-in zoom-in-95 duration-300">
-        <div className="p-5 border-b border-slate-200 dark:border-white/5 flex items-center justify-between bg-slate-50 dark:bg-white/[0.02]">
-          <div className="flex items-center gap-3">
-            <List size={18} className="text-blue-500 dark:text-blue-400" />
-            <h3 className="font-black text-slate-900 dark:text-white uppercase italic tracking-tighter text-sm">System Activity Logs</h3>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-white/10 rounded-sm text-slate-400 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all">
-            <X size={18} />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-5 font-mono text-[10px] space-y-1 bg-slate-50 dark:bg-black/20">
-           {logs.length === 0 && <p className="text-slate-600 italic">No logs recorded yet...</p>}
-           {logs.map((log, i) => (
-             <div key={i} className="flex gap-4 group">
-               <span className="text-slate-400 dark:text-slate-700 select-none">[{log.time}]</span>
-               <span className={cn(
-                 "flex-1",
-                 log.msg.includes('Error') || log.msg.includes('failed') ? "text-rose-600 dark:text-rose-400" :
-                 log.msg.includes('success') || log.msg.includes('Ready') ? "text-emerald-600 dark:text-emerald-400" :
-                 "text-slate-600 dark:text-slate-400"
-               )}>{log.msg}</span>
-             </div>
-           ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function App() {
   const [activeTab, setActiveTab] = useState('activity');
@@ -190,7 +59,6 @@ function App() {
     setTheme(savedTheme);
   }, []);
 
-  // Update root element class when theme changes
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -435,357 +303,57 @@ function App() {
       <Toast toasts={toasts} removeToast={removeToast} />
       <LogViewer logs={logs} isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} />
 
-      {/* Vertical Navigation */}
-      <aside className="w-16 flex flex-col items-center py-6 gap-6 bg-white dark:bg-[#1e293b] border-r border-slate-200 dark:border-white/5 z-20 shrink-0 shadow-sm">
-        <button 
-          onClick={() => setActiveTab('activity')}
-          title="Home" 
-          className={cn(
-            "p-3 rounded-sm transition-all relative group",
-            activeTab === 'activity' 
-              ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30" 
-              : "text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
-          )}
-        >
-          {activeTab === 'activity' && <div className="absolute left-[-16px] top-3 bottom-3 w-1 bg-blue-500 rounded-r-sm" />}
-          <Home size={20} />
-        </button>
-        
-        <button 
-          onClick={() => setActiveTab('plugins')}
-          title="Plugins" 
-          className={cn(
-            "p-3 rounded-sm transition-all relative group",
-            activeTab === 'plugins' 
-              ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30" 
-              : "text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
-          )}
-        >
-          {activeTab === 'plugins' && <div className="absolute left-[-16px] top-3 bottom-3 w-1 bg-blue-500 rounded-r-sm" />}
-          <Download size={20} />
-        </button>
+      <VerticalNav 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        toggleTheme={toggleTheme} 
+        theme={theme} 
+        setIsLogOpen={setIsLogOpen} 
+      />
 
-        <div className="mt-auto flex flex-col gap-4">
-          <button 
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            className="p-3 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-          >
-            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
-          <button onClick={() => setIsLogOpen(true)} className="p-3 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
-            <List size={18} />
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-full animate-pulse pointer-events-none" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[120px] rounded-full animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
 
-        {/* Top Header */}
-        <header className="h-14 flex items-center justify-between px-8 bg-transparent shrink-0">
-          <div className="space-y-0.5">
-            <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight uppercase italic">{activeTab === 'activity' ? 'Activity Center' : 'Plugin Management'}</h2>
-          </div>
+        <AppHeader 
+          activeTab={activeTab} 
+          handleStartAll={handleStartAll} 
+          handleStopAll={handleStopAll} 
+          handleTerminal={handleTerminal} 
+          isTerminalOpen={isTerminalOpen} 
+          setIsTerminalOpen={setIsTerminalOpen} 
+        />
 
-          {activeTab === 'activity' && (
-            <div className="flex items-center gap-2.5">
-               <button onClick={handleStartAll} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-sm transition-all text-[9px] font-black uppercase tracking-widest border border-emerald-500/20 group">
-                  <Play size={12} fill="currentColor" className="group-hover:scale-110 transition-transform" /> Start All
-               </button>
-               <button onClick={handleStopAll} className="flex items-center gap-1.5 px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-sm transition-all text-[9px] font-black uppercase tracking-widest border border-rose-500/20 group">
-                  <Square size={12} fill="currentColor" className="group-hover:scale-110 transition-transform" /> Stop All
-               </button>
-               <div className="w-px h-5 bg-slate-200 dark:bg-white/10 mx-1" />
-               
-               {/* Integrated Terminal Dropdown */}
-               <div className="relative">
-                  <button 
-                    onClick={() => setIsTerminalOpen(!isTerminalOpen)}
-                    className={cn(
-                      "flex items-center gap-1.5 p-2 rounded-sm transition-all border border-slate-200 dark:border-white/5",
-                      isTerminalOpen 
-                        ? "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white" 
-                        : "bg-white dark:bg-slate-800/50 text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                    )}
-                  >
-                    <TerminalIcon size={16} />
-                    <ChevronDown size={10} className={cn("transition-transform", isTerminalOpen && "rotate-180")} />
-                  </button>
-
-                  {isTerminalOpen && (
-                    <>
-                      <div className="fixed inset-0 z-[60]" onClick={() => setIsTerminalOpen(false)} />
-                      <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-slate-900 border border-white/10 rounded-sm shadow-2xl z-[70] animate-in fade-in zoom-in-95 duration-200">
-                        <div className="p-1">
-                          <button 
-                            onClick={() => handleTerminal('cmd')}
-                            className="w-full flex items-center gap-3 px-3 py-2 rounded-sm text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"
-                          >
-                            <Monitor size={14} className="text-blue-500" /> Command Prompt (CMD)
-                          </button>
-                          <button 
-                            onClick={() => handleTerminal('powershell')}
-                            className="w-full flex items-center gap-3 px-3 py-2 rounded-sm text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"
-                          >
-                            <Monitor size={14} className="text-blue-600" /> PowerShell
-                          </button>
-                          <button 
-                            onClick={() => handleTerminal('gitbash')}
-                            className="w-full flex items-center gap-3 px-3 py-2 rounded-sm text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"
-                          >
-                            <ExternalLink size={14} className="text-orange-500" /> Git Bash
-                          </button>
-                        </div>
-                      </div>
-                    </>
-                  )}
-               </div>
-            </div>
-          )}
-        </header>
-
-        {/* Dynamic Tab Content */}
         <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <div className="max-w-4xl w-full mx-auto flex flex-col h-full px-8 pb-8">
             {activeTab === 'activity' ? (
-              <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500">
-                {/* Dashboard Controls */}
-                <div className="shrink-0 pt-4 pb-3 space-y-3">
-                  {/* Server Root Configuration */}
-                  <div className="bg-white/50 dark:bg-slate-900/40 backdrop-blur-xl rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all group flex items-center gap-4 shadow-sm dark:shadow-lg">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-1">Server Root Directory</h3>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={serverRoot}
-                          onChange={handleServerRootChange}
-                          placeholder="C:/ostenia/www"
-                          className="flex-1 bg-slate-100 dark:bg-black/20 border border-white/5 rounded-sm px-3 py-1.5 text-[11px] text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all font-mono"
-                        />
-                        <button 
-                          onClick={handleBrowseServerRoot}
-                          className="px-3 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20"
-                        >
-                          Browse
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="relative">
-                    <button 
-                      onClick={() => setIsAddingPlugin(!isAddingPlugin)}
-                      className="w-full bg-slate-100/50 dark:bg-white/[0.01] border border-dashed border-slate-300 dark:border-white/5 hover:border-blue-500/20 hover:bg-blue-500/5 rounded-sm p-4 transition-all flex items-center justify-center gap-3 group"
-                    >
-                      <div className="w-8 h-8 rounded-sm bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-500 group-hover:bg-blue-500 group-hover:text-white transition-all shrink-0">
-                          <Plus size={16} />
-                      </div>
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 group-hover:text-blue-600 dark:group-hover:text-blue-400">Add Plugin to Home</span>
-                    </button>
-
-                    {isAddingPlugin && (
-                      <div className="absolute top-full left-0 right-0 mt-3 p-3 bg-white dark:bg-slate-900 border border-white/10 rounded-sm shadow-3xl z-50 animate-in fade-in slide-in-from-top-1">
-                          <div className="flex items-center justify-between mb-3 px-1.5">
-                            <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Available to Pin</span>
-                            <button onClick={() => setIsAddingPlugin(false)} className="text-slate-400 hover:text-slate-900 dark:hover:text-white"><X size={12} /></button>
-                          </div>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {prerequisites.filter(p => !services.find(service => service.name === p.name)).map(task => (
-                              <button 
-                                key={task.name}
-                                onClick={() => handleAddToHome(task)}
-                                className="flex items-center gap-2.5 p-2.5 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 rounded-sm text-left transition-all group/item"
-                              >
-                                <div className="w-7 h-7 rounded-sm bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover/item:bg-blue-500 group-hover/item:text-white transition-all">
-                                    {(() => { const Icon = ICON_MAP[task.name] || ICON_MAP.default; return <Icon size={14} /> })()}
-                                </div>
-                                <span className="text-xs font-bold text-slate-700 dark:text-white">{task.name}</span>
-                              </button>
-                            ))}
-                          </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Scrollable Services List */}
-                <div className="flex-1 overflow-y-auto pr-3 -mr-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5 space-y-2">
-                  {services.map((service) => {
-                    const task = prerequisites.find(p => p.name === service.name);
-                    const isInstalled = task?.installedVers && task.installedVers.length > 0;
-
-                    return (
-                      <div key={service.name} className="bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all group flex items-center gap-5 relative shadow-sm dark:shadow-lg">
-                        <div className="flex-1 min-w-0 px-2">
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{service.name}</h3>
-                            <div className={cn(
-                              "text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-sm border flex items-center gap-1.5",
-                              service.status === 'Running'
-                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                                : "bg-slate-100 dark:bg-slate-900/80 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-white/5"
-                            )}>
-                              {service.status === 'Running' && <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />}
-                              {service.status}
-                            </div>
-                            
-                            {/* Runtime Stats (PID & Port) */}
-                            {service.status === 'Running' && (
-                              <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
-                                {service.pid > 0 && (
-                                  <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded-sm text-[8px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">
-                                    <Activity size={10} />
-                                    PID: {service.pid}
-                                  </div>
-                                )}
-                                {service.port > 0 && (
-                                  <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-sm text-[8px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
-                                    <Globe size={10} />
-                                    Port: {service.port}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                          <p className="text-[10px] font-medium text-slate-500 mt-1 uppercase tracking-wider">
-                            {isInstalled ? `Version ${task?.version || 'Ready'}` : 'Component missing'}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          {!isInstalled ? (
-                            <button onClick={() => setActiveTab('plugins')} className="px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
-                          ) : (
-                            <button
-                              onClick={() => handleToggleService(service.name, service.status)}
-                              className={cn(
-                                "w-12 h-6 rounded-sm p-0.5 transition-all duration-300 ease-in-out relative ring-1 ring-inset",
-                                service.status === 'Running' 
-                                  ? "bg-emerald-500 ring-emerald-400/50" 
-                                  : "bg-slate-200 dark:bg-slate-800 ring-slate-300 dark:ring-white/5"
-                              )}
-                            >
-                              <div className={cn(
-                                "w-5 h-5 bg-white rounded-sm transition-all duration-300 shadow-lg",
-                                service.status === 'Running' ? "translate-x-6" : "translate-x-0"
-                              )} />
-                            </button>
-                          )}
-
-                          <button 
-                            onClick={() => handleRemoveFromHome(service.name)}
-                            className="h-6 px-3 bg-slate-100 dark:bg-white/5 hover:bg-rose-500/10 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-white/5"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <ActivityTab 
+                serverRoot={serverRoot}
+                handleServerRootChange={handleServerRootChange}
+                handleBrowseServerRoot={handleBrowseServerRoot}
+                isAddingPlugin={isAddingPlugin}
+                setIsAddingPlugin={setIsAddingPlugin}
+                prerequisites={prerequisites}
+                services={services}
+                handleAddToHome={handleAddToHome}
+                ICON_MAP={ICON_MAP}
+                handleToggleService={handleToggleService}
+                handleRemoveFromHome={handleRemoveFromHome}
+                setActiveTab={setActiveTab}
+              />
             ) : (
-              <div className="flex flex-col h-full pt-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                <div className="flex-1 overflow-y-auto pr-3 -mr-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5 space-y-2">
-                  {prerequisites.map((task) => {
-                    const progress = downloadProgress[task.name];
-                  const isActive = progress && progress.percentage > 0 && progress.percentage < 100;
-                  const isDropdownOpen = openDropdown === task.name;
-                  const Icon = ICON_MAP[task.name] || ICON_MAP.default;
-                  
-                  return (
-                    <div 
-                      key={task.name} 
-                      className={cn(
-                        "bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all group flex items-center gap-6 relative shadow-sm dark:shadow-lg",
-                        isDropdownOpen ? "z-[100]" : "z-0"
-                      )}
-                    >
-                      <div className={cn(
-                        "w-10 h-10 rounded-sm flex items-center justify-center shadow-lg transition-transform group-hover:scale-105",
-                        task.isInstalled ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                      )}>
-                        <Icon size={18} />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{task.name}</h3>
-                          
-                          {task.versions ? (
-                            <VersionDropdown 
-                              current={selectedVersions[task.name] || task.version}
-                              options={[...new Set([...task.versions, ...(task.installedVers || [])])]}
-                              isOpen={isDropdownOpen}
-                              onToggle={() => setOpenDropdown(isDropdownOpen ? null : task.name)}
-                              onChange={(v) => setSelectedVersions(prev => ({ ...prev, [task.name]: v }))}
-                            />
-                          ) : (
-                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded-sm">v{task.version}</span>
-                          )}
-
-                          {task.installedVers && task.installedVers.map(ver => (
-                            <div 
-                              key={ver} 
-                              onClick={(e) => { e.stopPropagation(); handleDeleteVersion(task.name, ver); }}
-                              className="group/tag flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 text-[8px] font-bold uppercase tracking-widest rounded-sm hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 transition-all cursor-pointer shadow-sm"
-                              title={`Delete v${ver}`}
-                            >
-                              <Trash2 size={10} className="w-0 opacity-0 group-hover/tag:w-2.5 group-hover/tag:opacity-100 transition-all text-rose-500" />
-                              v{ver}
-                            </div>
-                          ))}
-                        </div>
-                        <p className="text-[10px] font-medium text-slate-500 mt-1 uppercase tracking-wider">
-                          {isActive ? progress.status : task.isInstalled ? 'Component verified' : 'Available'}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-6">
-                        {isActive && (
-                          <div className="animate-in fade-in slide-in-from-right-2 duration-300">
-                            <CircularProgress 
-                              percentage={progress.percentage} 
-                              status={progress.status} 
-                              speed={progress.speed}
-                              downloaded={progress.downloaded}
-                              onCancel={() => handleCancel(task.name)}
-                            />
-                          </div>
-                        )}
-
-                        {(() => {
-                          const selectedVer = selectedVersions[task.name] || task.version;
-                          const isSelectedInstalled = task.installedVers?.includes(selectedVer);
-                          
-                          if (isActive) return null;
-
-                          return (
-                            <button
-                              disabled={isSelectedInstalled}
-                              onClick={() => !isSelectedInstalled && handleInstallSingle(task)}
-                              className={cn(
-                                "px-5 py-2 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg",
-                                isSelectedInstalled 
-                                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 border border-emerald-500/20 cursor-not-allowed"
-                                  : "bg-blue-600 hover:bg-blue-500 text-white hover:scale-105"
-                              )}
-                            >
-                              {isSelectedInstalled && <CheckCircle2 size={14} />}
-                              {isSelectedInstalled ? 'Ready' : 'Download'}
-                            </button>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  );
-                })}
-                </div>
-              </div>
+              <PluginsTab 
+                prerequisites={prerequisites}
+                downloadProgress={downloadProgress}
+                openDropdown={openDropdown}
+                setOpenDropdown={setOpenDropdown}
+                selectedVersions={selectedVersions}
+                setSelectedVersions={setSelectedVersions}
+                handleDeleteVersion={handleDeleteVersion}
+                handleInstallSingle={handleInstallSingle}
+                handleCancel={handleCancel}
+                ICON_MAP={ICON_MAP}
+              />
             )}
           </div>
         </main>
