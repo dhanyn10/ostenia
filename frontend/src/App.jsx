@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Play, Square, Download, Settings, Terminal as TerminalIcon, Database, Globe, FolderOpen, MoreVertical, ExternalLink, CheckCircle2, AlertCircle, XCircle, X, Loader2, List, Trash2, ChevronRight, Search, Home, Plus } from 'lucide-react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
-import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService } from '../wailsjs/go/main/App';
+import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService, GetServerRoot, SetServerRoot, GetServiceStatus } from '../wailsjs/go/main/App';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -163,6 +163,7 @@ function App() {
   const [services, setServices] = useState([
     { name: 'Apache', status: 'Stopped' },
     { name: 'MySQL', status: 'Stopped' },
+    { name: 'HeidiSQL', status: 'Stopped' },
   ]);
   const [prerequisites, setPrerequisites] = useState([]);
   const [downloadProgress, setDownloadProgress] = useState({});
@@ -173,6 +174,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [selectedVersions, setSelectedVersions] = useState({});
   const [isAddingPlugin, setIsAddingPlugin] = useState(false);
+  const [serverRoot, setServerRoot] = useState('');
 
   const addLog = (msg) => {
     setLogs(prev => [{ time: new Date().toLocaleTimeString(), msg }, ...prev].slice(0, 500));
@@ -226,7 +228,29 @@ function App() {
   };
 
   useEffect(() => {
+    const loadInitialData = async () => {
+      if (window.go) {
+        try {
+          const root = await GetServerRoot();
+          setServerRoot(root);
+
+          // Initial status check for all services
+          const updatedServices = await Promise.all(
+            services.map(async (s) => {
+               const status = await GetServiceStatus(s.name);
+               return { ...s, status };
+            })
+          );
+          setServices(updatedServices);
+
+        } catch (err) {
+          addLog(`Error loading initial data: ${err}`);
+        }
+      }
+    };
+
     refreshPrerequisites();
+    loadInitialData();
 
     if (window.runtime) {
       EventsOn('service_status', (data) => {
@@ -253,6 +277,21 @@ function App() {
   const handleStartAll = () => { addLog('Starting all services...'); if (window.go) StartAllServices(); };
   const handleStopAll = () => { addLog('Stopping all services...'); if (window.go) StopAllServices(); };
   const handleTerminal = () => { addLog('Opening terminal...'); if (window.go) OpenTerminal(); };
+
+  const handleServerRootChange = async (e) => {
+    const newRoot = e.target.value;
+    setServerRoot(newRoot);
+    if (window.go) {
+      try {
+        await SetServerRoot(newRoot);
+        addToast('Server Root', 'Server root updated successfully', 'success');
+        addLog(`Server root updated to: ${newRoot}`);
+      } catch (err) {
+        addToast('Server Root Error', `Failed to update server root: ${err}`, 'error');
+        addLog(`Error setting server root: ${err}`);
+      }
+    }
+  };
 
   const handleToggleService = (name, currentStatus) => {
     if (!window.go) return;
@@ -417,8 +456,25 @@ function App() {
           <div className="max-w-5xl w-full mx-auto flex flex-col h-full px-10 pb-10">
             {activeTab === 'activity' ? (
               <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-                {/* Fixed Add Plugin Section at the top */}
-                <div className="shrink-0 pt-6 pb-4">
+                {/* Dashboard Controls */}
+                <div className="shrink-0 pt-6 pb-4 space-y-4">
+                  {/* Server Root Configuration */}
+                  <div className="bg-slate-900/40 backdrop-blur-xl rounded-[2rem] p-5 border border-white/5 hover:border-white/10 transition-all group flex items-center gap-6 shadow-xl">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <FolderOpen size={22} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Server Root Directory</h3>
+                      <input
+                        type="text"
+                        value={serverRoot}
+                        onChange={handleServerRootChange}
+                        placeholder="C:/ostenia/www"
+                        className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all font-mono"
+                      />
+                    </div>
+                  </div>
+
                   <div className="relative">
                     <button 
                       onClick={() => setIsAddingPlugin(!isAddingPlugin)}

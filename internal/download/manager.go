@@ -350,6 +350,27 @@ func GetLatestKnownVersions() []DownloadTask {
 
 func (m *Manager) DeleteVersion(taskName, version string) error {
 	baseDir := config.GetBaseDir()
+
+	// Kill processes that might be using the files
+	if runtime.GOOS == "windows" {
+		var exeName string
+		switch strings.ToLower(taskName) {
+		case "apache":
+			exeName = "httpd.exe"
+		case "mysql":
+			exeName = "mysqld.exe"
+		case "php":
+			exeName = "php.exe"
+		case "heidisql":
+			exeName = "heidisql.exe"
+		}
+		if exeName != "" {
+			fmt.Printf("[Downloader] Attempting to kill %s before deletion...\n", exeName)
+			exec.Command("taskkill", "/F", "/IM", exeName, "/T").Run()
+			time.Sleep(500 * time.Millisecond) // Give OS time to release handles
+		}
+	}
+
 	prefix := ""
 	switch strings.ToLower(taskName) {
 	case "php":
@@ -372,6 +393,7 @@ func (m *Manager) DeleteVersion(taskName, version string) error {
 		targetDir = filepath.Join(baseDir, "bin", category, version)
 	}
 
+	fmt.Printf("[Downloader] Deleting directory: %s\n", targetDir)
 	return os.RemoveAll(targetDir)
 }
 

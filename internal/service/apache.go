@@ -8,9 +8,9 @@ import (
 	"strings"
 )
 
-func GenerateVHost(projectName string, projectPath string) string {
+func GenerateVHost(projectName string, projectPath string, port int) string {
 	return fmt.Sprintf(`
-<VirtualHost *:80>
+<VirtualHost *:%d>
     DocumentRoot "%s"
     ServerName %s.test
     ServerAlias *.%s.test
@@ -19,10 +19,10 @@ func GenerateVHost(projectName string, projectPath string) string {
         Require all granted
     </Directory>
 </VirtualHost>
-`, projectPath, projectName, projectName, projectPath)
+`, port, projectPath, projectName, projectName, projectPath)
 }
 
-func UpdateApacheConfig(apachePath string, phpDllPath string, phpIniDir string, vhostsContent string, port int) error {
+func UpdateApacheConfig(apachePath string, phpDllPath string, phpIniDir string, vhostsContent string, port int, wwwRoot string) error {
 	confPath := filepath.Join(apachePath, "conf", "httpd.conf")
 
 	input, err := os.ReadFile(confPath)
@@ -32,59 +32,94 @@ func UpdateApacheConfig(apachePath string, phpDllPath string, phpIniDir string, 
 
 	content := string(input)
 	
-	// 1. Deteksi Root Baru secara Absolut
+	// 1. Normalisasi Path Ostenia
 	absApachePath, _ := filepath.Abs(apachePath)
 	normalizedApachePath := strings.ReplaceAll(absApachePath, "\\", "/")
+	normalizedWWWRoot := strings.ReplaceAll(wwwRoot, "\\", "/")
 
-	// 2. Pembersihan Total Path Kaku
-	// Kita hapus baris Define SRVROOT, ServerRoot, dan blok PHP lama agar tidak duplikat/berantakan
+	// 2. Aktifkan Module Penting
+	reRewrite := regexp.MustCompile(`(?m)^#\s*LoadModule rewrite_module`)
+	content = reRewrite.ReplaceAllString(content, "LoadModule rewrite_module")
+	reAlias := regexp.MustCompile(`(?m)^#\s*LoadModule alias_module`)
+	content = reAlias.ReplaceAllString(content, "LoadModule alias_module")
+
+	// 3. Bersihkan path absolut luar (Laragon dll)
+	reAnyAbsPath := regexp.MustCompile(`[A-Za-z]:/[^" \n\t]+`)
+	content = reAnyAbsPath.ReplaceAllStringFunc(content, func(match string) string {
+		if strings.Contains(match, "/bin/apache/") && !strings.Contains(match, normalizedApachePath) {
+			parts := strings.Split(match, "/modules/")
+			if len(parts) > 1 {
+				return "${SRVROOT}/modules/" + parts[1]
+			}
+			return "${SRVROOT}"
+		}
+		return match
+	})
+
+	// 4. Bersihkan blok-blok definisi lama
 	reSRVROOT := regexp.MustCompile(`(?m)^Define\s+SRVROOT\s+.*?\n`)
 	reSRV := regexp.MustCompile(`(?m)^ServerRoot\s+.*?\n`)
+	reDocRoot := regexp.MustCompile(`(?m)^DocumentRoot\s+.*?\n`)
+	reServerName := regexp.MustCompile(`(?m)^ServerName\s+.*?\n`)
+	reDocDir := regexp.MustCompile(`(?s)<Directory\s+".*?">\s*#\s*MainDocRoot\n.*?</Directory>\n?`)
 	rePHPBlock := regexp.MustCompile(`(?s)# Ostenia PHP Configuration.*?PHPIniDir ".*?"\n?`)
-	
+	reFallback := regexp.MustCompile(`(?s)# Ostenia Fallback Configuration.*?\n?# End Ostenia Fallback\n?`)
+	reDirIndex := regexp.MustCompile(`(?m)^DirectoryIndex\s+.*?\n`)
+
 	content = reSRVROOT.ReplaceAllString(content, "")
 	content = reSRV.ReplaceAllString(content, "")
+	content = reDocRoot.ReplaceAllString(content, "")
+	content = reServerName.ReplaceAllString(content, "")
+	content = reDocDir.ReplaceAllString(content, "")
 	content = rePHPBlock.ReplaceAllString(content, "")
+	content = reFallback.ReplaceAllString(content, "")
+	content = reDirIndex.ReplaceAllString(content, "")
 
-	// 3. Re-Rooting: Gunakan ${SRVROOT} untuk semua path internal Apache
-	// Biasanya Apache bawaan punya path "c:/Apache24" atau semacamnya
-	// Kita ganti semua referensi path lama ke variabel ${SRVROOT}
-	// Ini membuat config menjadi benar-benar portable
-	reOldPath := regexp.MustCompile(`(?i)c:/Apache2[4-9][^ \n\t"]*`)
-	content = reOldPath.ReplaceAllString(content, "${SRVROOT}")
+	// 5. Set Header Baru
+	header := fmt.Sprintf("Define SRVROOT \"%s\"\nServerRoot \"${SRVROOT}\"\nServerName localhost\n", normalizedApachePath)
+	header += fmt.Sprintf("DocumentRoot \"%s\"\n", normalizedWWWRoot)
+	header += fmt.Sprintf("<Directory \"%s\"> # MainDocRoot\n    Options Indexes FollowSymLinks\n    AllowOverride All\n    Require all granted\n</Directory>\n", normalizedWWWRoot)
 
-	// 4. Set Header Baru (Root & Port)
-	header := fmt.Sprintf("Define SRVROOT \"%s\"\nServerRoot \"${SRVROOT}\"\n", normalizedApachePath)
-	
+	// Tambahkan Logika Fallback menggunakan Alias dan DirectoryIndex
+	header += `
+# Ostenia Fallback Configuration
+Alias /__ostenia_default "${SRVROOT}/htdocs"
+<Directory "${SRVROOT}/htdocs">
+    AllowOverride None
+    Require all granted
+</Directory>
+
+# Urutan pencarian: index.php -> index.html -> fallback ke htdocs bawaan
+DirectoryIndex index.php index.html /__ostenia_default/index.html
+# End Ostenia Fallback
+`
+
 	// Update Port Listen
 	rePort := regexp.MustCompile(`(?m)^Listen\s+\d+`)
 	if rePort.MatchString(content) {
 		content = rePort.ReplaceAllString(content, fmt.Sprintf(`Listen %d`, port))
 	}
 
-	// 5. Siapkan Blok PHP
-	normalizedPhpDll := strings.ReplaceAll(phpDllPath, "\\", "/")
-	normalizedPhpIni := strings.ReplaceAll(phpIniDir, "\\", "/")
-	
-	phpConfigBlock := fmt.Sprintf(`
+	// 6. Siapkan Blok PHP
+	phpConfigBlock := ""
+	if phpDllPath != "" {
+		normalizedPhpDll := strings.ReplaceAll(phpDllPath, "\\", "/")
+		normalizedPhpIni := strings.ReplaceAll(phpIniDir, "\\", "/")
+		phpConfigBlock = fmt.Sprintf(`
 # Ostenia PHP Configuration
 LoadModule php_module "%s"
 AddHandler application/x-httpd-php .php
 PHPIniDir "%s"
 `, normalizedPhpDll, normalizedPhpIni)
+	}
 
-	// 6. Gabungkan Kembali
-	// Header di paling atas
-	// PHP di paling bawah (agar mod_mime sudah terload dan AddHandler tidak error)
+	// 7. Gabungkan Kembali
 	finalContent := header + strings.TrimSpace(content) + "\n\n" + phpConfigBlock
 
-	// 7. Pastikan VHosts disertakan
 	if !strings.Contains(finalContent, "Include conf/extra/httpd-vhosts.conf") {
 		finalContent += "\nInclude conf/extra/httpd-vhosts.conf"
 	}
 
-	// 8. Tulis VHosts
-	vhostsContent = strings.ReplaceAll(vhostsContent, "*:80", fmt.Sprintf("*:%d", port))
 	vhostsPath := filepath.Join(apachePath, "conf", "extra", "httpd-vhosts.conf")
 	os.MkdirAll(filepath.Dir(vhostsPath), 0755)
 	os.WriteFile(vhostsPath, []byte(vhostsContent), 0644)
