@@ -99,6 +99,23 @@ func (a *App) SelectServerRoot() (string, error) {
 	return selectedDir, nil
 }
 
+func (a *App) OpenPluginFolder(serviceName string) error {
+	baseDir := config.GetBaseDir()
+	binDir := filepath.Join(baseDir, "bin")
+
+	// Determine category folder
+	category := strings.ToLower(serviceName)
+	folderPath := filepath.Join(binDir, category)
+
+	// Check if the directory exists
+	if _, err := os.Stat(folderPath); os.IsNotExist(err) {
+		return fmt.Errorf("folder for %s not found: %s", serviceName, folderPath)
+	}
+
+	// Open folder in explorer
+	return service.OpenExplorer(folderPath)
+}
+
 func (a *App) InstallPrerequisite(task download.DownloadTask) error {
 	fmt.Printf("[App] Installing prerequisite: %s (%s)\n", task.Name, task.URL)
 	err := a.downloader.DownloadAndExtract(task)
@@ -149,6 +166,12 @@ func (a *App) StartService(serviceName string) error {
 		return a.orchestrator.StartServiceWithPort("MySQL", mysqlBin, []string{"--defaults-file=" + iniPath, "--console"}, filepath.Dir(mysqlBin), port)
 
 	case "Apache":
+		// Exclusive Rule: Stop Nginx if running
+		if a.orchestrator.IsRunning("Nginx") {
+			fmt.Println("[App] Nginx is running, stopping it before starting Apache...")
+			a.StopService("Nginx")
+		}
+
 		var apacheBase string
 		var apacheBin string
 		filepath.Walk(filepath.Join(binDir, "apache"), func(path string, info os.FileInfo, err error) error {
@@ -178,6 +201,12 @@ func (a *App) StartService(serviceName string) error {
 		return a.orchestrator.StartServiceWithPort("Apache", apacheBin, []string{}, apacheBase, port)
 
 	case "Nginx":
+		// Exclusive Rule: Stop Apache if running
+		if a.orchestrator.IsRunning("Apache") {
+			fmt.Println("[App] Apache is running, stopping it before starting Nginx...")
+			a.StopService("Apache")
+		}
+
 		var nginxBase string
 		var nginxBin string
 		filepath.Walk(filepath.Join(binDir, "nginx"), func(path string, info os.FileInfo, err error) error {
@@ -216,7 +245,6 @@ func (a *App) StartService(serviceName string) error {
 		os.Setenv("PHP_FCGI_MAX_REQUESTS", "1000")
 		err = a.orchestrator.StartServiceWithPort("PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, phpPath, port)
 
-		// Refresh web server configs when PHP starts
 		if err == nil {
 			if a.orchestrator.IsRunning("Apache") { a.StopService("Apache"); a.StartService("Apache") }
 			if a.orchestrator.IsRunning("Nginx") { a.StopService("Nginx"); a.StartService("Nginx") }
@@ -235,6 +263,7 @@ func (a *App) StopService(serviceName string) {
 func (a *App) StartAllServices() error {
 	a.StartService("MySQL")
 	a.StartService("PHP")
+	// By default, start Apache as the primary server in "Start All"
 	return a.StartService("Apache")
 }
 
@@ -252,7 +281,6 @@ func (a *App) updateApacheConfig(apachePath string, port int) error {
 	wwwDir := a.cfg.WWWRoot
 	os.MkdirAll(wwwDir, 0755)
 
-	// FastCGI connection info
 	phpInfo := a.orchestrator.GetDetailedInfo("PHP")
 	phpPort := 0
 	if phpInfo.Status == "Running" { phpPort = phpInfo.Port }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
-import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService, GetServerRoot, SetServerRoot, GetServiceStatus, SelectServerRoot } from '../wailsjs/go/main/App';
+import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService, GetServerRoot, SetServerRoot, GetServiceStatus, SelectServerRoot, OpenPluginFolder } from '../wailsjs/go/main/App';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -13,7 +13,7 @@ import ActivityTab from './components/ActivityTab';
 import PluginsTab from './components/PluginsTab';
 
 // Icons
-import { Globe, Database, Settings, ExternalLink, Server, Loader2 } from 'lucide-react';
+import { Globe, Database, Settings, ExternalLink, Server, Loader2, Shield } from 'lucide-react';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -25,6 +25,7 @@ const ICON_MAP = {
   'MySQL': Database,
   'PHP': Settings,
   'HeidiSQL': ExternalLink,
+  'OpenSSL': Shield,
   'default': Database
 };
 
@@ -206,6 +207,18 @@ function App() {
     }
   };
 
+  const handleOpenPluginFolder = async (serviceName) => {
+    if (window.go) {
+      try {
+        await OpenPluginFolder(serviceName);
+        addLog(`Opened folder for ${serviceName}`);
+      } catch (err) {
+        addToast('Error', `Failed to open folder: ${err}`, 'error');
+        addLog(`Error opening folder for ${serviceName}: ${err}`);
+      }
+    }
+  };
+
   const handleToggleService = (name, currentStatus) => {
     if (!window.go) return;
     if (currentStatus === 'Running') {
@@ -342,6 +355,7 @@ function App() {
                 handleToggleService={handleToggleService}
                 handleRemoveFromHome={handleRemoveFromHome}
                 setActiveTab={setActiveTab}
+                handleOpenPluginFolder={handleOpenPluginFolder}
               />
             ) : (
               <PluginsTab 

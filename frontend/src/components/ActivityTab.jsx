@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, X, Activity, Globe, Trash2 } from 'lucide-react';
+import { Plus, X, Activity, Globe, Trash2, FolderOpen } from 'lucide-react'; // Added FolderOpen icon
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -10,7 +10,8 @@ function cn(...inputs) {
 function ActivityTab({ 
   serverRoot, handleServerRootChange, handleBrowseServerRoot,
   isAddingPlugin, setIsAddingPlugin, prerequisites, services, handleAddToHome,
-  ICON_MAP, handleToggleService, handleRemoveFromHome, setActiveTab
+  ICON_MAP, handleToggleService, handleRemoveFromHome, setActiveTab,
+  handleOpenPluginFolder // New prop for opening folder
 }) {
   return (
     <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -113,10 +114,18 @@ function ActivityTab({
                     </div>
                   )}
                 </div>
-                {/* Removed status text */}
               </div>
 
               <div className="flex items-center gap-3">
+                {isInstalled && ( // Only show folder button if installed
+                  <button 
+                    onClick={() => handleOpenPluginFolder(service.name)}
+                    className="h-6 px-3 bg-slate-100 dark:bg-white/5 hover:bg-blue-500/10 text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-white/5"
+                    title={`Open ${service.name} Folder`}
+                  >
+                    <FolderOpen size={12} />
+                  </button>
+                )}
                 {!isInstalled ? (
                   <button onClick={() => setActiveTab('plugins')} className="px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
                 ) : (

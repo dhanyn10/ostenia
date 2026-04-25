@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"ostenia/internal/config"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -93,6 +94,24 @@ func getInstalledVersionPaths(baseDir string, category string, checkFile string)
 	return installedPaths
 }
 
+// getOpenSSLVersion executes 'openssl version' and parses the output.
+// It can take an absolute path to the exe or just "openssl" for global check.
+func getOpenSSLVersion(opensslCmd string) string {
+	cmd := exec.Command(opensslCmd, "version")
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	// Example output: OpenSSL 3.2.1 1 Feb 2024 (Library: OpenSSL 3.2.1 1 Feb 2024)
+	re := regexp.MustCompile(`OpenSSL\s+([\d\.]+[a-z]?)`)
+	matches := re.FindStringSubmatch(string(output))
+	if len(matches) > 1 {
+		return matches[1]
+	}
+	return "Installed" // Fallback if parsing fails but command works
+}
+
 func GetLatestKnownVersions() []DownloadTask {
 	phpVers, phpBase := DetectPHPVersions()
 	apacheVers, apacheURLs := DetectApacheVersions()
@@ -100,6 +119,15 @@ func GetLatestKnownVersions() []DownloadTask {
 
 	nginxVersion := "1.24.0"
 	nginxURL := fmt.Sprintf("https://nginx.org/download/nginx-%s.zip", nginxVersion)
+
+	opensslVersion := "4.0.0"
+	arch := getSystemArch()
+	var opensslURL string
+	if arch == "x64" {
+		opensslURL = "https://slproweb.com/download/Win64OpenSSL_Light-4_0_0.exe"
+	} else {
+		opensslURL = "https://slproweb.com/download/Win32OpenSSL_Light-4_0_0.exe"
+	}
 
 	tasks := []DownloadTask{
 		{
@@ -142,6 +170,13 @@ func GetLatestKnownVersions() []DownloadTask {
 			Target:    "nginx/nginx-" + nginxVersion,
 			CheckFile: "nginx.exe",
 		},
+		{
+			Name:      "OpenSSL",
+			URL:       opensslURL,
+			Version:   opensslVersion,
+			Target:    "openssl/openssl-" + opensslVersion,
+			CheckFile: "bin/openssl.exe",
+		},
 	}
 
 	baseDir := config.GetBaseDir()
@@ -159,36 +194,74 @@ func GetLatestKnownVersions() []DownloadTask {
 				checkPaths := []string{
 					filepath.Join(compDir, e.Name(), t.CheckFile),
 					filepath.Join(compDir, e.Name(), "Apache24", t.CheckFile),
+					filepath.Join(compDir, e.Name(), "bin", t.CheckFile),
 				}
 				for _, p := range checkPaths {
 					if _, err := os.Stat(p); err == nil {
-						t.InstalledVers = append(t.InstalledVers, ver)
+						if t.Name == "OpenSSL" {
+							detectedVer := getOpenSSLVersion(p)
+							if detectedVer != "" {
+								t.InstalledVers = append(t.InstalledVers, detectedVer)
+							} else {
+								t.InstalledVers = append(t.InstalledVers, ver)
+							}
+						} else {
+							t.InstalledVers = append(t.InstalledVers, ver)
+						}
 						break
 					}
 				}
 			}
 		}
 
+		// Local check for flat structures
 		if len(t.InstalledVers) == 0 {
 			checkPath := filepath.Join(baseDir, "bin", t.Target, t.CheckFile)
 			if _, err := os.Stat(checkPath); err == nil {
-				t.InstalledVers = append(t.InstalledVers, t.Version)
+				if t.Name == "OpenSSL" {
+					detectedVer := getOpenSSLVersion(checkPath)
+					if detectedVer != "" {
+						t.InstalledVers = append(t.InstalledVers, detectedVer)
+					} else {
+						t.InstalledVers = append(t.InstalledVers, t.Version)
+					}
+				} else {
+					t.InstalledVers = append(t.InstalledVers, t.Version)
+				}
+			}
+		}
+
+		// Global check for OpenSSL
+		if t.Name == "OpenSSL" && len(t.InstalledVers) == 0 {
+			globalVer := getOpenSSLVersion("openssl")
+			if globalVer != "" {
+				t.InstalledVers = append(t.InstalledVers, globalVer)
+				// We also set the version to match global if needed to trigger "Ready"
+				t.Version = globalVer
 			}
 		}
 
 		sort.Strings(t.InstalledVers)
 
-		currentLinkPath := filepath.Join(compDir, "current")
-		if resolved, err := filepath.EvalSymlinks(currentLinkPath); err == nil {
+		currentPath := filepath.Join(compDir, "current")
+		if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
 			if _, err := os.Stat(filepath.Join(resolved, t.CheckFile)); err == nil {
 				t.IsInstalled = true
 			} else if category == "apache" {
 				if _, err := os.Stat(filepath.Join(resolved, "Apache24", t.CheckFile)); err == nil {
 					t.IsInstalled = true
 				}
+			} else if category == "openssl" {
+				if _, err := os.Stat(filepath.Join(resolved, "bin", t.CheckFile)); err == nil {
+					t.IsInstalled = true
+				}
 			}
 		} else {
 			if _, err := os.Stat(filepath.Join(baseDir, "bin", t.Target, t.CheckFile)); err == nil {
+				t.IsInstalled = true
+			}
+			// If globally installed, mark as installed
+			if t.Name == "OpenSSL" && len(t.InstalledVers) > 0 {
 				t.IsInstalled = true
 			}
 		}
@@ -198,7 +271,7 @@ func GetLatestKnownVersions() []DownloadTask {
 
 func (m *Manager) DeleteVersion(taskName, version string) error {
 	if runtime.GOOS == "windows" {
-		exeMap := map[string]string{"apache": "httpd.exe", "mysql": "mysqld.exe", "php": "php.exe", "heidisql": "heidisql.exe", "nginx": "nginx.exe"}
+		exeMap := map[string]string{"apache": "httpd.exe", "mysql": "mysqld.exe", "php": "php.exe", "heidisql": "heidisql.exe", "nginx": "nginx.exe", "openssl": "openssl.exe"}
 		if exe := exeMap[strings.ToLower(taskName)]; exe != "" {
 			exec.Command("taskkill", "/F", "/IM", exe, "/T").Run()
 			time.Sleep(500 * time.Millisecond)
@@ -207,14 +280,14 @@ func (m *Manager) DeleteVersion(taskName, version string) error {
 
 	baseDir := config.GetBaseDir()
 	category := strings.ToLower(taskName)
-	prefixMap := map[string]string{"php": "php-", "apache": "httpd-", "mysql": "mysql-", "nginx": "nginx-", "heidisql": ""}
+	prefixMap := map[string]string{"php": "php-", "apache": "httpd-", "mysql": "mysql-", "nginx": "nginx-", "openssl": "openssl-", "heidisql": ""}
 
 	targetDir := filepath.Join(baseDir, "bin", category, prefixMap[category]+version)
 	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
 		targetDir = filepath.Join(baseDir, "bin", category, version)
 	}
 
-	if _, err := os.Stat(targetDir); os.IsNotExist(err) && (category == "heidisql" || category == "nginx") {
+	if _, err := os.Stat(targetDir); os.IsNotExist(err) && (category == "heidisql" || category == "nginx" || category == "openssl") {
 		targetDir = filepath.Join(baseDir, "bin", category)
 	}
 
@@ -253,11 +326,37 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 	m.cancelsMu.Unlock()
 	defer cancel()
 
-	tmpFile := filepath.Join(os.TempDir(), "ostenia_"+task.Name+".zip")
+	isZip := strings.HasSuffix(strings.ToLower(task.URL), ".zip")
+	ext := ".zip"
+	if !isZip {
+		ext = ".exe"
+	}
+
+	tmpFile := filepath.Join(os.TempDir(), "ostenia_"+task.Name+ext)
 	if err := m.downloadFileWithContext(taskCtx, task.URL, tmpFile, task.Name); err != nil {
 		return err
 	}
 	defer os.Remove(tmpFile)
+
+	if !isZip {
+		os.MkdirAll(targetDir, 0755)
+		destFile := filepath.Join(targetDir, "installer.exe")
+
+		fmt.Printf("[Downloader] Moving installer using system command: %s\n", destFile)
+		if runtime.GOOS == "windows" {
+			err := exec.Command("cmd", "/c", "move", "/Y", tmpFile, destFile).Run()
+			if err != nil {
+				return fmt.Errorf("system move failed: %w", err)
+			}
+
+			fmt.Printf("[Downloader] Launching installer: %s\n", destFile)
+			exec.Command("cmd", "/c", "start", "", destFile).Run()
+		} else {
+			os.Rename(tmpFile, destFile)
+		}
+
+		return m.ensureCurrentLink(task)
+	}
 
 	extractTmp := targetDir + ".tmp"
 	os.RemoveAll(extractTmp)
@@ -356,16 +455,14 @@ func (m *Manager) downloadFileWithContext(ctx context.Context, url string, filep
 }
 
 func formatBytes(b uint64) string {
-	const unit = 1024
-	if b < unit {
-		return fmt.Sprintf("%d B", b)
+	units := []string{"B", "KB", "MB", "GB"}
+	val := float64(b)
+	i := 0
+	for val >= 1024 && i < len(units)-1 {
+		val /= 1024
+		i++
 	}
-	div, exp := uint64(unit), 0
-	for n := b / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
+	return fmt.Sprintf("%.1f %s", val, units[i])
 }
 
 func (m *Manager) unzip(ctx context.Context, src string, dest string, name string) error {
@@ -382,7 +479,6 @@ func (m *Manager) unzip(ctx context.Context, src string, dest string, name strin
 
 	totalFiles := len(r.File)
 	for i, f := range r.File {
-		// Check cancellation
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -449,7 +545,6 @@ func (wc *WriteCounter) Write(p []byte) (int, error) {
 	n := len(p)
 	wc.Downloaded += uint64(n)
 
-	// Calculate speed
 	elapsed := time.Since(wc.StartTime).Seconds()
 	var speedStr string
 	if elapsed > 0 {
