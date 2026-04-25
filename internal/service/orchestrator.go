@@ -8,7 +8,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
+	"time"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -32,12 +34,47 @@ func NewOrchestrator(ctx context.Context) *Orchestrator {
 	}
 }
 
-func (o *Orchestrator) StartService(name string, binaryPath string, args []string) error {
+// IsRunning checks if the service is running (either tracked or in system)
+func (o *Orchestrator) IsRunning(name string) bool {
+	o.mu.Lock()
+	_, tracked := o.services[name]
+	o.mu.Unlock()
+
+	if tracked {
+		return true
+	}
+
+	// If not tracked by us, check the OS process list
+	if runtime.GOOS == "windows" {
+		var exeName string
+		switch name {
+		case "Apache":
+			exeName = "httpd.exe"
+		case "MySQL":
+			exeName = "mysqld.exe"
+		case "HeidiSQL":
+			exeName = "heidisql.exe"
+		}
+
+		if exeName != "" {
+			// tasklist /FI "IMAGENAME eq exeName"
+			out, err := exec.Command("tasklist", "/FI", "IMAGENAME eq "+exeName, "/NH").Output()
+			if err == nil && strings.Contains(string(out), exeName) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func (o *Orchestrator) StartService(name string, binaryPath string, args []string, workingDir string) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
+	// Double check if already running in system before starting
 	if _, exists := o.services[name]; exists {
-		return fmt.Errorf("service %s is already running", name)
+		return fmt.Errorf("service %s is already tracked as running", name)
 	}
 
 	absPath, err := filepath.Abs(binaryPath)
@@ -45,21 +82,10 @@ func (o *Orchestrator) StartService(name string, binaryPath string, args []strin
 		return err
 	}
 
-	// Mocking for non-windows environment
-	if runtime.GOOS != "windows" {
-		fmt.Printf("[MOCK] Starting service %s: %s %v\n", name, absPath, args)
-		// We'll just simulate a running process
-		cmd := exec.Command("sleep", "1000")
-		err = cmd.Start()
-		if err != nil {
-			return err
-		}
-		o.services[name] = cmd
-		go o.emitStatus(name, "Running")
-		return nil
-	}
-
 	cmd := exec.Command(absPath, args...)
+	if workingDir != "" {
+		cmd.Dir = workingDir
+	}
 
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()
@@ -86,23 +112,37 @@ func (o *Orchestrator) StartService(name string, binaryPath string, args []strin
 }
 
 func (o *Orchestrator) StopService(name string) error {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
-	cmd, exists := o.services[name]
-	if !exists {
-		return nil
-	}
-
+	// 1. Broad cleanup on Windows for specific services
 	if runtime.GOOS == "windows" {
-		// On windows, we might need taskkill for some processes like Apache
-		kill := exec.Command("taskkill", "/T", "/F", "/PID", fmt.Sprintf("%d", cmd.Process.Pid))
-		kill.Run()
-	} else {
-		cmd.Process.Kill()
+		var exeNames []string
+		switch name {
+		case "Apache":
+			exeNames = []string{"httpd.exe"}
+		case "MySQL":
+			exeNames = []string{"mysqld.exe"}
+		case "HeidiSQL":
+			exeNames = []string{"heidisql.exe"}
+		case "PHP":
+			exeNames = []string{"php.exe", "php-cgi.exe"}
+		}
+
+		for _, exe := range exeNames {
+			exec.Command("taskkill", "/F", "/IM", exe, "/T").Run()
+		}
+		time.Sleep(200 * time.Millisecond)
 	}
 
-	delete(o.services, name)
+	// 2. Clear from tracked services
+	o.mu.Lock()
+	cmd, exists := o.services[name]
+	if exists && cmd != nil && cmd.Process != nil {
+		if runtime.GOOS != "windows" {
+			cmd.Process.Kill()
+		}
+		delete(o.services, name)
+	}
+	o.mu.Unlock()
+
 	o.emitStatus(name, "Stopped")
 	return nil
 }

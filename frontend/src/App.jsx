@@ -1,13 +1,21 @@
-import { useState, useEffect } from 'react';
-import { Play, Square, Download, Settings, Terminal as TerminalIcon, Database, Globe, FolderOpen, MoreVertical, ExternalLink, CheckCircle2, AlertCircle, XCircle, X, Loader2, List, Trash2, ChevronRight, Search, Home } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Play, Square, Download, Settings, Terminal as TerminalIcon, Database, Globe, FolderOpen, MoreVertical, ExternalLink, CheckCircle2, AlertCircle, XCircle, X, Loader2, List, Trash2, ChevronRight, Search, Home, Plus } from 'lucide-react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
-import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService } from '../wailsjs/go/main/App';
+import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService, GetServerRoot, SetServerRoot, GetServiceStatus } from '../wailsjs/go/main/App';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
+
+const ICON_MAP = {
+  'Apache': Globe,
+  'MySQL': Database,
+  'PHP': Settings,
+  'HeidiSQL': ExternalLink,
+  'default': Database
+};
 
 function CircularProgress({ percentage, status, speed, downloaded, onCancel }) {
   const radius = 16;
@@ -153,8 +161,9 @@ function LogViewer({ logs, isOpen, onClose }) {
 function App() {
   const [activeTab, setActiveTab] = useState('activity'); // 'activity' or 'plugins'
   const [services, setServices] = useState([
-    { name: 'Apache', status: 'Stopped', icon: Globe },
-    { name: 'MySQL', status: 'Stopped', icon: Database },
+    { name: 'Apache', status: 'Stopped' },
+    { name: 'MySQL', status: 'Stopped' },
+    { name: 'HeidiSQL', status: 'Stopped' },
   ]);
   const [prerequisites, setPrerequisites] = useState([]);
   const [downloadProgress, setDownloadProgress] = useState({});
@@ -164,6 +173,8 @@ function App() {
   const [openDropdown, setOpenDropdown] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedVersions, setSelectedVersions] = useState({});
+  const [isAddingPlugin, setIsAddingPlugin] = useState(false);
+  const [serverRoot, setServerRoot] = useState('');
 
   const addLog = (msg) => {
     setLogs(prev => [{ time: new Date().toLocaleTimeString(), msg }, ...prev].slice(0, 500));
@@ -217,7 +228,29 @@ function App() {
   };
 
   useEffect(() => {
+    const loadInitialData = async () => {
+      if (window.go) {
+        try {
+          const root = await GetServerRoot();
+          setServerRoot(root);
+
+          // Initial status check for all services
+          const updatedServices = await Promise.all(
+            services.map(async (s) => {
+               const status = await GetServiceStatus(s.name);
+               return { ...s, status };
+            })
+          );
+          setServices(updatedServices);
+
+        } catch (err) {
+          addLog(`Error loading initial data: ${err}`);
+        }
+      }
+    };
+
     refreshPrerequisites();
+    loadInitialData();
 
     if (window.runtime) {
       EventsOn('service_status', (data) => {
@@ -245,6 +278,21 @@ function App() {
   const handleStopAll = () => { addLog('Stopping all services...'); if (window.go) StopAllServices(); };
   const handleTerminal = () => { addLog('Opening terminal...'); if (window.go) OpenTerminal(); };
 
+  const handleServerRootChange = async (e) => {
+    const newRoot = e.target.value;
+    setServerRoot(newRoot);
+    if (window.go) {
+      try {
+        await SetServerRoot(newRoot);
+        addToast('Server Root', 'Server root updated successfully', 'success');
+        addLog(`Server root updated to: ${newRoot}`);
+      } catch (err) {
+        addToast('Server Root Error', `Failed to update server root: ${err}`, 'error');
+        addLog(`Error setting server root: ${err}`);
+      }
+    }
+  };
+
   const handleToggleService = (name, currentStatus) => {
     if (!window.go) return;
     if (currentStatus === 'Running') {
@@ -254,6 +302,19 @@ function App() {
       addLog(`Starting ${name}...`);
       StartService(name);
     }
+  };
+
+  const handleRemoveFromHome = (name) => {
+    setServices(prev => prev.filter(s => s.name !== name));
+    addLog(`Removed ${name} from home screen.`);
+  };
+
+  const handleAddToHome = (task) => {
+    if (!services.find(s => s.name === task.name)) {
+      setServices(prev => [...prev, { name: task.name, status: 'Stopped' }]);
+      addLog(`Added ${task.name} to home screen.`);
+    }
+    setIsAddingPlugin(false);
   };
 
   const handleCancel = (name) => {
@@ -328,11 +389,11 @@ function App() {
       <Toast toasts={toasts} removeToast={removeToast} />
       <LogViewer logs={logs} isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} />
 
-      {/* Vertical Navigation (VS Code Activity Bar style) */}
+      {/* Vertical Navigation */}
       <aside className="w-20 flex flex-col items-center py-8 gap-8 bg-[#1e293b] border-r border-white/5 z-20 shrink-0">
         <button 
           onClick={() => setActiveTab('activity')}
-          title="Activity" 
+          title="Home" 
           className={cn(
             "p-4 rounded-2xl transition-all relative group",
             activeTab === 'activity' ? "bg-blue-600 text-white shadow-xl shadow-blue-900/30 ring-4 ring-blue-600/10" : "text-slate-400 hover:bg-white/5 hover:text-white"
@@ -363,7 +424,6 @@ function App() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
-        {/* Backdrop gradients */}
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-full animate-pulse pointer-events-none" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[120px] rounded-full animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
 
@@ -373,7 +433,7 @@ function App() {
             <h2 className="text-2xl font-black text-white tracking-tight uppercase italic">{activeTab === 'activity' ? 'Activity Center' : 'Plugin Management'}</h2>
             <div className="flex items-center gap-2">
                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{activeTab === 'activity' ? 'Service Monitor' : 'Installed Extensions'}</p>
+               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{activeTab === 'activity' ? 'Dashboard' : 'Available Plugins'}</p>
             </div>
           </div>
 
@@ -392,71 +452,142 @@ function App() {
         </header>
 
         {/* Dynamic Tab Content */}
-        <main className="flex-1 overflow-y-auto p-10 scrollbar-thin scrollbar-thumb-white/5">
-          <div className="max-w-5xl mx-auto space-y-4">
+        <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="max-w-5xl w-full mx-auto flex flex-col h-full px-10 pb-10">
             {activeTab === 'activity' ? (
-              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                {services.map((service) => {
-                  const task = prerequisites.find(p => p.name === service.name);
-                  const isInstalled = task?.installedVers && task.installedVers.length > 0;
-
-                  return (
-                    <div key={service.name} className="bg-slate-900/40 backdrop-blur-xl rounded-[2rem] p-6 border border-white/5 hover:border-white/10 transition-all group flex items-center gap-8 relative shadow-xl">
-                      <div className={cn(
-                        "w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-2xl transition-transform group-hover:scale-105",
-                        service.status === 'Running' ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-800 text-slate-400"
-                      )}>
-                        <service.icon size={28} />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-4 flex-wrap">
-                          <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">{service.name}</h3>
-                          <div className={cn(
-                            "text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-lg border flex items-center gap-2",
-                            service.status === 'Running'
-                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                              : "bg-slate-900/80 text-slate-500 border-white/5"
-                          )}>
-                            {service.status === 'Running' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />}
-                            {service.status}
-                          </div>
-                        </div>
-                        <p className="text-[11px] font-medium text-slate-500 mt-1.5 uppercase tracking-wider">
-                          {isInstalled ? `Version ${task?.version || 'Unknown'} - Stable` : 'Component missing'}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-8">
-                        {!isInstalled ? (
-                          <button onClick={() => setActiveTab('plugins')} className="px-6 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
-                        ) : (
-                          <button
-                            onClick={() => handleToggleService(service.name, service.status)}
-                            className={cn(
-                              "w-14 h-7 rounded-full p-1 transition-all duration-300 ease-in-out relative ring-1 ring-inset shadow-2xl",
-                              service.status === 'Running' 
-                                ? "bg-gradient-to-r from-emerald-500 to-teal-500 ring-emerald-400/50" 
-                                : "bg-slate-800 ring-white/5"
-                            )}
-                          >
-                            <div className={cn(
-                              "w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-xl",
-                              service.status === 'Running' ? "translate-x-7" : "translate-x-0"
-                            )} />
-                          </button>
-                        )}
-                      </div>
+              <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* Dashboard Controls */}
+                <div className="shrink-0 pt-6 pb-4 space-y-4">
+                  {/* Server Root Configuration */}
+                  <div className="bg-slate-900/40 backdrop-blur-xl rounded-[2rem] p-5 border border-white/5 hover:border-white/10 transition-all group flex items-center gap-6 shadow-xl">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <FolderOpen size={22} />
                     </div>
-                  );
-                })}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Server Root Directory</h3>
+                      <input
+                        type="text"
+                        value={serverRoot}
+                        onChange={handleServerRootChange}
+                        placeholder="C:/ostenia/www"
+                        className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <button 
+                      onClick={() => setIsAddingPlugin(!isAddingPlugin)}
+                      className="w-full bg-white/[0.02] border-2 border-dashed border-white/5 hover:border-blue-500/20 hover:bg-blue-500/5 rounded-[2rem] p-6 transition-all flex items-center justify-center gap-4 group"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-500 group-hover:bg-blue-500 group-hover:text-white transition-all shrink-0">
+                          <Plus size={20} />
+                      </div>
+                      <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 group-hover:text-blue-400">Add Plugin to Home</span>
+                    </button>
+
+                    {isAddingPlugin && (
+                      <div className="absolute top-full left-0 right-0 mt-4 p-4 bg-slate-900 border border-white/10 rounded-3xl shadow-3xl z-50 animate-in fade-in slide-in-from-top-2">
+                          <div className="flex items-center justify-between mb-4 px-2">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available to Pin</span>
+                            <button onClick={() => setIsAddingPlugin(false)}><X size={14} /></button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            {prerequisites.filter(p => !services.find(s => s.name === p.name)).map(task => (
+                              <button 
+                                key={task.name}
+                                onClick={() => handleAddToHome(task)}
+                                className="flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl text-left transition-all"
+                              >
+                                <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
+                                    {(() => { const Icon = ICON_MAP[task.name] || ICON_MAP.default; return <Icon size={16} /> })()}
+                                </div>
+                                <span className="text-sm font-bold text-white">{task.name}</span>
+                              </button>
+                            ))}
+                            {prerequisites.filter(p => !services.find(s => s.name === p.name)).length === 0 && (
+                              <p className="col-span-2 text-center py-4 text-[10px] text-slate-600 uppercase tracking-widest">All plugins are on home</p>
+                            )}
+                          </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Scrollable Services List */}
+                <div className="flex-1 overflow-y-auto pr-4 -mr-4 scrollbar-thin scrollbar-thumb-white/5 space-y-4">
+                  {services.map((service) => {
+                    const task = prerequisites.find(p => p.name === service.name);
+                    const isInstalled = task?.installedVers && task.installedVers.length > 0;
+                    const Icon = ICON_MAP[service.name] || ICON_MAP.default;
+
+                    return (
+                      <div key={service.name} className="bg-slate-900/40 backdrop-blur-xl rounded-[2rem] p-6 border border-white/5 hover:border-white/10 transition-all group flex items-center gap-8 relative shadow-xl">
+                        <div className={cn(
+                          "w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-2xl transition-transform group-hover:scale-105",
+                          service.status === 'Running' ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-800 text-slate-400"
+                        )}>
+                          <Icon size={28} />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-4 flex-wrap">
+                            <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">{service.name}</h3>
+                            <div className={cn(
+                              "text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-lg border flex items-center gap-2",
+                              service.status === 'Running'
+                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                : "bg-slate-900/80 text-slate-500 border-white/5"
+                            )}>
+                              {service.status === 'Running' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />}
+                              {service.status}
+                            </div>
+                          </div>
+                          <p className="text-[11px] font-medium text-slate-500 mt-1.5 uppercase tracking-wider">
+                            {isInstalled ? `Version ${task?.version || 'Ready'} - Active` : 'Component missing'}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          {!isInstalled ? (
+                            <button onClick={() => setActiveTab('plugins')} className="px-6 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
+                          ) : (
+                            <button
+                              onClick={() => handleToggleService(service.name, service.status)}
+                              className={cn(
+                                "w-14 h-7 rounded-full p-1 transition-all duration-300 ease-in-out relative ring-1 ring-inset shadow-2xl",
+                                service.status === 'Running' 
+                                  ? "bg-gradient-to-r from-emerald-500 to-teal-500 ring-emerald-400/50" 
+                                  : "bg-slate-800 ring-white/5"
+                              )}
+                            >
+                              <div className={cn(
+                                "w-5 h-5 bg-white rounded-full transition-all duration-300 shadow-xl",
+                                service.status === 'Running' ? "translate-x-7" : "translate-x-0"
+                              )} />
+                            </button>
+                          )}
+
+                          <button 
+                            onClick={() => handleRemoveFromHome(service.name)}
+                            className="h-7 px-4 bg-white/5 hover:bg-rose-500/10 text-slate-500 hover:text-rose-400 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border border-white/5 hover:border-rose-500/20"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             ) : (
-              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                {prerequisites.map((task) => {
-                  const progress = downloadProgress[task.name];
+              <div className="flex flex-col h-full pt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex-1 overflow-y-auto pr-4 -mr-4 scrollbar-thin scrollbar-thumb-white/5 space-y-4">
+                  {prerequisites.map((task) => {
+                    const progress = downloadProgress[task.name];
                   const isActive = progress && progress.percentage > 0 && progress.percentage < 100;
                   const isDropdownOpen = openDropdown === task.name;
+                  const Icon = ICON_MAP[task.name] || ICON_MAP.default;
                   
                   return (
                     <div 
@@ -470,10 +601,7 @@ function App() {
                         "w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-2xl transition-transform group-hover:scale-105",
                         task.isInstalled ? "bg-emerald-500/10 text-emerald-400" : "bg-blue-500/10 text-blue-400"
                       )}>
-                        {task.name === 'Apache' && <Globe size={28} />}
-                        {task.name === 'MySQL' && <Database size={28} />}
-                        {task.name === 'PHP' && <Settings size={28} />}
-                        {task.name === 'HeidiSQL' && <ExternalLink size={28} />}
+                        <Icon size={28} />
                       </div>
 
                       <div className="flex-1 min-w-0">
@@ -548,26 +676,26 @@ function App() {
                     </div>
                   );
                 })}
+                </div>
               </div>
             )}
           </div>
         </main>
 
-        {/* Mini Footer / Status Bar */}
+        {/* Status Bar */}
         <footer className="h-8 bg-[#1e293b] border-t border-white/5 flex items-center justify-between px-6 shrink-0 z-10">
            <div className="flex items-center gap-6">
               <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                 <Globe size={12} />
-                 Ostenia Runtime 2026
+                 <Home size={12} />
+                 Ostenia Dashboard
               </div>
               <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
                  <CheckCircle2 size={12} />
-                 Environment Stable
+                 Ready
               </div>
            </div>
            <div className="flex items-center gap-4 text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em]">
-              <span>UTF-8</span>
-              <span>Go / React Stack</span>
+              <span>Go / React Runtime</span>
            </div>
         </footer>
       </div>

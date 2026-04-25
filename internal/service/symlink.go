@@ -3,8 +3,10 @@ package service
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"ostenia/internal/config"
 	"path/filepath"
+	"runtime"
 )
 
 type SymlinkManager struct{}
@@ -27,14 +29,18 @@ func (s *SymlinkManager) SwitchVersion(category string, targetVersionDir string)
 
 	// Remove existing symlink or folder
 	if _, err := os.Lstat(currentLink); err == nil {
-		err = os.Remove(currentLink)
-		if err != nil {
-			return err
-		}
+		// On windows, Junctions are removed with os.Remove if they are empty
+		// but sometimes os.RemoveAll is safer or use cmd /c rmdir
+		os.Remove(currentLink)
 	}
 
-	// Create new symlink
-	// On Windows, os.Symlink requires SeCreateSymbolicLinkPrivilege or Admin
-	// Since we are running as Admin, it should work.
+	if runtime.GOOS == "windows" {
+		// Use Directory Junction on Windows (mklink /J)
+		// It doesn't require admin privileges and is very portable.
+		cmd := exec.Command("cmd", "/c", "mklink", "/J", currentLink, targetPath)
+		return cmd.Run()
+	}
+
 	return os.Symlink(targetPath, currentLink)
 }
+
