@@ -11,6 +11,8 @@ import (
 	"ostenia/internal/ssl"
 	"path/filepath"
 	"strings"
+
+	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
@@ -91,6 +93,22 @@ func (a *App) SetServerRoot(rootPath string) error {
 	}
 
 	return nil
+}
+
+func (a *App) SelectServerRoot() (string, error) {
+	selectedDir, err := wruntime.OpenDirectoryDialog(a.ctx, wruntime.OpenDialogOptions{
+		Title: "Select Server Root Directory",
+	})
+	if err != nil {
+		return "", err
+	}
+	if selectedDir != "" {
+		err = a.SetServerRoot(selectedDir)
+		if err != nil {
+			return "", err
+		}
+	}
+	return selectedDir, nil
 }
 
 func (a *App) InstallPrerequisite(task download.DownloadTask) error {

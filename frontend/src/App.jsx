@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Play, Square, Download, Settings, Terminal as TerminalIcon, Database, Globe, FolderOpen, MoreVertical, ExternalLink, CheckCircle2, AlertCircle, XCircle, X, Loader2, List, Trash2, ChevronRight, Search, Home, Plus, Activity, ChevronDown, Monitor } from 'lucide-react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
-import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService, GetServerRoot, SetServerRoot, GetServiceStatus } from '../wailsjs/go/main/App';
+import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService, GetServerRoot, SetServerRoot, GetServiceStatus, SelectServerRoot } from '../wailsjs/go/main/App';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -237,9 +237,9 @@ function App() {
           setServerRoot(root);
 
           const updatedServices = await Promise.all(
-            services.map(async (s) => {
-               const detail = await GetServiceStatus(s.name);
-               return { ...s, status: detail.status, pid: detail.pid, port: detail.port };
+            services.map(async (service) => {
+               const detail = await GetServiceStatus(service.name);
+               return { ...service, status: detail.status, pid: detail.pid, port: detail.port };
             })
           );
           setServices(updatedServices);
@@ -255,7 +255,7 @@ function App() {
 
     if (window.runtime) {
       EventsOn('service_status', (data) => {
-        setServices(prev => prev.map(s => s.name === data.name ? { ...s, status: data.status, pid: data.pid, port: data.port } : s));
+        setServices(prev => prev.map(service => service.name === data.name ? { ...service, status: data.status, pid: data.pid, port: data.port } : service));
         addLog(`Service ${data.name} status changed to ${data.status}`);
       });
 
@@ -299,6 +299,22 @@ function App() {
     }
   };
 
+  const handleBrowseServerRoot = async () => {
+    if (window.go) {
+      try {
+        const selectedDirectory = await SelectServerRoot();
+        if (selectedDirectory) {
+          setServerRoot(selectedDirectory);
+          addToast('Server Root', 'Server root updated successfully', 'success');
+          addLog(`Server root updated to: ${selectedDirectory}`);
+        }
+      } catch (err) {
+        addToast('Server Root Error', `Failed to select directory: ${err}`, 'error');
+        addLog(`Error selecting directory: ${err}`);
+      }
+    }
+  };
+
   const handleToggleService = (name, currentStatus) => {
     if (!window.go) return;
     if (currentStatus === 'Running') {
@@ -311,12 +327,12 @@ function App() {
   };
 
   const handleRemoveFromHome = (name) => {
-    setServices(prev => prev.filter(s => s.name !== name));
+    setServices(prev => prev.filter(service => service.name !== name));
     addLog(`Removed ${name} from home screen.`);
   };
 
   const handleAddToHome = (task) => {
-    if (!services.find(s => s.name === task.name)) {
+    if (!services.find(service => service.name === task.name)) {
       setServices(prev => [...prev, { name: task.name, status: 'Stopped', pid: 0, port: 0 }]);
       addLog(`Added ${task.name} to home screen.`);
     }
@@ -405,7 +421,7 @@ function App() {
             activeTab === 'activity' ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30" : "text-slate-400 hover:bg-white/5 hover:text-white"
           )}
         >
-          {activeTab === 'activity' && <div className="absolute left-[-16px] top-3 bottom-3 w-1 bg-blue-500 rounded-r-full" />}
+          {activeTab === 'activity' && <div className="absolute left-[-16px] top-3 bottom-3 w-1 bg-blue-500 rounded-r-sm" />}
           <Home size={20} />
         </button>
         
@@ -417,7 +433,7 @@ function App() {
             activeTab === 'plugins' ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30" : "text-slate-400 hover:bg-white/5 hover:text-white"
           )}
         >
-          {activeTab === 'plugins' && <div className="absolute left-[-16px] top-3 bottom-3 w-1 bg-blue-500 rounded-r-full" />}
+          {activeTab === 'plugins' && <div className="absolute left-[-16px] top-3 bottom-3 w-1 bg-blue-500 rounded-r-sm" />}
           <Download size={20} />
         </button>
 
@@ -505,18 +521,23 @@ function App() {
                 <div className="shrink-0 pt-4 pb-3 space-y-3">
                   {/* Server Root Configuration */}
                   <div className="bg-slate-900/40 backdrop-blur-xl rounded-sm p-4 border border-white/5 hover:border-white/10 transition-all group flex items-center gap-4 shadow-lg">
-                    <div className="w-10 h-10 rounded-sm bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <FolderOpen size={18} />
-                    </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Server Root Directory</h3>
-                      <input
-                        type="text"
-                        value={serverRoot}
-                        onChange={handleServerRootChange}
-                        placeholder="C:/ostenia/www"
-                        className="w-full bg-black/20 border border-white/5 rounded-sm px-3 py-1.5 text-[11px] text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all font-mono"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={serverRoot}
+                          onChange={handleServerRootChange}
+                          placeholder="C:/ostenia/www"
+                          className="flex-1 bg-black/20 border border-white/5 rounded-sm px-3 py-1.5 text-[11px] text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all font-mono"
+                        />
+                        <button 
+                          onClick={handleBrowseServerRoot}
+                          className="px-3 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20"
+                        >
+                          Browse
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -538,7 +559,7 @@ function App() {
                             <button onClick={() => setIsAddingPlugin(false)}><X size={12} /></button>
                           </div>
                           <div className="grid grid-cols-2 gap-1.5">
-                            {prerequisites.filter(p => !services.find(s => s.name === p.name)).map(task => (
+                            {prerequisites.filter(p => !services.find(service => service.name === p.name)).map(task => (
                               <button 
                                 key={task.name}
                                 onClick={() => handleAddToHome(task)}
@@ -733,23 +754,6 @@ function App() {
             )}
           </div>
         </main>
-
-        {/* Status Bar */}
-        <footer className="h-7 bg-[#1e293b] border-t border-white/5 flex items-center justify-between px-6 shrink-0 z-10">
-           <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2 text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                 <Home size={10} />
-                 Ostenia Dashboard
-              </div>
-              <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
-                 <CheckCircle2 size={10} />
-                 Ready
-              </div>
-           </div>
-           <div className="flex items-center gap-4 text-[9px] font-bold text-slate-600 uppercase tracking-[0.2em]">
-              <span>Go / React Runtime</span>
-           </div>
-        </footer>
       </div>
     </div>
   );

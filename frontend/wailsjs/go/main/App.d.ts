@@ -17,6 +17,8 @@ export function InstallPrerequisite(arg1:download.DownloadTask):Promise<void>;
 
 export function OpenTerminal(arg1:string):Promise<void>;
 
+export function SelectServerRoot():Promise<string>;
+
 export function SetServerRoot(arg1:string):Promise<void>;
 
 export function StartAllServices():Promise<void>;
