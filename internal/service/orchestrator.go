@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -15,36 +16,50 @@ import (
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-type ServiceInfo struct {
-	Name    string `json:"name"`
-	Status  string `json:"status"` // "Running", "Stopped", "Starting", "Stopping"
-	Version string `json:"version"`
+type ServiceDetailedInfo struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	PID    int    `json:"pid"`
+	Port   int    `json:"port"`
+}
+
+type runningService struct {
+	cmd  *exec.Cmd
+	port int
 }
 
 type Orchestrator struct {
 	ctx      context.Context
-	services map[string]*exec.Cmd
+	services map[string]*runningService
 	mu       sync.Mutex
 }
 
 func NewOrchestrator(ctx context.Context) *Orchestrator {
 	return &Orchestrator{
 		ctx:      ctx,
-		services: make(map[string]*exec.Cmd),
+		services: make(map[string]*runningService),
 	}
 }
 
-// IsRunning checks if the service is running (either tracked or in system)
 func (o *Orchestrator) IsRunning(name string) bool {
+	info := o.GetDetailedInfo(name)
+	return info.Status == "Running"
+}
+
+func (o *Orchestrator) GetDetailedInfo(name string) ServiceDetailedInfo {
 	o.mu.Lock()
-	_, tracked := o.services[name]
+	s, tracked := o.services[name]
 	o.mu.Unlock()
 
-	if tracked {
-		return true
+	info := ServiceDetailedInfo{Name: name, Status: "Stopped"}
+
+	if tracked && s.cmd != nil && s.cmd.Process != nil {
+		info.Status = "Running"
+		info.PID = s.cmd.Process.Pid
+		info.Port = s.port
+		return info
 	}
 
-	// If not tracked by us, check the OS process list
 	if runtime.GOOS == "windows" {
 		var exeName string
 		switch name {
@@ -57,25 +72,32 @@ func (o *Orchestrator) IsRunning(name string) bool {
 		}
 
 		if exeName != "" {
-			// tasklist /FI "IMAGENAME eq exeName"
-			out, err := exec.Command("tasklist", "/FI", "IMAGENAME eq "+exeName, "/NH").Output()
-			if err == nil && strings.Contains(string(out), exeName) {
-				return true
+			out, err := exec.Command("tasklist", "/FI", "IMAGENAME eq "+exeName, "/FO", "CSV", "/NH").Output()
+			if err == nil {
+				line := string(out)
+				if strings.Contains(line, exeName) {
+					info.Status = "Running"
+					parts := strings.Split(line, ",")
+					if len(parts) > 1 {
+						pidStr := strings.Trim(parts[1], "\"")
+						pid, _ := strconv.Atoi(pidStr)
+						info.PID = pid
+					}
+				}
 			}
 		}
 	}
 
-	return false
+	return info
 }
 
-func (o *Orchestrator) StartService(name string, binaryPath string, args []string, workingDir string) error {
+func (o *Orchestrator) StartServiceWithPort(name string, binaryPath string, args []string, workingDir string, port int) error {
 	o.mu.Lock()
-	defer o.mu.Unlock()
-
-	// Double check if already running in system before starting
 	if _, exists := o.services[name]; exists {
-		return fmt.Errorf("service %s is already tracked as running", name)
+		o.mu.Unlock()
+		return fmt.Errorf("service %s is already running", name)
 	}
+	o.mu.Unlock()
 
 	absPath, err := filepath.Abs(binaryPath)
 	if err != nil {
@@ -97,7 +119,10 @@ func (o *Orchestrator) StartService(name string, binaryPath string, args []strin
 		return err
 	}
 
-	o.services[name] = cmd
+	o.mu.Lock()
+	o.services[name] = &runningService{cmd: cmd, port: port}
+	o.mu.Unlock()
+
 	o.emitStatus(name, "Running")
 
 	go func() {
@@ -111,8 +136,11 @@ func (o *Orchestrator) StartService(name string, binaryPath string, args []strin
 	return nil
 }
 
+func (o *Orchestrator) StartService(name string, binaryPath string, args []string, workingDir string) error {
+	return o.StartServiceWithPort(name, binaryPath, args, workingDir, 0)
+}
+
 func (o *Orchestrator) StopService(name string) error {
-	// 1. Broad cleanup on Windows for specific services
 	if runtime.GOOS == "windows" {
 		var exeNames []string
 		switch name {
@@ -132,15 +160,8 @@ func (o *Orchestrator) StopService(name string) error {
 		time.Sleep(200 * time.Millisecond)
 	}
 
-	// 2. Clear from tracked services
 	o.mu.Lock()
-	cmd, exists := o.services[name]
-	if exists && cmd != nil && cmd.Process != nil {
-		if runtime.GOOS != "windows" {
-			cmd.Process.Kill()
-		}
-		delete(o.services, name)
-	}
+	delete(o.services, name)
 	o.mu.Unlock()
 
 	o.emitStatus(name, "Stopped")
@@ -158,10 +179,8 @@ func (o *Orchestrator) captureLogs(name string, reader io.ReadCloser) {
 }
 
 func (o *Orchestrator) emitStatus(name string, status string) {
-	wruntime.EventsEmit(o.ctx, "service_status", map[string]string{
-		"name":   name,
-		"status": status,
-	})
+	info := o.GetDetailedInfo(name)
+	wruntime.EventsEmit(o.ctx, "service_status", info)
 }
 
 func (o *Orchestrator) StopAll() {

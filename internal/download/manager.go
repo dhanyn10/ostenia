@@ -126,6 +126,16 @@ func GetLatestKnownVersions() []DownloadTask {
 				}
 			}
 		}
+
+		// Special case for flat structures like HeidiSQL which don't use version subfolders
+		if len(t.InstalledVers) == 0 {
+			checkPath := filepath.Join(baseDir, "bin", t.Target, t.CheckFile)
+			if _, err := os.Stat(checkPath); err == nil {
+				t.InstalledVers = append(t.InstalledVers, t.Version)
+				t.IsInstalled = true
+			}
+		}
+
 		sort.Strings(t.InstalledVers)
 
 		currentPath := filepath.Join(compDir, "current")
@@ -133,6 +143,11 @@ func GetLatestKnownVersions() []DownloadTask {
 			if _, err := os.Stat(filepath.Join(resolved, t.CheckFile)); err == nil {
 				t.IsInstalled = true
 			} else if _, err := os.Stat(filepath.Join(resolved, "Apache24", t.CheckFile)); err == nil {
+				t.IsInstalled = true
+			}
+		} else {
+			// If no 'current' symlink, check if the direct target exists (for flat structures)
+			if _, err := os.Stat(filepath.Join(baseDir, "bin", t.Target, t.CheckFile)); err == nil {
 				t.IsInstalled = true
 			}
 		}
@@ -157,6 +172,12 @@ func (m *Manager) DeleteVersion(taskName, version string) error {
 	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
 		targetDir = filepath.Join(baseDir, "bin", category, version)
 	}
+
+	// Final fallback for flat structure
+	if _, err := os.Stat(targetDir); os.IsNotExist(err) && category == "heidisql" {
+		targetDir = filepath.Join(baseDir, "bin", category)
+	}
+
 	return os.RemoveAll(targetDir)
 }
 
