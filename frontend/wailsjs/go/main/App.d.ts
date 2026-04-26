@@ -32,3 +32,5 @@ export function StartService(arg1:string):Promise<void>;
 export function StopAllServices():Promise<void>;
 
 export function StopService(arg1:string):Promise<void>;
+
+export function UpdateActiveTab(arg1:string):Promise<void>;

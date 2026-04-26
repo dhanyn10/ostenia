@@ -33,16 +33,53 @@ type runningService struct {
 }
 
 type Orchestrator struct {
-	ctx      context.Context
-	services map[string]*runningService
-	mu       sync.Mutex
+	ctx       context.Context
+	services  map[string]*runningService
+	mu        sync.Mutex
+	activeTab string
+	tabMu     sync.RWMutex
 }
 
 func NewOrchestrator(ctx context.Context) *Orchestrator {
 	return &Orchestrator{
-		ctx:      ctx,
-		services: make(map[string]*runningService),
+		ctx:       ctx,
+		services:  make(map[string]*runningService),
+		activeTab: "activity",
 	}
+}
+
+func (o *Orchestrator) SetActiveTab(tab string) {
+	o.tabMu.Lock()
+	defer o.tabMu.Unlock()
+	o.activeTab = tab
+	fmt.Printf("[Orchestrator] Active tab changed to: %s\n", tab)
+}
+
+func (o *Orchestrator) StartWatcher() {
+	go func() {
+		ticker := time.NewTicker(3 * time.Second)
+		defer ticker.Stop()
+
+		servicesToWatch := []string{"Apache", "Nginx", "MySQL", "PHP", "HeidiSQL", "OpenSSL"}
+
+		for {
+			select {
+			case <-o.ctx.Done():
+				return
+			case <-ticker.C:
+				o.tabMu.RLock()
+				currentTab := o.activeTab
+				o.tabMu.RUnlock()
+
+				if currentTab == "activity" {
+					for _, name := range servicesToWatch {
+						info := o.GetDetailedInfo(name)
+						wruntime.EventsEmit(o.ctx, "service_status", info)
+					}
+				}
+			}
+		}
+	}()
 }
 
 func (o *Orchestrator) IsRunning(name string) bool {
@@ -69,51 +106,154 @@ func (o *Orchestrator) GetDetailedInfo(name string) ServiceDetailedInfo {
 		return info
 	}
 
-	if tracked && s.cmd != nil && s.cmd.Process != nil {
-		info.Status = "Running"
-		info.PID = s.cmd.Process.Pid
-		info.Port = s.port
+	var exeName string
+	switch name {
+	case "Apache":
+		exeName = "httpd.exe"
+	case "MySQL":
+		exeName = "mysqld.exe"
+	case "HeidiSQL":
+		exeName = "heidisql.exe"
+	case "Nginx":
+		exeName = "nginx.exe"
+	case "PHP":
+		exeName = "php-cgi.exe"
+	}
+
+	if exeName == "" {
 		return info
 	}
 
-	if runtime.GOOS == "windows" {
-		var exeName string
-		switch name {
-		case "Apache":
-			exeName = "httpd.exe"
-		case "MySQL":
-			exeName = "mysqld.exe"
-		case "HeidiSQL":
-			exeName = "heidisql.exe"
-		case "Nginx":
-			exeName = "nginx.exe"
-		}
+	// 1. Get all PIDs for this executable using CMD tasklist
+	pids := findPIDsByName(exeName)
 
-		if exeName != "" {
-			out, err := exec.Command("tasklist", "/FI", "IMAGENAME eq "+exeName, "/FO", "CSV", "/NH").Output()
-			if err == nil {
-				line := string(out)
-				if strings.Contains(line, exeName) {
-					info.Status = "Running"
-					parts := strings.Split(line, ",")
-					if len(parts) > 1 {
-						pidStr := strings.Trim(parts[1], "\"")
-						pid, _ := strconv.Atoi(pidStr)
-						info.PID = pid
-					}
+	if len(pids) > 0 {
+		info.Status = "Running"
+		// Default PID is the first one found
+		info.PID = pids[0]
+
+		// 2. If this is a service that needs a port, search for it via netstat
+		if name == "Apache" || name == "Nginx" || name == "MySQL" || name == "PHP" {
+			// Check each PID because web servers often have multiple processes (master/worker)
+			for _, pid := range pids {
+				port := findPortByPID(pid)
+				if port > 0 {
+					info.Port = port
+					info.PID = pid // Use the PID that is actually holding the port
+					break
 				}
 			}
+		}
+
+		// 3. Update internal state if not tracked or port has changed
+		if !tracked || s.port != info.Port {
+			o.mu.Lock()
+			o.services[name] = &runningService{cmd: nil, port: info.Port}
+			o.mu.Unlock()
+		}
+	} else {
+		// If no PID found but we previously considered it running, remove from track
+		if tracked {
+			o.mu.Lock()
+			delete(o.services, name)
+			o.mu.Unlock()
 		}
 	}
 
 	return info
 }
 
+func findPIDsByName(exeName string) []int {
+	pids := []int{}
+	if runtime.GOOS != "windows" {
+		return pids
+	}
+
+	// Run cmd tasklist to find all PIDs for exeName
+	cmd := exec.Command("tasklist", "/FI", "IMAGENAME eq "+exeName, "/FO", "CSV", "/NH")
+	out, err := cmd.Output()
+	if err != nil {
+		return pids
+	}
+
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		if !strings.Contains(line, exeName) {
+			continue
+		}
+		// tasklist /FO CSV returns like: "nginx.exe","1234","Console","1","10.000 K"
+		parts := strings.Split(line, ",")
+		if len(parts) > 1 {
+			pidStr := strings.Trim(parts[1], "\"")
+			pid, err := strconv.Atoi(pidStr)
+			if err == nil && pid > 0 {
+				pids = append(pids, pid)
+			}
+		}
+	}
+	return pids
+}
+
+func findPortByPID(pid int) int {
+	if pid <= 0 {
+		return 0
+	}
+
+	// Run cmd netstat -ano to find the port being LISTENED to by a specific PID
+	cmd := exec.Command("cmd", "/c", fmt.Sprintf("netstat -ano | findstr LISTENING | findstr %d", pid))
+	out, err := cmd.Output()
+	if err != nil {
+		return 0
+	}
+
+	lines := strings.Split(string(out), "\n")
+	pidStr := strconv.Itoa(pid)
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		// Expected fields: Proto, Local Addr, Foreign Addr, State, PID
+		// Example: TCP    0.0.0.0:80             0.0.0.0:0              LISTENING       1234
+		if len(fields) >= 5 && fields[len(fields)-1] == pidStr {
+			localAddr := fields[1]
+			// Local Addr is like 0.0.0.0:80 or [::]:80
+			lastColon := strings.LastIndex(localAddr, ":")
+			if lastColon != -1 {
+				portStr := localAddr[lastColon+1:]
+				port, parseErr := strconv.Atoi(portStr)
+				if parseErr == nil && port > 0 {
+					return port
+				}
+			}
+		}
+	}
+	return 0
+}
+
 func (o *Orchestrator) StartServiceWithPort(name string, binaryPath string, args []string, workingDir string, port int) error {
 	o.mu.Lock()
 	if _, exists := o.services[name]; exists {
-		o.mu.Unlock()
-		return fmt.Errorf("service %s is already running", name)
+		// If already exists but status is actually Stopped, allow it to proceed
+		s := o.services[name]
+		if s.cmd != nil && s.cmd.Process != nil {
+			// Check if actually still running
+			pids := findPIDsByName(filepath.Base(binaryPath))
+			running := false
+			for _, p := range pids {
+				if p == s.cmd.Process.Pid {
+					running = true
+					break
+				}
+			}
+			if running {
+				o.mu.Unlock()
+				return fmt.Errorf("service %s is already running", name)
+			}
+		}
 	}
 	o.mu.Unlock()
 
@@ -145,7 +285,7 @@ func (o *Orchestrator) StartServiceWithPort(name string, binaryPath string, args
 
 	go func() {
 		cmd.Wait()
-		time.Sleep(500 * time.Millisecond) // Give system time to clean up
+		time.Sleep(500 * time.Millisecond)
 		o.mu.Lock()
 		delete(o.services, name)
 		o.mu.Unlock()
@@ -178,7 +318,7 @@ func (o *Orchestrator) StopService(name string) error {
 		for _, exe := range exeNames {
 			exec.Command("taskkill", "/F", "/IM", exe, "/T").Run()
 		}
-		time.Sleep(500 * time.Millisecond) // Wait for process to fully terminate
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	o.mu.Lock()

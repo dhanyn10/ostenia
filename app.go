@@ -44,6 +44,13 @@ func (a *App) startup(ctx context.Context) {
 	baseDir := config.GetBaseDir()
 	caDir := filepath.Join(baseDir, "ssl")
 	os.MkdirAll(caDir, 0755)
+
+	// Start the periodic watcher for services
+	a.orchestrator.StartWatcher()
+}
+
+func (a *App) UpdateActiveTab(tab string) {
+	a.orchestrator.SetActiveTab(tab)
 }
 
 func (a *App) GetPrerequisites() []download.DownloadTask {

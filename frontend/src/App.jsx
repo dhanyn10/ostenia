@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
-import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService, GetServerRoot, SetServerRoot, GetServiceStatus, SelectServerRoot, OpenPluginFolder, OpenServerRootFolder } from '../wailsjs/go/main/App';
+import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService, GetServerRoot, SetServerRoot, GetServiceStatus, SelectServerRoot, OpenPluginFolder, OpenServerRootFolder, UpdateActiveTab } from '../wailsjs/go/main/App';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -38,7 +38,7 @@ function App() {
     { name: 'MySQL', status: 'Stopped', pid: 0, port: 0 },
     { name: 'PHP', status: 'Stopped', pid: 0, port: 0 },
     { name: 'HeidiSQL', status: 'Stopped', pid: 0, port: 0 },
-    { name: 'OpenSSL', status: 'Stopped', pid: 0, port: 0, remainingDays: 0 }, // Add OpenSSL with remainingDays
+    { name: 'OpenSSL', status: 'Stopped', pid: 0, port: 0, remainingDays: 0 },
   ]);
   const [prerequisites, setPrerequisites] = useState([]);
   const [downloadProgress, setDownloadProgress] = useState({});
@@ -70,6 +70,13 @@ function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
+
+  // Sync active tab to backend
+  useEffect(() => {
+    if (window.go) {
+      UpdateActiveTab(activeTab);
+    }
+  }, [activeTab]);
 
   const addLog = (msg) => {
     setLogs(prev => [{ time: new Date().toLocaleTimeString(), msg }, ...prev].slice(0, 500));
