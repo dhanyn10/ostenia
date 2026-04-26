@@ -12,11 +12,7 @@ export function GetConfig():Promise<config.Config>;
 
 export function GetPHPExtensions():Promise<Array<service.PHPExtensionInfo>>;
 
-export function GetPHPVersionFromCLI():Promise<string>;
-
 export function GetPrerequisites():Promise<Array<download.DownloadTask>>;
-
-export function GetServerRoot():Promise<string>;
 
 export function GetServiceStatus(arg1:string):Promise<service.ServiceDetailedInfo>;
 
@@ -41,6 +37,8 @@ export function SetApacheHTTPS(arg1:boolean):Promise<void>;
 export function SetNginxHTTPS(arg1:boolean):Promise<void>;
 
 export function SetServerRoot(arg1:string):Promise<void>;
+
+export function SetWWWRoot(arg1:string):Promise<void>;
 
 export function StartAllServices():Promise<void>;
 

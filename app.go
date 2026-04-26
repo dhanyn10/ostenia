@@ -11,7 +11,6 @@ import (
 	"ostenia/internal/service"
 	"ostenia/internal/ssl"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"syscall"
@@ -45,13 +44,31 @@ func (a *App) startup(ctx context.Context) {
 	cfg, _ := config.LoadConfig()
 	a.cfg = cfg
 
-	// Ensure SSL directory exists
-	baseDir := config.GetBaseDir()
-	caDir := filepath.Join(baseDir, "ssl")
-	os.MkdirAll(caDir, 0755)
+	// Initial setup of directories in current base dir
+	a.ensureEnvironmentStructure()
 
 	// Start the periodic watcher for services
 	a.orchestrator.StartWatcher()
+}
+
+func (a *App) ensureEnvironmentStructure() {
+	baseDir := config.GetBaseDir()
+
+	dirs := []string{
+		filepath.Join(baseDir, "bin"),
+		filepath.Join(baseDir, "ssl"),
+	}
+
+	for _, dir := range dirs {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			os.MkdirAll(dir, 0755)
+		}
+	}
+
+	// Also ensure current WWWRoot exists
+	if a.cfg != nil && a.cfg.WWWRoot != "" {
+		os.MkdirAll(a.cfg.WWWRoot, 0755)
+	}
 }
 
 func (a *App) UpdateActiveTab(tab string) {
@@ -74,34 +91,48 @@ func (a *App) GetServiceStatus(serviceName string) service.ServiceDetailedInfo {
 	return a.orchestrator.GetDetailedInfo(serviceName)
 }
 
-func (a *App) GetServerRoot() string {
-	if a.cfg == nil { return "" }
-	return a.cfg.WWWRoot
-}
-
-func (a *App) SetServerRoot(rootPath string) error {
-	fmt.Printf("[App] Setting Server Root to: %s\n", rootPath)
-	a.cfg.WWWRoot = rootPath
+func (a *App) SetWWWRoot(path string) error {
+	fmt.Printf("[App] Setting Server Root (www) to: %s\n", path)
+	a.cfg.WWWRoot = path
 	err := config.SaveConfig(a.cfg)
 	if err != nil { return err }
 
-	// Restart active web servers
-	if a.orchestrator.IsRunning("Apache") {
-		a.StopService("Apache")
-		time.Sleep(600 * time.Millisecond)
-		a.StartService("Apache")
-	}
-	if a.orchestrator.IsRunning("Nginx") {
-		a.StopService("Nginx")
-		time.Sleep(600 * time.Millisecond)
-		a.StartService("Nginx")
-	}
+	os.MkdirAll(path, 0755)
+
+	// Restart web servers to apply new root
+	if a.orchestrator.IsRunning("Apache") { a.StopService("Apache"); time.Sleep(500 * time.Millisecond); a.StartService("Apache") }
+	if a.orchestrator.IsRunning("Nginx") { a.StopService("Nginx"); time.Sleep(500 * time.Millisecond); a.StartService("Nginx") }
+
+	return nil
+}
+
+func (a *App) SetServerRoot(rootPath string) error {
+	fmt.Printf("[App] Switching Apps Location to: %s\n", rootPath)
+
+	// Stop all current services before moving base
+	a.orchestrator.StopAll()
+	time.Sleep(1 * time.Second)
+
+	a.cfg.BaseDir = rootPath
+
+	// Automatically update WWWRoot to point to /www inside the new Apps Location
+	a.cfg.WWWRoot = filepath.Join(rootPath, "www")
+
+	err := config.SaveConfig(a.cfg)
+	if err != nil { return err }
+
+	a.ensureEnvironmentStructure()
+	a.orchestrator.RequestRefresh()
+
+	// Explicitly emit event to frontend so it knows it needs to refresh its state
+	wruntime.EventsEmit(a.ctx, "environment_changed", a.cfg)
+
 	return nil
 }
 
 func (a *App) SelectServerRoot() (string, error) {
 	selectedDir, err := wruntime.OpenDirectoryDialog(a.ctx, wruntime.OpenDialogOptions{
-		Title: "Select Server Root Directory",
+		Title: "Select Ostenia Apps Location",
 	})
 	if err != nil { return "", err }
 	if selectedDir != "" {
@@ -112,8 +143,7 @@ func (a *App) SelectServerRoot() (string, error) {
 }
 
 func (a *App) OpenServerRootFolder() error {
-	if a.cfg == nil || a.cfg.WWWRoot == "" { return fmt.Errorf("server root directory not set") }
-	return service.OpenExplorer(a.cfg.WWWRoot)
+	return service.OpenExplorer(config.GetBaseDir())
 }
 
 func (a *App) OpenPluginFolder(serviceName string) error {
@@ -123,47 +153,19 @@ func (a *App) OpenPluginFolder(serviceName string) error {
 	if category == "node.js" { category = "nodejs" }
 	folderPath := filepath.Join(binDir, category)
 	if _, err := os.Stat(folderPath); os.IsNotExist(err) {
-		return fmt.Errorf("folder for %s not found: %s", serviceName, folderPath)
+		os.MkdirAll(folderPath, 0755)
 	}
 	return service.OpenExplorer(folderPath)
 }
 
 func (a *App) InstallPrerequisite(task download.DownloadTask) error {
-	fmt.Printf("[App] Installing prerequisite: %s (%s)\n", task.Name, task.URL)
 	err := a.downloader.DownloadAndExtract(task)
-	if err != nil { fmt.Printf("[App] Error installing %s: %v\n", task.Name, err) }
+	if err == nil { a.orchestrator.RequestRefresh() }
 	return err
 }
 
 func (a *App) CancelDownload(taskName string) {
 	a.downloader.CancelDownload(taskName)
-}
-
-// GetPHPVersionFromCLI runs "php --version" and extracts the version number
-func (a *App) GetPHPVersionFromCLI() (string, error) {
-	baseDir := config.GetBaseDir()
-	phpExe := filepath.Join(baseDir, "bin", "php", "current", "php.exe")
-
-	cmd := exec.Command(phpExe, "--version")
-	if runtime.GOOS == "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	}
-	output, err := cmd.Output()
-
-	if err != nil {
-		cmd = exec.Command("php", "--version")
-		if runtime.GOOS == "windows" {
-			cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-		}
-		output, err = cmd.Output()
-	}
-
-	if err != nil { return "", fmt.Errorf("failed to run php --version: %w", err) }
-
-	re := regexp.MustCompile(`PHP (\d+\.\d+\.\d+)`)
-	matches := re.FindStringSubmatch(string(output))
-	if len(matches) > 1 { return matches[1], nil }
-	return "", fmt.Errorf("failed to parse PHP version from output")
 }
 
 func (a *App) StartService(serviceName string) error {
@@ -175,23 +177,17 @@ func (a *App) StartService(serviceName string) error {
 	switch serviceName {
 	case "Node.js":
 		nodePath := filepath.Join(baseDir, "bin", "nodejs", "current")
-		if _, err := os.Stat(nodePath); os.IsNotExist(err) {
-			return fmt.Errorf("node.js is not installed or current link is missing")
-		}
+		if _, err := os.Stat(nodePath); os.IsNotExist(err) { return fmt.Errorf("node.js not installed") }
 		err := service.UpdateNodePath(nodePath, true)
-		if err != nil {
-			return fmt.Errorf("failed to add Node.js to SYSTEM PATH. Make sure you are running as Administrator: %w", err)
-		}
-		info := a.orchestrator.GetDetailedInfo("Node.js")
-		wruntime.EventsEmit(a.ctx, "service_status", info)
+		if err != nil { return err }
+		a.orchestrator.RequestRefresh()
 		return nil
 
 	case "OpenSSL":
 		caDir := filepath.Join(baseDir, "ssl")
 		err := ssl.GenerateRootCA(caDir)
 		if err != nil { return err }
-		info := a.orchestrator.GetDetailedInfo("OpenSSL")
-		wruntime.EventsEmit(a.ctx, "service_status", info)
+		a.orchestrator.RequestRefresh()
 		return nil
 
 	case "MySQL":
@@ -223,10 +219,7 @@ func (a *App) StartService(serviceName string) error {
 		return a.orchestrator.StartServiceWithPort("MySQL", mysqlBin, []string{"--defaults-file=" + iniPath, "--console"}, filepath.Dir(mysqlBin), port)
 
 	case "Apache":
-		if a.orchestrator.IsRunning("Nginx") {
-			a.StopService("Nginx")
-			time.Sleep(600 * time.Millisecond)
-		}
+		if a.orchestrator.IsRunning("Nginx") { a.StopService("Nginx"); time.Sleep(600 * time.Millisecond) }
 		var apacheBase string
 		var apacheBin string
 		filepath.Walk(filepath.Join(binDir, "apache"), func(path string, info os.FileInfo, err error) error {
@@ -256,10 +249,7 @@ func (a *App) StartService(serviceName string) error {
 		return a.orchestrator.StartServiceWithPort("Apache", apacheBin, []string{}, apacheBase, port)
 
 	case "Nginx":
-		if a.orchestrator.IsRunning("Apache") {
-			a.StopService("Apache")
-			time.Sleep(600 * time.Millisecond)
-		}
+		if a.orchestrator.IsRunning("Apache") { a.StopService("Apache"); time.Sleep(600 * time.Millisecond) }
 		var nginxBase string
 		var nginxBin string
 		filepath.Walk(filepath.Join(binDir, "nginx"), func(path string, info os.FileInfo, err error) error {
@@ -330,8 +320,7 @@ func (a *App) StopService(serviceName string) {
 		os.MkdirAll(caDir, 0755)
 		a.SetApacheHTTPS(false)
 		a.SetNginxHTTPS(false)
-		info := a.orchestrator.GetDetailedInfo("OpenSSL")
-		wruntime.EventsEmit(a.ctx, "service_status", info)
+		a.orchestrator.RequestRefresh()
 		return
 	}
 
@@ -345,9 +334,7 @@ func (a *App) StopService(serviceName string) {
 		baseDir := config.GetBaseDir()
 		nodePath := filepath.Join(baseDir, "bin", "nodejs", "current")
 		_ = service.UpdateNodePath(nodePath, false)
-
-		info := a.orchestrator.GetDetailedInfo("Node.js")
-		wruntime.EventsEmit(a.ctx, "service_status", info)
+		a.orchestrator.RequestRefresh()
 		return
 	}
 
@@ -403,8 +390,7 @@ func (a *App) SwitchServiceVersion(serviceName string, version string) error {
 	}
 
 	if wasRunning { return a.StartService(serviceName) }
-	info := a.orchestrator.GetDetailedInfo(serviceName)
-	wruntime.EventsEmit(a.ctx, "service_status", info)
+	a.orchestrator.RequestRefresh()
 	return nil
 }
 
@@ -455,6 +441,7 @@ func (a *App) OpenTerminalAtPath(terminalType string, path string) {
 	phpPath := filepath.Join(baseDir, "bin", "php", "current")
 	mysqlPath := filepath.Join(baseDir, "bin", "mysql", "current", "bin")
 	nodePath := filepath.Join(baseDir, "bin", "nodejs", "current")
+
 	env := os.Environ()
 	pathFound := false
 	for i, e := range env {
@@ -465,6 +452,7 @@ func (a *App) OpenTerminalAtPath(terminalType string, path string) {
 		}
 	}
 	if !pathFound { env = append(env, "PATH="+phpPath+";"+mysqlPath+";"+nodePath) }
+
 	cmd := service.NewTerminal(path, env)
 	cmd.Open(terminalType)
 }
