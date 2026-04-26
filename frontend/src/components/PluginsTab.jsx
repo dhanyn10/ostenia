@@ -4,6 +4,7 @@ import VersionDropdown from './VersionDropdown';
 import CircularProgress from './CircularProgress';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { OpenPluginFolder } from '../../wailsjs/go/main/App';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -25,11 +26,12 @@ function PluginsTab({
           const isDropdownOpen = openDropdown === task.name;
           const Icon = ICON_MAP[task.name] || ICON_MAP.default;
           
-          // Safety check for versions to prevent "not iterable" error
           const availableVersions = task.versions || [];
           const installedVersions = task.installedVers || [];
           const dropdownOptions = [...new Set([...availableVersions, ...installedVersions])];
           
+          const isCustomAllowed = task.name !== 'HeidiSQL' && task.name !== 'OpenSSL';
+
           return (
             <div 
               key={task.name} 
@@ -49,13 +51,15 @@ function PluginsTab({
                 <div className="flex items-center gap-3 flex-wrap">
                   <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{task.name}</h3>
                   
-                  {availableVersions.length > 0 ? (
+                  {(availableVersions.length > 0 || isCustomAllowed) ? (
                     <VersionDropdown 
                       current={selectedVersions[task.name] || task.version}
                       options={dropdownOptions}
                       isOpen={isDropdownOpen}
                       onToggle={() => setOpenDropdown(isDropdownOpen ? null : task.name)}
                       onChange={(v) => setSelectedVersions(prev => ({ ...prev, [task.name]: v }))}
+                      allowCustom={isCustomAllowed}
+                      onCustomClick={() => OpenPluginFolder(task.name)}
                     />
                   ) : (
                     <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded-sm">v{task.version}</span>
