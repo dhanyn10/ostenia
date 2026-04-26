@@ -1,15 +1,18 @@
 # Ostenia
 
-Ostenia is a lightweight, modern local development environment manager for Windows. It provides a seamless way to manage web servers, databases, and PHP versions with built-in SSL automation.
+Ostenia is a lightweight, modern local development environment manager for Windows. It provides a seamless way to manage web servers, databases, and PHP/Node.js versions with built-in SSL automation.
 
 ## Key Features
 
-- **Multi-Service Stack**: Manage Apache, Nginx, MySQL, PHP, and HeidiSQL from a single dashboard.
+- **Multi-Service Stack**: Manage Apache, Nginx, MySQL, PHP, Node.js, and HeidiSQL from a single dashboard.
 - **Automated SSL/HTTPS**: Generate local SSL certificates and toggle HTTPS for web servers with one click.
 - **Dynamic PHP Management**: 
   - Switch PHP versions instantly.
   - Automatic Windows User PATH updates.
   - GUI-based PHP Extension manager (php.ini editor).
+- **Node.js Version Management**: 
+  - Switch Node.js versions instantly.
+  - Automatic Windows System PATH updates (requires Administrator privileges).
 - **Smart Monitoring**: Real-time PID and multi-port detection (e.g., seeing 80 and 443 active simultaneously).
 - **Integrated Terminal**: Open CMD or PowerShell directly in the context of each service's directory.
 
