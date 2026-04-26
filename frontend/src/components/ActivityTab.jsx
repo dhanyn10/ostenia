@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Activity, Globe, Trash2, FolderOpen, Clock, Lock, Unlock, Terminal, ChevronDown, Monitor, CheckCircle2, Settings2 } from 'lucide-react';
+import { Plus, X, Activity, Globe, Trash2, FolderOpen, Clock, Lock, Unlock, Terminal, ChevronDown, Monitor, CheckCircle2, Settings2, ShieldAlert } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { OpenServiceTerminal, SwitchServiceVersion, GetPHPExtensions, TogglePHPExtension } from '../../wailsjs/go/main/App';
+import { OpenServiceTerminal, SwitchServiceVersion, GetPHPExtensions, TogglePHPExtension, IsAdmin } from '../../wailsjs/go/main/App';
 import ExtensionModal from './ExtensionModal';
 
 function cn(...inputs) {
@@ -17,9 +17,10 @@ function ActivityTab({
   apacheHttps, nginxHttps, handleToggleHttps
 }) {
   const [openTerminalDropdown, setOpenTerminalDropdown] = useState(null);
-  const [activeAccordion, setActiveAccordion] = useState(null); 
+  const [activeAccordion, setActiveAccordion] = useState(null);
   const [phpExtensions, setPhpExtensions] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showAdminAlert, setShowAdminAlert] = useState(false);
   
   const openSslService = services.find(s => s.name === 'OpenSSL');
   const isOpenSslEnabled = openSslService?.status === 'Running';
@@ -30,11 +31,30 @@ function ActivityTab({
   };
 
   const handleSwitchVersion = async (serviceName, version) => {
+    if (serviceName === 'Node.js') {
+      const admin = await IsAdmin();
+      if (!admin) {
+        setShowAdminAlert(true);
+        return;
+      }
+    }
+    
     try {
       await SwitchServiceVersion(serviceName, version);
     } catch (err) {
       console.error("Failed to switch version:", err);
     }
+  };
+
+  const handleSafeToggle = async (name, status) => {
+    if (name === 'Node.js') {
+      const admin = await IsAdmin();
+      if (!admin) {
+        setShowAdminAlert(true);
+        return;
+      }
+    }
+    handleToggleService(name, status);
   };
 
   const toggleAccordion = (name, hasExtra) => {
@@ -75,6 +95,32 @@ function ActivityTab({
         onToggle={handleTogglePHPExtension}
         serviceName="PHP"
       />
+
+      {/* Admin Alert Popup */}
+      {showAdminAlert && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowAdminAlert(false)} />
+          <div className="bg-white dark:bg-slate-900 border border-rose-500/30 rounded-sm p-6 max-w-sm w-full relative shadow-3xl animate-in zoom-in-95 duration-200">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500">
+                <ShieldAlert size={28} />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Administrator Required</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-bold mt-2 leading-relaxed uppercase">
+                  Modifying System PATH for Node.js requires administrative privileges. Please restart Ostenia as Administrator.
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowAdminAlert(false)}
+                className="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-sm text-[10px] font-black uppercase tracking-widest transition-all"
+              >
+                Understood
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Dashboard Controls */}
       <div className="shrink-0 pt-4 pb-3 space-y-3">
@@ -163,6 +209,8 @@ function ActivityTab({
 
           const isExpanded = activeAccordion === service.name;
           const installedVersions = task?.installedVers || [];
+          
+          const ServiceIcon = ICON_MAP[service.name] || ICON_MAP.default;
 
           return (
             <div 
@@ -177,7 +225,10 @@ function ActivityTab({
               <div className="flex items-center gap-5">
                 <div className="flex-1 min-w-0 px-2">
                   <div className="flex items-center gap-3 flex-wrap">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                      {/* Properly sized SVG Icon */}
+                      <ServiceIcon size={18} className="text-slate-900 dark:text-white" />
+                      
                       <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{service.name}</h3>
                       
                       {/* Version Badges */}
@@ -250,7 +301,7 @@ function ActivityTab({
                     <button onClick={() => setActiveTab('plugins')} className="px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
                   ) : (
                     <button
-                      onClick={() => handleToggleService(service.name, service.status)}
+                      onClick={() => handleSafeToggle(service.name, service.status)}
                       className={cn(
                         "w-12 h-6 rounded-sm p-0.5 transition-all duration-300 ease-in-out relative ring-1 ring-inset",
                         service.status === 'Running' 
@@ -307,7 +358,7 @@ function ActivityTab({
                         <button 
                           onClick={() => setOpenTerminalDropdown(openTerminalDropdown === service.name ? null : service.name)}
                           className={cn(
-                            "p-2 flex items-center gap-1 rounded-sm border border-slate-200 dark:border-white/5 transition-all",
+                            "w-12 h-8 flex items-center justify-center gap-1 rounded-sm border border-slate-200 dark:border-white/5 transition-all",
                             openTerminalDropdown === service.name ? "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white" : "bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400"
                           )}
                           title="Terminal"
@@ -342,7 +393,7 @@ function ActivityTab({
                         title={isHttpsEnabled ? "Disable HTTPS" : "Enable HTTPS"}
                       >
                         <div className={cn(
-                          "w-6 h-6 bg-white rounded-sm transition-all duration-300 shadow-lg flex items-center justify-center",
+                          "w-5 h-5 bg-white rounded-sm transition-all duration-300 shadow-lg flex items-center justify-center",
                           isHttpsEnabled ? "translate-x-6" : "translate-x-0"
                         )}>
                           {isHttpsEnabled ? <Lock size={14} className="text-rose-600" /> : <Unlock size={14} className="text-slate-400" />}
