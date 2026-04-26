@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, X, Activity, Globe, Trash2, FolderOpen } from 'lucide-react';
+import { Plus, X, Activity, Globe, Trash2, FolderOpen, Clock } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -11,7 +11,7 @@ function ActivityTab({
   serverRoot, handleServerRootChange, handleBrowseServerRoot,
   isAddingPlugin, setIsAddingPlugin, prerequisites, services, handleAddToHome,
   ICON_MAP, handleToggleService, handleRemoveFromHome, setActiveTab,
-  handleOpenPluginFolder, handleOpenServerRootFolder // Added handleOpenServerRootFolder
+  handleOpenPluginFolder, handleOpenServerRootFolder 
 }) {
   return (
     <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -88,13 +88,21 @@ function ActivityTab({
       <div className="flex-1 overflow-y-auto pr-3 -mr-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5 space-y-2">
         {services.map((service) => {
           const task = prerequisites.find(p => p.name === service.name);
-          const isInstalled = task?.installedVers && task.installedVers.length > 0;
+          const isInstalled = (task?.installedVers && task.installedVers.length > 0) || service.name === 'OpenSSL';
 
           return (
             <div key={service.name} className="bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all group flex items-center gap-5 relative shadow-sm dark:shadow-lg">
               <div className="flex-1 min-w-0 px-2">
                 <div className="flex items-center gap-3 flex-wrap">
                   <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{service.name}</h3>
+                  
+                  {service.remainingDays > 0 && (
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-sm text-[8px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">
+                      <Clock size={10} />
+                      {service.remainingDays} Days Left
+                    </div>
+                  )}
+
                   <div className={cn(
                     "text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-sm border flex items-center gap-1.5",
                     service.status === 'Running'
@@ -106,7 +114,7 @@ function ActivityTab({
                   </div>
                   
                   {/* Runtime Stats (PID & Port) */}
-                  {service.status === 'Running' && (
+                  {service.status === 'Running' && service.name !== 'OpenSSL' && (
                     <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
                       {service.pid > 0 && (
                         <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded-sm text-[8px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">
@@ -126,7 +134,7 @@ function ActivityTab({
               </div>
 
               <div className="flex items-center gap-3">
-                {isInstalled && (
+                {isInstalled && service.name !== 'OpenSSL' && (
                   <button 
                     onClick={() => handleOpenPluginFolder(service.name)}
                     className="h-6 px-3 bg-slate-100 dark:bg-white/5 hover:bg-blue-600/10 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-white/5"
@@ -135,7 +143,7 @@ function ActivityTab({
                     <FolderOpen size={12} />
                   </button>
                 )}
-                {!isInstalled ? (
+                {!isInstalled && service.name !== 'OpenSSL' ? (
                   <button onClick={() => setActiveTab('plugins')} className="px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
                 ) : (
                   <button

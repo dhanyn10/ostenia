@@ -5,7 +5,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"ostenia/internal/config"
+	"ostenia/internal/ssl"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -17,10 +20,11 @@ import (
 )
 
 type ServiceDetailedInfo struct {
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	PID    int    `json:"pid"`
-	Port   int    `json:"port"`
+	Name          string `json:"name"`
+	Status        string `json:"status"`
+	PID           int    `json:"pid"`
+	Port          int    `json:"port"`
+	RemainingDays int    `json:"remainingDays,omitempty"`
 }
 
 type runningService struct {
@@ -52,6 +56,18 @@ func (o *Orchestrator) GetDetailedInfo(name string) ServiceDetailedInfo {
 	o.mu.Unlock()
 
 	info := ServiceDetailedInfo{Name: name, Status: "Stopped"}
+
+	// Special case for OpenSSL status based on Root CA existence
+	if name == "OpenSSL" {
+		baseDir := config.GetBaseDir()
+		caPath := filepath.Join(baseDir, "ssl", "ca.crt")
+		if _, err := os.Stat(caPath); err == nil {
+			info.Status = "Running"
+			days, _ := ssl.GetRemainingDays(caPath)
+			info.RemainingDays = days
+		}
+		return info
+	}
 
 	if tracked && s.cmd != nil && s.cmd.Process != nil {
 		info.Status = "Running"

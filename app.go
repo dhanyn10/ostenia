@@ -40,11 +40,10 @@ func (a *App) startup(ctx context.Context) {
 	cfg, _ := config.LoadConfig()
 	a.cfg = cfg
 
-	// Ensure Root CA exists
+	// Ensure SSL directory exists
 	baseDir := config.GetBaseDir()
 	caDir := filepath.Join(baseDir, "ssl")
 	os.MkdirAll(caDir, 0755)
-	ssl.GenerateRootCA(caDir)
 }
 
 func (a *App) GetPrerequisites() []download.DownloadTask {
@@ -143,6 +142,17 @@ func (a *App) StartService(serviceName string) error {
 	fmt.Printf("[App] Starting service: %s\n", serviceName)
 
 	switch serviceName {
+	case "OpenSSL":
+		caDir := filepath.Join(baseDir, "ssl")
+		err := ssl.GenerateRootCA(caDir)
+		if err != nil {
+			return err
+		}
+		// Refresh status manually as OpenSSL isn't a long-running process
+		info := a.orchestrator.GetDetailedInfo("OpenSSL")
+		wruntime.EventsEmit(a.ctx, "service_status", info)
+		return nil
+
 	case "MySQL":
 		var mysqlBin string
 		var mysqlBase string
@@ -260,6 +270,16 @@ func (a *App) StartService(serviceName string) error {
 }
 
 func (a *App) StopService(serviceName string) {
+	if serviceName == "OpenSSL" {
+		baseDir := config.GetBaseDir()
+		caDir := filepath.Join(baseDir, "ssl")
+		os.RemoveAll(caDir)
+		os.MkdirAll(caDir, 0755)
+
+		info := a.orchestrator.GetDetailedInfo("OpenSSL")
+		wruntime.EventsEmit(a.ctx, "service_status", info)
+		return
+	}
 	a.orchestrator.StopService(serviceName)
 }
 

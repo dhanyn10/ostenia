@@ -38,6 +38,7 @@ export namespace service {
 	    status: string;
 	    pid: number;
 	    port: number;
+	    remainingDays?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new ServiceDetailedInfo(source);
@@ -49,6 +50,7 @@ export namespace service {
 	        this.status = source["status"];
 	        this.pid = source["pid"];
 	        this.port = source["port"];
+	        this.remainingDays = source["remainingDays"];
 	    }
 	}
 

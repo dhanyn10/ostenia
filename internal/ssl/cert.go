@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"os"
 	"os/exec"
@@ -32,11 +33,14 @@ func GenerateRootCA(destDir string) error {
 		CommonName:   "Ostenia Root CA",
 	}
 
+	// Set expiration to 30 days
+	expiration := time.Now().AddDate(0, 0, 30)
+
 	template := x509.Certificate{
 		SerialNumber:          big.NewInt(1),
 		Subject:               subject,
 		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(10, 0, 0),
+		NotAfter:              expiration,
 		IsCA:                  true,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
@@ -59,13 +63,36 @@ func GenerateRootCA(destDir string) error {
 	return TrustRootCA(caPath)
 }
 
+func GetRemainingDays(certPath string) (int, error) {
+	certData, err := os.ReadFile(certPath)
+	if err != nil {
+		return 0, err
+	}
+
+	block, _ := pem.Decode(certData)
+	if block == nil {
+		return 0, fmt.Errorf("failed to decode PEM")
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return 0, err
+	}
+
+	remaining := time.Until(cert.NotAfter)
+	days := int(remaining.Hours() / 24)
+	if days < 0 {
+		return 0, nil
+	}
+	return days, nil
+}
+
 func TrustRootCA(caPath string) error {
 	if runtime.GOOS == "windows" {
 		// certutil -addstore -f "Root" ca.crt
 		cmd := exec.Command("certutil", "-addstore", "-f", "Root", caPath)
 		return cmd.Run()
 	}
-	// For other OS, user might need to do it manually or we implement it later
 	return nil
 }
 
@@ -91,7 +118,7 @@ func SignCertificate(caDir string, domain string, destDir string) error {
 		},
 		DNSNames:    []string{domain, "*." + domain},
 		NotBefore:   time.Now(),
-		NotAfter:    time.Now().AddDate(1, 0, 0),
+		NotAfter:    time.Now().AddDate(0, 0, 30), // Consistent 30 days
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		KeyUsage:    x509.KeyUsageDigitalSignature,
 	}

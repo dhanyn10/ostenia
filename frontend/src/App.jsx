@@ -38,6 +38,7 @@ function App() {
     { name: 'MySQL', status: 'Stopped', pid: 0, port: 0 },
     { name: 'PHP', status: 'Stopped', pid: 0, port: 0 },
     { name: 'HeidiSQL', status: 'Stopped', pid: 0, port: 0 },
+    { name: 'OpenSSL', status: 'Stopped', pid: 0, port: 0, remainingDays: 0 }, // Add OpenSSL with remainingDays
   ]);
   const [prerequisites, setPrerequisites] = useState([]);
   const [downloadProgress, setDownloadProgress] = useState({});
@@ -131,7 +132,7 @@ function App() {
           const updatedServices = await Promise.all(
             services.map(async (service) => {
                const detail = await GetServiceStatus(service.name);
-               return { ...service, status: detail.status, pid: detail.pid, port: detail.port };
+               return { ...service, status: detail.status, pid: detail.pid, port: detail.port, remainingDays: detail.remainingDays || 0 };
             })
           );
           setServices(updatedServices);
@@ -147,7 +148,7 @@ function App() {
 
     if (window.runtime) {
       EventsOn('service_status', (data) => {
-        setServices(prev => prev.map(service => service.name === data.name ? { ...service, status: data.status, pid: data.pid, port: data.port } : service));
+        setServices(prev => prev.map(service => service.name === data.name ? { ...service, status: data.status, pid: data.pid, port: data.port, remainingDays: data.remainingDays || 0 } : service));
         addLog(`Service ${data.name} status changed to ${data.status}`);
       });
 
@@ -249,7 +250,7 @@ function App() {
 
   const handleAddToHome = (task) => {
     if (!services.find(service => service.name === task.name)) {
-      setServices(prev => [...prev, { name: task.name, status: 'Stopped', pid: 0, port: 0 }]);
+      setServices(prev => [...prev, { name: task.name, status: 'Stopped', pid: 0, port: 0, remainingDays: 0 }]);
       addLog(`Added ${task.name} to home screen.`);
     }
     setIsAddingPlugin(false);
