@@ -11,6 +11,7 @@ import (
 	"ostenia/internal/ssl"
 	"path/filepath"
 	"strings"
+	"time"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -53,6 +54,10 @@ func (a *App) UpdateActiveTab(tab string) {
 	a.orchestrator.SetActiveTab(tab)
 }
 
+func (a *App) GetConfig() *config.Config {
+	return a.cfg
+}
+
 func (a *App) GetPrerequisites() []download.DownloadTask {
 	return download.GetLatestKnownVersions()
 }
@@ -62,9 +67,7 @@ func (a *App) GetServiceStatus(serviceName string) service.ServiceDetailedInfo {
 }
 
 func (a *App) GetServerRoot() string {
-	if a.cfg == nil {
-		return ""
-	}
+	if a.cfg == nil { return "" }
 	return a.cfg.WWWRoot
 }
 
@@ -72,20 +75,19 @@ func (a *App) SetServerRoot(rootPath string) error {
 	fmt.Printf("[App] Setting Server Root to: %s\n", rootPath)
 	a.cfg.WWWRoot = rootPath
 	err := config.SaveConfig(a.cfg)
-	if err != nil {
-		return err
-	}
+	if err != nil { return err }
 
 	// Restart active web servers
 	if a.orchestrator.IsRunning("Apache") {
 		a.StopService("Apache")
+		time.Sleep(600 * time.Millisecond)
 		a.StartService("Apache")
 	}
 	if a.orchestrator.IsRunning("Nginx") {
 		a.StopService("Nginx")
+		time.Sleep(600 * time.Millisecond)
 		a.StartService("Nginx")
 	}
-
 	return nil
 }
 
@@ -93,48 +95,34 @@ func (a *App) SelectServerRoot() (string, error) {
 	selectedDir, err := wruntime.OpenDirectoryDialog(a.ctx, wruntime.OpenDialogOptions{
 		Title: "Select Server Root Directory",
 	})
-	if err != nil {
-		return "", err
-	}
+	if err != nil { return "", err }
 	if selectedDir != "" {
 		err = a.SetServerRoot(selectedDir)
-		if err != nil {
-			return "", err
-		}
+		if err != nil { return "", err }
 	}
 	return selectedDir, nil
 }
 
 func (a *App) OpenServerRootFolder() error {
-	if a.cfg == nil || a.cfg.WWWRoot == "" {
-		return fmt.Errorf("server root directory not set")
-	}
+	if a.cfg == nil || a.cfg.WWWRoot == "" { return fmt.Errorf("server root directory not set") }
 	return service.OpenExplorer(a.cfg.WWWRoot)
 }
 
 func (a *App) OpenPluginFolder(serviceName string) error {
 	baseDir := config.GetBaseDir()
 	binDir := filepath.Join(baseDir, "bin")
-
-	// Determine category folder
 	category := strings.ToLower(serviceName)
 	folderPath := filepath.Join(binDir, category)
-
-	// Check if the directory exists
 	if _, err := os.Stat(folderPath); os.IsNotExist(err) {
 		return fmt.Errorf("folder for %s not found: %s", serviceName, folderPath)
 	}
-
-	// Open folder in explorer
 	return service.OpenExplorer(folderPath)
 }
 
 func (a *App) InstallPrerequisite(task download.DownloadTask) error {
 	fmt.Printf("[App] Installing prerequisite: %s (%s)\n", task.Name, task.URL)
 	err := a.downloader.DownloadAndExtract(task)
-	if err != nil {
-		fmt.Printf("[App] Error installing %s: %v\n", task.Name, err)
-	}
+	if err != nil { fmt.Printf("[App] Error installing %s: %v\n", task.Name, err) }
 	return err
 }
 
@@ -152,10 +140,7 @@ func (a *App) StartService(serviceName string) error {
 	case "OpenSSL":
 		caDir := filepath.Join(baseDir, "ssl")
 		err := ssl.GenerateRootCA(caDir)
-		if err != nil {
-			return err
-		}
-		// Refresh status manually as OpenSSL isn't a long-running process
+		if err != nil { return err }
 		info := a.orchestrator.GetDetailedInfo("OpenSSL")
 		wruntime.EventsEmit(a.ctx, "service_status", info)
 		return nil
@@ -172,61 +157,60 @@ func (a *App) StartService(serviceName string) error {
 			}
 			return nil
 		})
+		if mysqlBin == "" { return fmt.Errorf("mysqld.exe not found") }
 
-		if mysqlBin == "" {
-			return fmt.Errorf("mysqld.exe not found")
-		}
-
-		port, err := network.GetAvailablePort([]int{3306, 3307, 3308})
-		if err != nil {
-			return fmt.Errorf("no available ports for mysql: %v", err)
+		currentInfo := a.orchestrator.GetDetailedInfo("MySQL")
+		port := currentInfo.Port
+		if port <= 0 {
+			p, err := network.GetAvailablePort([]int{3306, 3307, 3308})
+			if err != nil { return err }
+			port = p
 		}
 
 		os.Setenv("PATH", filepath.Dir(mysqlBin)+";"+os.Getenv("PATH"))
-		err = a.updateMySQLConfig(mysqlBase, port)
+		err := a.updateMySQLConfig(mysqlBase, port)
 		if err != nil { return err }
-
 		iniPath := filepath.Join(mysqlBase, "my.ini")
 		return a.orchestrator.StartServiceWithPort("MySQL", mysqlBin, []string{"--defaults-file=" + iniPath, "--console"}, filepath.Dir(mysqlBin), port)
 
 	case "Apache":
 		if a.orchestrator.IsRunning("Nginx") {
 			a.StopService("Nginx")
+			time.Sleep(600 * time.Millisecond)
 		}
-
 		var apacheBase string
 		var apacheBin string
 		filepath.Walk(filepath.Join(binDir, "apache"), func(path string, info os.FileInfo, err error) error {
 			if info == nil { return nil }
 			if !info.IsDir() && info.Name() == "httpd.exe" {
-				if _, err := os.Stat(path); err == nil {
-					apacheBin = path
-					apacheBase = filepath.Dir(filepath.Dir(path))
-					return filepath.SkipDir
-				}
+				apacheBin = path
+				apacheBase = filepath.Dir(filepath.Dir(path))
+				return filepath.SkipDir
 			}
 			return nil
 		})
-
 		if apacheBase == "" { return fmt.Errorf("apache installation not found") }
 
-		port, err := network.GetAvailablePort([]int{80, 8080, 8081, 9000})
-		if err != nil { return fmt.Errorf("no available ports for apache: %v", err) }
+		currentInfo := a.orchestrator.GetDetailedInfo("Apache")
+		port := currentInfo.Port
+		if port <= 0 {
+			p, err := network.GetAvailablePort([]int{80, 8080, 8081, 9000})
+			if err != nil { return err }
+			port = p
+		}
 
 		phpPath := filepath.Join(baseDir, "bin", "php", "current")
 		nodePath := filepath.Join(baseDir, "bin", "nodejs", "current")
 		os.Setenv("PATH", phpPath+";"+os.Getenv("PATH")+";"+nodePath)
-		
-		err = a.updateApacheConfig(apacheBase, port)
+		err := a.updateApacheConfig(apacheBase, port)
 		if err != nil { return err }
-
 		return a.orchestrator.StartServiceWithPort("Apache", apacheBin, []string{}, apacheBase, port)
 
 	case "Nginx":
 		if a.orchestrator.IsRunning("Apache") {
 			a.StopService("Apache")
+			time.Sleep(600 * time.Millisecond)
 		}
-
 		var nginxBase string
 		var nginxBin string
 		filepath.Walk(filepath.Join(binDir, "nginx"), func(path string, info os.FileInfo, err error) error {
@@ -238,15 +222,18 @@ func (a *App) StartService(serviceName string) error {
 			}
 			return nil
 		})
-
 		if nginxBase == "" { return fmt.Errorf("nginx installation not found") }
 
-		port, err := network.GetAvailablePort([]int{80, 8080, 8081, 9000})
-		if err != nil { return fmt.Errorf("no available ports for nginx: %v", err) }
+		currentInfo := a.orchestrator.GetDetailedInfo("Nginx")
+		port := currentInfo.Port
+		if port <= 0 {
+			p, err := network.GetAvailablePort([]int{80, 8080, 8081, 9000})
+			if err != nil { return err }
+			port = p
+		}
 
-		err = a.updateNginxConfig(nginxBase, port)
+		err := a.updateNginxConfig(nginxBase, port)
 		if err != nil { return err }
-
 		return a.orchestrator.StartServiceWithPort("Nginx", nginxBin, []string{"-p", nginxBase}, nginxBase, port)
 
 	case "HeidiSQL":
@@ -259,15 +246,19 @@ func (a *App) StartService(serviceName string) error {
 		phpCgi := filepath.Join(phpPath, "php-cgi.exe")
 		if _, err := os.Stat(phpCgi); os.IsNotExist(err) { return fmt.Errorf("php-cgi.exe not found") }
 
-		port, err := network.GetAvailablePort([]int{9000, 9001, 9002})
-		if err != nil { return fmt.Errorf("no available ports for PHP: %v", err) }
+		currentInfo := a.orchestrator.GetDetailedInfo("PHP")
+		port := currentInfo.Port
+		if port <= 0 {
+			p, err := network.GetAvailablePort([]int{9000, 9001, 9002})
+			if err != nil { return err }
+			port = p
+		}
 
 		os.Setenv("PHP_FCGI_MAX_REQUESTS", "1000")
-		err = a.orchestrator.StartServiceWithPort("PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, phpPath, port)
-
+		err := a.orchestrator.StartServiceWithPort("PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, phpPath, port)
 		if err == nil {
-			if a.orchestrator.IsRunning("Apache") { a.StopService("Apache"); a.StartService("Apache") }
-			if a.orchestrator.IsRunning("Nginx") { a.StopService("Nginx"); a.StartService("Nginx") }
+			if a.orchestrator.IsRunning("Apache") { a.StopService("Apache"); time.Sleep(600 * time.Millisecond); a.StartService("Apache") }
+			if a.orchestrator.IsRunning("Nginx") { a.StopService("Nginx"); time.Sleep(600 * time.Millisecond); a.StartService("Nginx") }
 		}
 		return err
 
@@ -282,7 +273,8 @@ func (a *App) StopService(serviceName string) {
 		caDir := filepath.Join(baseDir, "ssl")
 		os.RemoveAll(caDir)
 		os.MkdirAll(caDir, 0755)
-
+		a.SetApacheHTTPS(false)
+		a.SetNginxHTTPS(false)
 		info := a.orchestrator.GetDetailedInfo("OpenSSL")
 		wruntime.EventsEmit(a.ctx, "service_status", info)
 		return
@@ -310,31 +302,29 @@ func (a *App) updateApacheConfig(apachePath string, port int) error {
 	if port <= 0 { port = 80 }
 	wwwDir := a.cfg.WWWRoot
 	os.MkdirAll(wwwDir, 0755)
-
 	phpInfo := a.orchestrator.GetDetailedInfo("PHP")
 	phpPort := 0
 	if phpInfo.Status == "Running" { phpPort = phpInfo.Port }
-
-	return service.UpdateApacheConfig(apachePath, "", "", "", port, wwwDir, phpPort)
+	return service.UpdateApacheConfig(apachePath, "", "", "", port, wwwDir, phpPort, a.cfg.ApacheHTTPS)
 }
 
 func (a *App) updateNginxConfig(nginxPath string, port int) error {
 	if port <= 0 { port = 80 }
 	wwwDir := a.cfg.WWWRoot
 	os.MkdirAll(wwwDir, 0755)
-
 	phpInfo := a.orchestrator.GetDetailedInfo("PHP")
 	phpPort := 0
 	if phpInfo.Status == "Running" { phpPort = phpInfo.Port }
-
-	return service.UpdateNginxConfig(nginxPath, wwwDir, phpPort, port)
+	return service.UpdateNginxConfig(nginxPath, wwwDir, phpPort, port, a.cfg.NginxHTTPS)
 }
 
-func (a *App) StopAllServices() {
-	a.orchestrator.StopAll()
-}
+func (a *App) StopAllServices() { a.orchestrator.StopAll() }
 
 func (a *App) OpenTerminal(terminalType string) {
+	a.OpenTerminalAtPath(terminalType, a.cfg.WWWRoot)
+}
+
+func (a *App) OpenTerminalAtPath(terminalType string, path string) {
 	baseDir := config.GetBaseDir()
 	phpPath := filepath.Join(baseDir, "bin", "php", "current")
 	mysqlPath := filepath.Join(baseDir, "bin", "mysql", "current", "bin")
@@ -351,10 +341,77 @@ func (a *App) OpenTerminal(terminalType string) {
 	}
 	if !pathFound { env = append(env, "PATH="+phpPath+";"+mysqlPath+";"+nodePath) }
 
-	cmd := service.NewTerminal(a.cfg.WWWRoot, env)
+	cmd := service.NewTerminal(path, env)
 	cmd.Open(terminalType)
 }
 
-func (a *App) DeleteVersion(serviceName string, version string) error {
-	return a.downloader.DeleteVersion(serviceName, version)
+func (a *App) DeleteVersion(serviceName string, version string) error { return a.downloader.DeleteVersion(serviceName, version) }
+
+func (a *App) SetApacheHTTPS(enabled bool) error {
+	a.cfg.ApacheHTTPS = enabled
+	err := config.SaveConfig(a.cfg)
+	if err != nil { return err }
+	if a.orchestrator.IsRunning("Apache") {
+		a.StopService("Apache")
+		time.Sleep(600 * time.Millisecond)
+		return a.StartService("Apache")
+	}
+	return nil
+}
+
+func (a *App) SetNginxHTTPS(enabled bool) error {
+	a.cfg.NginxHTTPS = enabled
+	err := config.SaveConfig(a.cfg)
+	if err != nil { return err }
+	if a.orchestrator.IsRunning("Nginx") {
+		a.StopService("Nginx")
+		time.Sleep(600 * time.Millisecond)
+		return a.StartService("Nginx")
+	}
+	return nil
+}
+
+func (a *App) OpenServiceTerminal(serviceName string, terminalType string) error {
+	baseDir := config.GetBaseDir()
+	binDir := filepath.Join(baseDir, "bin")
+
+	var targetDir string
+	switch serviceName {
+	case "Nginx":
+		filepath.Walk(filepath.Join(binDir, "nginx"), func(path string, info os.FileInfo, err error) error {
+			if info == nil { return nil }
+			if !info.IsDir() && info.Name() == "nginx.exe" {
+				targetDir = filepath.Dir(path)
+				return filepath.SkipDir
+			}
+			return nil
+		})
+	case "Apache":
+		filepath.Walk(filepath.Join(binDir, "apache"), func(path string, info os.FileInfo, err error) error {
+			if info == nil { return nil }
+			if !info.IsDir() && info.Name() == "httpd.exe" {
+				targetDir = filepath.Dir(path)
+				return filepath.SkipDir
+			}
+			return nil
+		})
+	case "MySQL":
+		filepath.Walk(filepath.Join(binDir, "mysql"), func(path string, info os.FileInfo, err error) error {
+			if info == nil { return nil }
+			if !info.IsDir() && info.Name() == "mysqld.exe" {
+				targetDir = filepath.Dir(path)
+				return filepath.SkipDir
+			}
+			return nil
+		})
+	default:
+		targetDir = filepath.Join(binDir, strings.ToLower(serviceName))
+	}
+
+	if targetDir == "" {
+		targetDir = filepath.Join(binDir, strings.ToLower(serviceName))
+	}
+
+	a.OpenTerminalAtPath(terminalType, targetDir)
+	return nil
 }

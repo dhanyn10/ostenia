@@ -56,4 +56,46 @@ http {
             root   html;
         }
     }
+
+    {{if .HTTPSEnabled}}
+    server {
+        listen       443 ssl;
+        server_name  localhost;
+        root         "{{.WWWRoot}}";
+        index        index.php index.html index.htm;
+
+        ssl_certificate      "{{.CertFile}}";
+        ssl_certificate_key  "{{.KeyFile}}";
+
+        ssl_session_cache    shared:SSL:1m;
+        ssl_session_timeout  5m;
+
+        ssl_ciphers  HIGH:!aNULL:!MD5;
+        ssl_preferred_server_ciphers  on;
+
+        location / {
+            try_files $uri $uri/ @fallback_ostenia;
+        }
+
+        location @fallback_ostenia {
+            root "{{.NginxPath}}/html";
+            index index.html index.htm;
+        }
+
+        {{if gt .PHPPort 0}}
+        location ~ \.php$ {
+            try_files $uri =404;
+            fastcgi_pass   127.0.0.1:{{.PHPPort}};
+            fastcgi_index  index.php;
+            fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+            include        fastcgi_params;
+        }
+        {{end}}
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+    }
+    {{end}}
 }

@@ -89,7 +89,6 @@ func GetRemainingDays(certPath string) (int, error) {
 
 func TrustRootCA(caPath string) error {
 	if runtime.GOOS == "windows" {
-		// certutil -addstore -f "Root" ca.crt
 		cmd := exec.Command("certutil", "-addstore", "-f", "Root", caPath)
 		return cmd.Run()
 	}
@@ -97,28 +96,40 @@ func TrustRootCA(caPath string) error {
 }
 
 func SignCertificate(caDir string, domain string, destDir string) error {
+	certPath := filepath.Join(destDir, domain+".crt")
+	if _, err := os.Stat(certPath); err == nil {
+		return nil // Certificate already exists, no need to re-sign every time
+	}
+
 	caCertPath := filepath.Join(caDir, "ca.crt")
 	caKeyPath := filepath.Join(caDir, "ca.key")
 
-	caCertData, _ := os.ReadFile(caCertPath)
-	caKeyData, _ := os.ReadFile(caKeyPath)
+	caCertData, err := os.ReadFile(caCertPath)
+	if err != nil { return fmt.Errorf("ca.crt not found: %w", err) }
+	caKeyData, err := os.ReadFile(caKeyPath)
+	if err != nil { return fmt.Errorf("ca.key not found: %w", err) }
 
-	block, _ := pem.Decode(caCertData)
-	caCert, _ := x509.ParseCertificate(block.Bytes)
+	caBlock, _ := pem.Decode(caCertData)
+	if caBlock == nil { return fmt.Errorf("failed to decode ca.crt") }
+	caCert, err := x509.ParseCertificate(caBlock.Bytes)
+	if err != nil { return fmt.Errorf("failed to parse ca.crt: %w", err) }
 
-	block, _ = pem.Decode(caKeyData)
-	caKey, _ := x509.ParsePKCS1PrivateKey(block.Bytes)
+	keyBlock, _ := pem.Decode(caKeyData)
+	if keyBlock == nil { return fmt.Errorf("failed to decode ca.key") }
+	caKey, err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
+	if err != nil { return fmt.Errorf("failed to parse ca.key: %w", err) }
 
-	priv, _ := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil { return err }
 
 	template := x509.Certificate{
-		SerialNumber: big.NewInt(2),
+		SerialNumber: big.NewInt(time.Now().Unix()),
 		Subject: pkix.Name{
 			CommonName: domain,
 		},
 		DNSNames:    []string{domain, "*." + domain},
 		NotBefore:   time.Now(),
-		NotAfter:    time.Now().AddDate(0, 0, 30), // Consistent 30 days
+		NotAfter:    time.Now().AddDate(0, 0, 30),
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		KeyUsage:    x509.KeyUsageDigitalSignature,
 	}
@@ -128,11 +139,13 @@ func SignCertificate(caDir string, domain string, destDir string) error {
 		return err
 	}
 
-	certOut, _ := os.Create(filepath.Join(destDir, domain+".crt"))
+	certOut, err := os.Create(certPath)
+	if err != nil { return err }
 	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
 	certOut.Close()
 
-	keyOut, _ := os.Create(filepath.Join(destDir, domain+".key"))
+	keyOut, err := os.Create(filepath.Join(destDir, domain+".key"))
+	if err != nil { return err }
 	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
 	keyOut.Close()
 

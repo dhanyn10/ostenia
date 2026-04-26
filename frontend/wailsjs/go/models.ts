@@ -1,3 +1,28 @@
+export namespace config {
+	
+	export class Config {
+	    wwwRoot: string;
+	    phpVersion: string;
+	    nodeVersion: string;
+	    apacheHttps: boolean;
+	    nginxHttps: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Config(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.wwwRoot = source["wwwRoot"];
+	        this.phpVersion = source["phpVersion"];
+	        this.nodeVersion = source["nodeVersion"];
+	        this.apacheHttps = source["apacheHttps"];
+	        this.nginxHttps = source["nginxHttps"];
+	    }
+	}
+
+}
+
 export namespace download {
 	
 	export class DownloadTask {
@@ -38,6 +63,7 @@ export namespace service {
 	    status: string;
 	    pid: number;
 	    port: number;
+	    ports: number[];
 	    remainingDays?: number;
 	
 	    static createFrom(source: any = {}) {
@@ -50,6 +76,7 @@ export namespace service {
 	        this.status = source["status"];
 	        this.pid = source["pid"];
 	        this.port = source["port"];
+	        this.ports = source["ports"];
 	        this.remainingDays = source["remainingDays"];
 	    }
 	}

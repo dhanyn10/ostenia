@@ -1,7 +1,8 @@
-import React from 'react';
-import { Plus, X, Activity, Globe, Trash2, FolderOpen, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, X, Activity, Globe, Trash2, FolderOpen, Clock, Lock, Unlock, Terminal, ChevronDown, Monitor } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { OpenServiceTerminal } from '../../wailsjs/go/main/App';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -11,8 +12,19 @@ function ActivityTab({
   serverRoot, handleServerRootChange, handleBrowseServerRoot,
   isAddingPlugin, setIsAddingPlugin, prerequisites, services, handleAddToHome,
   ICON_MAP, handleToggleService, handleRemoveFromHome, setActiveTab,
-  handleOpenPluginFolder, handleOpenServerRootFolder 
+  handleOpenPluginFolder, handleOpenServerRootFolder,
+  apacheHttps, nginxHttps, handleToggleHttps
 }) {
+  const [openTerminalDropdown, setOpenTerminalDropdown] = useState(null);
+  
+  const openSslService = services.find(s => s.name === 'OpenSSL');
+  const isOpenSslEnabled = openSslService?.status === 'Running';
+
+  const handleOpenLocalTerminal = (name, type) => {
+    OpenServiceTerminal(name, type);
+    setOpenTerminalDropdown(null);
+  };
+
   return (
     <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500">
       {/* Dashboard Controls */}
@@ -85,13 +97,23 @@ function ActivityTab({
       </div>
 
       {/* Scrollable Services List */}
-      <div className="flex-1 overflow-y-auto pr-3 -mr-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5 space-y-2">
+      <div className="flex-1 overflow-y-auto pr-3 -mr-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5 space-y-2 pb-20">
         {services.map((service) => {
           const task = prerequisites.find(p => p.name === service.name);
           const isInstalled = (task?.installedVers && task.installedVers.length > 0) || service.name === 'OpenSSL';
+          const isWebServer = service.name === 'Apache' || service.name === 'Nginx';
+          const isHttpsEnabled = service.name === 'Apache' ? apacheHttps : (service.name === 'Nginx' ? nginxHttps : false);
+          
+          const hasTerminalFacility = service.name !== 'HeidiSQL' && service.name !== 'OpenSSL';
 
           return (
-            <div key={service.name} className="bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all group flex items-center gap-5 relative shadow-sm dark:shadow-lg">
+            <div 
+              key={service.name} 
+              className={cn(
+                "bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all group flex items-center gap-5 relative shadow-sm dark:shadow-lg",
+                openTerminalDropdown === service.name ? "z-[100]" : "z-10"
+              )}
+            >
               <div className="flex-1 min-w-0 px-2">
                 <div className="flex items-center gap-3 flex-wrap">
                   <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{service.name}</h3>
@@ -113,7 +135,7 @@ function ActivityTab({
                     {service.status}
                   </div>
                   
-                  {/* Runtime Stats (PID & Port) */}
+                  {/* Runtime Stats (PID & Ports) */}
                   {service.status === 'Running' && service.name !== 'OpenSSL' && (
                     <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
                       {service.pid > 0 && (
@@ -122,18 +144,77 @@ function ActivityTab({
                           PID: {service.pid}
                         </div>
                       )}
-                      {service.port > 0 && (
+                      {(service.ports && service.ports.length > 0) || service.port > 0 ? (
                         <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-sm text-[8px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
                           <Globe size={10} />
-                          Port: {service.port}
+                          Port: {service.ports && service.ports.length > 0 ? service.ports.join(', ') : service.port}
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   )}
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
+                {/* Local Terminal Toggle */}
+                {isInstalled && hasTerminalFacility && (
+                  <div className="relative">
+                    <button 
+                      onClick={() => setOpenTerminalDropdown(openTerminalDropdown === service.name ? null : service.name)}
+                      className={cn(
+                        "h-6 px-2 flex items-center gap-1 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-white/5",
+                        openTerminalDropdown === service.name && "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white"
+                      )}
+                      title="Open Terminal in this service folder"
+                    >
+                      <Terminal size={12} />
+                      <ChevronDown size={8} className={cn("transition-transform", openTerminalDropdown === service.name && "rotate-180")} />
+                    </button>
+
+                    {openTerminalDropdown === service.name && (
+                      <>
+                        <div className="fixed inset-0 z-[150]" onClick={() => setOpenTerminalDropdown(null)} />
+                        <div className="absolute top-full right-0 mt-2 w-40 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-sm shadow-2xl z-[160] animate-in fade-in slide-in-from-top-1 duration-200">
+                          <div className="p-1">
+                            <button 
+                              onClick={() => handleOpenLocalTerminal(service.name, 'cmd')}
+                              className="w-full flex items-center gap-3 px-3 py-1.5 rounded-sm text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"
+                            >
+                              <Monitor size={12} className="text-blue-500" /> CMD
+                            </button>
+                            <button 
+                              onClick={() => handleOpenLocalTerminal(service.name, 'powershell')}
+                              className="w-full flex items-center gap-3 px-3 py-1.5 rounded-sm text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"
+                            >
+                              <Monitor size={12} className="text-blue-600" /> PowerShell
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {isWebServer && isOpenSslEnabled && (
+                  <button
+                    onClick={() => handleToggleHttps(service.name)}
+                    className={cn(
+                      "w-12 h-6 rounded-sm p-0.5 transition-all duration-300 ease-in-out relative ring-1 ring-inset",
+                      isHttpsEnabled
+                        ? "bg-purple-500 ring-purple-400/50"
+                        : "bg-slate-200 dark:bg-slate-800 ring-slate-300 dark:ring-white/5"
+                    )}
+                    title={isHttpsEnabled ? "HTTPS Enabled" : "HTTPS Disabled"}
+                  >
+                    <div className={cn(
+                      "w-5 h-5 bg-white rounded-sm transition-all duration-300 shadow-lg flex items-center justify-center",
+                      isHttpsEnabled ? "translate-x-6" : "translate-x-0"
+                    )}>
+                      {isHttpsEnabled ? <Lock size={12} className="text-purple-600" /> : <Unlock size={12} className="text-slate-500" />}
+                    </div>
+                  </button>
+                )}
+
                 {isInstalled && service.name !== 'OpenSSL' && (
                   <button 
                     onClick={() => handleOpenPluginFolder(service.name)}

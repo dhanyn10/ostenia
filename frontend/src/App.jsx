@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
-import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService, GetServerRoot, SetServerRoot, GetServiceStatus, SelectServerRoot, OpenPluginFolder, OpenServerRootFolder, UpdateActiveTab } from '../wailsjs/go/main/App';
+import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService, GetServerRoot, SetServerRoot, GetServiceStatus, SelectServerRoot, OpenPluginFolder, OpenServerRootFolder, UpdateActiveTab, SetApacheHTTPS, SetNginxHTTPS, GetConfig } from '../wailsjs/go/main/App';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -51,6 +51,8 @@ function App() {
   const [selectedVersions, setSelectedVersions] = useState({});
   const [isAddingPlugin, setIsAddingPlugin] = useState(false);
   const [serverRoot, setServerRoot] = useState('');
+  const [apacheHttps, setApacheHttps] = useState(false);
+  const [nginxHttps, setNginxHttps] = useState(false);
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
@@ -133,8 +135,10 @@ function App() {
     const loadInitialData = async () => {
       if (window.go) {
         try {
-          const root = await GetServerRoot();
-          setServerRoot(root);
+          const cfg = await GetConfig();
+          setServerRoot(cfg.wwwRoot);
+          setApacheHttps(cfg.apacheHttps);
+          setNginxHttps(cfg.nginxHttps);
 
           const updatedServices = await Promise.all(
             services.map(async (service) => {
@@ -156,7 +160,12 @@ function App() {
     if (window.runtime) {
       EventsOn('service_status', (data) => {
         setServices(prev => prev.map(service => service.name === data.name ? { ...service, status: data.status, pid: data.pid, port: data.port, remainingDays: data.remainingDays || 0 } : service));
-        addLog(`Service ${data.name} status changed to ${data.status}`);
+        
+        // If OpenSSL is stopped, turn off HTTPS toggles in UI
+        if (data.name === 'OpenSSL' && data.status === 'Stopped') {
+          setApacheHttps(false);
+          setNginxHttps(false);
+        }
       });
 
       EventsOn('download_progress', (data) => {
@@ -261,6 +270,28 @@ function App() {
       addLog(`Added ${task.name} to home screen.`);
     }
     setIsAddingPlugin(false);
+  };
+
+  const handleToggleHttps = async (name) => {
+    if (!window.go) return;
+    try {
+      if (name === 'Apache') {
+        const newValue = !apacheHttps;
+        setApacheHttps(newValue); // Optimistic UI update
+        await SetApacheHTTPS(newValue);
+        addLog(`Apache HTTPS ${newValue ? 'enabled' : 'disabled'}`);
+      } else if (name === 'Nginx') {
+        const newValue = !nginxHttps;
+        setNginxHttps(newValue); // Optimistic UI update
+        await SetNginxHTTPS(newValue);
+        addLog(`Nginx HTTPS ${newValue ? 'enabled' : 'disabled'}`);
+      }
+    } catch (err) {
+      addToast('HTTPS Error', `Failed to toggle HTTPS: ${err}`, 'error');
+      // Revert UI on error
+      if (name === 'Apache') setApacheHttps(apacheHttps);
+      else if (name === 'Nginx') setNginxHttps(nginxHttps);
+    }
   };
 
   const handleCancel = (name) => {
@@ -377,6 +408,9 @@ function App() {
                 setActiveTab={setActiveTab}
                 handleOpenPluginFolder={handleOpenPluginFolder}
                 handleOpenServerRootFolder={handleOpenServerRootFolder}
+                apacheHttps={apacheHttps}
+                nginxHttps={nginxHttps}
+                handleToggleHttps={handleToggleHttps}
               />
             ) : (
               <PluginsTab 
