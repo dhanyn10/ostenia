@@ -20,6 +20,7 @@ function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
+// Strictly use custom icons from Icons.jsx
 const ICON_MAP = {
   'Apache': Icons.Apache,
   'Nginx': Icons.Nginx,
@@ -54,7 +55,7 @@ function App() {
   const [selectedVersions, setSelectedVersions] = useState({});
   const [isAddingPlugin, setIsAddingPlugin] = useState(false);
   
-  const [serverRoot, setServerRoot] = useState('');
+  const [serverRootState, setServerRootState] = useState('');
   const [appsLocation, setAppsLocation] = useState('');
   const [apacheHttps, setApacheHttps] = useState(false);
   const [nginxHttps, setNginxHttps] = useState(false);
@@ -74,6 +75,7 @@ function App() {
   };
 
   const refreshPrerequisites = async () => {
+    if (!AppBackend.GetPrerequisites) return;
     try {
       const tasks = await AppBackend.GetPrerequisites();
       setPrerequisites(tasks || []);
@@ -92,45 +94,47 @@ function App() {
           });
           return next;
         });
-
-        const initialProgress = {};
-        tasks.forEach(t => {
-          if (t.isInstalled) {
-            initialProgress[t.name] = { name: t.name, percentage: 100, status: 'Installed' };
-          }
-        });
-        setDownloadProgress(prev => ({ ...initialProgress, ...prev }));
       }
     } catch (err) {
-      addLog(`Error fetching prerequisites: ${err}`);
+      console.error("Error refreshing prerequisites:", err);
     }
   };
 
   const loadInitialData = async () => {
+    if (!AppBackend.GetConfig) return;
     try {
       const cfg = await AppBackend.GetConfig();
-      setServerRoot(cfg.wwwRoot || '');
-      setAppsLocation(cfg.baseDir || '');
-      setApacheHttps(cfg.apacheHttps || false);
-      setNginxHttps(cfg.nginxHttps || false);
+      if (cfg) {
+        setServerRootState(cfg.wwwRoot || '');
+        setAppsLocation(cfg.baseDir || '');
+        setApacheHttps(cfg.apacheHttps || false);
+        setNginxHttps(cfg.nginxHttps || false);
+      }
 
-      const updatedServices = await Promise.all(
-        services.map(async (service) => {
-           const detail = await AppBackend.GetServiceStatus(service.name);
-           return { 
-             ...service, 
-             status: detail.status, 
-             pid: detail.pid, 
-             port: detail.port, 
-             ports: detail.ports || [], 
-             remainingDays: detail.remainingDays || 0,
-             activeVersion: detail.activeVersion || ''
-           };
-        })
-      );
-      setServices(updatedServices);
+      if (AppBackend.GetServiceStatus) {
+        const updatedServices = await Promise.all(
+          services.map(async (service) => {
+             try {
+               const detail = await AppBackend.GetServiceStatus(service.name);
+               if (!detail) return service;
+               return { 
+                 ...service, 
+                 status: detail.status || 'Stopped', 
+                 pid: detail.pid || 0, 
+                 port: detail.port || 0, 
+                 ports: detail.ports || [], 
+                 remainingDays: detail.remainingDays || 0,
+                 activeVersion: detail.activeVersion || ''
+               };
+             } catch (e) {
+               return service;
+             }
+          })
+        );
+        setServices(updatedServices);
+      }
     } catch (err) {
-      addLog(`Error loading initial data: ${err}`);
+      console.error("Error loading initial data:", err);
     } finally {
       setLoading(false);
     }
@@ -143,60 +147,28 @@ function App() {
     };
     init();
 
-    if (window.runtime) {
-      EventsOn('service_status', (data) => {
-        setServices(prev => prev.map(service => service.name === data.name ? { 
-          ...service, 
-          status: data.status, 
-          pid: data.pid, 
-          port: data.port, 
-          ports: data.ports || [], 
-          remainingDays: data.remainingDays || 0,
-          activeVersion: data.activeVersion || ''
-        } : service));
-      });
+    const statusUnsub = EventsOn('service_status', (data) => {
+      if (!data) return;
+      setServices(prev => prev.map(service => service.name === data.name ? { 
+        ...service, 
+        status: data.status || 'Stopped', 
+        pid: data.pid || 0, 
+        port: data.port || 0, 
+        ports: data.ports || [], 
+        remainingDays: data.remainingDays || 0,
+        activeVersion: data.activeVersion || ''
+      } : service));
+    });
 
-      EventsOn('environment_changed', () => {
-        loadInitialData();
-        refreshPrerequisites();
-      });
+    const envUnsub = EventsOn('environment_changed', () => {
+      loadInitialData();
+    });
 
-      EventsOn('download_progress', (data) => {
-        setDownloadProgress(prev => ({ ...prev, [data.name]: data }));
-        if (data.percentage === 100 && (data.status === 'Completed' || data.status === 'Ready')) {
-          refreshPrerequisites();
-        }
-      });
-    }
+    return () => {
+      if (statusUnsub) statusUnsub();
+      if (envUnsub) envUnsub();
+    };
   }, []);
-
-  const handleBrowseAppsLocation = async () => {
-    try {
-      const selected = await AppBackend.SelectServerRoot();
-      if (selected) {
-        setAppsLocation(selected);
-        addToast('Apps Location', 'Apps location updated', 'success');
-      }
-    } catch (err) {
-      addLog(`Error selecting apps location: ${err}`);
-    }
-  };
-
-  const handleBrowseServerRoot = async () => {
-    try {
-      // Use Wails runtime via window.runtime if available
-      if (window.runtime) {
-        const selected = await window.runtime.OpenDirectoryDialog({ title: "Select Server Root (www)" });
-        if (selected) {
-          await AppBackend.SetWWWRoot(selected);
-          setServerRoot(selected);
-          addToast('Server Root', 'Server root updated', 'success');
-        }
-      }
-    } catch (err) {
-      addLog(`Error selecting server root: ${err}`);
-    }
-  };
 
   return (
     <div className={cn(
@@ -206,20 +178,14 @@ function App() {
       <Toast toasts={toasts} removeToast={removeToast} />
       <LogViewer logs={logs} isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} />
 
-      <VerticalNav 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        toggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} 
-        theme={theme} 
-        setIsLogOpen={setIsLogOpen} 
-      />
+      <VerticalNav activeTab={activeTab} setActiveTab={setActiveTab} toggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} theme={theme} setIsLogOpen={setIsLogOpen} />
 
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
         <AppHeader 
           activeTab={activeTab} 
-          handleStartAll={() => AppBackend.StartAllServices()} 
-          handleStopAll={() => AppBackend.StopAllServices()} 
-          handleTerminal={(type) => { AppBackend.OpenTerminal(type); setIsTerminalOpen(false); }} 
+          handleStartAll={() => AppBackend.StartAllServices && AppBackend.StartAllServices()} 
+          handleStopAll={() => AppBackend.StopAllServices && AppBackend.StopAllServices()} 
+          handleTerminal={(type) => { AppBackend.OpenTerminal && AppBackend.OpenTerminal(type); setIsTerminalOpen(false); }} 
           isTerminalOpen={isTerminalOpen} 
           setIsTerminalOpen={setIsTerminalOpen} 
         />
@@ -232,18 +198,27 @@ function App() {
               </div>
             ) : activeTab === 'activity' ? (
               <ActivityTab 
-                serverRoot={serverRoot}
+                serverRoot={serverRootState}
                 appsLocation={appsLocation}
-                handleBrowseAppsLocation={handleBrowseAppsLocation}
-                handleBrowseServerRoot={handleBrowseServerRoot}
+                handleBrowseAppsLocation={async () => {
+                   const selected = await AppBackend.SelectServerRoot();
+                   if (selected) { setAppsLocation(selected); loadInitialData(); }
+                }}
+                handleBrowseServerRoot={async () => {
+                   if (window.runtime) {
+                     const selected = await window.runtime.OpenDirectoryDialog({ title: "Select Server Root (www)" });
+                     if (selected) { await AppBackend.SetWWWRoot(selected); setServerRootState(selected); }
+                   }
+                }}
                 isAddingPlugin={isAddingPlugin}
                 setIsAddingPlugin={setIsAddingPlugin}
                 prerequisites={prerequisites}
                 services={services}
                 handleAddToHome={(task) => {
-                  if (!services.find(s => s.name === task.name)) {
-                    setServices(prev => [...prev, { name: task.name, status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '', remainingDays: 0 }]);
-                  }
+                  setServices(prev => {
+                    if (prev.find(s => s.name === task.name)) return prev;
+                    return [...prev, { name: task.name, status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '', remainingDays: 0 }];
+                  });
                   setIsAddingPlugin(false);
                 }}
                 ICON_MAP={ICON_MAP}
