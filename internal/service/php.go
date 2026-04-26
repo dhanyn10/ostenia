@@ -20,15 +20,18 @@ func UpdatePHPConfig(phpPath string) error {
 	iniProduction := filepath.Join(phpPath, "php.ini-production")
 
 	if _, err := os.Stat(iniPath); os.IsNotExist(err) {
-		source := iniDevelopment
-		if _, errDev := os.Stat(iniDevelopment); os.IsNotExist(errDev) {
+		source := ""
+		if _, errDev := os.Stat(iniDevelopment); errDev == nil {
+			source = iniDevelopment
+		} else if _, errProd := os.Stat(iniProduction); errProd == nil {
 			source = iniProduction
 		}
-		if _, errSrc := os.Stat(source); errSrc == nil {
-			data, _ := os.ReadFile(source)
-			os.WriteFile(iniPath, data, 0644)
-		} else {
-			os.WriteFile(iniPath, []byte("[PHP]\nextension_dir = \"ext\"\n"), 0644)
+
+		if source != "" {
+			data, errRead := os.ReadFile(source)
+			if errRead == nil {
+				os.WriteFile(iniPath, data, 0644)
+			}
 		}
 	}
 
@@ -51,10 +54,9 @@ func UpdatePHPConfig(phpPath string) error {
 		}
 	}
 
-	// Just enable core required ones by default if they are commented
 	coreExts := []string{"openssl", "mbstring", "curl"}
 	for _, ext := range coreExts {
-		re := regexp.MustCompile(`(?m)^;\s*(extension\s*=\s*(php_)?` + ext + `(\.dll)?\s*)$`)
+		re := regexp.MustCompile(`(?m)^;\s*(extension\s*=\s*(?:php_)?` + ext + `(?:\.dll)?\s*)$`)
 		content = re.ReplaceAllString(content, "$1")
 	}
 
@@ -64,31 +66,53 @@ func UpdatePHPConfig(phpPath string) error {
 // GetPHPExtensions reads php.ini and returns list of extensions with their status
 func GetPHPExtensions(phpPath string) ([]PHPExtensionInfo, error) {
 	iniPath := filepath.Join(phpPath, "php.ini")
+
+	// If php.ini doesn't exist, try to initialize it first
+	if _, err := os.Stat(iniPath); os.IsNotExist(err) {
+		UpdatePHPConfig(phpPath)
+	}
+
 	data, err := os.ReadFile(iniPath)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, fmt.Errorf("could not read php.ini at %s: %v", iniPath, err)
+	}
 
 	content := string(data)
-	// Match both enabled and commented extensions
-	re := regexp.MustCompile(`(?m)^;?\s*(extension\s*=\s*(?:php_)?([a-z0-9_]+)(?:\.dll)?\s*)$`)
+
+	// Even more inclusive regex: matches anything starting with extension= or ;extension=
+	// and extracts the name part regardless of prefix/suffix
+	re := regexp.MustCompile(`(?m)^;?\s*extension\s*=\s*["']?(?:php_)?([a-z0-9_]+)(?:\.dll)?["']?`)
 	matches := re.FindAllStringSubmatch(content, -1)
+
+	// We also need to check the actual lines to see if they are enabled (no semicolon)
+	lines := strings.Split(content, "\n")
 
 	extMap := make(map[string]bool)
 	var extensions []PHPExtensionInfo
 
 	for _, m := range matches {
-		line := m[0]
-		name := m[3]
-
-		// Skip duplicates in ini
+		name := strings.TrimSpace(m[1])
+		if name == "" || name == "ext" { continue }
 		if _, exists := extMap[name]; exists { continue }
-		extMap[name] = true
 
-		enabled := !strings.HasPrefix(line, ";")
+		// Determine if enabled by looking at the line again
+		enabled := false
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if !strings.HasPrefix(trimmed, ";") && strings.Contains(trimmed, "extension") && strings.Contains(trimmed, m[1]) {
+				enabled = true
+				break
+			}
+		}
+
+		extMap[name] = true
 		extensions = append(extensions, PHPExtensionInfo{
 			Name:    name,
 			Enabled: enabled,
 		})
 	}
+
+	fmt.Printf("[PHP] Found %d extensions in %s\n", len(extensions), iniPath)
 	return extensions, nil
 }
 
@@ -99,18 +123,32 @@ func TogglePHPExtension(phpPath string, extName string, enable bool) error {
 	if err != nil { return err }
 
 	content := string(data)
+	lines := strings.Split(content, "\n")
 
-	// Create regex to find the extension line (commented or not)
-	// Handles: extension=name, extension=php_name.dll, ;extension=name, etc.
-	re := regexp.MustCompile(`(?m)^;?\s*(extension\s*=\s*(php_)?` + regexp.QuoteMeta(extName) + `(\.dll)?\s*)$`)
-
-	if enable {
-		// Uncomment
-		content = re.ReplaceAllString(content, "$1")
-	} else {
-		// Comment
-		content = re.ReplaceAllString(content, ";$1")
+	found := false
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		// Match the specific extension line
+		if strings.Contains(trimmed, "extension") && strings.Contains(trimmed, extName) {
+			if enable {
+				// Remove leading semicolon and space
+				lines[i] = strings.TrimPrefix(trimmed, ";")
+				lines[i] = strings.TrimSpace(lines[i])
+			} else {
+				// Add leading semicolon if not there
+				if !strings.HasPrefix(trimmed, ";") {
+					lines[i] = ";" + trimmed
+				}
+			}
+			found = true
+			break
+		}
 	}
 
-	return os.WriteFile(iniPath, []byte(content), 0644)
+	if !found && enable {
+		// If not found, append to end
+		lines = append(lines, fmt.Sprintf("extension=%s", extName))
+	}
+
+	return os.WriteFile(iniPath, []byte(strings.Join(lines, "\n")), 0644)
 }

@@ -3,6 +3,7 @@ import { Plus, X, Activity, Globe, Trash2, FolderOpen, Clock, Lock, Unlock, Term
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { OpenServiceTerminal, SwitchServiceVersion, GetPHPExtensions, TogglePHPExtension } from '../../wailsjs/go/main/App';
+import ExtensionModal from './ExtensionModal'; // Import the new modal component
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -18,7 +19,7 @@ function ActivityTab({
   const [openTerminalDropdown, setOpenTerminalDropdown] = useState(null);
   const [activeAccordion, setActiveAccordion] = useState(null); 
   const [phpExtensions, setPhpExtensions] = useState([]);
-  const [isPhpExtOpen, setIsPhpExtOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false); // State for modal
   
   const openSslService = services.find(s => s.name === 'OpenSSL');
   const isOpenSslEnabled = openSslService?.status === 'Running';
@@ -40,13 +41,12 @@ function ActivityTab({
     if (!hasExtra) return;
     setActiveAccordion(activeAccordion === name ? null : name);
     setOpenTerminalDropdown(null);
-    setIsPhpExtOpen(false);
   };
 
   const fetchPHPExtensions = async () => {
     try {
       const exts = await GetPHPExtensions();
-      setPhpExtensions(exts);
+      setPhpExtensions(exts || []);
     } catch (err) {
       console.error("Failed to fetch PHP extensions:", err);
     }
@@ -69,6 +69,14 @@ function ActivityTab({
 
   return (
     <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <ExtensionModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        extensions={phpExtensions} 
+        onToggle={handleTogglePHPExtension}
+        serviceName="PHP"
+      />
+
       {/* Dashboard Controls */}
       <div className="shrink-0 pt-4 pb-3 space-y-3">
         {/* Server Root Configuration */}
@@ -272,104 +280,62 @@ function ActivityTab({
                 <div 
                   className={cn(
                     "transition-all duration-300 ease-in-out",
-                    isExpanded ? "max-h-[600px] opacity-100 mt-4 overflow-visible" : "max-h-0 opacity-0 mt-0 overflow-hidden" 
+                    isExpanded ? "max-h-24 opacity-100 mt-4 overflow-visible" : "max-h-0 opacity-0 mt-0 overflow-hidden" 
                   )}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="space-y-4">
-                    {/* Action Icons Bar (Compact) */}
-                    <div className="flex items-center gap-3 px-1 pb-2">
-                      {/* PHP Extension Manager Dropdown */}
-                      {hasPhpExtManager && (
-                        <div className="relative">
-                          <button 
-                            onClick={() => setIsPhpExtOpen(!isPhpExtOpen)}
-                            className={cn(
-                              "flex items-center gap-2 px-3 py-1.5 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-white/5",
-                              isPhpExtOpen 
-                                ? "bg-blue-600 text-white border-blue-500" 
-                                : "bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 hover:bg-blue-500/10 hover:text-blue-600"
-                            )}
-                          >
-                            <Settings2 size={14} /> Extensions <ChevronDown size={10} className={cn("transition-transform", isPhpExtOpen && "rotate-180")} />
-                          </button>
+                  <div className="flex items-center gap-3 px-1 pb-2">
+                    {/* PHP Extension Manager Trigger */}
+                    {hasPhpExtManager && (
+                      <button 
+                        onClick={() => setIsModalOpen(true)}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-white/5 hover:bg-blue-600/10 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-white/5"
+                      >
+                        <Settings2 size={14} /> Extensions
+                      </button>
+                    )}
 
-                          {isPhpExtOpen && (
-                            <>
-                              <div className="fixed inset-0 z-[150]" onClick={() => setIsPhpExtOpen(false)} />
-                              <div className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-sm shadow-2xl z-[160] animate-in fade-in slide-in-from-top-1 duration-200">
-                                <div className="p-2 border-b border-slate-100 dark:border-white/5">
-                                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">PHP Extensions</span>
-                                </div>
-                                <div className="p-1 max-h-60 overflow-y-auto custom-scrollbar">
-                                  {phpExtensions.map(ext => (
-                                    <label 
-                                      key={ext.name} 
-                                      className={cn(
-                                        "flex items-center gap-2 px-3 py-2 rounded-sm text-[10px] font-bold transition-all cursor-pointer",
-                                        ext.enabled 
-                                          ? "text-blue-600 dark:text-blue-400 bg-blue-500/5" 
-                                          : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5"
-                                      )}
-                                    >
-                                      <input 
-                                        type="checkbox" 
-                                        checked={ext.enabled} 
-                                        onChange={() => handleTogglePHPExtension(ext.name, !ext.enabled)}
-                                        className="form-checkbox h-3 w-3 rounded-sm border-slate-300 dark:border-white/10 text-blue-600 focus:ring-0"
-                                      />
-                                      {ext.name}
-                                    </label>
-                                  ))}
-                                </div>
-                              </div>
-                            </>
+                    {hasOpenFolder && (
+                      <button onClick={() => handleOpenPluginFolder(service.name)} className="p-2 bg-slate-100 dark:bg-white/5 hover:bg-blue-600/10 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-sm border border-slate-200 dark:border-white/5 transition-all" title="Open Folder">
+                        <FolderOpen size={16} />
+                      </button>
+                    )}
+
+                    {hasTerminal && (
+                      <div className="relative">
+                        <button 
+                          onClick={() => setOpenTerminalDropdown(openTerminalDropdown === service.name ? null : service.name)}
+                          className={cn(
+                            "p-2 flex items-center gap-1 rounded-sm border border-slate-200 dark:border-white/5 transition-all",
+                            openTerminalDropdown === service.name ? "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white" : "bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400"
                           )}
-                        </div>
-                      )}
-
-                      {hasOpenFolder && (
-                        <button onClick={() => handleOpenPluginFolder(service.name)} className="p-2 bg-slate-100 dark:bg-white/5 hover:bg-blue-600/10 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-sm border border-slate-200 dark:border-white/5 transition-all" title="Open Folder">
-                          <FolderOpen size={16} />
+                          title="Terminal"
+                        >
+                          <Terminal size={16} /> <ChevronDown size={10} />
                         </button>
-                      )}
 
-                      {hasTerminal && (
-                        <div className="relative">
-                          <button 
-                            onClick={() => setOpenTerminalDropdown(openTerminalDropdown === service.name ? null : service.name)}
-                            className={cn(
-                              "p-2 flex items-center gap-1 rounded-sm border border-slate-200 dark:border-white/5 transition-all",
-                              openTerminalDropdown === service.name ? "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white" : "bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400"
-                            )}
-                            title="Terminal"
-                          >
-                            <Terminal size={16} /> <ChevronDown size={10} />
-                          </button>
-
-                          {openTerminalDropdown === service.name && (
-                            <>
-                              <div className="fixed inset-0 z-[150]" onClick={() => setOpenTerminalDropdown(null)} />
-                              <div className="absolute top-full left-0 mt-1 w-40 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-sm shadow-2xl z-[160] animate-in fade-in slide-in-from-top-1 duration-200">
-                                <div className="p-1">
-                                  <button onClick={() => handleOpenLocalTerminal(service.name, 'cmd')} className="w-full flex items-center gap-3 px-3 py-1.5 rounded-sm text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"><Monitor size={12} className="text-blue-500" /> CMD</button>
-                                  <button onClick={() => handleOpenLocalTerminal(service.name, 'powershell')} className="w-full flex items-center gap-3 px-3 py-1.5 rounded-sm text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"><Monitor size={12} className="text-blue-600" /> PowerShell</button>
+                        {openTerminalDropdown === service.name && (
+                          <>
+                            <div className="fixed inset-0 z-[150]" onClick={() => setOpenTerminalDropdown(null)} />
+                            <div className="absolute top-full left-0 mt-1 w-40 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-sm shadow-2xl z-[160] animate-in fade-in slide-in-from-top-1 duration-200">
+                              <div className="p-1">
+                                <button onClick={() => handleOpenLocalTerminal(service.name, 'cmd')} className="w-full flex items-center gap-3 px-3 py-1.5 rounded-sm text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"><Monitor size={12} className="text-blue-500" /> CMD</button>
+                                <button onClick={() => handleOpenLocalTerminal(service.name, 'powershell')} className="w-full flex items-center gap-3 px-3 py-1.5 rounded-sm text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"><Monitor size={12} className="text-blue-600" /> PowerShell</button>
                                 </div>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
 
-                      {hasHttpsToggle && (
-                        <button onClick={() => handleToggleHttps(service.name)} className={cn(
-                            "p-2 rounded-sm border transition-all",
-                            isHttpsEnabled ? "bg-purple-500/10 border-purple-500/20 text-purple-600 dark:text-purple-400" : "bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-500"
-                          )} title="Toggle HTTPS">
-                          {isHttpsEnabled ? <Lock size={16} /> : <Unlock size={16} />}
-                        </button>
-                      )}
-                    </div>
+                    {hasHttpsToggle && (
+                      <button onClick={() => handleToggleHttps(service.name)} className={cn(
+                          "p-2 rounded-sm border transition-all",
+                          isHttpsEnabled ? "bg-purple-500/10 border-purple-500/20 text-purple-600 dark:text-purple-400" : "bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-500"
+                        )} title="Toggle HTTPS">
+                        {isHttpsEnabled ? <Lock size={16} /> : <Unlock size={16} />}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
