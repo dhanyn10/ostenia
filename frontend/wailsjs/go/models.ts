@@ -58,6 +58,20 @@ export namespace download {
 
 export namespace service {
 	
+	export class PHPExtensionInfo {
+	    name: string;
+	    enabled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new PHPExtensionInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.enabled = source["enabled"];
+	    }
+	}
 	export class ServiceDetailedInfo {
 	    name: string;
 	    status: string;

@@ -11,10 +11,7 @@ import (
 	"ostenia/internal/service"
 	"ostenia/internal/ssl"
 	"path/filepath"
-	"regexp"
-	"runtime" // Added missing import
 	"strings"
-	"syscall"
 	"time"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -134,39 +131,6 @@ func (a *App) CancelDownload(taskName string) {
 	a.downloader.CancelDownload(taskName)
 }
 
-// GetPHPVersionFromCLI runs "php --version" and extracts the version number
-func (a *App) GetPHPVersionFromCLI() (string, error) {
-	baseDir := config.GetBaseDir()
-	phpExe := filepath.Join(baseDir, "bin", "php", "current", "php.exe")
-
-	// First try with absolute path to ensure we check Ostenia's PHP
-	cmd := exec.Command(phpExe, "--version")
-	if runtime.GOOS == "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	}
-	output, err := cmd.Output()
-
-	// If absolute fails, try global (legacy)
-	if err != nil {
-		cmd = exec.Command("php", "--version")
-		if runtime.GOOS == "windows" {
-			cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-		}
-		output, err = cmd.Output()
-	}
-
-	if err != nil {
-		return "", fmt.Errorf("failed to run php --version: %w", err)
-	}
-
-	re := regexp.MustCompile(`PHP (\d+\.\d+\.\d+)`)
-	matches := re.FindStringSubmatch(string(output))
-	if len(matches) > 1 {
-		return matches[1], nil
-	}
-	return "", fmt.Errorf("failed to parse PHP version from output")
-}
-
 func (a *App) StartService(serviceName string) error {
 	baseDir := config.GetBaseDir()
 	binDir := filepath.Join(baseDir, "bin")
@@ -283,6 +247,9 @@ func (a *App) StartService(serviceName string) error {
 		phpCgi := filepath.Join(phpPath, "php-cgi.exe")
 		if _, err := os.Stat(phpCgi); os.IsNotExist(err) { return fmt.Errorf("php-cgi.exe not found") }
 
+		err := service.UpdatePHPConfig(phpPath)
+		if err != nil { fmt.Printf("[PHP] Warning: Failed to configure php.ini: %v\n", err) }
+
 		currentInfo := a.orchestrator.GetDetailedInfo("PHP")
 		port := currentInfo.Port
 		if port <= 0 {
@@ -291,12 +258,11 @@ func (a *App) StartService(serviceName string) error {
 			port = p
 		}
 
-		// Update Process PATH & User PATH
 		os.Setenv("PATH", phpPath+";"+os.Getenv("PATH"))
 		_ = service.UpdateUserPath(phpPath, true)
 
 		os.Setenv("PHP_FCGI_MAX_REQUESTS", "1000")
-		err := a.orchestrator.StartServiceWithPort("PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, phpPath, port)
+		err = a.orchestrator.StartServiceWithPort("PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, phpPath, port)
 		if err == nil {
 			if a.orchestrator.IsRunning("Apache") { a.StopService("Apache"); time.Sleep(600 * time.Millisecond); a.StartService("Apache") }
 			if a.orchestrator.IsRunning("Nginx") { a.StopService("Nginx"); time.Sleep(600 * time.Millisecond); a.StartService("Nginx") }
@@ -331,12 +297,8 @@ func (a *App) StopService(serviceName string) {
 }
 
 func (a *App) SwitchServiceVersion(serviceName string, version string) error {
-	fmt.Printf("[App] Switching %s to version %s\n", serviceName, version)
-
 	baseDir := config.GetBaseDir()
 	category := strings.ToLower(serviceName)
-
-	// Determine prefix
 	prefix := ""
 	switch category {
 	case "php": prefix = "php-"
@@ -352,44 +314,26 @@ func (a *App) SwitchServiceVersion(serviceName string, version string) error {
 
 	currentLink := filepath.Join(baseDir, "bin", category, "current")
 
-	// 1. Stop service if running
 	wasRunning := a.orchestrator.IsRunning(serviceName)
 	if wasRunning {
 		a.StopService(serviceName)
 		time.Sleep(600 * time.Millisecond)
 	}
 
-	// 2. Update Symlink
 	os.Remove(currentLink)
 	if _, err := os.Stat(targetDir); err == nil {
-		cmd := exec.Command("cmd", "/c", "mklink", "/J", currentLink, targetDir)
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-		err = cmd.Run()
-		if err != nil {
-			return fmt.Errorf("failed to create symlink for %s: %w", serviceName, err)
-		}
-	} else {
-		return fmt.Errorf("target version directory not found: %s", targetDir)
+		exec.Command("cmd", "/c", "mklink", "/J", currentLink, targetDir).Run()
 	}
 
-	// 3. Update internal Process PATH if PHP
 	if category == "php" {
 		phpPath := filepath.Join(baseDir, "bin", "php", "current")
 		os.Setenv("PATH", phpPath+";"+os.Getenv("PATH"))
+		_ = service.UpdatePHPConfig(phpPath)
 	}
 
-	// 4. Restart if was running
-	if wasRunning {
-		err := a.StartService(serviceName)
-		if err != nil {
-			return fmt.Errorf("failed to restart service after version switch: %w", err)
-		}
-	}
-
-	// Trigger status update
+	if wasRunning { return a.StartService(serviceName) }
 	info := a.orchestrator.GetDetailedInfo(serviceName)
 	wruntime.EventsEmit(a.ctx, "service_status", info)
-
 	return nil
 }
 
@@ -440,7 +384,6 @@ func (a *App) OpenTerminalAtPath(terminalType string, path string) {
 	phpPath := filepath.Join(baseDir, "bin", "php", "current")
 	mysqlPath := filepath.Join(baseDir, "bin", "mysql", "current", "bin")
 	nodePath := filepath.Join(baseDir, "bin", "nodejs", "current")
-
 	env := os.Environ()
 	pathFound := false
 	for i, e := range env {
@@ -451,7 +394,6 @@ func (a *App) OpenTerminalAtPath(terminalType string, path string) {
 		}
 	}
 	if !pathFound { env = append(env, "PATH="+phpPath+";"+mysqlPath+";"+nodePath) }
-
 	cmd := service.NewTerminal(path, env)
 	cmd.Open(terminalType)
 }
@@ -485,7 +427,6 @@ func (a *App) SetNginxHTTPS(enabled bool) error {
 func (a *App) OpenServiceTerminal(serviceName string, terminalType string) error {
 	baseDir := config.GetBaseDir()
 	binDir := filepath.Join(baseDir, "bin")
-
 	var targetDir string
 	switch serviceName {
 	case "Nginx":
@@ -518,11 +459,29 @@ func (a *App) OpenServiceTerminal(serviceName string, terminalType string) error
 	default:
 		targetDir = filepath.Join(binDir, strings.ToLower(serviceName))
 	}
-
-	if targetDir == "" {
-		targetDir = filepath.Join(binDir, strings.ToLower(serviceName))
-	}
-
+	if targetDir == "" { targetDir = filepath.Join(binDir, strings.ToLower(serviceName)) }
 	a.OpenTerminalAtPath(terminalType, targetDir)
+	return nil
+}
+
+// PHP Extensions Management
+func (a *App) GetPHPExtensions() ([]service.PHPExtensionInfo, error) {
+	baseDir := config.GetBaseDir()
+	phpPath := filepath.Join(baseDir, "bin", "php", "current")
+	return service.GetPHPExtensions(phpPath)
+}
+
+func (a *App) TogglePHPExtension(extName string, enable bool) error {
+	baseDir := config.GetBaseDir()
+	phpPath := filepath.Join(baseDir, "bin", "php", "current")
+	err := service.TogglePHPExtension(phpPath, extName, enable)
+	if err != nil { return err }
+
+	// Restart PHP if running
+	if a.orchestrator.IsRunning("PHP") {
+		a.StopService("PHP")
+		time.Sleep(600 * time.Millisecond)
+		return a.StartService("PHP")
+	}
 	return nil
 }

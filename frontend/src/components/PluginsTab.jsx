@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { CheckCircle2, Trash2, Edit2, Check, X } from 'lucide-react';
+import React from 'react';
+import { CheckCircle2, Trash2 } from 'lucide-react';
 import VersionDropdown from './VersionDropdown';
 import CircularProgress from './CircularProgress';
 import { clsx } from 'clsx';
@@ -15,15 +15,6 @@ function PluginsTab({
   selectedVersions, setSelectedVersions, handleDeleteVersion,
   handleInstallSingle, handleCancel, ICON_MAP 
 }) {
-  const [editingVersion, setEditingVersion] = useState(null); // { taskName, oldVer, newValue }
-
-  const handleRenameVersion = (taskName, oldVer) => {
-    // This is a UI-side rename simulation for matching logic. 
-    // In a real scenario, we might want to rename the folder on disk.
-    // For now, let's keep it simple as requested: allowing user to "edit version detection".
-    setEditingVersion({ taskName, oldVer, newValue: oldVer });
-  };
-
   return (
     <div className="flex flex-col h-full pt-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="flex-1 overflow-y-auto pr-3 -mr-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5 space-y-2">
@@ -77,14 +68,12 @@ function PluginsTab({
                   {installedVersions.map(ver => (
                     <div 
                       key={ver} 
-                      className="group/tag flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 text-[8px] font-bold uppercase tracking-widest rounded-sm transition-all shadow-sm"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteVersion(task.name, ver); }}
+                      className="group/tag flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 text-[8px] font-bold uppercase tracking-widest rounded-sm hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400 transition-all cursor-pointer shadow-sm"
+                      title={`Delete v${ver}`}
                     >
-                      <span>v{ver}</span>
-                      <div className="flex items-center gap-1 ml-1 opacity-0 group-hover/tag:opacity-100 transition-opacity">
-                         <button 
-                           onClick={() => handleDeleteVersion(task.name, ver)}
-                           className="text-rose-400 hover:text-rose-500" title="Delete"><Trash2 size={10} /></button>
-                      </div>
+                      <Trash2 size={10} className="w-0 opacity-0 group-hover/tag:w-2.5 group-hover/tag:opacity-100 transition-all text-rose-500" />
+                      v{ver}
                     </div>
                   ))}
                 </div>
@@ -104,19 +93,19 @@ function PluginsTab({
                 )}
 
                 {!isActive && (
-                    <button
-                      disabled={installedVersions.includes(selectedVersions[task.name] || task.version)}
-                      onClick={() => handleInstallSingle(task)}
-                      className={cn(
-                        "px-5 py-2 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg",
-                        installedVersions.includes(selectedVersions[task.name] || task.version)
-                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 border border-emerald-500/20 cursor-not-allowed"
-                          : "bg-blue-600 hover:bg-blue-500 text-white hover:scale-105"
-                      )}
-                    >
-                      {installedVersions.includes(selectedVersions[task.name] || task.version) && <CheckCircle2 size={14} />}
-                      {installedVersions.includes(selectedVersions[task.name] || task.version) ? 'Ready' : 'Download'}
-                    </button>
+                  <button
+                    disabled={installedVersions.includes(selectedVersions[task.name] || task.version)}
+                    onClick={() => handleInstallSingle(task)}
+                    className={cn(
+                      "px-5 py-2 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg",
+                      installedVersions.includes(selectedVersions[task.name] || task.version)
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 border border-emerald-500/20 cursor-not-allowed"
+                        : "bg-blue-600 hover:bg-blue-500 text-white hover:scale-105"
+                    )}
+                  >
+                    {installedVersions.includes(selectedVersions[task.name] || task.version) && <CheckCircle2 size={14} />}
+                    {installedVersions.includes(selectedVersions[task.name] || task.version) ? 'Ready' : 'Download'}
+                  </button>
                 )}
               </div>
             </div>
