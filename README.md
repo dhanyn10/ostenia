@@ -1,7 +1,7 @@
 # Ostenia
 
 Ostenia is a lightweight, modern local development environment manager for Windows. It provides a seamless way to manage web servers, databases, and PHP/Node.js versions with built-in SSL automation.
-
+<img width="1263" height="952" alt="ostenia" src="https://github.com/user-attachments/assets/b15fc527-bb03-422f-a5cb-39065c74c5ec" />
 ## Key Features
 
 - **Multi-Service Stack**: Manage Apache, Nginx, MySQL, PHP, Node.js, and HeidiSQL from a single dashboard.
