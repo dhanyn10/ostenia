@@ -3,11 +3,13 @@ package ssl
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
 	"math/big"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,22 +31,30 @@ func GenerateRootCA(destDir string) error {
 	}
 
 	subject := pkix.Name{
-		Organization: []string{"Ostenia Managed CA"},
-		CommonName:   "Ostenia Root CA",
+		Organization:  []string{"Ostenia Managed CA"},
+		Country:       []string{"ID"},
+		Province:      []string{"Jakarta"},
+		Locality:      []string{"Ostenia"},
+		StreetAddress: []string{"Local Development"},
+		CommonName:    "Ostenia Root CA",
 	}
 
-	// Set expiration to 30 days
-	expiration := time.Now().AddDate(0, 0, 30)
+	// Set expiration to 1 year for Root CA
+	expiration := time.Now().AddDate(1, 0, 0)
+
+	pubBytes, _ := x509.MarshalPKIXPublicKey(&priv.PublicKey)
+	skid := sha1.Sum(pubBytes)
 
 	template := x509.Certificate{
-		SerialNumber:          big.NewInt(1),
+		SerialNumber:          big.NewInt(time.Now().Unix()),
 		Subject:               subject,
-		NotBefore:             time.Now(),
+		NotBefore:             time.Now().Add(-1 * time.Hour),
 		NotAfter:              expiration,
 		IsCA:                  true,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
 		BasicConstraintsValid: true,
+		SubjectKeyId:          skid[:],
 	}
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
@@ -89,7 +99,9 @@ func GetRemainingDays(certPath string) (int, error) {
 
 func TrustRootCA(caPath string) error {
 	if runtime.GOOS == "windows" {
-		cmd := exec.Command("certutil", "-addstore", "-f", "Root", caPath)
+		// Add to both Local Machine (if admin) and Current User to ensure visibility
+		exec.Command("certutil", "-addstore", "-f", "Root", caPath).Run()
+		cmd := exec.Command("certutil", "-user", "-addstore", "-f", "Root", caPath)
 		return cmd.Run()
 	}
 	return nil
@@ -98,7 +110,9 @@ func TrustRootCA(caPath string) error {
 func SignCertificate(caDir string, domain string, destDir string) error {
 	certPath := filepath.Join(destDir, domain+".crt")
 	if _, err := os.Stat(certPath); err == nil {
-		return nil // Certificate already exists, no need to re-sign every time
+		// If cert exists, check if it's new enough (we changed logic, so we might want to force re-sign)
+		// For now, let the user delete it via UI (OpenSSL Stop)
+		return nil 
 	}
 
 	caCertPath := filepath.Join(caDir, "ca.crt")
@@ -122,16 +136,25 @@ func SignCertificate(caDir string, domain string, destDir string) error {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil { return err }
 
+	pubBytes, _ := x509.MarshalPKIXPublicKey(&priv.PublicKey)
+	skid := sha1.Sum(pubBytes)
+
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(time.Now().Unix()),
 		Subject: pkix.Name{
-			CommonName: domain,
+			Organization: []string{"Ostenia Local Development"},
+			CommonName:   domain,
 		},
-		DNSNames:    []string{domain, "*." + domain},
-		NotBefore:   time.Now(),
-		NotAfter:    time.Now().AddDate(0, 0, 30),
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		KeyUsage:    x509.KeyUsageDigitalSignature,
+		DNSNames:              []string{domain, "*." + domain},
+		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
+		NotBefore:             time.Now().Add(-1 * time.Hour),
+		NotAfter:              time.Now().AddDate(1, 0, 0), // 1 year
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageDataEncipherment,
+		BasicConstraintsValid: true,
+		IsCA:                  false,
+		SubjectKeyId:          skid[:],
+		AuthorityKeyId:        caCert.SubjectKeyId,
 	}
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, caCert, &priv.PublicKey, caKey)

@@ -119,9 +119,22 @@ function ActivityTab({
                   <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{service.name}</h3>
                   
                   {service.remainingDays > 0 && (
-                    <div className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-sm text-[8px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">
-                      <Clock size={10} />
-                      {service.remainingDays} Days Left
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[8px] font-bold uppercase tracking-widest border",
+                        service.name === 'OpenSSL' && service.remainingDays < 180
+                          ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400"
+                          : "bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400"
+                      )}>
+                        <Clock size={10} />
+                        {service.remainingDays} Days Left
+                      </div>
+                      
+                      {service.name === 'OpenSSL' && service.remainingDays < 180 && (
+                        <span className="text-[8px] font-black text-amber-600/80 dark:text-amber-500/60 uppercase tracking-tighter animate-pulse">
+                          (Please toggle OpenSSL to renew certificate)
+                        </span>
+                      )}
                     </div>
                   )}
 
