@@ -3,7 +3,7 @@ import { Plus, X, Activity, Globe, Trash2, FolderOpen, Clock, Lock, Unlock, Term
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { OpenServiceTerminal, SwitchServiceVersion, GetPHPExtensions, TogglePHPExtension } from '../../wailsjs/go/main/App';
-import ExtensionModal from './ExtensionModal'; // Import the new modal component
+import ExtensionModal from './ExtensionModal';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -19,7 +19,7 @@ function ActivityTab({
   const [openTerminalDropdown, setOpenTerminalDropdown] = useState(null);
   const [activeAccordion, setActiveAccordion] = useState(null); 
   const [phpExtensions, setPhpExtensions] = useState([]);
-  const [isModalOpen, setIsModalOpen] = useState(false); // State for modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
   const openSslService = services.find(s => s.name === 'OpenSSL');
   const isOpenSslEnabled = openSslService?.status === 'Running';
@@ -40,7 +40,6 @@ function ActivityTab({
   const toggleAccordion = (name, hasExtra) => {
     if (!hasExtra) return;
     setActiveAccordion(activeAccordion === name ? null : name);
-    setOpenTerminalDropdown(null);
   };
 
   const fetchPHPExtensions = async () => {
@@ -279,34 +278,36 @@ function ActivityTab({
               {hasExtraActions && (
                 <div 
                   className={cn(
-                    "transition-all duration-300 ease-in-out",
-                    isExpanded ? "max-h-24 opacity-100 mt-4 overflow-visible" : "max-h-0 opacity-0 mt-0 overflow-hidden" 
+                    "transition-all duration-300 ease-in-out overflow-visible",
+                    isExpanded ? "max-h-[600px] opacity-100 mt-4" : "max-h-0 opacity-0 mt-0 overflow-hidden" 
                   )}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="flex items-center gap-3 px-1 pb-2">
+                  <div className="flex items-center flex-wrap gap-4 px-1 pb-2">
                     {/* PHP Extension Manager Trigger */}
                     {hasPhpExtManager && (
                       <button 
                         onClick={() => setIsModalOpen(true)}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-white/5 hover:bg-blue-600/10 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-white/5"
+                        className="flex items-center gap-2 px-3 py-1.5 h-8 bg-slate-100 dark:bg-white/5 hover:bg-blue-600/10 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-white/5"
                       >
                         <Settings2 size={14} /> Extensions
                       </button>
                     )}
 
+                    {/* Open Folder */}
                     {hasOpenFolder && (
-                      <button onClick={() => handleOpenPluginFolder(service.name)} className="p-2 bg-slate-100 dark:bg-white/5 hover:bg-blue-600/10 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-sm border border-slate-200 dark:border-white/5 transition-all" title="Open Folder">
+                      <button onClick={() => handleOpenPluginFolder(service.name)} className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-white/5 hover:bg-blue-600/10 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-sm border border-slate-200 dark:border-white/5 transition-all" title="Open Folder">
                         <FolderOpen size={16} />
                       </button>
                     )}
 
+                    {/* Local Terminal */}
                     {hasTerminal && (
                       <div className="relative">
                         <button 
                           onClick={() => setOpenTerminalDropdown(openTerminalDropdown === service.name ? null : service.name)}
                           className={cn(
-                            "p-2 flex items-center gap-1 rounded-sm border border-slate-200 dark:border-white/5 transition-all",
+                            "w-12 h-8 flex items-center justify-center gap-1 rounded-sm border border-slate-200 dark:border-white/5 transition-all",
                             openTerminalDropdown === service.name ? "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white" : "bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400"
                           )}
                           title="Terminal"
@@ -321,19 +322,31 @@ function ActivityTab({
                               <div className="p-1">
                                 <button onClick={() => handleOpenLocalTerminal(service.name, 'cmd')} className="w-full flex items-center gap-3 px-3 py-1.5 rounded-sm text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"><Monitor size={12} className="text-blue-500" /> CMD</button>
                                 <button onClick={() => handleOpenLocalTerminal(service.name, 'powershell')} className="w-full flex items-center gap-3 px-3 py-1.5 rounded-sm text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"><Monitor size={12} className="text-blue-600" /> PowerShell</button>
-                                </div>
+                              </div>
                             </div>
                           </>
                         )}
                       </div>
                     )}
 
+                    {/* HTTPS Toggle - Standardized size to match other buttons (h-8) */}
                     {hasHttpsToggle && (
-                      <button onClick={() => handleToggleHttps(service.name)} className={cn(
-                          "p-2 rounded-sm border transition-all",
-                          isHttpsEnabled ? "bg-purple-500/10 border-purple-500/20 text-purple-600 dark:text-purple-400" : "bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-500"
-                        )} title="Toggle HTTPS">
-                        {isHttpsEnabled ? <Lock size={16} /> : <Unlock size={16} />}
+                      <button
+                        onClick={() => handleToggleHttps(service.name)}
+                        className={cn(
+                          "w-14 h-8 rounded-sm p-1 transition-all duration-300 ease-in-out relative ring-1 ring-inset",
+                          isHttpsEnabled 
+                            ? "bg-rose-500 ring-rose-400/50 shadow-[0_0_10px_rgba(244,63,94,0.3)]" 
+                            : "bg-slate-200 dark:bg-slate-800 ring-slate-300 dark:ring-white/5"
+                        )}
+                        title={isHttpsEnabled ? "Disable HTTPS" : "Enable HTTPS"}
+                      >
+                        <div className={cn(
+                          "w-6 h-6 bg-white rounded-sm transition-all duration-300 shadow-lg flex items-center justify-center",
+                          isHttpsEnabled ? "translate-x-6" : "translate-x-0"
+                        )}>
+                          {isHttpsEnabled ? <Lock size={14} className="text-rose-600" /> : <Unlock size={14} className="text-slate-400" />}
+                        </div>
                       </button>
                     )}
                   </div>
