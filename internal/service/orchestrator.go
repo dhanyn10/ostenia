@@ -123,24 +123,12 @@ func (o *Orchestrator) GetDetailedInfo(name string) ServiceDetailedInfo {
 		info.PID = pids[0]
 
 		if name == "Apache" || name == "Nginx" || name == "MySQL" || name == "PHP" {
-			allPorts := make(map[int]bool)
-			for _, pid := range pids {
-				ports := findPortsByPID(pid)
-				for _, p := range ports {
-					allPorts[p] = true
-				}
-			}
-
-			for p := range allPorts {
-				info.Ports = append(info.Ports, p)
-			}
-
-			sort.Ints(info.Ports)
+			// Find all ports used by ANY of the discovered PIDs
+			info.Ports = findPortsForPIDs(pids)
 
 			if len(info.Ports) > 0 {
 				info.Port = info.Ports[0]
 			} else if tracked {
-				// Fallback to tracked port if netstat failed this time
 				info.Port = s.port
 				if info.Port > 0 {
 					info.Ports = append(info.Ports, info.Port)
@@ -148,7 +136,6 @@ func (o *Orchestrator) GetDetailedInfo(name string) ServiceDetailedInfo {
 			}
 		}
 
-		// Only update internal state if we found a valid port or it was already tracked
 		if !tracked || (info.Port > 0 && s.port != info.Port) {
 			o.mu.Lock()
 			o.services[name] = &runningService{cmd: nil, port: info.Port}
@@ -184,41 +171,50 @@ func findPIDsByName(exeName string) []int {
 	return pids
 }
 
-func findPortsByPID(pid int) []int {
+// findPortsForPIDs runs netstat once and collects all listening ports for the given PIDs
+func findPortsForPIDs(pids []int) []int {
 	ports := []int{}
-	if pid <= 0 { return ports }
+	if len(pids) == 0 { return ports }
 
-	// Use cmd directly to avoid process fork overhead for findstr
-	cmd := exec.Command("cmd", "/c", fmt.Sprintf("netstat -ano | findstr LISTENING | findstr :%d", pid))
-	// Wait, the findstr :%d might be wrong if PID is at the end.
-	// Let's use the safer version but more robust
-	cmd = exec.Command("cmd", "/c", "netstat -ano")
-	out, _ := cmd.Output()
+	pidMap := make(map[string]bool)
+	for _, pid := range pids {
+		pidMap[strconv.Itoa(pid)] = true
+	}
+
+	cmd := exec.Command("cmd", "/c", "netstat -ano")
+	out, err := cmd.Output()
+	if err != nil { return ports }
+
 	lines := strings.Split(string(out), "\n")
-	pidStr := strconv.Itoa(pid)
+	foundPorts := make(map[int]bool)
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if !strings.Contains(line, "LISTENING") || !strings.HasSuffix(line, pidStr) {
+		if !strings.Contains(line, "LISTENING") {
 			continue
 		}
 
 		fields := strings.Fields(line)
-		if len(fields) >= 5 && fields[len(fields)-1] == pidStr {
-			localAddr := fields[1]
-			lastColon := strings.LastIndex(localAddr, ":")
-			if lastColon != -1 {
-				p, _ := strconv.Atoi(localAddr[lastColon+1:])
-				if p > 0 {
-					exists := false
-					for _, existing := range ports {
-						if existing == p { exists = true; break }
+		// Expected: Proto, Local Addr, Foreign Addr, State, PID
+		if len(fields) >= 5 {
+			pidStr := fields[len(fields)-1]
+			if pidMap[pidStr] {
+				localAddr := fields[1]
+				lastColon := strings.LastIndex(localAddr, ":")
+				if lastColon != -1 {
+					p, err := strconv.Atoi(localAddr[lastColon+1:])
+					if err == nil && p > 0 {
+						foundPorts[p] = true
 					}
-					if !exists { ports = append(ports, p) }
 				}
 			}
 		}
 	}
+
+	for p := range foundPorts {
+		ports = append(ports, p)
+	}
+	sort.Ints(ports)
 	return ports
 }
 

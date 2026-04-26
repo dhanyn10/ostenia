@@ -28,7 +28,9 @@ type NginxConfigData struct {
 func UpdateNginxConfig(nginxPath string, wwwRoot string, phpPort int, port int, httpsEnabled bool) error {
 	if port <= 0 { port = 80 }
 
-	// Essential directories
+	confPath := filepath.Join(nginxPath, "conf", "nginx.conf")
+
+	// Ensure essential directories exist
 	os.MkdirAll(filepath.Join(nginxPath, "logs"), 0755)
 	os.MkdirAll(filepath.Join(nginxPath, "temp", "client_body_temp"), 0755)
 	os.MkdirAll(filepath.Join(nginxPath, "temp", "proxy_temp"), 0755)
@@ -41,11 +43,7 @@ func UpdateNginxConfig(nginxPath string, wwwRoot string, phpPort int, port int, 
 	keyFile := ""
 
 	if httpsEnabled {
-		// Ensure SSL dir exists
 		os.MkdirAll(sslDir, 0755)
-
-		// Sign certificate (Bridge to OpenSSL feature)
-		// We ignore error here but will check file existence
 		_ = ssl.SignCertificate(sslDir, "localhost", sslDir)
 
 		certPath := filepath.Join(sslDir, "localhost.crt")
@@ -55,9 +53,8 @@ func UpdateNginxConfig(nginxPath string, wwwRoot string, phpPort int, port int, 
 			certFile = strings.ReplaceAll(certPath, "\\", "/")
 			keyFile = strings.ReplaceAll(keyPath, "\\", "/")
 		} else {
-			// Fallback: If cert failed to generate, disable HTTPS to prevent Nginx crash
 			httpsEnabled = false
-			fmt.Printf("[Nginx] SSL Cert not found, disabling HTTPS to prevent crash\n")
+			fmt.Printf("[Nginx] SSL Cert not found, disabling HTTPS\n")
 		}
 	}
 
@@ -81,6 +78,9 @@ func UpdateNginxConfig(nginxPath string, wwwRoot string, phpPort int, port int, 
 	err = tmpl.Execute(&buf, data)
 	if err != nil { return err }
 
-	confPath := filepath.Join(nginxPath, "conf", "nginx.conf")
+	// Force remove old config to be sure
+	_ = os.Remove(confPath)
+
+	fmt.Printf("[Nginx] Writing new nginx.conf to %s (HTTPS: %v)\n", confPath, httpsEnabled)
 	return os.WriteFile(confPath, buf.Bytes(), 0644)
 }
