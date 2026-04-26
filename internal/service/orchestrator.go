@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -27,6 +28,7 @@ type ServiceDetailedInfo struct {
 	Port          int    `json:"port"`
 	Ports         []int  `json:"ports"`
 	RemainingDays int    `json:"remainingDays,omitempty"`
+	ActiveVersion string `json:"activeVersion,omitempty"`
 }
 
 type runningService struct {
@@ -95,6 +97,30 @@ func (o *Orchestrator) GetDetailedInfo(name string) ServiceDetailedInfo {
 
 	info := ServiceDetailedInfo{Name: name, Status: "Stopped", Ports: []int{}}
 
+	// PROACTIVE VERSION DETECTION
+	if name == "PHP" {
+		baseDir := config.GetBaseDir()
+		phpExe := filepath.Join(baseDir, "bin", "php", "current", "php.exe")
+
+		// If current symlink exists, run THAT specific exe to get version
+		if _, err := os.Stat(phpExe); err == nil {
+			cmd := exec.Command(phpExe, "-v")
+			if runtime.GOOS == "windows" {
+				cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+			}
+			out, err := cmd.Output()
+			if err == nil {
+				info.ActiveVersion = string(out)
+			}
+		}
+	} else if name == "Apache" || name == "MySQL" || name == "Nginx" {
+		baseDir := config.GetBaseDir()
+		currentPath := filepath.Join(baseDir, "bin", strings.ToLower(name), "current")
+		if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
+			info.ActiveVersion = filepath.Base(resolved)
+		}
+	}
+
 	if name == "OpenSSL" {
 		baseDir := config.GetBaseDir()
 		caPath := filepath.Join(baseDir, "ssl", "ca.crt")
@@ -117,7 +143,8 @@ func (o *Orchestrator) GetDetailedInfo(name string) ServiceDetailedInfo {
 
 	if exeName == "" { return info }
 
-	pids := findPIDsByName(exeName)
+	pids := findOsteniaPIDs(exeName)
+
 	if len(pids) > 0 {
 		info.Status = "Running"
 		info.PID = pids[0]
@@ -126,24 +153,15 @@ func (o *Orchestrator) GetDetailedInfo(name string) ServiceDetailedInfo {
 			foundPorts := make(map[int]bool)
 			for _, pid := range pids {
 				ports := findPortsByPIDExact(pid)
-				for _, p := range ports {
-					foundPorts[p] = true
-				}
+				for _, p := range ports { foundPorts[p] = true }
 			}
-
-			for p := range foundPorts {
-				info.Ports = append(info.Ports, p)
-			}
-
+			for p := range foundPorts { info.Ports = append(info.Ports, p) }
 			sort.Ints(info.Ports)
-
 			if len(info.Ports) > 0 {
 				info.Port = info.Ports[0]
 			} else if tracked {
 				info.Port = s.port
-				if info.Port > 0 {
-					info.Ports = append(info.Ports, info.Port)
-				}
+				if info.Port > 0 { info.Ports = append(info.Ports, info.Port) }
 			}
 		}
 
@@ -163,43 +181,43 @@ func (o *Orchestrator) GetDetailedInfo(name string) ServiceDetailedInfo {
 	return info
 }
 
-func findPIDsByName(exeName string) []int {
+func findOsteniaPIDs(exeName string) []int {
 	pids := []int{}
 	if runtime.GOOS != "windows" { return pids }
-	cmd := exec.Command("tasklist", "/FI", "IMAGENAME eq "+exeName, "/FO", "CSV", "/NH")
+	baseDir := config.GetBaseDir()
+	binPath := filepath.Join(baseDir, "bin")
+	cmd := exec.Command("wmic", "process", "where", fmt.Sprintf("name='%s'", exeName), "get", "ExecutablePath,ProcessId", "/format:csv")
 	out, err := cmd.Output()
 	if err != nil { return pids }
 	lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
-		if !strings.Contains(line, exeName) { continue }
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(strings.ToLower(line), "node") { continue }
 		parts := strings.Split(line, ",")
-		if len(parts) > 1 {
-			pidStr := strings.Trim(parts[1], "\"")
-			pid, _ := strconv.Atoi(pidStr)
-			if pid > 0 { pids = append(pids, pid) }
+		if len(parts) >= 3 {
+			execPath := strings.TrimSpace(parts[1])
+			pidStr := strings.TrimSpace(parts[2])
+			if strings.HasPrefix(strings.ToLower(execPath), strings.ToLower(binPath)) {
+				pid, err := strconv.Atoi(pidStr)
+				if err == nil && pid > 0 { pids = append(pids, pid) }
+			}
 		}
 	}
 	return pids
 }
 
-// findPortsByPIDExact follows the user's logic: netstat -ano | findstr <PID> | findstr LISTENING
 func findPortsByPIDExact(pid int) []int {
 	ports := []int{}
 	if pid <= 0 { return ports }
-
 	pidStr := strconv.Itoa(pid)
-	// Using the exact sequence requested by user
 	command := fmt.Sprintf("netstat -ano | findstr %s | findstr LISTENING", pidStr)
 	cmd := exec.Command("cmd", "/c", command)
 	out, _ := cmd.Output()
-
 	lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" { continue }
-
 		fields := strings.Fields(line)
-		// Validation: The last field MUST be the PID to avoid partial matches
 		if len(fields) >= 5 && fields[len(fields)-1] == pidStr {
 			localAddr := fields[1]
 			lastColon := strings.LastIndex(localAddr, ":")
@@ -207,7 +225,6 @@ func findPortsByPIDExact(pid int) []int {
 				portStr := localAddr[lastColon+1:]
 				p, err := strconv.Atoi(portStr)
 				if err == nil && p > 0 {
-					// Add if not already in list
 					exists := false
 					for _, existing := range ports {
 						if existing == p { exists = true; break }
@@ -225,12 +242,10 @@ func (o *Orchestrator) StartServiceWithPort(name string, binaryPath string, args
 	if _, exists := o.services[name]; exists {
 		s := o.services[name]
 		if s.cmd != nil && s.cmd.Process != nil {
-			pids := findPIDsByName(filepath.Base(binaryPath))
-			isStillRunning := false
-			for _, p := range pids {
-				if p == s.cmd.Process.Pid { isStillRunning = true; break }
-			}
-			if isStillRunning {
+			pids := findOsteniaPIDs(filepath.Base(binaryPath))
+			running := false
+			for _, p := range pids { if p == s.cmd.Process.Pid { running = true; break } }
+			if running {
 				o.mu.Unlock()
 				return fmt.Errorf("service %s is already running", name)
 			}
@@ -245,9 +260,7 @@ func (o *Orchestrator) StartServiceWithPort(name string, binaryPath string, args
 	stderr, _ := cmd.StderrPipe()
 	go o.captureLogs(name, stdout)
 	go o.captureLogs(name, stderr)
-
 	if err := cmd.Start(); err != nil { return err }
-
 	o.mu.Lock()
 	o.services[name] = &runningService{cmd: cmd, port: port}
 	o.mu.Unlock()
@@ -279,7 +292,8 @@ func (o *Orchestrator) StopService(name string) error {
 		case "PHP":    exeNames = []string{"php.exe", "php-cgi.exe"}
 		}
 		for _, exe := range exeNames {
-			exec.Command("taskkill", "/F", "/IM", exe, "/T").Run()
+			pids := findOsteniaPIDs(exe)
+			for _, pid := range pids { exec.Command("taskkill", "/F", "/PID", strconv.Itoa(pid), "/T").Run() }
 		}
 		time.Sleep(600 * time.Millisecond)
 	}

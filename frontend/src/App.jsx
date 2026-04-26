@@ -33,12 +33,12 @@ function App() {
   const [activeTab, setActiveTab] = useState('activity');
   const [theme, setTheme] = useState('dark');
   const [services, setServices] = useState([
-    { name: 'Apache', status: 'Stopped', pid: 0, port: 0, ports: [] },
-    { name: 'Nginx', status: 'Stopped', pid: 0, port: 0, ports: [] },
-    { name: 'MySQL', status: 'Stopped', pid: 0, port: 0, ports: [] },
-    { name: 'PHP', status: 'Stopped', pid: 0, port: 0, ports: [] },
-    { name: 'HeidiSQL', status: 'Stopped', pid: 0, port: 0, ports: [] },
-    { name: 'OpenSSL', status: 'Stopped', pid: 0, port: 0, remainingDays: 0, ports: [] },
+    { name: 'Apache', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
+    { name: 'Nginx', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
+    { name: 'MySQL', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
+    { name: 'PHP', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
+    { name: 'HeidiSQL', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
+    { name: 'OpenSSL', status: 'Stopped', pid: 0, port: 0, remainingDays: 0, ports: [], activeVersion: '' },
   ]);
   const [prerequisites, setPrerequisites] = useState([]);
   const [downloadProgress, setDownloadProgress] = useState({});
@@ -143,7 +143,15 @@ function App() {
           const updatedServices = await Promise.all(
             services.map(async (service) => {
                const detail = await GetServiceStatus(service.name);
-               return { ...service, status: detail.status, pid: detail.pid, port: detail.port, ports: detail.ports || [], remainingDays: detail.remainingDays || 0 };
+               return { 
+                 ...service, 
+                 status: detail.status, 
+                 pid: detail.pid, 
+                 port: detail.port, 
+                 ports: detail.ports || [], 
+                 remainingDays: detail.remainingDays || 0,
+                 activeVersion: detail.activeVersion || ''
+               };
             })
           );
           setServices(updatedServices);
@@ -165,7 +173,8 @@ function App() {
           pid: data.pid, 
           port: data.port, 
           ports: data.ports || [], 
-          remainingDays: data.remainingDays || 0 
+          remainingDays: data.remainingDays || 0,
+          activeVersion: data.activeVersion || ''
         } : service));
         
         if (data.name === 'OpenSSL' && data.status === 'Stopped') {
@@ -272,7 +281,7 @@ function App() {
 
   const handleAddToHome = (task) => {
     if (!services.find(service => service.name === task.name)) {
-      setServices(prev => [...prev, { name: task.name, status: 'Stopped', pid: 0, port: 0, ports: [], remainingDays: 0 }]);
+      setServices(prev => [...prev, { name: task.name, status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '', remainingDays: 0 }]);
       addLog(`Added ${task.name} to home screen.`);
     }
     setIsAddingPlugin(false);
@@ -396,7 +405,7 @@ function App() {
         />
 
         <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <div className="max-w-4xl w-full mx-auto flex flex-col h-full px-8 pb-8 overflow-hidden">
+          <div className="max-w-4xl w-full mx-auto flex flex-col h-full px-8 pb-8">
             {activeTab === 'activity' ? (
               <ActivityTab 
                 serverRoot={serverRoot}

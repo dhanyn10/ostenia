@@ -10,6 +10,8 @@ export function DeleteVersion(arg1:string,arg2:string):Promise<void>;
 
 export function GetConfig():Promise<config.Config>;
 
+export function GetPHPVersionFromCLI():Promise<string>;
+
 export function GetPrerequisites():Promise<Array<download.DownloadTask>>;
 
 export function GetServerRoot():Promise<string>;
@@ -43,5 +45,7 @@ export function StartService(arg1:string):Promise<void>;
 export function StopAllServices():Promise<void>;
 
 export function StopService(arg1:string):Promise<void>;
+
+export function SwitchServiceVersion(arg1:string,arg2:string):Promise<void>;
 
 export function UpdateActiveTab(arg1:string):Promise<void>;

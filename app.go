@@ -4,13 +4,17 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"ostenia/internal/config"
 	"ostenia/internal/download"
 	"ostenia/internal/network"
 	"ostenia/internal/service"
 	"ostenia/internal/ssl"
 	"path/filepath"
+	"regexp"
+	"runtime" // Added missing import
 	"strings"
+	"syscall"
 	"time"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -128,6 +132,39 @@ func (a *App) InstallPrerequisite(task download.DownloadTask) error {
 
 func (a *App) CancelDownload(taskName string) {
 	a.downloader.CancelDownload(taskName)
+}
+
+// GetPHPVersionFromCLI runs "php --version" and extracts the version number
+func (a *App) GetPHPVersionFromCLI() (string, error) {
+	baseDir := config.GetBaseDir()
+	phpExe := filepath.Join(baseDir, "bin", "php", "current", "php.exe")
+
+	// First try with absolute path to ensure we check Ostenia's PHP
+	cmd := exec.Command(phpExe, "--version")
+	if runtime.GOOS == "windows" {
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	}
+	output, err := cmd.Output()
+
+	// If absolute fails, try global (legacy)
+	if err != nil {
+		cmd = exec.Command("php", "--version")
+		if runtime.GOOS == "windows" {
+			cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		}
+		output, err = cmd.Output()
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("failed to run php --version: %w", err)
+	}
+
+	re := regexp.MustCompile(`PHP (\d+\.\d+\.\d+)`)
+	matches := re.FindStringSubmatch(string(output))
+	if len(matches) > 1 {
+		return matches[1], nil
+	}
+	return "", fmt.Errorf("failed to parse PHP version from output")
 }
 
 func (a *App) StartService(serviceName string) error {
@@ -254,6 +291,10 @@ func (a *App) StartService(serviceName string) error {
 			port = p
 		}
 
+		// Update Process PATH & User PATH
+		os.Setenv("PATH", phpPath+";"+os.Getenv("PATH"))
+		_ = service.UpdateUserPath(phpPath, true)
+
 		os.Setenv("PHP_FCGI_MAX_REQUESTS", "1000")
 		err := a.orchestrator.StartServiceWithPort("PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, phpPath, port)
 		if err == nil {
@@ -279,7 +320,77 @@ func (a *App) StopService(serviceName string) {
 		wruntime.EventsEmit(a.ctx, "service_status", info)
 		return
 	}
+
+	if serviceName == "PHP" {
+		baseDir := config.GetBaseDir()
+		phpPath := filepath.Join(baseDir, "bin", "php", "current")
+		_ = service.UpdateUserPath(phpPath, false)
+	}
+
 	a.orchestrator.StopService(serviceName)
+}
+
+func (a *App) SwitchServiceVersion(serviceName string, version string) error {
+	fmt.Printf("[App] Switching %s to version %s\n", serviceName, version)
+
+	baseDir := config.GetBaseDir()
+	category := strings.ToLower(serviceName)
+
+	// Determine prefix
+	prefix := ""
+	switch category {
+	case "php": prefix = "php-"
+	case "apache": prefix = "httpd-"
+	case "mysql": prefix = "mysql-"
+	case "nginx": prefix = "nginx-"
+	}
+
+	targetDir := filepath.Join(baseDir, "bin", category, prefix+version)
+	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+		targetDir = filepath.Join(baseDir, "bin", category, version)
+	}
+
+	currentLink := filepath.Join(baseDir, "bin", category, "current")
+
+	// 1. Stop service if running
+	wasRunning := a.orchestrator.IsRunning(serviceName)
+	if wasRunning {
+		a.StopService(serviceName)
+		time.Sleep(600 * time.Millisecond)
+	}
+
+	// 2. Update Symlink
+	os.Remove(currentLink)
+	if _, err := os.Stat(targetDir); err == nil {
+		cmd := exec.Command("cmd", "/c", "mklink", "/J", currentLink, targetDir)
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		err = cmd.Run()
+		if err != nil {
+			return fmt.Errorf("failed to create symlink for %s: %w", serviceName, err)
+		}
+	} else {
+		return fmt.Errorf("target version directory not found: %s", targetDir)
+	}
+
+	// 3. Update internal Process PATH if PHP
+	if category == "php" {
+		phpPath := filepath.Join(baseDir, "bin", "php", "current")
+		os.Setenv("PATH", phpPath+";"+os.Getenv("PATH"))
+	}
+
+	// 4. Restart if was running
+	if wasRunning {
+		err := a.StartService(serviceName)
+		if err != nil {
+			return fmt.Errorf("failed to restart service after version switch: %w", err)
+		}
+	}
+
+	// Trigger status update
+	info := a.orchestrator.GetDetailedInfo(serviceName)
+	wruntime.EventsEmit(a.ctx, "service_status", info)
+
+	return nil
 }
 
 func (a *App) StartAllServices() error {

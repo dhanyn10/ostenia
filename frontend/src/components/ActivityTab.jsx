@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, X, Activity, Globe, Trash2, FolderOpen, Clock, Lock, Unlock, Terminal, ChevronDown, Monitor } from 'lucide-react';
+import { Plus, X, Activity, Globe, Trash2, FolderOpen, Clock, Lock, Unlock, Terminal, ChevronDown, Monitor, CheckCircle2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { OpenServiceTerminal } from '../../wailsjs/go/main/App';
+import { OpenServiceTerminal, SwitchServiceVersion } from '../../wailsjs/go/main/App';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -23,6 +23,14 @@ function ActivityTab({
   const handleOpenLocalTerminal = (name, type) => {
     OpenServiceTerminal(name, type);
     setOpenTerminalDropdown(null);
+  };
+
+  const handleSwitchVersion = async (serviceName, version) => {
+    try {
+      await SwitchServiceVersion(serviceName, version);
+    } catch (err) {
+      console.error("Failed to switch version:", err);
+    }
   };
 
   return (
@@ -105,6 +113,7 @@ function ActivityTab({
           const isHttpsEnabled = service.name === 'Apache' ? apacheHttps : (service.name === 'Nginx' ? nginxHttps : false);
           
           const hasTerminalFacility = service.name !== 'HeidiSQL' && service.name !== 'OpenSSL';
+          const installedVersions = task?.installedVers || [];
 
           return (
             <div 
@@ -116,25 +125,43 @@ function ActivityTab({
             >
               <div className="flex-1 min-w-0 px-2">
                 <div className="flex items-center gap-3 flex-wrap">
-                  <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{service.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{service.name}</h3>
+                    
+                    {/* Version Badges - Using simple "is exist" logic */}
+                    <div className="flex items-center gap-1 ml-1">
+                      {installedVersions.map(ver => {
+                        const systemString = (service.activeVersion || "").toString().toLowerCase().trim();
+                        // Extract only core version numbers from the button (e.g., "8.3.4" from "v8.3.4-alpha")
+                        // This regex is more robust for various version formats
+                        const coreVersion = ver.toString().match(/(\d+\.\d+\.\d+)/)?.[1] || ver.toString().trim();
+                        
+                        // IS EXIST logic: Is the core version string found in the long system output string?
+                        const isActive = systemString.includes(coreVersion.toLowerCase());
+
+                        return (
+                          <button
+                            key={ver}
+                            onClick={() => handleSwitchVersion(service.name, ver)}
+                            className={cn(
+                              "px-1.5 py-0.5 rounded-sm text-[8px] font-black uppercase tracking-widest border transition-all",
+                              isActive
+                                ? "bg-blue-600 border-blue-500 text-white shadow-lg"
+                                : "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-500 hover:border-blue-500/50 hover:text-blue-500"
+                            )}
+                          >
+                            {isActive && <CheckCircle2 size={8} className="inline mr-1" />}
+                            {ver}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                   
                   {service.remainingDays > 0 && (
-                    <div className="flex items-center gap-2">
-                      <div className={cn(
-                        "flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[8px] font-bold uppercase tracking-widest border",
-                        service.name === 'OpenSSL' && service.remainingDays < 180
-                          ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400"
-                          : "bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400"
-                      )}>
-                        <Clock size={10} />
-                        {service.remainingDays} Days Left
-                      </div>
-                      
-                      {service.name === 'OpenSSL' && service.remainingDays < 180 && (
-                        <span className="text-[8px] font-black text-amber-600/80 dark:text-amber-500/60 uppercase tracking-tighter animate-pulse">
-                          (Please toggle OpenSSL to renew certificate)
-                        </span>
-                      )}
+                    <div className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-sm text-[8px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">
+                      <Clock size={10} />
+                      {service.remainingDays} Days Left
                     </div>
                   )}
 
