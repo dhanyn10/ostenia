@@ -11,7 +11,10 @@ import (
 	"ostenia/internal/service"
 	"ostenia/internal/ssl"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -112,7 +115,10 @@ func (a *App) OpenServerRootFolder() error {
 func (a *App) OpenPluginFolder(serviceName string) error {
 	baseDir := config.GetBaseDir()
 	binDir := filepath.Join(baseDir, "bin")
+
 	category := strings.ToLower(serviceName)
+	if category == "node.js" { category = "nodejs" } // Map UI name to folder name
+
 	folderPath := filepath.Join(binDir, category)
 	if _, err := os.Stat(folderPath); os.IsNotExist(err) {
 		return fmt.Errorf("folder for %s not found: %s", serviceName, folderPath)
@@ -129,6 +135,33 @@ func (a *App) InstallPrerequisite(task download.DownloadTask) error {
 
 func (a *App) CancelDownload(taskName string) {
 	a.downloader.CancelDownload(taskName)
+}
+
+// GetPHPVersionFromCLI runs "php --version" and extracts the version number
+func (a *App) GetPHPVersionFromCLI() (string, error) {
+	baseDir := config.GetBaseDir()
+	phpExe := filepath.Join(baseDir, "bin", "php", "current", "php.exe")
+
+	cmd := exec.Command(phpExe, "--version")
+	if runtime.GOOS == "windows" {
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	}
+	output, err := cmd.Output()
+
+	if err != nil {
+		cmd = exec.Command("php", "--version")
+		if runtime.GOOS == "windows" {
+			cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		}
+		output, err = cmd.Output()
+	}
+
+	if err != nil { return "", fmt.Errorf("failed to run php --version: %w", err) }
+
+	re := regexp.MustCompile(`PHP (\d+\.\d+\.\d+)`)
+	matches := re.FindStringSubmatch(string(output))
+	if len(matches) > 1 { return matches[1], nil }
+	return "", fmt.Errorf("failed to parse PHP version from output")
 }
 
 func (a *App) StartService(serviceName string) error {
@@ -299,12 +332,15 @@ func (a *App) StopService(serviceName string) {
 func (a *App) SwitchServiceVersion(serviceName string, version string) error {
 	baseDir := config.GetBaseDir()
 	category := strings.ToLower(serviceName)
+	if category == "node.js" { category = "nodejs" }
+
 	prefix := ""
 	switch category {
 	case "php": prefix = "php-"
 	case "apache": prefix = "httpd-"
 	case "mysql": prefix = "mysql-"
 	case "nginx": prefix = "nginx-"
+	case "nodejs": prefix = "node-"
 	}
 
 	targetDir := filepath.Join(baseDir, "bin", category, prefix+version)
@@ -322,7 +358,9 @@ func (a *App) SwitchServiceVersion(serviceName string, version string) error {
 
 	os.Remove(currentLink)
 	if _, err := os.Stat(targetDir); err == nil {
-		exec.Command("cmd", "/c", "mklink", "/J", currentLink, targetDir).Run()
+		cmd := exec.Command("cmd", "/c", "mklink", "/J", currentLink, targetDir)
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		err = cmd.Run()
 	}
 
 	if category == "php" {
@@ -428,8 +466,12 @@ func (a *App) OpenServiceTerminal(serviceName string, terminalType string) error
 	baseDir := config.GetBaseDir()
 	binDir := filepath.Join(baseDir, "bin")
 	var targetDir string
-	switch serviceName {
-	case "Nginx":
+
+	category := strings.ToLower(serviceName)
+	if category == "node.js" { category = "nodejs" }
+
+	switch category {
+	case "nginx":
 		filepath.Walk(filepath.Join(binDir, "nginx"), func(path string, info os.FileInfo, err error) error {
 			if info == nil { return nil }
 			if !info.IsDir() && info.Name() == "nginx.exe" {
@@ -438,7 +480,7 @@ func (a *App) OpenServiceTerminal(serviceName string, terminalType string) error
 			}
 			return nil
 		})
-	case "Apache":
+	case "apache":
 		filepath.Walk(filepath.Join(binDir, "apache"), func(path string, info os.FileInfo, err error) error {
 			if info == nil { return nil }
 			if !info.IsDir() && info.Name() == "httpd.exe" {
@@ -447,7 +489,7 @@ func (a *App) OpenServiceTerminal(serviceName string, terminalType string) error
 			}
 			return nil
 		})
-	case "MySQL":
+	case "mysql":
 		filepath.Walk(filepath.Join(binDir, "mysql"), func(path string, info os.FileInfo, err error) error {
 			if info == nil { return nil }
 			if !info.IsDir() && info.Name() == "mysqld.exe" {
@@ -456,15 +498,23 @@ func (a *App) OpenServiceTerminal(serviceName string, terminalType string) error
 			}
 			return nil
 		})
+	case "nodejs":
+		filepath.Walk(filepath.Join(binDir, "nodejs"), func(path string, info os.FileInfo, err error) error {
+			if info == nil { return nil }
+			if !info.IsDir() && info.Name() == "node.exe" {
+				targetDir = filepath.Dir(path)
+				return filepath.SkipDir
+			}
+			return nil
+		})
 	default:
-		targetDir = filepath.Join(binDir, strings.ToLower(serviceName))
+		targetDir = filepath.Join(binDir, category)
 	}
-	if targetDir == "" { targetDir = filepath.Join(binDir, strings.ToLower(serviceName)) }
+	if targetDir == "" { targetDir = filepath.Join(binDir, category) }
 	a.OpenTerminalAtPath(terminalType, targetDir)
 	return nil
 }
 
-// PHP Extensions Management
 func (a *App) GetPHPExtensions() ([]service.PHPExtensionInfo, error) {
 	baseDir := config.GetBaseDir()
 	phpPath := filepath.Join(baseDir, "bin", "php", "current")
@@ -476,8 +526,6 @@ func (a *App) TogglePHPExtension(extName string, enable bool) error {
 	phpPath := filepath.Join(baseDir, "bin", "php", "current")
 	err := service.TogglePHPExtension(phpPath, extName, enable)
 	if err != nil { return err }
-
-	// Restart PHP if running
 	if a.orchestrator.IsRunning("PHP") {
 		a.StopService("PHP")
 		time.Sleep(600 * time.Millisecond)

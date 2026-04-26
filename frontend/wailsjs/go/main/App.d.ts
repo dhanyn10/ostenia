@@ -12,6 +12,8 @@ export function GetConfig():Promise<config.Config>;
 
 export function GetPHPExtensions():Promise<Array<service.PHPExtensionInfo>>;
 
+export function GetPHPVersionFromCLI():Promise<string>;
+
 export function GetPrerequisites():Promise<Array<download.DownloadTask>>;
 
 export function GetServerRoot():Promise<string>;

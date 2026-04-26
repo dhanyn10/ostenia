@@ -54,6 +54,7 @@ func GetLatestKnownVersions() []DownloadTask {
 	phpVers, phpBase := DetectPHPVersions()
 	apacheVers, apacheURLs := DetectApacheVersions()
 	mysqlVers, mysqlURLs := DetectMySQLVersions()
+	nodeVers, nodeURLs := DetectNodeVersions() // Call Node.js detector
 
 	nginxVersion := "1.24.0"
 	nginxURL := fmt.Sprintf("https://nginx.org/download/nginx-%s.zip", nginxVersion)
@@ -93,6 +94,15 @@ func GetLatestKnownVersions() []DownloadTask {
 			VersionURLs: mysqlURLs,
 			Target:      "mysql/mysql-" + mysqlVers[0],
 			CheckFile:   "bin/mysqld.exe",
+		},
+		{
+			Name:        "Node.js", // Add Node.js task
+			URL:         nodeURLs[nodeVers[0]],
+			Version:     nodeVers[0],
+			Versions:    nodeVers,
+			VersionURLs: nodeURLs,
+			Target:      "nodejs/node-" + nodeVers[0],
+			CheckFile:   "node.exe",
 		},
 		{
 			Name:      "HeidiSQL",
@@ -190,7 +200,7 @@ func GetLatestKnownVersions() []DownloadTask {
 
 func (m *Manager) DeleteVersion(taskName, version string) error {
 	if runtime.GOOS == "windows" {
-		exeMap := map[string]string{"apache": "httpd.exe", "mysql": "mysqld.exe", "php": "php.exe", "heidisql": "heidisql.exe", "nginx": "nginx.exe", "openssl": "openssl.exe"}
+		exeMap := map[string]string{"apache": "httpd.exe", "mysql": "mysqld.exe", "php": "php.exe", "heidisql": "heidisql.exe", "nginx": "nginx.exe", "openssl": "openssl.exe", "node.js": "node.exe"}
 		if exe := exeMap[strings.ToLower(taskName)]; exe != "" {
 			exec.Command("taskkill", "/F", "/IM", exe, "/T").Run()
 			time.Sleep(500 * time.Millisecond)
@@ -199,7 +209,9 @@ func (m *Manager) DeleteVersion(taskName, version string) error {
 
 	baseDir := config.GetBaseDir()
 	category := strings.ToLower(taskName)
-	prefixMap := map[string]string{"php": "php-", "apache": "httpd-", "mysql": "mysql-", "nginx": "nginx-", "openssl": "openssl-", "heidisql": ""}
+	if category == "node.js" { category = "nodejs" }
+
+	prefixMap := map[string]string{"php": "php-", "apache": "httpd-", "mysql": "mysql-", "nginx": "nginx-", "openssl": "openssl-", "heidisql": "", "nodejs": "node-"}
 
 	targetDir := filepath.Join(baseDir, "bin", category, prefixMap[category]+version)
 	if _, err := os.Stat(targetDir); os.IsNotExist(err) {

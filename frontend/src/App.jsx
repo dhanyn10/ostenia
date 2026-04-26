@@ -26,6 +26,7 @@ const ICON_MAP = {
   'PHP': Settings,
   'HeidiSQL': ExternalLink,
   'OpenSSL': Shield,
+  'Node.js': Settings,
   'default': Database
 };
 
@@ -37,6 +38,7 @@ function App() {
     { name: 'Nginx', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
     { name: 'MySQL', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
     { name: 'PHP', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
+    { name: 'Node.js', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
     { name: 'HeidiSQL', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
     { name: 'OpenSSL', status: 'Stopped', pid: 0, port: 0, remainingDays: 0, ports: [], activeVersion: '' },
   ]);
@@ -342,6 +344,12 @@ function App() {
        modifiedTask.version = selectedVer;
        modifiedTask.target = `mysql/mysql-${selectedVer}`;
        modifiedTask.url = task.versionUrls[selectedVer];
+    }
+
+    if (task.name === 'Node.js' && task.versions) {
+       modifiedTask.version = selectedVer;
+       modifiedTask.target = `nodejs/node-${selectedVer}`;
+       modifiedTask.url = `https://nodejs.org/dist/v${selectedVer}/node-v${selectedVer}-win-${arch}.zip`;
     }
 
     if (window.go) {
