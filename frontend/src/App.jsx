@@ -33,7 +33,7 @@ const ICON_MAP = {
 
 function App() {
   const [activeTab, setActiveTab] = useState('activity');
-  const [theme, setTheme] = useState('dark');
+  const [theme, setTheme] = useState('light'); // Set default to light
   const [services, setServices] = useState([
     { name: 'Apache', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
     { name: 'Nginx', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
@@ -64,7 +64,8 @@ function App() {
   };
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('ostenia-theme') || 'dark';
+    // Check localStorage, but fallback to 'light'
+    const savedTheme = localStorage.getItem('ostenia-theme') || 'light';
     setTheme(savedTheme);
   }, []);
 

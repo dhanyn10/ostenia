@@ -119,10 +119,8 @@ func (a *App) OpenServerRootFolder() error {
 func (a *App) OpenPluginFolder(serviceName string) error {
 	baseDir := config.GetBaseDir()
 	binDir := filepath.Join(baseDir, "bin")
-
 	category := strings.ToLower(serviceName)
 	if category == "node.js" { category = "nodejs" }
-
 	folderPath := filepath.Join(binDir, category)
 	if _, err := os.Stat(folderPath); os.IsNotExist(err) {
 		return fmt.Errorf("folder for %s not found: %s", serviceName, folderPath)
@@ -386,7 +384,9 @@ func (a *App) SwitchServiceVersion(serviceName string, version string) error {
 	os.Remove(currentLink)
 	if _, err := os.Stat(targetDir); err == nil {
 		cmd := exec.Command("cmd", "/c", "mklink", "/J", currentLink, targetDir)
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		if runtime.GOOS == "windows" {
+			cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		}
 		err = cmd.Run()
 	}
 

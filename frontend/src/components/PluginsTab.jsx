@@ -17,7 +17,7 @@ function PluginsTab({
 }) {
   return (
     <div className="flex flex-col h-full pt-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="flex-1 overflow-y-auto pr-3 -mr-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5 space-y-2 pb-20">
+      <div className="flex-1 overflow-y-auto pr-3 -mr-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5 space-y-2"> {/* Removed pb-20 */}
         {prerequisites.map((task) => {
           if (!task) return null;
           
