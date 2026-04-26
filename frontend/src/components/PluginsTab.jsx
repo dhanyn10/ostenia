@@ -4,6 +4,7 @@ import VersionDropdown from './VersionDropdown';
 import CircularProgress from './CircularProgress';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { OpenPluginFolder } from '../../wailsjs/go/main/App';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -25,11 +26,12 @@ function PluginsTab({
           const isDropdownOpen = openDropdown === task.name;
           const Icon = ICON_MAP[task.name] || ICON_MAP.default;
           
-          // Safety check for versions to prevent "not iterable" error
           const availableVersions = task.versions || [];
           const installedVersions = task.installedVers || [];
           const dropdownOptions = [...new Set([...availableVersions, ...installedVersions])];
           
+          const isCustomAllowed = task.name !== 'HeidiSQL' && task.name !== 'OpenSSL';
+
           return (
             <div 
               key={task.name} 
@@ -49,13 +51,15 @@ function PluginsTab({
                 <div className="flex items-center gap-3 flex-wrap">
                   <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{task.name}</h3>
                   
-                  {availableVersions.length > 0 ? (
+                  {(availableVersions.length > 0 || isCustomAllowed) ? (
                     <VersionDropdown 
                       current={selectedVersions[task.name] || task.version}
                       options={dropdownOptions}
                       isOpen={isDropdownOpen}
                       onToggle={() => setOpenDropdown(isDropdownOpen ? null : task.name)}
                       onChange={(v) => setSelectedVersions(prev => ({ ...prev, [task.name]: v }))}
+                      allowCustom={isCustomAllowed}
+                      onCustomClick={() => OpenPluginFolder(task.name)}
                     />
                   ) : (
                     <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded-sm">v{task.version}</span>
@@ -88,28 +92,21 @@ function PluginsTab({
                   </div>
                 )}
 
-                {(() => {
-                  const selectedVer = selectedVersions[task.name] || task.version;
-                  const isSelectedInstalled = installedVersions.includes(selectedVer);
-                  
-                  if (isActive) return null;
-
-                  return (
-                    <button
-                      disabled={isSelectedInstalled}
-                      onClick={() => !isSelectedInstalled && handleInstallSingle(task)}
-                      className={cn(
-                        "px-5 py-2 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg",
-                        isSelectedInstalled 
-                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 border border-emerald-500/20 cursor-not-allowed"
-                          : "bg-blue-600 hover:bg-blue-500 text-white hover:scale-105"
-                      )}
-                    >
-                      {isSelectedInstalled && <CheckCircle2 size={14} />}
-                      {isSelectedInstalled ? 'Ready' : 'Download'}
-                    </button>
-                  );
-                })()}
+                {!isActive && (
+                  <button
+                    disabled={installedVersions.includes(selectedVersions[task.name] || task.version)}
+                    onClick={() => handleInstallSingle(task)}
+                    className={cn(
+                      "px-5 py-2 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg",
+                      installedVersions.includes(selectedVersions[task.name] || task.version)
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 border border-emerald-500/20 cursor-not-allowed"
+                        : "bg-blue-600 hover:bg-blue-500 text-white hover:scale-105"
+                    )}
+                  >
+                    {installedVersions.includes(selectedVersions[task.name] || task.version) && <CheckCircle2 size={14} />}
+                    {installedVersions.includes(selectedVersions[task.name] || task.version) ? 'Ready' : 'Download'}
+                  </button>
+                )}
               </div>
             </div>
           );

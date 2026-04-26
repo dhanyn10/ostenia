@@ -3,6 +3,8 @@ package service
 import (
 	"fmt"
 	"os"
+	"ostenia/internal/config"
+	"ostenia/internal/ssl"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -25,9 +27,10 @@ func GenerateVHost(projectName string, projectPath string, port int) string {
 `, port, projectPath, projectName, projectName, projectPath)
 }
 
-func UpdateApacheConfig(apachePath string, phpDllPath string, phpIniDir string, vhostsContent string, port int, wwwRoot string, phpPort int) error {
+func UpdateApacheConfig(apachePath string, phpDllPath string, phpIniDir string, vhostsContent string, port int, wwwRoot string, phpPort int, httpsEnabled bool) error {
 	confPath := filepath.Join(apachePath, "conf", "httpd.conf")
 	phpConfPath := filepath.Join(apachePath, "conf", "extra", "httpd-ostenia-php.conf")
+	sslConfPath := filepath.Join(apachePath, "conf", "extra", "httpd-ostenia-ssl.conf")
 
 	input, err := os.ReadFile(confPath)
 	if err != nil {
@@ -36,35 +39,25 @@ func UpdateApacheConfig(apachePath string, phpDllPath string, phpIniDir string, 
 
 	content := string(input)
 	
-	// 1. Normalize Paths
 	absApachePath, _ := filepath.Abs(apachePath)
 	normalizedApachePath := strings.ReplaceAll(absApachePath, "\\", "/")
 	normalizedWWWRoot := strings.ReplaceAll(wwwRoot, "\\", "/")
 
-	// 2. Enable Required Modules
-	modules := []string{"rewrite_module", "alias_module", "proxy_module", "proxy_fcgi_module"}
+	// Modules
+	modules := []string{"rewrite_module", "alias_module", "proxy_module", "proxy_fcgi_module", "socache_shmcb_module"}
+	if httpsEnabled {
+		modules = append(modules, "ssl_module")
+	}
 	for _, mod := range modules {
 		re := regexp.MustCompile(`(?m)^#\s*LoadModule\s+` + mod)
 		content = re.ReplaceAllString(content, "LoadModule "+mod)
 	}
 
-	// 3. Clean all absolute paths (make portable)
-	reAnyAbsPath := regexp.MustCompile(`[A-Za-z]:/[^" \n\t\r]+`)
-	content = reAnyAbsPath.ReplaceAllStringFunc(content, func(match string) string {
-		if strings.Contains(match, "/bin/apache/") && !strings.Contains(match, normalizedApachePath) {
-			parts := strings.Split(match, "/modules/")
-			if len(parts) > 1 {
-				return "${SRVROOT}/modules/" + parts[1]
-			}
-			return "${SRVROOT}"
-		}
-		return match
-	})
-
-	// 4. Remove ALL existing Ostenia blocks
+	// Remove existing Ostenia blocks
 	patterns := []string{
 		`(?s)# Ostenia System Config.*?# End Ostenia System Config\n?`,
 		`(?s)# Ostenia PHP Configuration.*?# End Ostenia PHP\n?`,
+		`(?s)# Ostenia SSL Configuration.*?# End Ostenia SSL\n?`,
 		`(?m)^Define\s+SRVROOT\s+.*?\n`,
 		`(?m)^ServerRoot\s+.*?\n`,
 		`(?m)^DocumentRoot\s+.*?\n`,
@@ -72,6 +65,7 @@ func UpdateApacheConfig(apachePath string, phpDllPath string, phpIniDir string, 
 		`(?m)^DirectoryIndex\s+.*?\n`,
 		`(?s)<Directory\s+".*?">\s*#\s*MainDocRoot.*?</Directory>.*?\n`,
 		`(?m)^Include\s+conf/extra/httpd-ostenia-php.conf\n?`,
+		`(?m)^Include\s+conf/extra/httpd-ostenia-ssl.conf\n?`,
 	}
 
 	for _, p := range patterns {
@@ -79,31 +73,15 @@ func UpdateApacheConfig(apachePath string, phpDllPath string, phpIniDir string, 
 		content = re.ReplaceAllString(content, "")
 	}
 
-	// 5. Build New Main Configuration Header
+	// Main Header
 	header := "# Ostenia System Config\n"
 	header += fmt.Sprintf("Define SRVROOT \"%s\"\n", normalizedApachePath)
 	header += "ServerRoot \"${SRVROOT}\"\n"
 	header += "ServerName localhost\n"
 	header += fmt.Sprintf("DocumentRoot \"%s\"\n", normalizedWWWRoot)
+	header += fmt.Sprintf("<Directory \"%s\">\n    Options Indexes FollowSymLinks\n    AllowOverride All\n    Require all granted\n</Directory>\n", normalizedWWWRoot)
+	header += "DirectoryIndex index.php index.html\n# End Ostenia System Config\n"
 
-	header += fmt.Sprintf("<Directory \"%s\">\n", normalizedWWWRoot)
-	header += "    # MainDocRoot\n"
-	header += "    Options Indexes FollowSymLinks\n"
-	header += "    AllowOverride All\n"
-	header += "    Require all granted\n"
-	header += "</Directory>\n"
-
-	header += `
-Alias /__ostenia_default "${SRVROOT}/htdocs"
-<Directory "${SRVROOT}/htdocs">
-    AllowOverride None
-    Require all granted
-</Directory>
-DirectoryIndex index.php index.html /__ostenia_default/index.html
-# End Ostenia System Config
-`
-
-	// 6. Update Listen Port (Only if valid)
 	if port > 0 {
 		rePort := regexp.MustCompile(`(?m)^Listen\s+\d+`)
 		if !rePort.MatchString(content) {
@@ -113,28 +91,55 @@ DirectoryIndex index.php index.html /__ostenia_default/index.html
 		}
 	}
 
-	// 7. Include PHP config file
 	content += "\nInclude conf/extra/httpd-ostenia-php.conf\n"
+	if httpsEnabled {
+		content += "Include conf/extra/httpd-ostenia-ssl.conf\n"
+	}
 
 	finalContent := header + "\n" + strings.TrimSpace(content)
 
-	if !strings.Contains(finalContent, "Include conf/extra/httpd-vhosts.conf") {
-		finalContent += "\nInclude conf/extra/httpd-vhosts.conf"
-	}
-
-	vhostsPath := filepath.Join(apachePath, "conf", "extra", "httpd-vhosts.conf")
-	os.MkdirAll(filepath.Dir(vhostsPath), 0755)
-	os.WriteFile(vhostsPath, []byte(vhostsContent), 0644)
-
-	// 10. Write PHP config
+	// PHP Config
 	phpConfContent := "# Ostenia PHP Configuration\n"
 	if phpPort > 0 {
 		phpConfContent += fmt.Sprintf("<FilesMatch \\.php$>\n    SetHandler \"proxy:fcgi://127.0.0.1:%d\"\n</FilesMatch>\n", phpPort)
 	}
 	phpConfContent += "# End Ostenia PHP\n"
-
 	os.MkdirAll(filepath.Dir(phpConfPath), 0755)
 	os.WriteFile(phpConfPath, []byte(phpConfContent), 0644)
+
+	// SSL Config
+	if httpsEnabled {
+		baseDir := config.GetBaseDir()
+		sslDir := filepath.Join(baseDir, "ssl")
+
+		// Ensure certificate exists (Bridge to OpenSSL feature)
+		ssl.GenerateRootCA(sslDir) // Ensure CA exists
+		ssl.SignCertificate(sslDir, "localhost", sslDir)
+
+		crtPath := strings.ReplaceAll(filepath.Join(sslDir, "localhost.crt"), "\\", "/")
+		keyPath := strings.ReplaceAll(filepath.Join(sslDir, "localhost.key"), "\\", "/")
+
+		sslConfContent := fmt.Sprintf(`
+# Ostenia SSL Configuration
+Listen 443
+<VirtualHost _default_:443>
+    DocumentRoot "%s"
+    ServerName localhost:443
+    SSLEngine on
+    SSLCertificateFile "%s"
+    SSLCertificateKeyFile "%s"
+    <Directory "%s">
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+# End Ostenia SSL
+`, normalizedWWWRoot, crtPath, keyPath, normalizedWWWRoot)
+
+		os.WriteFile(sslConfPath, []byte(sslConfContent), 0644)
+	} else {
+		os.Remove(sslConfPath)
+	}
 
 	return os.WriteFile(confPath, []byte(finalContent), 0644)
 }

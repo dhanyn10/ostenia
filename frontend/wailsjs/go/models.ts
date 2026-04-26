@@ -1,3 +1,28 @@
+export namespace config {
+	
+	export class Config {
+	    wwwRoot: string;
+	    phpVersion: string;
+	    nodeVersion: string;
+	    apacheHttps: boolean;
+	    nginxHttps: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Config(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.wwwRoot = source["wwwRoot"];
+	        this.phpVersion = source["phpVersion"];
+	        this.nodeVersion = source["nodeVersion"];
+	        this.apacheHttps = source["apacheHttps"];
+	        this.nginxHttps = source["nginxHttps"];
+	    }
+	}
+
+}
+
 export namespace download {
 	
 	export class DownloadTask {
@@ -33,11 +58,28 @@ export namespace download {
 
 export namespace service {
 	
+	export class PHPExtensionInfo {
+	    name: string;
+	    enabled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new PHPExtensionInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.enabled = source["enabled"];
+	    }
+	}
 	export class ServiceDetailedInfo {
 	    name: string;
 	    status: string;
 	    pid: number;
 	    port: number;
+	    ports: number[];
+	    remainingDays?: number;
+	    activeVersion?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ServiceDetailedInfo(source);
@@ -49,6 +91,9 @@ export namespace service {
 	        this.status = source["status"];
 	        this.pid = source["pid"];
 	        this.port = source["port"];
+	        this.ports = source["ports"];
+	        this.remainingDays = source["remainingDays"];
+	        this.activeVersion = source["activeVersion"];
 	    }
 	}
 

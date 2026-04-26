@@ -3,10 +3,13 @@ package ssl
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"math/big"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,19 +31,30 @@ func GenerateRootCA(destDir string) error {
 	}
 
 	subject := pkix.Name{
-		Organization: []string{"Ostenia Managed CA"},
-		CommonName:   "Ostenia Root CA",
+		Organization:  []string{"Ostenia Managed CA"},
+		Country:       []string{"ID"},
+		Province:      []string{"Jakarta"},
+		Locality:      []string{"Ostenia"},
+		StreetAddress: []string{"Local Development"},
+		CommonName:    "Ostenia Root CA",
 	}
 
+	// Set expiration to 1 year for Root CA
+	expiration := time.Now().AddDate(1, 0, 0)
+
+	pubBytes, _ := x509.MarshalPKIXPublicKey(&priv.PublicKey)
+	skid := sha1.Sum(pubBytes)
+
 	template := x509.Certificate{
-		SerialNumber:          big.NewInt(1),
+		SerialNumber:          big.NewInt(time.Now().Unix()),
 		Subject:               subject,
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(10, 0, 0),
+		NotBefore:             time.Now().Add(-1 * time.Hour),
+		NotAfter:              expiration,
 		IsCA:                  true,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
 		BasicConstraintsValid: true,
+		SubjectKeyId:          skid[:],
 	}
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
@@ -59,41 +73,88 @@ func GenerateRootCA(destDir string) error {
 	return TrustRootCA(caPath)
 }
 
+func GetRemainingDays(certPath string) (int, error) {
+	certData, err := os.ReadFile(certPath)
+	if err != nil {
+		return 0, err
+	}
+
+	block, _ := pem.Decode(certData)
+	if block == nil {
+		return 0, fmt.Errorf("failed to decode PEM")
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return 0, err
+	}
+
+	remaining := time.Until(cert.NotAfter)
+	days := int(remaining.Hours() / 24)
+	if days < 0 {
+		return 0, nil
+	}
+	return days, nil
+}
+
 func TrustRootCA(caPath string) error {
 	if runtime.GOOS == "windows" {
-		// certutil -addstore -f "Root" ca.crt
-		cmd := exec.Command("certutil", "-addstore", "-f", "Root", caPath)
+		// Add to both Local Machine (if admin) and Current User to ensure visibility
+		exec.Command("certutil", "-addstore", "-f", "Root", caPath).Run()
+		cmd := exec.Command("certutil", "-user", "-addstore", "-f", "Root", caPath)
 		return cmd.Run()
 	}
-	// For other OS, user might need to do it manually or we implement it later
 	return nil
 }
 
 func SignCertificate(caDir string, domain string, destDir string) error {
+	certPath := filepath.Join(destDir, domain+".crt")
+	if _, err := os.Stat(certPath); err == nil {
+		// If cert exists, check if it's new enough (we changed logic, so we might want to force re-sign)
+		// For now, let the user delete it via UI (OpenSSL Stop)
+		return nil 
+	}
+
 	caCertPath := filepath.Join(caDir, "ca.crt")
 	caKeyPath := filepath.Join(caDir, "ca.key")
 
-	caCertData, _ := os.ReadFile(caCertPath)
-	caKeyData, _ := os.ReadFile(caKeyPath)
+	caCertData, err := os.ReadFile(caCertPath)
+	if err != nil { return fmt.Errorf("ca.crt not found: %w", err) }
+	caKeyData, err := os.ReadFile(caKeyPath)
+	if err != nil { return fmt.Errorf("ca.key not found: %w", err) }
 
-	block, _ := pem.Decode(caCertData)
-	caCert, _ := x509.ParseCertificate(block.Bytes)
+	caBlock, _ := pem.Decode(caCertData)
+	if caBlock == nil { return fmt.Errorf("failed to decode ca.crt") }
+	caCert, err := x509.ParseCertificate(caBlock.Bytes)
+	if err != nil { return fmt.Errorf("failed to parse ca.crt: %w", err) }
 
-	block, _ = pem.Decode(caKeyData)
-	caKey, _ := x509.ParsePKCS1PrivateKey(block.Bytes)
+	keyBlock, _ := pem.Decode(caKeyData)
+	if keyBlock == nil { return fmt.Errorf("failed to decode ca.key") }
+	caKey, err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
+	if err != nil { return fmt.Errorf("failed to parse ca.key: %w", err) }
 
-	priv, _ := rsa.GenerateKey(rand.Reader, 2048)
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil { return err }
+
+	pubBytes, _ := x509.MarshalPKIXPublicKey(&priv.PublicKey)
+	skid := sha1.Sum(pubBytes)
 
 	template := x509.Certificate{
-		SerialNumber: big.NewInt(2),
+		SerialNumber: big.NewInt(time.Now().Unix()),
 		Subject: pkix.Name{
-			CommonName: domain,
+			Organization: []string{"Ostenia Local Development"},
+			CommonName:   domain,
 		},
-		DNSNames:    []string{domain, "*." + domain},
-		NotBefore:   time.Now(),
-		NotAfter:    time.Now().AddDate(1, 0, 0),
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		KeyUsage:    x509.KeyUsageDigitalSignature,
+		DNSNames:              []string{domain, "*." + domain},
+		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
+		NotBefore:             time.Now().Add(-1 * time.Hour),
+		NotAfter:              time.Now().AddDate(1, 0, 0), // 1 year
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageDataEncipherment,
+		BasicConstraintsValid: true,
+		IsCA:                  false,
+		SubjectKeyId:          skid[:],
+		AuthorityKeyId:        caCert.SubjectKeyId,
 	}
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, caCert, &priv.PublicKey, caKey)
@@ -101,11 +162,13 @@ func SignCertificate(caDir string, domain string, destDir string) error {
 		return err
 	}
 
-	certOut, _ := os.Create(filepath.Join(destDir, domain+".crt"))
+	certOut, err := os.Create(certPath)
+	if err != nil { return err }
 	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
 	certOut.Close()
 
-	keyOut, _ := os.Create(filepath.Join(destDir, domain+".key"))
+	keyOut, err := os.Create(filepath.Join(destDir, domain+".key"))
+	if err != nil { return err }
 	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
 	keyOut.Close()
 

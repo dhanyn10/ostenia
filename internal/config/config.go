@@ -10,6 +10,8 @@ type Config struct {
 	WWWRoot     string `json:"wwwRoot"`
 	PHPVersion  string `json:"phpVersion"`
 	NodeVersion string `json:"nodeVersion"`
+	ApacheHTTPS bool   `json:"apacheHttps"`
+	NginxHTTPS  bool   `json:"nginxHttps"`
 }
 
 func GetBaseDir() string {
@@ -27,7 +29,9 @@ func LoadConfig() (*Config, error) {
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		// Default config
 		cfg := &Config{
-			WWWRoot: filepath.Join(baseDir, "www"),
+			WWWRoot:     filepath.Join(baseDir, "www"),
+			ApacheHTTPS: false,
+			NginxHTTPS:  false,
 		}
 		os.MkdirAll(cfg.WWWRoot, 0755)
 		SaveConfig(cfg)

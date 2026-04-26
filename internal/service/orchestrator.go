@@ -5,22 +5,30 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"ostenia/internal/config"
+	"ostenia/internal/ssl"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type ServiceDetailedInfo struct {
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	PID    int    `json:"pid"`
-	Port   int    `json:"port"`
+	Name          string `json:"name"`
+	Status        string `json:"status"`
+	PID           int    `json:"pid"`
+	Port          int    `json:"port"`
+	Ports         []int  `json:"ports"`
+	RemainingDays int    `json:"remainingDays,omitempty"`
+	ActiveVersion string `json:"activeVersion,omitempty"`
 }
 
 type runningService struct {
@@ -29,16 +37,52 @@ type runningService struct {
 }
 
 type Orchestrator struct {
-	ctx      context.Context
-	services map[string]*runningService
-	mu       sync.Mutex
+	ctx       context.Context
+	services  map[string]*runningService
+	mu        sync.Mutex
+	activeTab string
+	tabMu     sync.RWMutex
 }
 
 func NewOrchestrator(ctx context.Context) *Orchestrator {
 	return &Orchestrator{
-		ctx:      ctx,
-		services: make(map[string]*runningService),
+		ctx:       ctx,
+		services:  make(map[string]*runningService),
+		activeTab: "activity",
 	}
+}
+
+func (o *Orchestrator) SetActiveTab(tab string) {
+	o.tabMu.Lock()
+	defer o.tabMu.Unlock()
+	o.activeTab = tab
+}
+
+func (o *Orchestrator) StartWatcher() {
+	go func() {
+		ticker := time.NewTicker(3 * time.Second)
+		defer ticker.Stop()
+
+		servicesToWatch := []string{"Apache", "Nginx", "MySQL", "PHP", "HeidiSQL", "OpenSSL"}
+
+		for {
+			select {
+			case <-o.ctx.Done():
+				return
+			case <-ticker.C:
+				o.tabMu.RLock()
+				currentTab := o.activeTab
+				o.tabMu.RUnlock()
+
+				if currentTab == "activity" {
+					for _, name := range servicesToWatch {
+						info := o.GetDetailedInfo(name)
+						wruntime.EventsEmit(o.ctx, "service_status", info)
+					}
+				}
+			}
+		}
+	}()
 }
 
 func (o *Orchestrator) IsRunning(name string) bool {
@@ -51,91 +95,185 @@ func (o *Orchestrator) GetDetailedInfo(name string) ServiceDetailedInfo {
 	s, tracked := o.services[name]
 	o.mu.Unlock()
 
-	info := ServiceDetailedInfo{Name: name, Status: "Stopped"}
+	info := ServiceDetailedInfo{Name: name, Status: "Stopped", Ports: []int{}}
 
-	if tracked && s.cmd != nil && s.cmd.Process != nil {
-		info.Status = "Running"
-		info.PID = s.cmd.Process.Pid
-		info.Port = s.port
+	// PROACTIVE VERSION DETECTION
+	if name == "PHP" {
+		baseDir := config.GetBaseDir()
+		phpExe := filepath.Join(baseDir, "bin", "php", "current", "php.exe")
+
+		// If current symlink exists, run THAT specific exe to get version
+		if _, err := os.Stat(phpExe); err == nil {
+			cmd := exec.Command(phpExe, "-v")
+			if runtime.GOOS == "windows" {
+				cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+			}
+			out, err := cmd.Output()
+			if err == nil {
+				info.ActiveVersion = string(out)
+			}
+		}
+	} else if name == "Apache" || name == "MySQL" || name == "Nginx" {
+		baseDir := config.GetBaseDir()
+		currentPath := filepath.Join(baseDir, "bin", strings.ToLower(name), "current")
+		if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
+			info.ActiveVersion = filepath.Base(resolved)
+		}
+	}
+
+	if name == "OpenSSL" {
+		baseDir := config.GetBaseDir()
+		caPath := filepath.Join(baseDir, "ssl", "ca.crt")
+		if _, err := os.Stat(caPath); err == nil {
+			info.Status = "Running"
+			days, _ := ssl.GetRemainingDays(caPath)
+			info.RemainingDays = days
+		}
 		return info
 	}
 
-	if runtime.GOOS == "windows" {
-		var exeName string
-		switch name {
-		case "Apache":
-			exeName = "httpd.exe"
-		case "MySQL":
-			exeName = "mysqld.exe"
-		case "HeidiSQL":
-			exeName = "heidisql.exe"
-		case "Nginx":
-			exeName = "nginx.exe"
+	var exeName string
+	switch name {
+	case "Apache": exeName = "httpd.exe"
+	case "MySQL":  exeName = "mysqld.exe"
+	case "HeidiSQL": exeName = "heidisql.exe"
+	case "Nginx":  exeName = "nginx.exe"
+	case "PHP":    exeName = "php-cgi.exe"
+	}
+
+	if exeName == "" { return info }
+
+	pids := findOsteniaPIDs(exeName)
+
+	if len(pids) > 0 {
+		info.Status = "Running"
+		info.PID = pids[0]
+
+		if name == "Apache" || name == "Nginx" || name == "MySQL" || name == "PHP" {
+			foundPorts := make(map[int]bool)
+			for _, pid := range pids {
+				ports := findPortsByPIDExact(pid)
+				for _, p := range ports { foundPorts[p] = true }
+			}
+			for p := range foundPorts { info.Ports = append(info.Ports, p) }
+			sort.Ints(info.Ports)
+			if len(info.Ports) > 0 {
+				info.Port = info.Ports[0]
+			} else if tracked {
+				info.Port = s.port
+				if info.Port > 0 { info.Ports = append(info.Ports, info.Port) }
+			}
 		}
 
-		if exeName != "" {
-			out, err := exec.Command("tasklist", "/FI", "IMAGENAME eq "+exeName, "/FO", "CSV", "/NH").Output()
-			if err == nil {
-				line := string(out)
-				if strings.Contains(line, exeName) {
-					info.Status = "Running"
-					parts := strings.Split(line, ",")
-					if len(parts) > 1 {
-						pidStr := strings.Trim(parts[1], "\"")
-						pid, _ := strconv.Atoi(pidStr)
-						info.PID = pid
-					}
-				}
-			}
+		if !tracked || (info.Port > 0 && s.port != info.Port) {
+			o.mu.Lock()
+			o.services[name] = &runningService{cmd: nil, port: info.Port}
+			o.mu.Unlock()
+		}
+	} else {
+		if tracked {
+			o.mu.Lock()
+			delete(o.services, name)
+			o.mu.Unlock()
 		}
 	}
 
 	return info
 }
 
+func findOsteniaPIDs(exeName string) []int {
+	pids := []int{}
+	if runtime.GOOS != "windows" { return pids }
+	baseDir := config.GetBaseDir()
+	binPath := filepath.Join(baseDir, "bin")
+	cmd := exec.Command("wmic", "process", "where", fmt.Sprintf("name='%s'", exeName), "get", "ExecutablePath,ProcessId", "/format:csv")
+	out, err := cmd.Output()
+	if err != nil { return pids }
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(strings.ToLower(line), "node") { continue }
+		parts := strings.Split(line, ",")
+		if len(parts) >= 3 {
+			execPath := strings.TrimSpace(parts[1])
+			pidStr := strings.TrimSpace(parts[2])
+			if strings.HasPrefix(strings.ToLower(execPath), strings.ToLower(binPath)) {
+				pid, err := strconv.Atoi(pidStr)
+				if err == nil && pid > 0 { pids = append(pids, pid) }
+			}
+		}
+	}
+	return pids
+}
+
+func findPortsByPIDExact(pid int) []int {
+	ports := []int{}
+	if pid <= 0 { return ports }
+	pidStr := strconv.Itoa(pid)
+	command := fmt.Sprintf("netstat -ano | findstr %s | findstr LISTENING", pidStr)
+	cmd := exec.Command("cmd", "/c", command)
+	out, _ := cmd.Output()
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" { continue }
+		fields := strings.Fields(line)
+		if len(fields) >= 5 && fields[len(fields)-1] == pidStr {
+			localAddr := fields[1]
+			lastColon := strings.LastIndex(localAddr, ":")
+			if lastColon != -1 {
+				portStr := localAddr[lastColon+1:]
+				p, err := strconv.Atoi(portStr)
+				if err == nil && p > 0 {
+					exists := false
+					for _, existing := range ports {
+						if existing == p { exists = true; break }
+					}
+					if !exists { ports = append(ports, p) }
+				}
+			}
+		}
+	}
+	return ports
+}
+
 func (o *Orchestrator) StartServiceWithPort(name string, binaryPath string, args []string, workingDir string, port int) error {
 	o.mu.Lock()
 	if _, exists := o.services[name]; exists {
-		o.mu.Unlock()
-		return fmt.Errorf("service %s is already running", name)
+		s := o.services[name]
+		if s.cmd != nil && s.cmd.Process != nil {
+			pids := findOsteniaPIDs(filepath.Base(binaryPath))
+			running := false
+			for _, p := range pids { if p == s.cmd.Process.Pid { running = true; break } }
+			if running {
+				o.mu.Unlock()
+				return fmt.Errorf("service %s is already running", name)
+			}
+		}
 	}
 	o.mu.Unlock()
 
-	absPath, err := filepath.Abs(binaryPath)
-	if err != nil {
-		return err
-	}
-
+	absPath, _ := filepath.Abs(binaryPath)
 	cmd := exec.Command(absPath, args...)
-	if workingDir != "" {
-		cmd.Dir = workingDir
-	}
-
+	if workingDir != "" { cmd.Dir = workingDir }
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()
-
 	go o.captureLogs(name, stdout)
 	go o.captureLogs(name, stderr)
-
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-
+	if err := cmd.Start(); err != nil { return err }
 	o.mu.Lock()
 	o.services[name] = &runningService{cmd: cmd, port: port}
 	o.mu.Unlock()
 
 	o.emitStatus(name, "Running")
-
 	go func() {
 		cmd.Wait()
-		time.Sleep(500 * time.Millisecond) // Give system time to clean up
+		time.Sleep(500 * time.Millisecond)
 		o.mu.Lock()
 		delete(o.services, name)
 		o.mu.Unlock()
 		o.emitStatus(name, "Stopped")
 	}()
-
 	return nil
 }
 
@@ -147,28 +285,21 @@ func (o *Orchestrator) StopService(name string) error {
 	if runtime.GOOS == "windows" {
 		var exeNames []string
 		switch name {
-		case "Apache":
-			exeNames = []string{"httpd.exe"}
-		case "MySQL":
-			exeNames = []string{"mysqld.exe"}
-		case "HeidiSQL":
-			exeNames = []string{"heidisql.exe"}
-		case "Nginx":
-			exeNames = []string{"nginx.exe"}
-		case "PHP":
-			exeNames = []string{"php.exe", "php-cgi.exe"}
+		case "Apache": exeNames = []string{"httpd.exe"}
+		case "MySQL":  exeNames = []string{"mysqld.exe"}
+		case "HeidiSQL": exeNames = []string{"heidisql.exe"}
+		case "Nginx":  exeNames = []string{"nginx.exe"}
+		case "PHP":    exeNames = []string{"php.exe", "php-cgi.exe"}
 		}
-
 		for _, exe := range exeNames {
-			exec.Command("taskkill", "/F", "/IM", exe, "/T").Run()
+			pids := findOsteniaPIDs(exe)
+			for _, pid := range pids { exec.Command("taskkill", "/F", "/PID", strconv.Itoa(pid), "/T").Run() }
 		}
-		time.Sleep(500 * time.Millisecond) // Wait for process to fully terminate
+		time.Sleep(600 * time.Millisecond)
 	}
-
 	o.mu.Lock()
 	delete(o.services, name)
 	o.mu.Unlock()
-
 	o.emitStatus(name, "Stopped")
 	return nil
 }
@@ -176,10 +307,7 @@ func (o *Orchestrator) StopService(name string) error {
 func (o *Orchestrator) captureLogs(name string, reader io.ReadCloser) {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
-		wruntime.EventsEmit(o.ctx, "service_log", map[string]string{
-			"service": name,
-			"message": scanner.Text(),
-		})
+		wruntime.EventsEmit(o.ctx, "service_log", map[string]string{"service": name, "message": scanner.Text()})
 	}
 }
 
@@ -191,12 +319,7 @@ func (o *Orchestrator) emitStatus(name string, status string) {
 func (o *Orchestrator) StopAll() {
 	o.mu.Lock()
 	names := make([]string, 0, len(o.services))
-	for name := range o.services {
-		names = append(names, name)
-	}
+	for name := range o.services { names = append(names, name) }
 	o.mu.Unlock()
-
-	for _, name := range names {
-		o.StopService(name)
-	}
+	for _, name := range names { o.StopService(name) }
 }

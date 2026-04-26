@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
-import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService, GetServerRoot, SetServerRoot, GetServiceStatus, SelectServerRoot, OpenPluginFolder, OpenServerRootFolder } from '../wailsjs/go/main/App';
+import { GetPrerequisites, InstallPrerequisite, CancelDownload, StartAllServices, StopAllServices, OpenTerminal, DeleteVersion, StartService, StopService, GetServerRoot, SetServerRoot, GetServiceStatus, SelectServerRoot, OpenPluginFolder, OpenServerRootFolder, UpdateActiveTab, SetApacheHTTPS, SetNginxHTTPS, GetConfig } from '../wailsjs/go/main/App';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -33,11 +33,12 @@ function App() {
   const [activeTab, setActiveTab] = useState('activity');
   const [theme, setTheme] = useState('dark');
   const [services, setServices] = useState([
-    { name: 'Apache', status: 'Stopped', pid: 0, port: 0 },
-    { name: 'Nginx', status: 'Stopped', pid: 0, port: 0 },
-    { name: 'MySQL', status: 'Stopped', pid: 0, port: 0 },
-    { name: 'PHP', status: 'Stopped', pid: 0, port: 0 },
-    { name: 'HeidiSQL', status: 'Stopped', pid: 0, port: 0 },
+    { name: 'Apache', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
+    { name: 'Nginx', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
+    { name: 'MySQL', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
+    { name: 'PHP', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
+    { name: 'HeidiSQL', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
+    { name: 'OpenSSL', status: 'Stopped', pid: 0, port: 0, remainingDays: 0, ports: [], activeVersion: '' },
   ]);
   const [prerequisites, setPrerequisites] = useState([]);
   const [downloadProgress, setDownloadProgress] = useState({});
@@ -50,6 +51,8 @@ function App() {
   const [selectedVersions, setSelectedVersions] = useState({});
   const [isAddingPlugin, setIsAddingPlugin] = useState(false);
   const [serverRoot, setServerRoot] = useState('');
+  const [apacheHttps, setApacheHttps] = useState(false);
+  const [nginxHttps, setNginxHttps] = useState(false);
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
@@ -69,6 +72,13 @@ function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
+
+  // Sync active tab to backend
+  useEffect(() => {
+    if (window.go) {
+      UpdateActiveTab(activeTab);
+    }
+  }, [activeTab]);
 
   const addLog = (msg) => {
     setLogs(prev => [{ time: new Date().toLocaleTimeString(), msg }, ...prev].slice(0, 500));
@@ -125,13 +135,23 @@ function App() {
     const loadInitialData = async () => {
       if (window.go) {
         try {
-          const root = await GetServerRoot();
-          setServerRoot(root);
+          const cfg = await GetConfig();
+          setServerRoot(cfg.wwwRoot);
+          setApacheHttps(cfg.apacheHttps);
+          setNginxHttps(cfg.nginxHttps);
 
           const updatedServices = await Promise.all(
             services.map(async (service) => {
                const detail = await GetServiceStatus(service.name);
-               return { ...service, status: detail.status, pid: detail.pid, port: detail.port };
+               return { 
+                 ...service, 
+                 status: detail.status, 
+                 pid: detail.pid, 
+                 port: detail.port, 
+                 ports: detail.ports || [], 
+                 remainingDays: detail.remainingDays || 0,
+                 activeVersion: detail.activeVersion || ''
+               };
             })
           );
           setServices(updatedServices);
@@ -147,8 +167,20 @@ function App() {
 
     if (window.runtime) {
       EventsOn('service_status', (data) => {
-        setServices(prev => prev.map(service => service.name === data.name ? { ...service, status: data.status, pid: data.pid, port: data.port } : service));
-        addLog(`Service ${data.name} status changed to ${data.status}`);
+        setServices(prev => prev.map(service => service.name === data.name ? { 
+          ...service, 
+          status: data.status, 
+          pid: data.pid, 
+          port: data.port, 
+          ports: data.ports || [], 
+          remainingDays: data.remainingDays || 0,
+          activeVersion: data.activeVersion || ''
+        } : service));
+        
+        if (data.name === 'OpenSSL' && data.status === 'Stopped') {
+          setApacheHttps(false);
+          setNginxHttps(false);
+        }
       });
 
       EventsOn('download_progress', (data) => {
@@ -249,10 +281,31 @@ function App() {
 
   const handleAddToHome = (task) => {
     if (!services.find(service => service.name === task.name)) {
-      setServices(prev => [...prev, { name: task.name, status: 'Stopped', pid: 0, port: 0 }]);
+      setServices(prev => [...prev, { name: task.name, status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '', remainingDays: 0 }]);
       addLog(`Added ${task.name} to home screen.`);
     }
     setIsAddingPlugin(false);
+  };
+
+  const handleToggleHttps = async (name) => {
+    if (!window.go) return;
+    try {
+      if (name === 'Apache') {
+        const newValue = !apacheHttps;
+        setApacheHttps(newValue);
+        await SetApacheHTTPS(newValue);
+        addLog(`Apache HTTPS ${newValue ? 'enabled' : 'disabled'}`);
+      } else if (name === 'Nginx') {
+        const newValue = !nginxHttps;
+        setNginxHttps(newValue);
+        await SetNginxHTTPS(newValue);
+        addLog(`Nginx HTTPS ${newValue ? 'enabled' : 'disabled'}`);
+      }
+    } catch (err) {
+      addToast('HTTPS Error', `Failed to toggle HTTPS: ${err}`, 'error');
+      if (name === 'Apache') setApacheHttps(apacheHttps);
+      else if (name === 'Nginx') setNginxHttps(nginxHttps);
+    }
   };
 
   const handleCancel = (name) => {
@@ -338,7 +391,7 @@ function App() {
         setIsLogOpen={setIsLogOpen} 
       />
 
-      <div className="flex-1 flex flex-col overflow-hidden relative">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-full animate-pulse pointer-events-none" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[120px] rounded-full animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
 
@@ -369,6 +422,9 @@ function App() {
                 setActiveTab={setActiveTab}
                 handleOpenPluginFolder={handleOpenPluginFolder}
                 handleOpenServerRootFolder={handleOpenServerRootFolder}
+                apacheHttps={apacheHttps}
+                nginxHttps={nginxHttps}
+                handleToggleHttps={handleToggleHttps}
               />
             ) : (
               <PluginsTab 
