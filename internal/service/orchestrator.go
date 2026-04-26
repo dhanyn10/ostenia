@@ -123,8 +123,19 @@ func (o *Orchestrator) GetDetailedInfo(name string) ServiceDetailedInfo {
 		info.PID = pids[0]
 
 		if name == "Apache" || name == "Nginx" || name == "MySQL" || name == "PHP" {
-			// Find all ports used by ANY of the discovered PIDs
-			info.Ports = findPortsForPIDs(pids)
+			foundPorts := make(map[int]bool)
+			for _, pid := range pids {
+				ports := findPortsByPIDExact(pid)
+				for _, p := range ports {
+					foundPorts[p] = true
+				}
+			}
+
+			for p := range foundPorts {
+				info.Ports = append(info.Ports, p)
+			}
+
+			sort.Ints(info.Ports)
 
 			if len(info.Ports) > 0 {
 				info.Port = info.Ports[0]
@@ -171,50 +182,41 @@ func findPIDsByName(exeName string) []int {
 	return pids
 }
 
-// findPortsForPIDs runs netstat once and collects all listening ports for the given PIDs
-func findPortsForPIDs(pids []int) []int {
+// findPortsByPIDExact follows the user's logic: netstat -ano | findstr <PID> | findstr LISTENING
+func findPortsByPIDExact(pid int) []int {
 	ports := []int{}
-	if len(pids) == 0 { return ports }
+	if pid <= 0 { return ports }
 
-	pidMap := make(map[string]bool)
-	for _, pid := range pids {
-		pidMap[strconv.Itoa(pid)] = true
-	}
-
-	cmd := exec.Command("cmd", "/c", "netstat -ano")
-	out, err := cmd.Output()
-	if err != nil { return ports }
+	pidStr := strconv.Itoa(pid)
+	// Using the exact sequence requested by user
+	command := fmt.Sprintf("netstat -ano | findstr %s | findstr LISTENING", pidStr)
+	cmd := exec.Command("cmd", "/c", command)
+	out, _ := cmd.Output()
 
 	lines := strings.Split(string(out), "\n")
-	foundPorts := make(map[int]bool)
-
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if !strings.Contains(line, "LISTENING") {
-			continue
-		}
+		if line == "" { continue }
 
 		fields := strings.Fields(line)
-		// Expected: Proto, Local Addr, Foreign Addr, State, PID
-		if len(fields) >= 5 {
-			pidStr := fields[len(fields)-1]
-			if pidMap[pidStr] {
-				localAddr := fields[1]
-				lastColon := strings.LastIndex(localAddr, ":")
-				if lastColon != -1 {
-					p, err := strconv.Atoi(localAddr[lastColon+1:])
-					if err == nil && p > 0 {
-						foundPorts[p] = true
+		// Validation: The last field MUST be the PID to avoid partial matches
+		if len(fields) >= 5 && fields[len(fields)-1] == pidStr {
+			localAddr := fields[1]
+			lastColon := strings.LastIndex(localAddr, ":")
+			if lastColon != -1 {
+				portStr := localAddr[lastColon+1:]
+				p, err := strconv.Atoi(portStr)
+				if err == nil && p > 0 {
+					// Add if not already in list
+					exists := false
+					for _, existing := range ports {
+						if existing == p { exists = true; break }
 					}
+					if !exists { ports = append(ports, p) }
 				}
 			}
 		}
 	}
-
-	for p := range foundPorts {
-		ports = append(ports, p)
-	}
-	sort.Ints(ports)
 	return ports
 }
 
