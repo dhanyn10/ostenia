@@ -382,7 +382,7 @@ function App() {
         setIsLogOpen={setIsLogOpen} 
       />
 
-      <div className="flex-1 flex flex-col overflow-hidden relative">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-full animate-pulse pointer-events-none" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[120px] rounded-full animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
 
@@ -396,7 +396,7 @@ function App() {
         />
 
         <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <div className="max-w-4xl w-full mx-auto flex flex-col h-full px-8 pb-8">
+          <div className="max-w-4xl w-full mx-auto flex flex-col h-full px-8 pb-8 overflow-hidden">
             {activeTab === 'activity' ? (
               <ActivityTab 
                 serverRoot={serverRoot}

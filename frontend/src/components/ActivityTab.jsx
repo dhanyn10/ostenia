@@ -97,7 +97,7 @@ function ActivityTab({
       </div>
 
       {/* Scrollable Services List */}
-      <div className="flex-1 overflow-y-auto pr-3 -mr-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5 space-y-2 pb-20">
+      <div className="flex-1 overflow-y-auto pr-3 -mr-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5 space-y-2">
         {services.map((service) => {
           const task = prerequisites.find(p => p.name === service.name);
           const isInstalled = (task?.installedVers && task.installedVers.length > 0) || service.name === 'OpenSSL';
