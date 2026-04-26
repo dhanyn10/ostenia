@@ -17,14 +17,14 @@ function PluginsTab({
 }) {
   return (
     <div className="flex flex-col h-full pt-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="flex-1 overflow-y-auto pr-3 -mr-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5 space-y-2">
+      <div className="flex-1 overflow-y-auto pr-3 -mr-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5 space-y-2 pb-20">
         {prerequisites.map((task) => {
           if (!task) return null;
           
           const progress = downloadProgress[task.name];
           const isActive = progress && progress.percentage > 0 && progress.percentage < 100;
           const isDropdownOpen = openDropdown === task.name;
-          const Icon = ICON_MAP[task.name] || ICON_MAP.default;
+          const ServiceIcon = ICON_MAP[task.name] || ICON_MAP.default;
           
           const availableVersions = task.versions || [];
           const installedVersions = task.installedVers || [];
@@ -44,7 +44,8 @@ function PluginsTab({
                 "w-10 h-10 rounded-sm flex items-center justify-center shadow-lg transition-transform group-hover:scale-105",
                 task.isInstalled ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
               )}>
-                <Icon size={18} />
+                {/* Properly sized SVG Icon using the common ICON_MAP */}
+                <ServiceIcon size={18} className="text-slate-900 dark:text-white" />
               </div>
 
               <div className="flex-1 min-w-0">
@@ -73,7 +74,7 @@ function PluginsTab({
                       title={`Delete v${ver}`}
                     >
                       <Trash2 size={10} className="w-0 opacity-0 group-hover/tag:w-2.5 group-hover/tag:opacity-100 transition-all text-rose-500" />
-                      v{ver}
+                      {ver}
                     </div>
                   ))}
                 </div>

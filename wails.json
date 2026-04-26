@@ -1,5 +1,4 @@
 {
-  "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "ostenia",
   "outputfilename": "ostenia",
   "frontend:install": "npm install",
@@ -7,7 +6,7 @@
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
   "author": {
-    "name": "google-labs-jules[bot]",
-    "email": "161369871+google-labs-jules[bot]@users.noreply.github.com"
+    "name": "Dhany Nurdiansyah",
+    "email": "dhanyn.dhan@gmail.com"
   }
 }

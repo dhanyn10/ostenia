@@ -11,23 +11,24 @@ import Toast from './components/Toast';
 import LogViewer from './components/LogViewer';
 import ActivityTab from './components/ActivityTab';
 import PluginsTab from './components/PluginsTab';
+import Icons from './components/Icons';
 
 // Icons
-import { Globe, Database, Settings, ExternalLink, Server, Loader2, Shield } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
 const ICON_MAP = {
-  'Apache': Globe,
-  'Nginx': Server,
-  'MySQL': Database,
-  'PHP': Settings,
-  'HeidiSQL': ExternalLink,
-  'OpenSSL': Shield,
-  'Node.js': Settings,
-  'default': Database
+  'Apache': Icons.Apache,
+  'Nginx': Icons.Nginx,
+  'MySQL': Icons.MySQL,
+  'PHP': Icons.PHP,
+  'HeidiSQL': Icons.HeidiSQL,
+  'OpenSSL': Icons.OpenSSL,
+  'Node.js': Icons.Node,
+  'default': Icons.MySQL
 };
 
 function App() {
