@@ -62,6 +62,10 @@ func (a *App) GetConfig() *config.Config {
 	return a.cfg
 }
 
+func (a *App) IsAdmin() bool {
+	return service.IsAdmin()
+}
+
 func (a *App) GetPrerequisites() []download.DownloadTask {
 	return download.GetLatestKnownVersions()
 }
@@ -117,7 +121,7 @@ func (a *App) OpenPluginFolder(serviceName string) error {
 	binDir := filepath.Join(baseDir, "bin")
 
 	category := strings.ToLower(serviceName)
-	if category == "node.js" { category = "nodejs" } // Map UI name to folder name
+	if category == "node.js" { category = "nodejs" }
 
 	folderPath := filepath.Join(binDir, category)
 	if _, err := os.Stat(folderPath); os.IsNotExist(err) {
@@ -171,6 +175,19 @@ func (a *App) StartService(serviceName string) error {
 	fmt.Printf("[App] Starting service: %s\n", serviceName)
 
 	switch serviceName {
+	case "Node.js":
+		nodePath := filepath.Join(baseDir, "bin", "nodejs", "current")
+		if _, err := os.Stat(nodePath); os.IsNotExist(err) {
+			return fmt.Errorf("node.js is not installed or current link is missing")
+		}
+		err := service.UpdateNodePath(nodePath, true)
+		if err != nil {
+			return fmt.Errorf("failed to add Node.js to SYSTEM PATH. Make sure you are running as Administrator: %w", err)
+		}
+		info := a.orchestrator.GetDetailedInfo("Node.js")
+		wruntime.EventsEmit(a.ctx, "service_status", info)
+		return nil
+
 	case "OpenSSL":
 		caDir := filepath.Join(baseDir, "ssl")
 		err := ssl.GenerateRootCA(caDir)
@@ -292,7 +309,7 @@ func (a *App) StartService(serviceName string) error {
 		}
 
 		os.Setenv("PATH", phpPath+";"+os.Getenv("PATH"))
-		_ = service.UpdateUserPath(phpPath, true)
+		_ = service.UpdatePHPPath(phpPath, true)
 
 		os.Setenv("PHP_FCGI_MAX_REQUESTS", "1000")
 		err = a.orchestrator.StartServiceWithPort("PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, phpPath, port)
@@ -323,7 +340,17 @@ func (a *App) StopService(serviceName string) {
 	if serviceName == "PHP" {
 		baseDir := config.GetBaseDir()
 		phpPath := filepath.Join(baseDir, "bin", "php", "current")
-		_ = service.UpdateUserPath(phpPath, false)
+		_ = service.UpdatePHPPath(phpPath, false)
+	}
+
+	if serviceName == "Node.js" {
+		baseDir := config.GetBaseDir()
+		nodePath := filepath.Join(baseDir, "bin", "nodejs", "current")
+		_ = service.UpdateNodePath(nodePath, false)
+
+		info := a.orchestrator.GetDetailedInfo("Node.js")
+		wruntime.EventsEmit(a.ctx, "service_status", info)
+		return
 	}
 
 	a.orchestrator.StopService(serviceName)
@@ -367,6 +394,12 @@ func (a *App) SwitchServiceVersion(serviceName string, version string) error {
 		phpPath := filepath.Join(baseDir, "bin", "php", "current")
 		os.Setenv("PATH", phpPath+";"+os.Getenv("PATH"))
 		_ = service.UpdatePHPConfig(phpPath)
+		_ = service.UpdatePHPPath(phpPath, true)
+	}
+
+	if category == "nodejs" {
+		nodePath := filepath.Join(baseDir, "bin", "nodejs", "current")
+		_ = service.UpdateNodePath(nodePath, true)
 	}
 
 	if wasRunning { return a.StartService(serviceName) }
