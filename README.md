@@ -1,19 +1,27 @@
-# README
+# Ostenia
 
-## About
+Ostenia is a lightweight, modern local development environment manager for Windows. It provides a seamless way to manage web servers, databases, and PHP versions with built-in SSL automation.
 
-This is the official Wails React template.
+## Key Features
 
-You can configure the project by editing `wails.json`. More information about the project settings can be found
-here: https://wails.io/docs/reference/project-config
+- **Multi-Service Stack**: Manage Apache, Nginx, MySQL, PHP, and HeidiSQL from a single dashboard.
+- **Automated SSL/HTTPS**: Generate local SSL certificates and toggle HTTPS for web servers with one click.
+- **Dynamic PHP Management**: 
+  - Switch PHP versions instantly.
+  - Automatic Windows User PATH updates.
+  - GUI-based PHP Extension manager (php.ini editor).
+- **Smart Monitoring**: Real-time PID and multi-port detection (e.g., seeing 80 and 443 active simultaneously).
+- **Integrated Terminal**: Open CMD or PowerShell directly in the context of each service's directory.
 
-## Live Development
+## Getting Started
 
-To run in live development mode, run `wails dev` in the project directory. This will run a Vite development
-server that will provide very fast hot reload of your frontend changes. If you want to develop in a browser
-and have access to your Go methods, there is also a dev server that runs on http://localhost:34115. Connect
-to this in your browser, and you can call your Go code from devtools.
+1. **Set Server Root**: Select your `www` folder in the Activity Center.
+2. **Setup SSL**: Toggle **OpenSSL** to generate your local Root CA.
+3. **Install Plugins**: Go to Plugin Management to download and install your preferred tools.
+4. **Go Live**: Toggle services on/off as needed.
 
-## Building
+## Tech Stack
 
-To build a redistributable, production mode package, use `wails build`.
+- **Backend**: Go (Wails)
+- **Frontend**: React + Tailwind CSS
+- **Icons**: Lucide React
