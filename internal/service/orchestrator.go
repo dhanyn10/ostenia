@@ -63,7 +63,7 @@ func (o *Orchestrator) StartWatcher() {
 		ticker := time.NewTicker(3 * time.Second)
 		defer ticker.Stop()
 
-		servicesToWatch := []string{"Apache", "Nginx", "MySQL", "PHP", "HeidiSQL", "OpenSSL"}
+		servicesToWatch := []string{"Apache", "Nginx", "MySQL", "PHP", "Node.js", "HeidiSQL", "OpenSSL"}
 
 		for {
 			select {
@@ -96,33 +96,50 @@ func (o *Orchestrator) GetDetailedInfo(name string) ServiceDetailedInfo {
 	o.mu.Unlock()
 
 	info := ServiceDetailedInfo{Name: name, Status: "Stopped", Ports: []int{}}
+	baseDir := config.GetBaseDir()
 
-	// PROACTIVE VERSION DETECTION
-	if name == "PHP" {
-		baseDir := config.GetBaseDir()
-		phpExe := filepath.Join(baseDir, "bin", "php", "current", "php.exe")
+	// Special case for Node.js (Check SYSTEM PATH status)
+	if name == "Node.js" {
+		currentPath := filepath.Join(baseDir, "bin", "nodejs", "current")
+		// Check System PATH instead of User PATH
+		if IsPathInSystemPath(currentPath) {
+			info.Status = "Running"
+		}
 
-		// If current symlink exists, run THAT specific exe to get version
-		if _, err := os.Stat(phpExe); err == nil {
-			cmd := exec.Command(phpExe, "-v")
-			if runtime.GOOS == "windows" {
-				cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		// Get version
+		nodeExe := filepath.Join(currentPath, "node.exe")
+		if _, err := os.Stat(nodeExe); err == nil {
+			cmd := exec.Command(nodeExe, "-v")
+			if runtime.GOOS == "windows" { cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true} }
+			out, _ := cmd.Output()
+			info.ActiveVersion = string(out)
+		}
+		return info
+	}
+
+	// Detection for active version (linked to 'current')
+	if name == "PHP" || name == "Apache" || name == "MySQL" || name == "Nginx" {
+		currentPath := filepath.Join(baseDir, "bin", strings.ToLower(name), "current")
+
+		if name == "PHP" {
+			// Check if PHP is actually registered in USER PATH
+			if IsPathInUserPath(currentPath) {
+				info.Status = "Running"
 			}
-			out, err := cmd.Output()
-			if err == nil {
+
+			phpExe := filepath.Join(currentPath, "php.exe")
+			if _, err := os.Stat(phpExe); err == nil {
+				cmd := exec.Command(phpExe, "-v")
+				if runtime.GOOS == "windows" { cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true} }
+				out, _ := cmd.Output()
 				info.ActiveVersion = string(out)
 			}
-		}
-	} else if name == "Apache" || name == "MySQL" || name == "Nginx" {
-		baseDir := config.GetBaseDir()
-		currentPath := filepath.Join(baseDir, "bin", strings.ToLower(name), "current")
-		if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
+		} else if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
 			info.ActiveVersion = filepath.Base(resolved)
 		}
 	}
 
 	if name == "OpenSSL" {
-		baseDir := config.GetBaseDir()
 		caPath := filepath.Join(baseDir, "ssl", "ca.crt")
 		if _, err := os.Stat(caPath); err == nil {
 			info.Status = "Running"
@@ -172,9 +189,13 @@ func (o *Orchestrator) GetDetailedInfo(name string) ServiceDetailedInfo {
 		}
 	} else {
 		if tracked {
-			o.mu.Lock()
-			delete(o.services, name)
-			o.mu.Unlock()
+			if name == "PHP" && info.Status == "Running" {
+				// Keep tracked if in PATH
+			} else {
+				o.mu.Lock()
+				delete(o.services, name)
+				o.mu.Unlock()
+			}
 		}
 	}
 

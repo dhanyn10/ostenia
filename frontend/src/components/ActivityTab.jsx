@@ -181,11 +181,11 @@ function ActivityTab({
                       <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{service.name}</h3>
                       
                       {/* Version Badges */}
-                      {service.name === 'PHP' && installedVersions.length > 0 && (
+                      {(service.name === 'PHP' || service.name === 'Node.js') && installedVersions.length > 0 && (
                         <div className="flex items-center gap-1 ml-1" onClick={(e) => e.stopPropagation()}>
                           {installedVersions.map(ver => {
                             const systemString = (service.activeVersion || "").toString().toLowerCase().trim();
-                            const cleanVer = ver.toString().replace(/^v/, "").replace(/^[a-z]+-/, "").trim();
+                            const cleanVer = ver.toString().replace(/^v/, "").replace(/^[a-z. ]+-/, "").trim();
                             const isActive = systemString.includes(cleanVer.toLowerCase());
 
                             return (
@@ -307,7 +307,7 @@ function ActivityTab({
                         <button 
                           onClick={() => setOpenTerminalDropdown(openTerminalDropdown === service.name ? null : service.name)}
                           className={cn(
-                            "w-12 h-8 flex items-center justify-center gap-1 rounded-sm border border-slate-200 dark:border-white/5 transition-all",
+                            "p-2 flex items-center gap-1 rounded-sm border border-slate-200 dark:border-white/5 transition-all",
                             openTerminalDropdown === service.name ? "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white" : "bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400"
                           )}
                           title="Terminal"
@@ -329,7 +329,7 @@ function ActivityTab({
                       </div>
                     )}
 
-                    {/* HTTPS Toggle - Standardized size to match other buttons (h-8) */}
+                    {/* HTTPS Toggle */}
                     {hasHttpsToggle && (
                       <button
                         onClick={() => handleToggleHttps(service.name)}

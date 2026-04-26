@@ -12,6 +12,8 @@ export function GetConfig():Promise<config.Config>;
 
 export function GetPHPExtensions():Promise<Array<service.PHPExtensionInfo>>;
 
+export function GetPHPVersionFromCLI():Promise<string>;
+
 export function GetPrerequisites():Promise<Array<download.DownloadTask>>;
 
 export function GetServerRoot():Promise<string>;
@@ -19,6 +21,8 @@ export function GetServerRoot():Promise<string>;
 export function GetServiceStatus(arg1:string):Promise<service.ServiceDetailedInfo>;
 
 export function InstallPrerequisite(arg1:download.DownloadTask):Promise<void>;
+
+export function IsAdmin():Promise<boolean>;
 
 export function OpenPluginFolder(arg1:string):Promise<void>;
 
