@@ -50,7 +50,7 @@ function App() {
   const [nginxHttps, setNginxHttps] = useState(false);
 
   const renderIcon = (name, size = 20, className = "") => {
-    const task = prerequisites.find(p => p.name === name);
+    const task = (prerequisites || []).find(p => p.name === name);
     if (task && task.iconSvg) return <Icons.Raw svgString={task.iconSvg} size={size} className={className} />;
     return null;
   };
@@ -109,12 +109,22 @@ function App() {
         );
         setServices(updatedServices);
       }
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+    } catch (err) { console.error(err); }
+  };
+
+  const initApp = async () => {
+    setLoading(true);
+    try {
+        await Promise.all([refreshPrerequisites(), loadInitialData()]);
+    } catch (err) {
+        console.error("Initialization failed:", err);
+    } finally {
+        setTimeout(() => setLoading(false), 600);
+    }
   };
 
   useEffect(() => {
-    refreshPrerequisites();
-    loadInitialData();
+    initApp();
 
     if (window.runtime) {
       EventsOn('service_status', (data) => {
@@ -123,20 +133,16 @@ function App() {
 
       EventsOn('download_progress', (data) => {
         setDownloadProgress(prev => ({ ...prev, [data.name]: data }));
-        
-        // Diagnosa: Munculkan Toast jika ada error dari backend
         if (data.status?.startsWith('Error')) {
           addToast('Installation Failed', `${data.name}: ${data.status}`, 'error');
         }
-
         if (data.percentage === 100 && (data.status === 'Completed' || data.status === 'Ready')) {
           refreshPrerequisites();
         }
       });
       
       EventsOn('environment_changed', () => {
-        loadInitialData();
-        refreshPrerequisites();
+        initApp();
       });
     }
   }, []);
@@ -170,17 +176,13 @@ function App() {
 
         <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <div className="max-w-4xl w-full mx-auto flex flex-col h-full px-8 pb-8">
-            {loading ? (
-              <div className="flex-1 flex items-center justify-center">
-                <Loader2 className="animate-spin text-blue-500" size={32} />
-              </div>
-            ) : activeTab === 'activity' ? (
+            {activeTab === 'activity' ? (
               <ActivityTab 
                 serverRoot={serverRootState}
                 appsLocation={appsLocation}
                 handleBrowseAppsLocation={async () => {
                    const selected = await AppBackend.SelectServerRoot();
-                   if (selected) { setAppsLocation(selected); loadInitialData(); }
+                   if (selected) { setAppsLocation(selected); initApp(); }
                 }}
                 handleBrowseServerRoot={async () => {
                    if (window.runtime) {
@@ -214,6 +216,7 @@ function App() {
                     const next = !nginxHttps; setNginxHttps(next); await AppBackend.SetNginxHTTPS(next);
                   }
                 }}
+                isLoading={loading} // Pass loading state to ActivityTab
               />
             ) : (
               <PluginsTab 
@@ -226,10 +229,7 @@ function App() {
                 handleDeleteVersion={(name, ver) => AppBackend.DeleteVersion(name, ver).then(refreshPrerequisites)}
                 handleInstallSingle={async (task) => {
                     const selectedVer = selectedVersions[task.name] || task.version;
-                    
-                    // Reset progres UI
                     setDownloadProgress(prev => ({ ...prev, [task.name]: { name: task.name, percentage: 0, status: 'Starting...' } }));
-
                     const modifiedTask = { ...task, version: selectedVer };
                     const prefixMap = {
                         'PHP': 'php-', 'Apache': 'httpd-', 'MySQL': 'mysql-',
@@ -238,17 +238,11 @@ function App() {
                     const categoryMap = { 'Node.js': 'nodejs', 'HeidiSQL': 'heidisql' };
                     const category = categoryMap[task.name] || task.name.toLowerCase();
                     const prefix = prefixMap[task.name] || '';
-                    
                     modifiedTask.target = `${category}/${prefix}${selectedVer}`;
                     if (task.versionUrls && task.versionUrls[selectedVer]) {
                         modifiedTask.url = task.versionUrls[selectedVer];
                     }
-
-                    try {
-                      await AppBackend.InstallPrerequisite(modifiedTask);
-                    } catch (e) {
-                      addToast('Error', e.toString(), 'error');
-                    }
+                    try { await AppBackend.InstallPrerequisite(modifiedTask); } catch (e) { addToast('Error', e.toString(), 'error'); }
                 }}
                 handleCancel={(name) => AppBackend.CancelDownload(name)}
                 renderIcon={renderIcon}
