@@ -23,7 +23,6 @@ function cn(...inputs) {
 function App() {
   const [activeTab, setActiveTab] = useState('activity');
   const [theme, setTheme] = useState(() => {
-    // Load initial theme from localStorage or system preference
     return localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   }); 
   const [services, setServices] = useState([
@@ -51,7 +50,6 @@ function App() {
   const [apacheHttps, setApacheHttps] = useState(false);
   const [nginxHttps, setNginxHttps] = useState(false);
 
-  // Sync theme with HTML class and LocalStorage
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -196,7 +194,7 @@ function App() {
 
   return (
     <div className={cn(
-      "flex h-screen font-sans selection:bg-blue-500/30 overflow-hidden transition-colors duration-300",
+      "flex h-screen font-sans selection:bg-blue-500/30 overflow-hidden transition-colors duration-300 fixed inset-0", // Added fixed inset-0
       theme === 'dark' ? "bg-[#0f172a] text-slate-200" : "bg-slate-50 text-slate-900"
     )}>
       <Toast toasts={toasts} removeToast={removeToast} />
@@ -204,7 +202,7 @@ function App() {
       <VerticalNav 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
-        toggleTheme={toggleTheme}
+        toggleTheme={toggleTheme} 
         theme={theme} 
         renderIcon={renderIcon}
       />
@@ -219,7 +217,7 @@ function App() {
           setIsTerminalOpen={setIsTerminalOpen} 
         />
 
-        <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
           <div className={cn(
             "w-full mx-auto flex flex-col h-full",
             activeTab === 'logs' ? "max-w-none" : "max-w-4xl px-8 pb-8"
