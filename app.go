@@ -182,13 +182,15 @@ func (a *App) StartService(serviceName string) error {
 		return a.orchestrator.StartServiceWithPort("Nginx", nginxBin, []string{"-p", nginxBase}, nginxBase, port)
 
 	case "HeidiSQL":
-		heidisqlBin := filepath.Join(binDir, "heidisql", "heidisql.exe")
-		if _, err := os.Stat(heidisqlBin); os.IsNotExist(err) { return fmt.Errorf("heidisql.exe not found") }
-		// FIX: Jalankan sebagai aplikasi GUI terpisah
-		cmd := exec.Command(heidisqlBin)
-		err := cmd.Start()
-		if err != nil { return err }
-		return nil
+		hDir := filepath.Join(baseDir, "bin", "heidisql", "current")
+		hBin := filepath.Join(hDir, "heidisql.exe")
+		if _, err := os.Stat(hBin); os.IsNotExist(err) {
+			hDir = filepath.Join(baseDir, "bin", "heidisql")
+			hBin = filepath.Join(hDir, "heidisql.exe")
+			if _, err := os.Stat(hBin); os.IsNotExist(err) { return fmt.Errorf("heidisql.exe not found") }
+		}
+		// REVERT: Gunakan orchestrator agar status terpantau (On/Off)
+		return a.orchestrator.StartService("HeidiSQL", hBin, []string{}, hDir)
 
 	case "PHP":
 		phpPath := filepath.Join(baseDir, "bin", "php", "current"); phpCgi := filepath.Join(phpPath, "php-cgi.exe")
