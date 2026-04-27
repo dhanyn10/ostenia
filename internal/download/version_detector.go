@@ -38,8 +38,8 @@ func getInstalledVersionPaths(baseDir string, category string, checkFile string)
 
 			potentialPaths := []string{
 				filepath.Join(compDir, entry.Name(), checkFile),
-				filepath.Join(compDir, entry.Name(), "Apache24", checkFile), // Apache specific
-				filepath.Join(compDir, entry.Name(), "bin", checkFile),      // OpenSSL specific
+				filepath.Join(compDir, entry.Name(), "Apache24", checkFile),
+				filepath.Join(compDir, entry.Name(), "bin", checkFile),
 			}
 
 			for _, p := range potentialPaths {

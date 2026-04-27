@@ -14,13 +14,12 @@ import PluginsTab from './components/PluginsTab';
 import Icons from './components/Icons';
 
 // Icons
-import { Loader2 } from 'lucide-react';
+import { Loader2, Database } from 'lucide-react';
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
-// Strictly use custom icons from Icons.jsx
 const ICON_MAP = {
   'Apache': Icons.Apache,
   'Nginx': Icons.Nginx,
@@ -79,7 +78,6 @@ function App() {
     try {
       const tasks = await AppBackend.GetPrerequisites();
       setPrerequisites(tasks || []);
-      
       if (tasks) {
         setSelectedVersions(prev => {
           const next = { ...prev };
@@ -95,9 +93,7 @@ function App() {
           return next;
         });
       }
-    } catch (err) {
-      console.error("Error refreshing prerequisites:", err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const loadInitialData = async () => {
@@ -110,7 +106,6 @@ function App() {
         setApacheHttps(cfg.apacheHttps || false);
         setNginxHttps(cfg.nginxHttps || false);
       }
-
       if (AppBackend.GetServiceStatus) {
         const updatedServices = await Promise.all(
           services.map(async (service) => {
@@ -118,147 +113,67 @@ function App() {
                const detail = await AppBackend.GetServiceStatus(service.name);
                if (!detail) return service;
                return { 
-                 ...service, 
-                 status: detail.status || 'Stopped', 
-                 pid: detail.pid || 0, 
-                 port: detail.port || 0, 
-                 ports: detail.ports || [], 
-                 remainingDays: detail.remainingDays || 0,
-                 activeVersion: detail.activeVersion || ''
+                 ...service, status: detail.status || 'Stopped', pid: detail.pid || 0, port: detail.port || 0, ports: detail.ports || [], remainingDays: detail.remainingDays || 0, activeVersion: detail.activeVersion || ''
                };
-             } catch (e) {
-               return service;
-             }
+             } catch (e) { return service; }
           })
         );
         setServices(updatedServices);
       }
-    } catch (err) {
-      console.error("Error loading initial data:", err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
   useEffect(() => {
-    const init = async () => {
-      await refreshPrerequisites();
-      await loadInitialData();
-    };
+    const init = async () => { await refreshPrerequisites(); await loadInitialData(); };
     init();
 
     const statusUnsub = EventsOn('service_status', (data) => {
       if (!data) return;
       setServices(prev => prev.map(service => service.name === data.name ? { 
-        ...service, 
-        status: data.status || 'Stopped', 
-        pid: data.pid || 0, 
-        port: data.port || 0, 
-        ports: data.ports || [], 
-        remainingDays: data.remainingDays || 0,
-        activeVersion: data.activeVersion || ''
+        ...service, status: data.status || 'Stopped', pid: data.pid || 0, port: data.port || 0, ports: data.ports || [], remainingDays: data.remainingDays || 0, activeVersion: data.activeVersion || ''
       } : service));
     });
 
-    const envUnsub = EventsOn('environment_changed', () => {
-      loadInitialData();
-    });
-
-    return () => {
-      if (statusUnsub) statusUnsub();
-      if (envUnsub) envUnsub();
-    };
+    const envUnsub = EventsOn('environment_changed', () => { loadInitialData(); });
+    return () => { if (statusUnsub) statusUnsub(); if (envUnsub) envUnsub(); };
   }, []);
 
   return (
-    <div className={cn(
-      "flex h-screen font-sans selection:bg-blue-500/30 overflow-hidden transition-colors duration-300",
-      theme === 'dark' ? "bg-[#0f172a] text-slate-200" : "bg-slate-50 text-slate-900"
-    )}>
+    <div className={cn("flex h-screen font-sans selection:bg-blue-500/30 overflow-hidden transition-colors duration-300", theme === 'dark' ? "bg-[#0f172a] text-slate-200" : "bg-slate-50 text-slate-900")}>
       <Toast toasts={toasts} removeToast={removeToast} />
       <LogViewer logs={logs} isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} />
-
       <VerticalNav activeTab={activeTab} setActiveTab={setActiveTab} toggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} theme={theme} setIsLogOpen={setIsLogOpen} />
-
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-        <AppHeader 
-          activeTab={activeTab} 
-          handleStartAll={() => AppBackend.StartAllServices && AppBackend.StartAllServices()} 
-          handleStopAll={() => AppBackend.StopAllServices && AppBackend.StopAllServices()} 
-          handleTerminal={(type) => { AppBackend.OpenTerminal && AppBackend.OpenTerminal(type); setIsTerminalOpen(false); }} 
-          isTerminalOpen={isTerminalOpen} 
-          setIsTerminalOpen={setIsTerminalOpen} 
-        />
-
+        <AppHeader activeTab={activeTab} handleStartAll={() => AppBackend.StartAllServices()} handleStopAll={() => AppBackend.StopAllServices()} handleTerminal={(type) => { AppBackend.OpenTerminal(type); setIsTerminalOpen(false); }} isTerminalOpen={isTerminalOpen} setIsTerminalOpen={setIsTerminalOpen} />
         <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <div className="max-w-4xl w-full mx-auto flex flex-col h-full px-8 pb-8">
             {loading ? (
-              <div className="flex-1 flex items-center justify-center">
-                <Loader2 className="animate-spin text-blue-500" size={32} />
-              </div>
+              <div className="flex-1 flex items-center justify-center"><Loader2 className="animate-spin text-blue-500" size={32} /></div>
             ) : activeTab === 'activity' ? (
               <ActivityTab 
-                serverRoot={serverRootState}
-                appsLocation={appsLocation}
-                handleBrowseAppsLocation={async () => {
-                   const selected = await AppBackend.SelectServerRoot();
-                   if (selected) { setAppsLocation(selected); loadInitialData(); }
-                }}
-                handleBrowseServerRoot={async () => {
-                   if (window.runtime) {
-                     const selected = await window.runtime.OpenDirectoryDialog({ title: "Select Server Root (www)" });
-                     if (selected) { await AppBackend.SetWWWRoot(selected); setServerRootState(selected); }
-                   }
-                }}
-                isAddingPlugin={isAddingPlugin}
-                setIsAddingPlugin={setIsAddingPlugin}
-                prerequisites={prerequisites}
-                services={services}
-                handleAddToHome={(task) => {
-                  setServices(prev => {
-                    if (prev.find(s => s.name === task.name)) return prev;
-                    return [...prev, { name: task.name, status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '', remainingDays: 0 }];
-                  });
-                  setIsAddingPlugin(false);
-                }}
-                ICON_MAP={ICON_MAP}
-                handleToggleService={(name, status) => status === 'Running' ? AppBackend.StopService(name) : AppBackend.StartService(name)}
-                handleRemoveFromHome={(name) => setServices(prev => prev.filter(s => s.name !== name))}
-                setActiveTab={setActiveTab}
-                handleOpenPluginFolder={(name) => AppBackend.OpenPluginFolder(name)}
-                handleOpenServerRootFolder={() => AppBackend.OpenServerRootFolder()}
-                apacheHttps={apacheHttps}
-                nginxHttps={nginxHttps}
-                handleToggleHttps={async (name) => {
-                  if (name === 'Apache') {
-                    const next = !apacheHttps; setApacheHttps(next); await AppBackend.SetApacheHTTPS(next);
-                  } else {
-                    const next = !nginxHttps; setNginxHttps(next); await AppBackend.SetNginxHTTPS(next);
-                  }
-                }}
+                serverRoot={serverRootState} appsLocation={appsLocation}
+                handleBrowseAppsLocation={async () => { const selected = await AppBackend.SelectServerRoot(); if (selected) { setAppsLocation(selected); loadInitialData(); } }}
+                handleBrowseServerRoot={async () => { if (window.runtime) { const selected = await window.runtime.OpenDirectoryDialog({ title: "Select Server Root (www)" }); if (selected) { await AppBackend.SetWWWRoot(selected); setServerRootState(selected); } } }}
+                isAddingPlugin={isAddingPlugin} setIsAddingPlugin={setIsAddingPlugin} prerequisites={prerequisites} services={services}
+                handleAddToHome={(task) => { setServices(prev => { if (prev.find(s => s.name === task.name)) return prev; return [...prev, { name: task.name, status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '', remainingDays: 0 }]; }); setIsAddingPlugin(false); }}
+                ICON_MAP={ICON_MAP} handleToggleService={(name, status) => status === 'Running' ? AppBackend.StopService(name) : AppBackend.StartService(name)}
+                handleRemoveFromHome={(name) => setServices(prev => prev.filter(s => s.name !== name))} setActiveTab={setActiveTab}
+                handleOpenPluginFolder={(name) => AppBackend.OpenPluginFolder(name)} handleOpenServerRootFolder={() => AppBackend.OpenServerRootFolder()}
+                apacheHttps={apacheHttps} nginxHttps={nginxHttps}
+                handleToggleHttps={async (name) => { if (name === 'Apache') { const next = !apacheHttps; setApacheHttps(next); await AppBackend.SetApacheHTTPS(next); } else { const next = !nginxHttps; setNginxHttps(next); await AppBackend.SetNginxHTTPS(next); } }}
               />
             ) : (
               <PluginsTab 
-                prerequisites={prerequisites}
-                downloadProgress={downloadProgress}
-                openDropdown={openDropdown}
-                setOpenDropdown={setOpenDropdown}
-                selectedVersions={selectedVersions}
-                setSelectedVersions={setSelectedVersions}
+                prerequisites={prerequisites} downloadProgress={downloadProgress} openDropdown={openDropdown} setOpenDropdown={setOpenDropdown} selectedVersions={selectedVersions} setSelectedVersions={setSelectedVersions}
                 handleDeleteVersion={(name, ver) => AppBackend.DeleteVersion(name, ver).then(refreshPrerequisites)}
                 handleInstallSingle={async (task) => {
                     const selectedVer = selectedVersions[task.name] || task.version;
                     const arch = navigator.userAgent.includes('Win64') || navigator.userAgent.includes('x64') ? 'x64' : 'x86';
                     const modifiedTask = { ...task, version: selectedVer };
-                    if (task.name === 'Node.js') {
-                        modifiedTask.target = `nodejs/node-v${selectedVer}`;
-                        modifiedTask.url = `https://nodejs.org/dist/v${selectedVer}/node-v${selectedVer}-win-${arch}.zip`;
-                    }
-                    await AppBackend.InstallPrerequisite(modifiedTask);
-                    refreshPrerequisites();
+                    if (task.name === 'Node.js') { modifiedTask.target = `nodejs/node-v${selectedVer}`; modifiedTask.url = `https://nodejs.org/dist/v${selectedVer}/node-v${selectedVer}-win-${arch}.zip`; }
+                    await AppBackend.InstallPrerequisite(modifiedTask); refreshPrerequisites();
                 }}
-                handleCancel={(name) => AppBackend.CancelDownload(name)}
-                ICON_MAP={ICON_MAP}
+                handleCancel={(name) => AppBackend.CancelDownload(name)} ICON_MAP={ICON_MAP}
               />
             )}
           </div>

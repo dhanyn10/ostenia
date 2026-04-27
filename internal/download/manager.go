@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -54,7 +55,7 @@ func GetLatestKnownVersions() []DownloadTask {
 	phpVers, phpBase := DetectPHPVersions()
 	apacheVers, apacheURLs := DetectApacheVersions()
 	mysqlVers, mysqlURLs := DetectMySQLVersions()
-	nodeVers, nodeURLs := DetectNodeVersions() // Call Node.js detector
+	nodeVers, nodeURLs := DetectNodeVersions()
 
 	nginxVersion := "1.24.0"
 	nginxURL := fmt.Sprintf("https://nginx.org/download/nginx-%s.zip", nginxVersion)
@@ -96,7 +97,7 @@ func GetLatestKnownVersions() []DownloadTask {
 			CheckFile:   "bin/mysqld.exe",
 		},
 		{
-			Name:        "Node.js", // Add Node.js task
+			Name:        "Node.js",
 			URL:         nodeURLs[nodeVers[0]],
 			Version:     nodeVers[0],
 			Versions:    nodeVers,
@@ -134,40 +135,21 @@ func GetLatestKnownVersions() []DownloadTask {
 		compDir := filepath.Join(baseDir, "bin", category)
 		
 		installedPaths := getInstalledVersionPaths(baseDir, category, t.CheckFile)
-		for ver, p := range installedPaths {
-			if t.Name == "OpenSSL" {
-				detectedVer := getOpenSSLVersion(p)
-				if detectedVer != "" {
-					t.InstalledVers = append(t.InstalledVers, detectedVer)
-				} else {
-					t.InstalledVers = append(t.InstalledVers, ver)
-				}
-			} else {
-				t.InstalledVers = append(t.InstalledVers, ver)
+		for ver := range installedPaths {
+			t.InstalledVers = append(t.InstalledVers, ver)
+		}
+
+		if t.Name == "OpenSSL" && len(t.InstalledVers) == 0 {
+			if globalVer := getOpenSSLVersion("openssl"); globalVer != "" {
+				t.InstalledVers = append(t.InstalledVers, globalVer)
+				t.Version = globalVer
 			}
 		}
 
 		if len(t.InstalledVers) == 0 {
 			checkPath := filepath.Join(baseDir, "bin", t.Target, t.CheckFile)
 			if _, err := os.Stat(checkPath); err == nil {
-				if t.Name == "OpenSSL" {
-					detectedVer := getOpenSSLVersion(checkPath)
-					if detectedVer != "" {
-						t.InstalledVers = append(t.InstalledVers, detectedVer)
-					} else {
-						t.InstalledVers = append(t.InstalledVers, t.Version)
-					}
-				} else {
-					t.InstalledVers = append(t.InstalledVers, t.Version)
-				}
-			}
-		}
-
-		if t.Name == "OpenSSL" && len(t.InstalledVers) == 0 {
-			globalVer := getOpenSSLVersion("openssl")
-			if globalVer != "" {
-				t.InstalledVers = append(t.InstalledVers, globalVer)
-				t.Version = globalVer
+				t.InstalledVers = append(t.InstalledVers, t.Version)
 			}
 		}
 
@@ -179,10 +161,6 @@ func GetLatestKnownVersions() []DownloadTask {
 				t.IsInstalled = true
 			} else if category == "apache" {
 				if _, err := os.Stat(filepath.Join(resolved, "Apache24", t.CheckFile)); err == nil {
-					t.IsInstalled = true
-				}
-			} else if category == "openssl" {
-				if _, err := os.Stat(filepath.Join(resolved, "bin", t.CheckFile)); err == nil {
 					t.IsInstalled = true
 				}
 			}
@@ -202,7 +180,9 @@ func (m *Manager) DeleteVersion(taskName, version string) error {
 	if runtime.GOOS == "windows" {
 		exeMap := map[string]string{"apache": "httpd.exe", "mysql": "mysqld.exe", "php": "php.exe", "heidisql": "heidisql.exe", "nginx": "nginx.exe", "openssl": "openssl.exe", "node.js": "node.exe"}
 		if exe := exeMap[strings.ToLower(taskName)]; exe != "" {
-			exec.Command("taskkill", "/F", "/IM", exe, "/T").Run()
+			killCmd := exec.Command("taskkill", "/F", "/IM", exe, "/T")
+			killCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+			killCmd.Run()
 			time.Sleep(500 * time.Millisecond)
 		}
 	}
@@ -242,7 +222,7 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 
 	if isAlreadyInstalled {
 		fmt.Printf("[Downloader] %s verified at %s\n", task.Name, targetDir)
-		EnsureCurrentLink(baseDir, targetDir, task.Name)
+		m.ensureCurrentLink(task)
 		wruntime.EventsEmit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Ready"})
 		return nil
 	}
@@ -267,7 +247,7 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 		if err := HandleExeDownload(tmpFile, targetDir, task.CheckFile, true); err != nil {
 			return err
 		}
-		return EnsureCurrentLink(baseDir, targetDir, task.Name)
+		return m.ensureCurrentLink(task)
 	}
 
 	extractTmp := targetDir + ".tmp"
@@ -288,5 +268,25 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 
 	os.RemoveAll(targetDir)
 	os.Rename(extractTmp, targetDir)
-	return EnsureCurrentLink(baseDir, targetDir, task.Name)
+	return m.ensureCurrentLink(task)
+}
+
+func (m *Manager) ensureCurrentLink(task DownloadTask) error {
+	baseDir := config.GetBaseDir()
+	parts := strings.Split(filepath.ToSlash(task.Target), "/")
+	if len(parts) < 2 { return nil }
+
+	category := parts[0]
+	currentLink := filepath.Join(baseDir, "bin", category, "current")
+	targetAbs := filepath.Join(baseDir, "bin", category, parts[1])
+
+	os.Remove(currentLink)
+	if runtime.GOOS == "windows" {
+		cmd := exec.Command("cmd", "/c", "mklink", "/J", currentLink, targetAbs)
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		cmd.Run()
+	} else {
+		os.Symlink(targetAbs, currentLink)
+	}
+	return nil
 }
