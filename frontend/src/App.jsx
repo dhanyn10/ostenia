@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
 import * as AppBackend from '../wailsjs/go/main/App';
 import { clsx } from 'clsx';
@@ -22,7 +22,10 @@ function cn(...inputs) {
 
 function App() {
   const [activeTab, setActiveTab] = useState('activity');
-  const [theme, setTheme] = useState('light'); 
+  const [theme, setTheme] = useState(() => {
+    // Load initial theme from localStorage or system preference
+    return localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  }); 
   const [services, setServices] = useState([
     { name: 'Apache', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
     { name: 'Nginx', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
@@ -37,7 +40,6 @@ function App() {
   const [downloadProgress, setDownloadProgress] = useState({});
   const [toasts, setToasts] = useState([]);
   const [logs, setLogs] = useState([]);
-  const [isLogOpen, setIsLogOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -48,6 +50,24 @@ function App() {
   const [appsLocation, setAppsLocation] = useState('');
   const [apacheHttps, setApacheHttps] = useState(false);
   const [nginxHttps, setNginxHttps] = useState(false);
+
+  // Sync theme with HTML class and LocalStorage
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+
+  const addLog = useCallback((msg, type = 'info') => {
+    const time = new Date().toLocaleTimeString();
+    const prefix = type === 'error' ? 'ERR' : type === 'warn' ? 'WRN' : 'SYS';
+    setLogs(prev => [{ time, msg: `[${prefix}] ${msg}` }, ...prev].slice(0, 1000));
+  }, []);
 
   const renderIcon = (name, size = 20, className = "") => {
     const task = (prerequisites || []).find(p => p.name === name);
@@ -68,7 +88,6 @@ function App() {
     try {
       const tasks = await AppBackend.GetPrerequisites();
       setPrerequisites(tasks || []);
-      
       if (tasks) {
         setSelectedVersions(prev => {
           const next = { ...prev };
@@ -124,9 +143,30 @@ function App() {
   };
 
   useEffect(() => {
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    const originalError = console.error;
+
+    console.log = (...args) => {
+      addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'info');
+      originalLog.apply(console, args);
+    };
+    console.warn = (...args) => {
+      addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'warn');
+      originalWarn.apply(console, args);
+    };
+    console.error = (...args) => {
+      addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'error');
+      originalError.apply(console, args);
+    };
+
     initApp();
 
     if (window.runtime) {
+      EventsOn('service_log', (data) => {
+        addLog(`[${data.service}] ${data.message}`, 'info');
+      });
+
       EventsOn('service_status', (data) => {
         setServices(prev => prev.map(s => s.name === data.name ? { ...s, ...data } : s));
       });
@@ -135,6 +175,7 @@ function App() {
         setDownloadProgress(prev => ({ ...prev, [data.name]: data }));
         if (data.status?.startsWith('Error')) {
           addToast('Installation Failed', `${data.name}: ${data.status}`, 'error');
+          addLog(`Installation Failed: ${data.name} - ${data.status}`, 'error');
         }
         if (data.percentage === 100 && (data.status === 'Completed' || data.status === 'Ready')) {
           refreshPrerequisites();
@@ -145,7 +186,13 @@ function App() {
         initApp();
       });
     }
-  }, []);
+
+    return () => {
+      console.log = originalLog;
+      console.warn = originalWarn;
+      console.error = originalError;
+    };
+  }, [addLog]);
 
   return (
     <div className={cn(
@@ -153,14 +200,12 @@ function App() {
       theme === 'dark' ? "bg-[#0f172a] text-slate-200" : "bg-slate-50 text-slate-900"
     )}>
       <Toast toasts={toasts} removeToast={removeToast} />
-      <LogViewer logs={logs} isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} />
 
       <VerticalNav 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
-        toggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} 
+        toggleTheme={toggleTheme}
         theme={theme} 
-        setIsLogOpen={setIsLogOpen}
         renderIcon={renderIcon}
       />
 
@@ -175,7 +220,10 @@ function App() {
         />
 
         <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <div className="max-w-4xl w-full mx-auto flex flex-col h-full px-8 pb-8">
+          <div className={cn(
+            "w-full mx-auto flex flex-col h-full",
+            activeTab === 'logs' ? "max-w-none" : "max-w-4xl px-8 pb-8"
+          )}>
             {activeTab === 'activity' ? (
               <ActivityTab 
                 serverRoot={serverRootState}
@@ -216,9 +264,9 @@ function App() {
                     const next = !nginxHttps; setNginxHttps(next); await AppBackend.SetNginxHTTPS(next);
                   }
                 }}
-                isLoading={loading} // Pass loading state to ActivityTab
+                isLoading={loading}
               />
-            ) : (
+            ) : activeTab === 'plugins' ? (
               <PluginsTab 
                 prerequisites={prerequisites}
                 downloadProgress={downloadProgress}
@@ -247,6 +295,8 @@ function App() {
                 handleCancel={(name) => AppBackend.CancelDownload(name)}
                 renderIcon={renderIcon}
               />
+            ) : (
+              <LogViewer logs={logs} />
             )}
           </div>
         </main>

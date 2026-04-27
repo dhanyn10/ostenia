@@ -1,5 +1,5 @@
 import React from 'react';
-import { List, X } from 'lucide-react';
+import { List } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -7,34 +7,43 @@ function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
-function LogViewer({ logs, isOpen, onClose }) {
-  if (!isOpen) return null;
+function LogViewer({ logs }) {
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-8 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white dark:bg-[#1e293b] w-full max-w-4xl h-[70vh] rounded-sm border border-slate-200 dark:border-white/5 flex flex-col shadow-3xl overflow-hidden animate-in zoom-in-95 duration-300">
-        <div className="p-5 border-b border-slate-200 dark:border-white/5 flex items-center justify-between bg-slate-50 dark:bg-white/[0.02]">
-          <div className="flex items-center gap-3">
-            <List size={18} className="text-blue-500 dark:text-blue-400" />
+    <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500 bg-white dark:bg-[#0f172a]">
+      {/* Header Area */}
+      <div className="shrink-0 p-6 flex items-center justify-between border-b border-slate-200 dark:border-white/5 bg-white/50 dark:bg-slate-900/40 backdrop-blur-xl">
+        <div className="flex items-center gap-3">
+          {/* Icon container removed */}
+          <div>
             <h3 className="font-black text-slate-900 dark:text-white uppercase italic tracking-tighter text-sm">System Activity Logs</h3>
+            <p className="text-[9px] text-slate-400 uppercase tracking-widest font-bold">Real-time application monitoring</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-white/10 rounded-sm text-slate-400 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all">
-            <X size={18} />
-          </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-5 font-mono text-[10px] space-y-1 bg-slate-50 dark:bg-black/20">
-           {logs.length === 0 && <p className="text-slate-600 italic">No logs recorded yet...</p>}
-           {logs.map((log, i) => (
-             <div key={i} className="flex gap-4 group">
-               <span className="text-slate-400 dark:text-slate-700 select-none">[{log.time}]</span>
-               <span className={cn(
-                 "flex-1",
-                 log.msg.includes('Error') || log.msg.includes('failed') ? "text-rose-600 dark:text-rose-400" :
-                 log.msg.includes('success') || log.msg.includes('Ready') ? "text-emerald-600 dark:text-emerald-400" :
-                 "text-slate-600 dark:text-slate-400"
-               )}>{log.msg}</span>
-             </div>
-           ))}
-        </div>
+      </div>
+
+      {/* Logs Content Area */}
+      <div className="flex-1 overflow-y-auto p-6 font-mono text-[10px] space-y-1.5 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5">
+         {logs.length === 0 ? (
+           <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 gap-2 opacity-50">
+             <List size={32} strokeWidth={1} />
+             <p className="text-[10px] font-bold uppercase tracking-widest italic">No activity recorded yet...</p>
+           </div>
+         ) : (
+           <div className="flex flex-col-reverse justify-end min-h-full">
+             {logs.map((log, i) => (
+               <div key={i} className="flex gap-4 group py-0.5 border-b border-transparent hover:border-slate-100 dark:hover:border-white/5 transition-all">
+                 <span className="text-slate-400 dark:text-slate-600 select-none shrink-0 w-20">[{log.time}]</span>
+                 <span className={cn(
+                   "flex-1 break-all leading-relaxed",
+                   log.msg.includes('ERR') || log.msg.includes('Error') || log.msg.includes('failed') ? "text-rose-500 dark:text-rose-400 font-bold" :
+                   log.msg.includes('success') || log.msg.includes('Ready') || log.msg.includes('Completed') ? "text-emerald-500 dark:text-emerald-400 font-bold" :
+                   log.msg.includes('[WRN]') ? "text-amber-500 dark:text-amber-400" :
+                   "text-slate-600 dark:text-slate-400"
+                 )}>{log.msg}</span>
+               </div>
+             ))}
+           </div>
+         )}
       </div>
     </div>
   );
