@@ -8,6 +8,10 @@ function cn(...inputs) {
 }
 
 function AppHeader({ activeTab, handleStartAll, handleStopAll, handleTerminal, isTerminalOpen, setIsTerminalOpen }) {
+  // Hide header elements completely for logs tab if preferred, 
+  // or just show the appropriate title.
+  if (activeTab === 'logs') return null;
+
   return (
     <header className="h-14 shrink-0">
       <div className="max-w-4xl mx-auto h-full px-8 flex items-center justify-between">

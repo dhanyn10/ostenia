@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FolderOpen, Globe, HardDrive } from 'lucide-react';
+import { FolderOpen, Globe, HardDrive, Loader2 } from 'lucide-react';
 import { OpenServiceTerminal, SwitchServiceVersion, GetPHPExtensions, TogglePHPExtension } from '../../wailsjs/go/main/App';
 import ExtensionModal from './ExtensionModal';
 import ServiceItem from './ServiceItem';
@@ -10,14 +10,14 @@ function ActivityTab({
   isAddingPlugin, setIsAddingPlugin, prerequisites, services, handleAddToHome,
   renderIcon, handleToggleService, handleRemoveFromHome, setActiveTab,
   handleOpenPluginFolder, handleOpenServerRootFolder,
-  apacheHttps, nginxHttps, handleToggleHttps
+  apacheHttps, nginxHttps, handleToggleHttps,
+  isLoading
 }) {
   const [openTerminalDropdown, setOpenTerminalDropdown] = useState(null);
   const [activeAccordion, setActiveAccordion] = useState(null);
   const [phpExtensions, setPhpExtensions] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Re-add the missing variable that caused the crash
   const openSslService = services?.find(s => s.name === 'OpenSSL');
   const isOpenSslEnabled = openSslService?.status === 'Running';
 
@@ -87,30 +87,46 @@ function ActivityTab({
         renderIcon={renderIcon}
       />
 
-      <div className="flex-1 overflow-y-auto pr-3 -mr-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5 space-y-2 pb-4">
-        {(services || []).map((service) => (
-          <ServiceItem 
-            key={service.name}
-            service={service}
-            task={prerequisites?.find(p => p.name === service.name)}
-            isExpanded={activeAccordion === service.name}
-            onToggleAccordion={toggleAccordion}
-            renderIcon={renderIcon}
-            handleToggleService={handleToggleService}
-            handleRemoveFromHome={handleRemoveFromHome}
-            handleSwitchVersion={async (name, ver) => await SwitchServiceVersion(name, ver)}
-            handleOpenLocalTerminal={(name, type) => OpenServiceTerminal(name, type)}
-            handleToggleHttps={handleToggleHttps}
-            openTerminalDropdown={openTerminalDropdown}
-            setOpenTerminalDropdown={setOpenTerminalDropdown}
-            setIsModalOpen={setIsModalOpen}
-            apacheHttps={apacheHttps}
-            nginxHttps={nginxHttps}
-            isOpenSslEnabled={isOpenSslEnabled}
-            setActiveTab={setActiveTab}
-            handleOpenPluginFolder={handleOpenPluginFolder}
-          />
-        ))}
+      <div className="flex-1 overflow-y-auto pr-3 -mr-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5 space-y-2 pb-4 relative">
+        {isLoading ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center py-20 z-50 rounded-sm">
+             <Loader2 className="animate-spin text-blue-500 mb-2" size={24} />
+             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest animate-pulse">Scanning Plugins...</span>
+          </div>
+        ) : (
+          <>
+            {(services || []).map((service) => (
+              <ServiceItem 
+                key={service.name}
+                service={service}
+                task={prerequisites?.find(p => p.name === service.name)}
+                isExpanded={activeAccordion === service.name}
+                onToggleAccordion={toggleAccordion}
+                renderIcon={renderIcon}
+                handleToggleService={handleToggleService}
+                handleRemoveFromHome={handleRemoveFromHome}
+                handleSwitchVersion={async (name, ver) => await SwitchServiceVersion(name, ver)}
+                handleOpenLocalTerminal={(name, type) => OpenServiceTerminal(name, type)}
+                handleToggleHttps={handleToggleHttps}
+                openTerminalDropdown={openTerminalDropdown}
+                setOpenTerminalDropdown={setOpenTerminalDropdown}
+                setIsModalOpen={setIsModalOpen}
+                apacheHttps={apacheHttps}
+                nginxHttps={nginxHttps}
+                isOpenSslEnabled={isOpenSslEnabled}
+                setActiveTab={setActiveTab}
+                handleOpenPluginFolder={handleOpenPluginFolder}
+              />
+            ))}
+
+            {services?.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12 text-slate-400 dark:text-slate-500 border border-dashed border-slate-200 dark:border-white/5 rounded-sm">
+                <p className="text-[10px] font-bold uppercase tracking-widest">No services active</p>
+                <p className="text-[9px] opacity-60">Add some plugins to get started</p>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

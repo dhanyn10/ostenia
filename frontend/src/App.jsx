@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
 import * as AppBackend from '../wailsjs/go/main/App';
 import { clsx } from 'clsx';
@@ -22,7 +22,9 @@ function cn(...inputs) {
 
 function App() {
   const [activeTab, setActiveTab] = useState('activity');
-  const [theme, setTheme] = useState('light'); 
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  }); 
   const [services, setServices] = useState([
     { name: 'Apache', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
     { name: 'Nginx', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
@@ -37,7 +39,6 @@ function App() {
   const [downloadProgress, setDownloadProgress] = useState({});
   const [toasts, setToasts] = useState([]);
   const [logs, setLogs] = useState([]);
-  const [isLogOpen, setIsLogOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -49,8 +50,25 @@ function App() {
   const [apacheHttps, setApacheHttps] = useState(false);
   const [nginxHttps, setNginxHttps] = useState(false);
 
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+
+  const addLog = useCallback((msg, type = 'info') => {
+    const time = new Date().toLocaleTimeString();
+    const prefix = type === 'error' ? 'ERR' : type === 'warn' ? 'WRN' : 'SYS';
+    setLogs(prev => [{ time, msg: `[${prefix}] ${msg}` }, ...prev].slice(0, 1000));
+  }, []);
+
   const renderIcon = (name, size = 20, className = "") => {
-    const task = prerequisites.find(p => p.name === name);
+    const task = (prerequisites || []).find(p => p.name === name);
     if (task && task.iconSvg) return <Icons.Raw svgString={task.iconSvg} size={size} className={className} />;
     return null;
   };
@@ -68,7 +86,6 @@ function App() {
     try {
       const tasks = await AppBackend.GetPrerequisites();
       setPrerequisites(tasks || []);
-      
       if (tasks) {
         setSelectedVersions(prev => {
           const next = { ...prev };
@@ -109,52 +126,84 @@ function App() {
         );
         setServices(updatedServices);
       }
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+    } catch (err) { console.error(err); }
+  };
+
+  const initApp = async () => {
+    setLoading(true);
+    try {
+        await Promise.all([refreshPrerequisites(), loadInitialData()]);
+    } catch (err) {
+        console.error("Initialization failed:", err);
+    } finally {
+        setTimeout(() => setLoading(false), 600);
+    }
   };
 
   useEffect(() => {
-    refreshPrerequisites();
-    loadInitialData();
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    const originalError = console.error;
+
+    console.log = (...args) => {
+      addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'info');
+      originalLog.apply(console, args);
+    };
+    console.warn = (...args) => {
+      addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'warn');
+      originalWarn.apply(console, args);
+    };
+    console.error = (...args) => {
+      addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'error');
+      originalError.apply(console, args);
+    };
+
+    initApp();
 
     if (window.runtime) {
+      EventsOn('service_log', (data) => {
+        addLog(`[${data.service}] ${data.message}`, 'info');
+      });
+
       EventsOn('service_status', (data) => {
         setServices(prev => prev.map(s => s.name === data.name ? { ...s, ...data } : s));
       });
 
       EventsOn('download_progress', (data) => {
         setDownloadProgress(prev => ({ ...prev, [data.name]: data }));
-        
-        // Diagnosa: Munculkan Toast jika ada error dari backend
         if (data.status?.startsWith('Error')) {
           addToast('Installation Failed', `${data.name}: ${data.status}`, 'error');
+          addLog(`Installation Failed: ${data.name} - ${data.status}`, 'error');
         }
-
         if (data.percentage === 100 && (data.status === 'Completed' || data.status === 'Ready')) {
           refreshPrerequisites();
         }
       });
       
       EventsOn('environment_changed', () => {
-        loadInitialData();
-        refreshPrerequisites();
+        initApp();
       });
     }
-  }, []);
+
+    return () => {
+      console.log = originalLog;
+      console.warn = originalWarn;
+      console.error = originalError;
+    };
+  }, [addLog]);
 
   return (
     <div className={cn(
-      "flex h-screen font-sans selection:bg-blue-500/30 overflow-hidden transition-colors duration-300",
+      "flex h-screen font-sans selection:bg-blue-500/30 overflow-hidden transition-colors duration-300 fixed inset-0", // Added fixed inset-0
       theme === 'dark' ? "bg-[#0f172a] text-slate-200" : "bg-slate-50 text-slate-900"
     )}>
       <Toast toasts={toasts} removeToast={removeToast} />
-      <LogViewer logs={logs} isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} />
 
       <VerticalNav 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
-        toggleTheme={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} 
+        toggleTheme={toggleTheme} 
         theme={theme} 
-        setIsLogOpen={setIsLogOpen}
         renderIcon={renderIcon}
       />
 
@@ -168,19 +217,18 @@ function App() {
           setIsTerminalOpen={setIsTerminalOpen} 
         />
 
-        <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <div className="max-w-4xl w-full mx-auto flex flex-col h-full px-8 pb-8">
-            {loading ? (
-              <div className="flex-1 flex items-center justify-center">
-                <Loader2 className="animate-spin text-blue-500" size={32} />
-              </div>
-            ) : activeTab === 'activity' ? (
+        <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+          <div className={cn(
+            "w-full mx-auto flex flex-col h-full",
+            activeTab === 'logs' ? "max-w-none" : "max-w-4xl px-8 pb-8"
+          )}>
+            {activeTab === 'activity' ? (
               <ActivityTab 
                 serverRoot={serverRootState}
                 appsLocation={appsLocation}
                 handleBrowseAppsLocation={async () => {
                    const selected = await AppBackend.SelectServerRoot();
-                   if (selected) { setAppsLocation(selected); loadInitialData(); }
+                   if (selected) { setAppsLocation(selected); initApp(); }
                 }}
                 handleBrowseServerRoot={async () => {
                    if (window.runtime) {
@@ -214,8 +262,9 @@ function App() {
                     const next = !nginxHttps; setNginxHttps(next); await AppBackend.SetNginxHTTPS(next);
                   }
                 }}
+                isLoading={loading}
               />
-            ) : (
+            ) : activeTab === 'plugins' ? (
               <PluginsTab 
                 prerequisites={prerequisites}
                 downloadProgress={downloadProgress}
@@ -226,10 +275,7 @@ function App() {
                 handleDeleteVersion={(name, ver) => AppBackend.DeleteVersion(name, ver).then(refreshPrerequisites)}
                 handleInstallSingle={async (task) => {
                     const selectedVer = selectedVersions[task.name] || task.version;
-                    
-                    // Reset progres UI
                     setDownloadProgress(prev => ({ ...prev, [task.name]: { name: task.name, percentage: 0, status: 'Starting...' } }));
-
                     const modifiedTask = { ...task, version: selectedVer };
                     const prefixMap = {
                         'PHP': 'php-', 'Apache': 'httpd-', 'MySQL': 'mysql-',
@@ -238,21 +284,17 @@ function App() {
                     const categoryMap = { 'Node.js': 'nodejs', 'HeidiSQL': 'heidisql' };
                     const category = categoryMap[task.name] || task.name.toLowerCase();
                     const prefix = prefixMap[task.name] || '';
-                    
                     modifiedTask.target = `${category}/${prefix}${selectedVer}`;
                     if (task.versionUrls && task.versionUrls[selectedVer]) {
                         modifiedTask.url = task.versionUrls[selectedVer];
                     }
-
-                    try {
-                      await AppBackend.InstallPrerequisite(modifiedTask);
-                    } catch (e) {
-                      addToast('Error', e.toString(), 'error');
-                    }
+                    try { await AppBackend.InstallPrerequisite(modifiedTask); } catch (e) { addToast('Error', e.toString(), 'error'); }
                 }}
                 handleCancel={(name) => AppBackend.CancelDownload(name)}
                 renderIcon={renderIcon}
               />
+            ) : (
+              <LogViewer logs={logs} />
             )}
           </div>
         </main>
