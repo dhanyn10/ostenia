@@ -7,6 +7,7 @@ import (
 )
 
 type Config struct {
+	BaseDir     string `json:"baseDir"` // New: Root directory for the whole Ostenia environment
 	WWWRoot     string `json:"wwwRoot"`
 	PHPVersion  string `json:"phpVersion"`
 	NodeVersion string `json:"nodeVersion"`
@@ -14,7 +15,14 @@ type Config struct {
 	NginxHTTPS  bool   `json:"nginxHttps"`
 }
 
+var globalConfig *Config
+
 func GetBaseDir() string {
+	// If a custom base dir is set in config, use it
+	if globalConfig != nil && globalConfig.BaseDir != "" {
+		return globalConfig.BaseDir
+	}
+
 	if envDir := os.Getenv("OSTENIA_HOME"); envDir != "" {
 		return envDir
 	}
@@ -23,39 +31,46 @@ func GetBaseDir() string {
 }
 
 func LoadConfig() (*Config, error) {
-	baseDir := GetBaseDir()
-	configPath := filepath.Join(baseDir, "config.json")
+	// 1. Find the local config.json (relative to executable)
+	exePath, _ := os.Executable()
+	localConfigPath := filepath.Join(filepath.Dir(exePath), "config.json")
 
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		// Default config
+	if _, err := os.Stat(localConfigPath); os.IsNotExist(err) {
+		// Default config if none exists
 		cfg := &Config{
-			WWWRoot:     filepath.Join(baseDir, "www"),
+			BaseDir:     filepath.Dir(exePath),
+			WWWRoot:     filepath.Join(filepath.Dir(exePath), "www"),
 			ApacheHTTPS: false,
 			NginxHTTPS:  false,
 		}
 		os.MkdirAll(cfg.WWWRoot, 0755)
 		SaveConfig(cfg)
+		globalConfig = cfg
 		return cfg, nil
 	}
 
-	data, err := os.ReadFile(configPath)
+	data, err := os.ReadFile(localConfigPath)
 	if err != nil {
 		return nil, err
 	}
 
 	var cfg Config
 	err = json.Unmarshal(data, &cfg)
+	if err == nil {
+		globalConfig = &cfg
+	}
 	return &cfg, err
 }
 
 func SaveConfig(cfg *Config) error {
-	baseDir := GetBaseDir()
-	configPath := filepath.Join(baseDir, "config.json")
+	exePath, _ := os.Executable()
+	configPath := filepath.Join(filepath.Dir(exePath), "config.json")
 
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
 	}
 
+	globalConfig = cfg
 	return os.WriteFile(configPath, data, 0644)
 }

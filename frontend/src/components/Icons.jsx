@@ -1,16 +1,7 @@
 import React from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-
-// SVG Assets
-import phpSvg from '../assets/icons/php.svg';
-import apacheSvg from '../assets/icons/apache.svg';
-import nginxSvg from '../assets/icons/nginx.svg';
-import mysqlSvg from '../assets/icons/mysql.svg';
-import nodeSvg from '../assets/icons/node.svg';
-import heidisqlSvg from '../assets/icons/heidisql.svg';
-import opensslSvg from '../assets/icons/openssl.svg';
-import pluginsSvg from '../assets/icons/plugins.svg';
+import pluginsSvg from '../assets/icons/plugins.svg'; // Static import for UI icons
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -34,24 +25,33 @@ const BaseIcon = ({ src, size = 20, className }) => (
   />
 );
 
-export const PHP = (props) => <BaseIcon src={phpSvg} {...props} />;
-export const Apache = (props) => <BaseIcon src={apacheSvg} {...props} />;
-export const Nginx = (props) => <BaseIcon src={nginxSvg} {...props} />;
-export const MySQL = (props) => <BaseIcon src={mysqlSvg} {...props} />;
-export const Node = (props) => <BaseIcon src={nodeSvg} {...props} />;
-export const HeidiSQL = (props) => <BaseIcon src={heidisqlSvg} {...props} />;
-export const OpenSSL = (props) => <BaseIcon src={opensslSvg} {...props} />;
+const RawSVGIcon = ({ svgString, size = 20, className }) => {
+  if (!svgString) return null;
+  const cleanSvg = svgString.replace(/<\?xml.*\?>/g, "").trim();
+  return (
+    <div 
+      className={cn("bg-current inline-block shrink-0", className)} 
+      style={{ 
+        width: size, 
+        height: size, 
+        maskImage: `url("data:image/svg+xml,${encodeURIComponent(cleanSvg)}")`, 
+        WebkitMaskImage: `url("data:image/svg+xml,${encodeURIComponent(cleanSvg)}")`,
+        maskRepeat: 'no-repeat',
+        WebkitMaskRepeat: 'no-repeat',
+        maskPosition: 'center',
+        WebkitMaskPosition: 'center',
+        maskSize: 'contain',
+        WebkitMaskSize: 'contain'
+      }} 
+    />
+  );
+};
+
 export const Plugins = (props) => <BaseIcon src={pluginsSvg} {...props} />;
 
 const Icons = {
-  PHP,
-  Apache,
-  Nginx,
-  MySQL,
-  Node,
-  HeidiSQL,
-  OpenSSL,
-  Plugins
+  Raw: RawSVGIcon,
+  Plugins: Plugins
 };
 
 export default Icons;

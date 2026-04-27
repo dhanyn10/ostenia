@@ -1,6 +1,7 @@
 export namespace config {
 	
 	export class Config {
+	    baseDir: string;
 	    wwwRoot: string;
 	    phpVersion: string;
 	    nodeVersion: string;
@@ -13,6 +14,7 @@ export namespace config {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.baseDir = source["baseDir"];
 	        this.wwwRoot = source["wwwRoot"];
 	        this.phpVersion = source["phpVersion"];
 	        this.nodeVersion = source["nodeVersion"];
@@ -23,7 +25,7 @@ export namespace config {
 
 }
 
-export namespace download {
+export namespace plugins {
 	
 	export class DownloadTask {
 	    name: string;
@@ -35,6 +37,7 @@ export namespace download {
 	    target: string;
 	    checkFile: string;
 	    isInstalled: boolean;
+	    iconSvg: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new DownloadTask(source);
@@ -51,6 +54,7 @@ export namespace download {
 	        this.target = source["target"];
 	        this.checkFile = source["checkFile"];
 	        this.isInstalled = source["isInstalled"];
+	        this.iconSvg = source["iconSvg"];
 	    }
 	}
 
