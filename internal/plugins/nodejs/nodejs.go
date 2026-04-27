@@ -1,12 +1,14 @@
 package nodejs
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 )
 
 func DetectVersions() ([]string, map[string]string) {
@@ -14,31 +16,47 @@ func DetectVersions() ([]string, map[string]string) {
 	if runtime.GOARCH == "386" { arch = "win-x86" }
 
 	content := fetchContent("https://nodejs.org/dist/")
-	re := regexp.MustCompile(`v(\d+\.\d+\.\d+)/`)
+	// Mencocokkan versi v22.x.x dan v24.x.x
+	re := regexp.MustCompile(`v(22|24)\.(\d+)\.(\d+)/`)
 	matches := re.FindAllStringSubmatch(content, -1)
 
-	var versions []string
-	urlMap := make(map[string]string)
-	seen := make(map[string]bool)
+	// Map untuk menyimpan hanya versi absolut terbaru untuk setiap Major (22 dan 24)
+	latestForMajor := make(map[string]string)
+
 	for _, m := range matches {
-		v := m[1]
-		if !seen[v] {
-			versions = append(versions, v)
-			urlMap[v] = "https://nodejs.org/dist/v" + v + "/node-v" + v + "-" + arch + ".zip"
-			seen[v] = true
+		major := m[1]
+		currentFull := m[1] + "." + m[2] + "." + m[3]
+
+		if existingFull, ok := latestForMajor[major]; !ok || compareVersions(currentFull, existingFull) > 0 {
+			latestForMajor[major] = currentFull
 		}
 	}
 
-	// Sort newest first
-	for i, j := 0, len(versions)-1; i < j; i, j = i+1, j-1 {
-		versions[i], versions[j] = versions[j], versions[i]
+	var versions []string
+	urlMap := make(map[string]string)
+	for _, fullVer := range latestForMajor {
+		versions = append(versions, fullVer)
+		urlMap[fullVer] = fmt.Sprintf("https://nodejs.org/dist/v%s/node-v%s-%s.zip", fullVer, fullVer, arch)
 	}
 
+	// Urutkan dari yang terbaru (24 dulu baru 22)
+	sort.Slice(versions, func(i, j int) bool { return compareVersions(versions[i], versions[j]) > 0 })
+
 	if len(versions) == 0 {
-		v := "20.11.1"
-		return []string{v}, map[string]string{v: "https://nodejs.org/dist/v20.11.1/node-v20.11.1-win-x64.zip"}
+		v := "22.12.0"
+		return []string{v}, map[string]string{v: "https://nodejs.org/dist/v22.12.0/node-v22.12.0-win-x64.zip"}
 	}
 	return versions, urlMap
+}
+
+func compareVersions(v1, v2 string) int {
+	var a1, b1, c1 int
+	var a2, b2, c2 int
+	fmt.Sscanf(v1, "%d.%d.%d", &a1, &b1, &c1)
+	fmt.Sscanf(v2, "%d.%d.%d", &a2, &b2, &c2)
+	if a1 != a2 { return a1 - a2 }
+	if b1 != b2 { return b1 - b2 }
+	return c1 - c2
 }
 
 func GetIcon() string {

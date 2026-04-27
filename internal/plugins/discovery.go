@@ -24,7 +24,7 @@ func GetLatestKnownVersions() []DownloadTask {
 	nodeVers, nodeUrls := nodejs.DetectVersions()
 	pythonVers, pythonUrls := python.DetectVersions()
 	opensslVer, opensslUrl := openssl.DetectVersions()
-	nginxVer, nginxUrl := nginx.DetectVersions()
+	nginxVers, nginxUrls := nginx.DetectVersions()
 	heidiVer, heidiUrl := heidisql.DetectVersions()
 
 	tasks := []DownloadTask{
@@ -33,8 +33,9 @@ func GetLatestKnownVersions() []DownloadTask {
 		{ Name: "MySQL", URL: mysqlUrls[mysqlVers[0]], Version: mysqlVers[0], Versions: mysqlVers, VersionUrls: mysqlUrls, Target: "mysql/mysql-" + mysqlVers[0], CheckFile: "bin/mysqld.exe", IconSVG: mysql.GetIcon() },
 		{ Name: "Node.js", URL: nodeUrls[nodeVers[0]], Version: nodeVers[0], Versions: nodeVers, VersionUrls: nodeUrls, Target: "nodejs/node-v" + nodeVers[0], CheckFile: "node.exe", IconSVG: nodejs.GetIcon() },
 		{ Name: "Python", URL: pythonUrls[pythonVers[0]], Version: pythonVers[0], Versions: pythonVers, VersionUrls: pythonUrls, Target: "python/python-" + pythonVers[0], CheckFile: "python.exe", IconSVG: python.GetIcon() },
-		{ Name: "HeidiSQL", URL: heidiUrl, Version: heidiVer, Target: "heidisql", CheckFile: "heidisql.exe", IconSVG: heidisql.GetIcon() },
-		{ Name: "Nginx", URL: nginxUrl, Version: nginxVer, Target: "nginx/nginx-" + nginxVer, CheckFile: "nginx.exe", IconSVG: nginx.GetIcon() },
+		// FIX: HeidiSQL sekarang menggunakan folder versi
+		{ Name: "HeidiSQL", URL: heidiUrl, Version: heidiVer, Versions: []string{heidiVer}, Target: "heidisql/heidisql-" + heidiVer, CheckFile: "heidisql.exe", IconSVG: heidisql.GetIcon() },
+		{ Name: "Nginx", URL: nginxUrls[nginxVers[0]], Version: nginxVers[0], Versions: nginxVers, VersionUrls: nginxUrls, Target: "nginx/nginx-" + nginxVers[0], CheckFile: "nginx.exe", IconSVG: nginx.GetIcon() },
 		{ Name: "OpenSSL", URL: opensslUrl, Version: opensslVer, Target: "openssl/openssl-" + opensslVer, CheckFile: "bin/openssl.exe", IconSVG: openssl.GetIcon() },
 	}
 

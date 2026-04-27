@@ -5,30 +5,19 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
+	"strings"
 )
 
 func DetectVersions() ([]string, map[string]string) {
-	content := fetchContent("https://dev.mysql.com/downloads/mysql/")
-	re := regexp.MustCompile(`mysql-(\d+\.\d+\.\d+)-winx64\.zip`)
-	matches := re.FindAllStringSubmatch(content, -1)
-
-	var versions []string
+	// MySQL versions usually fixed for LTS
+	versions := []string{"8.4.0", "9.1.0"} // 8.4 LTS and 9.1 (Innovation/LTS equivalent)
 	urlMap := make(map[string]string)
-	seen := make(map[string]bool)
-	for _, m := range matches {
-		v := m[1]
-		if !seen[v] {
-			versions = append(versions, v)
-			urlMap[v] = "https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-" + m[0]
-			seen[v] = true
-		}
+
+	// Base URL for MySQL community server zips
+	for _, v := range versions {
+		urlMap[v] = "https://dev.mysql.com/get/Downloads/MySQL-" + strings.Split(v, ".")[0] + "." + strings.Split(v, ".")[1] + "/mysql-" + v + "-winx64.zip"
 	}
 
-	if len(versions) == 0 {
-		v := "8.0.40"
-		return []string{v}, map[string]string{v: "https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-8.0.40-winx64.zip"}
-	}
 	return versions, urlMap
 }
 

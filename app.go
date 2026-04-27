@@ -184,7 +184,11 @@ func (a *App) StartService(serviceName string) error {
 	case "HeidiSQL":
 		heidisqlBin := filepath.Join(binDir, "heidisql", "heidisql.exe")
 		if _, err := os.Stat(heidisqlBin); os.IsNotExist(err) { return fmt.Errorf("heidisql.exe not found") }
-		return a.orchestrator.StartService("HeidiSQL", heidisqlBin, []string{}, filepath.Dir(heidisqlBin))
+		// FIX: Jalankan sebagai aplikasi GUI terpisah
+		cmd := exec.Command(heidisqlBin)
+		err := cmd.Start()
+		if err != nil { return err }
+		return nil
 
 	case "PHP":
 		phpPath := filepath.Join(baseDir, "bin", "php", "current"); phpCgi := filepath.Join(phpPath, "php-cgi.exe")
