@@ -1,6 +1,6 @@
 import React from 'react';
 import { Home, List, Sun, Moon } from 'lucide-react';
-import { Plugins as PluginsIcon } from './Icons';
+import Icons from './Icons';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -36,7 +36,7 @@ function VerticalNav({ activeTab, setActiveTab, toggleTheme, theme, setIsLogOpen
         )}
       >
         {activeTab === 'plugins' && <div className="absolute left-[-16px] top-3 bottom-3 w-1 bg-blue-500 rounded-r-sm" />}
-        <PluginsIcon size={20} />
+        <Icons.Plugins size={20} />
       </button>
 
       <div className="mt-auto flex flex-col gap-4">

@@ -8,7 +8,7 @@ import AddPluginAction from './AddPluginAction';
 function ActivityTab({ 
   serverRoot, appsLocation, handleBrowseAppsLocation, handleBrowseServerRoot,
   isAddingPlugin, setIsAddingPlugin, prerequisites, services, handleAddToHome,
-  ICON_MAP, handleToggleService, handleRemoveFromHome, setActiveTab,
+  renderIcon, handleToggleService, handleRemoveFromHome, setActiveTab,
   handleOpenPluginFolder, handleOpenServerRootFolder,
   apacheHttps, nginxHttps, handleToggleHttps
 }) {
@@ -84,7 +84,7 @@ function ActivityTab({
         prerequisites={prerequisites || []}
         services={services || []}
         handleAddToHome={handleAddToHome}
-        ICON_MAP={ICON_MAP}
+        renderIcon={renderIcon}
       />
 
       <div className="flex-1 overflow-y-auto pr-3 -mr-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5 space-y-2 pb-4">
@@ -95,7 +95,7 @@ function ActivityTab({
             task={prerequisites?.find(p => p.name === service.name)}
             isExpanded={activeAccordion === service.name}
             onToggleAccordion={toggleAccordion}
-            ICON_MAP={ICON_MAP}
+            renderIcon={renderIcon}
             handleToggleService={handleToggleService}
             handleRemoveFromHome={handleRemoveFromHome}
             handleSwitchVersion={async (name, ver) => await SwitchServiceVersion(name, ver)}

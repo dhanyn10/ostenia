@@ -7,7 +7,7 @@ function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
-function AddPluginAction({ isAddingPlugin, setIsAddingPlugin, prerequisites, services, handleAddToHome, ICON_MAP }) {
+function AddPluginAction({ isAddingPlugin, setIsAddingPlugin, prerequisites, services, handleAddToHome, renderIcon }) {
   return (
     <div className="mb-3 relative">
       <button 
@@ -24,8 +24,6 @@ function AddPluginAction({ isAddingPlugin, setIsAddingPlugin, prerequisites, ser
         <div className="absolute left-0 right-0 top-full mt-2 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-sm shadow-3xl z-50 animate-in fade-in slide-in-from-top-1">
             <div className="grid grid-cols-2 gap-1.5">
               {prerequisites.filter(p => !services.find(s => s.name === p.name)).map(task => {
-                // Ensure Icon exists before rendering
-                const IconComponent = ICON_MAP[task.name] || ICON_MAP.default;
                 return (
                   <button 
                     key={task.name} 
@@ -33,7 +31,7 @@ function AddPluginAction({ isAddingPlugin, setIsAddingPlugin, prerequisites, ser
                     className="flex items-center gap-2.5 p-2.5 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 rounded-sm text-left transition-all group/item"
                   >
                     <div className="w-7 h-7 rounded-sm bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover/item:bg-blue-500 group-hover/item:text-white transition-all">
-                        <IconComponent size={14} />
+                        {renderIcon(task.name, 14)}
                     </div>
                     <span className="text-xs font-bold text-slate-700 dark:text-white">{task.name}</span>
                   </button>

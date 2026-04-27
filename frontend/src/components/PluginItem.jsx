@@ -20,9 +20,8 @@ function PluginItem({
   onInstall, 
   onCancel, 
   onOpenFolder,
-  ICON_MAP 
+  renderIcon // Use dynamic render function
 }) {
-  const ServiceIcon = ICON_MAP[task.name] || ICON_MAP.default;
   const availableVersions = task.versions || [];
   const installedVersions = task.installedVers || [];
   const dropdownOptions = [...new Set([...availableVersions, ...installedVersions])];
@@ -40,7 +39,8 @@ function PluginItem({
         "w-10 h-10 rounded-sm flex items-center justify-center shadow-lg transition-transform group-hover:scale-105",
         task.isInstalled ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
       )}>
-        <ServiceIcon size={18} className="text-slate-900 dark:text-white" />
+        {/* Dynamic Icon from Backend */}
+        {renderIcon(task.name, 18, "text-slate-900 dark:text-white")}
       </div>
 
       <div className="flex-1 min-w-0">

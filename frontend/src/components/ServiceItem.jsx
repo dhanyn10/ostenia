@@ -12,7 +12,7 @@ function ServiceItem({
   task, 
   isExpanded, 
   onToggleAccordion, 
-  ICON_MAP, 
+  renderIcon, // Use dynamic render function
   handleToggleService, 
   handleRemoveFromHome, 
   handleSwitchVersion,
@@ -24,7 +24,8 @@ function ServiceItem({
   apacheHttps,
   nginxHttps,
   isOpenSslEnabled,
-  setActiveTab
+  setActiveTab,
+  handleOpenPluginFolder
 }) {
   const isInstalled = (task?.installedVers && task.installedVers.length > 0) || service.name === 'OpenSSL';
   const isWebServer = service.name === 'Apache' || service.name === 'Nginx';
@@ -38,7 +39,6 @@ function ServiceItem({
   const hasExtraActions = hasOpenFolder || hasTerminal || hasHttpsToggle || hasPhpExtManager;
 
   const installedVersions = task?.installedVers || [];
-  const ServiceIcon = ICON_MAP[service.name] || ICON_MAP.default;
 
   return (
     <div 
@@ -53,7 +53,9 @@ function ServiceItem({
         <div className="flex-1 min-w-0 px-2">
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-3">
-              <ServiceIcon size={18} className="text-slate-900 dark:text-white" />
+              {/* Dynamic Icon from Backend */}
+              {renderIcon(service.name, 18, "text-slate-900 dark:text-white")}
+
               <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{service.name}</h3>
               
               {(service.name === 'PHP' || service.name === 'Node.js') && installedVersions.length > 0 && (
