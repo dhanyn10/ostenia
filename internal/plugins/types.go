@@ -1,3 +1,5 @@
+// Package plugins provides functionality for managing external components,
+// including discovery, downloading, installation, and version management.
 package plugins
 
 // DownloadTask represents a plugin's metadata and state.
@@ -16,9 +18,9 @@ type DownloadTask struct {
 
 // Progress reports download/extraction status to frontend.
 type Progress struct {
-	Name       string  `json:"name"`
-	Percentage float64 `json:"percentage"`
-	Status     string  `json:"status"`
-	Speed      string  `json:"speed"`
-	Downloaded string  `json:"downloaded"`
+	Name       string  `json:"name"`       // Name of the task
+	Percentage float64 `json:"percentage"` // Current progress percentage (0-100)
+	Status     string  `json:"status"`     // Text description (e.g., "Downloading...", "Extracting...")
+	Speed      string  `json:"speed"`      // Human-readable speed (e.g., "2.5 MB/s")
+	Downloaded string  `json:"downloaded"` // Human-readable size downloaded (e.g., "10.2 MB")
 }

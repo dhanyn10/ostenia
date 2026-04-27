@@ -9,6 +9,7 @@ import (
 	"syscall"
 )
 
+// GetSystemArch returns the architecture string for the current system ("x64" or "x86").
 func GetSystemArch() string {
 	if runtime.GOARCH == "amd64" {
 		return "x64"
@@ -16,7 +17,8 @@ func GetSystemArch() string {
 	return "x86"
 }
 
-// GetInstalledVersionPaths returns a map of version string to its absolute path for a given category.
+// GetInstalledVersionPaths returns a map of version strings to their absolute paths for a given category.
+// It scans the bin/[category] directory for subfolders containing the specified check file.
 func GetInstalledVersionPaths(baseDir, category, checkFile string) map[string]string {
 	versions := make(map[string]string)
 	binDir := filepath.Join(baseDir, "bin", category)
@@ -27,19 +29,17 @@ func GetInstalledVersionPaths(baseDir, category, checkFile string) map[string]st
 
 	for _, entry := range entries {
 		if entry.IsDir() && entry.Name() != "current" {
-			// checkFile is usually "bin/httpd.exe" or "php.exe"
 			checkPath := filepath.Join(binDir, entry.Name(), checkFile)
 
-			// Special case for Apache where it might be nested inside Apache24 folder
+			// Special handling for Apache's directory structure
 			if category == "apache" {
 				if _, err := os.Stat(checkPath); os.IsNotExist(err) {
-					// If bin/httpd.exe not found in root, check in Apache24/bin/httpd.exe
 					checkPath = filepath.Join(binDir, entry.Name(), "Apache24", checkFile)
 				}
 			}
 
 			if _, err := os.Stat(checkPath); err == nil {
-				// Extract version from folder name
+				// Normalize version string by removing common prefixes
 				v := entry.Name()
 				v = strings.TrimPrefix(v, "php-")
 				v = strings.TrimPrefix(v, "httpd-")
@@ -47,6 +47,7 @@ func GetInstalledVersionPaths(baseDir, category, checkFile string) map[string]st
 				v = strings.TrimPrefix(v, "nginx-")
 				v = strings.TrimPrefix(v, "node-v")
 				v = strings.TrimPrefix(v, "python-")
+				v = strings.TrimPrefix(v, "heidisql-")
 				versions[v] = filepath.Join(binDir, entry.Name())
 			}
 		}
@@ -54,6 +55,7 @@ func GetInstalledVersionPaths(baseDir, category, checkFile string) map[string]st
 	return versions
 }
 
+// GetOpenSSLVersion returns the version of OpenSSL installed in the system environment.
 func GetOpenSSLVersion(exePath string) string {
 	cmd := exec.Command(exePath, "version")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
@@ -61,6 +63,7 @@ func GetOpenSSLVersion(exePath string) string {
 	if err != nil {
 		return ""
 	}
+	// Parse output like: OpenSSL 3.0.0 7 sep 2021
 	parts := strings.Split(string(out), " ")
 	if len(parts) >= 2 {
 		return parts[1]

@@ -12,7 +12,7 @@ function ServiceItem({
   task, 
   isExpanded, 
   onToggleAccordion, 
-  renderIcon, // Use dynamic render function
+  renderIcon,
   handleToggleService, 
   handleRemoveFromHome, 
   handleSwitchVersion,
@@ -53,12 +53,12 @@ function ServiceItem({
         <div className="flex-1 min-w-0 px-2">
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-3">
-              {/* Dynamic Icon from Backend */}
               {renderIcon(service.name, 18, "text-slate-900 dark:text-white")}
 
               <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{service.name}</h3>
               
-              {(service.name === 'PHP' || service.name === 'Node.js') && installedVersions.length > 0 && (
+              {/* Added Python to the version switcher list */}
+              {(service.name === 'PHP' || service.name === 'Node.js' || service.name === 'Python') && installedVersions.length > 0 && (
                 <div className="flex items-center gap-1 ml-1" onClick={(e) => e.stopPropagation()}>
                   {installedVersions.map(ver => {
                     const systemString = (service.activeVersion || "").toString().toLowerCase().trim();

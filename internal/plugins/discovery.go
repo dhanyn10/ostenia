@@ -1,3 +1,6 @@
+// Package plugins provides functionality for managing external components.
+// This file focuses on discovering available versions from the internet
+// and detecting versions already installed on the local system.
 package plugins
 
 import (
@@ -17,6 +20,8 @@ import (
 	"strings"
 )
 
+// GetLatestKnownVersions aggregates available and installed plugin versions.
+// It scans both remote repositories and local installation directories.
 func GetLatestKnownVersions() []DownloadTask {
 	phpVers, phpUrls := php.DetectVersions()
 	apacheVers, apacheUrls := apache.DetectVersions()
@@ -33,7 +38,6 @@ func GetLatestKnownVersions() []DownloadTask {
 		{ Name: "MySQL", URL: mysqlUrls[mysqlVers[0]], Version: mysqlVers[0], Versions: mysqlVers, VersionUrls: mysqlUrls, Target: "mysql/mysql-" + mysqlVers[0], CheckFile: "bin/mysqld.exe", IconSVG: mysql.GetIcon() },
 		{ Name: "Node.js", URL: nodeUrls[nodeVers[0]], Version: nodeVers[0], Versions: nodeVers, VersionUrls: nodeUrls, Target: "nodejs/node-v" + nodeVers[0], CheckFile: "node.exe", IconSVG: nodejs.GetIcon() },
 		{ Name: "Python", URL: pythonUrls[pythonVers[0]], Version: pythonVers[0], Versions: pythonVers, VersionUrls: pythonUrls, Target: "python/python-" + pythonVers[0], CheckFile: "python.exe", IconSVG: python.GetIcon() },
-		// FIX: HeidiSQL sekarang menggunakan folder versi
 		{ Name: "HeidiSQL", URL: heidiUrl, Version: heidiVer, Versions: []string{heidiVer}, Target: "heidisql/heidisql-" + heidiVer, CheckFile: "heidisql.exe", IconSVG: heidisql.GetIcon() },
 		{ Name: "Nginx", URL: nginxUrls[nginxVers[0]], Version: nginxVers[0], Versions: nginxVers, VersionUrls: nginxUrls, Target: "nginx/nginx-" + nginxVers[0], CheckFile: "nginx.exe", IconSVG: nginx.GetIcon() },
 		{ Name: "OpenSSL", URL: opensslUrl, Version: opensslVer, Target: "openssl/openssl-" + opensslVer, CheckFile: "bin/openssl.exe", IconSVG: openssl.GetIcon() },
@@ -44,6 +48,7 @@ func GetLatestKnownVersions() []DownloadTask {
 		t := &tasks[i]
 		category := strings.Split(filepath.ToSlash(t.Target), "/")[0]
 
+		// 1. Detect ALL installed versions
 		installedMap := utils.GetInstalledVersionPaths(baseDir, category, t.CheckFile)
 		t.InstalledVers = make([]string, 0, len(installedMap))
 		for v := range installedMap { t.InstalledVers = append(t.InstalledVers, v) }
@@ -57,11 +62,19 @@ func GetLatestKnownVersions() []DownloadTask {
 		}
 		sort.Strings(t.InstalledVers)
 
+		// 2. Check if the currently active 'current' link is functional
 		currentPath := filepath.Join(baseDir, "bin", category, "current")
 		if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
 			cf := filepath.Join(resolved, t.CheckFile)
 			if t.Name == "Apache" {
 				if _, err := os.Stat(cf); os.IsNotExist(err) { cf = filepath.Join(resolved, "Apache24", "bin", "httpd.exe") }
+			}
+			if _, err := os.Stat(cf); err == nil { t.IsInstalled = true }
+		} else {
+			// Fallback check for non-symlinked default target
+			cf := filepath.Join(baseDir, "bin", t.Target, t.CheckFile)
+			if t.Name == "Apache" {
+				if _, err := os.Stat(cf); os.IsNotExist(err) { cf = filepath.Join(baseDir, "bin", t.Target, "Apache24", "bin", "httpd.exe") }
 			}
 			if _, err := os.Stat(cf); err == nil { t.IsInstalled = true }
 		}

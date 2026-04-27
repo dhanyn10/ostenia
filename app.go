@@ -126,6 +126,7 @@ func (a *App) StartService(serviceName string) error {
 		a.orchestrator.RequestRefresh(); return nil
 
 	case "Python":
+		// FIX: Tambahkan Python ke system PATH
 		pythonPath := filepath.Join(baseDir, "bin", "python", "current")
 		if _, err := os.Stat(pythonPath); os.IsNotExist(err) { return fmt.Errorf("python not installed") }
 		err := service.UpdatePythonPath(pythonPath, true); if err != nil { return err }
@@ -189,7 +190,6 @@ func (a *App) StartService(serviceName string) error {
 			hBin = filepath.Join(hDir, "heidisql.exe")
 			if _, err := os.Stat(hBin); os.IsNotExist(err) { return fmt.Errorf("heidisql.exe not found") }
 		}
-		// REVERT: Gunakan orchestrator agar status terpantau (On/Off)
 		return a.orchestrator.StartService("HeidiSQL", hBin, []string{}, hDir)
 
 	case "PHP":
@@ -223,7 +223,9 @@ func (a *App) StopService(serviceName string) {
 		a.orchestrator.RequestRefresh(); return
 	}
 	if serviceName == "Python" {
-		baseDir := config.GetBaseDir(); pythonPath := filepath.Join(baseDir, "bin", "python", "current"); _ = service.UpdatePythonPath(pythonPath, false)
+		// FIX: Hapus Python dari system PATH
+		baseDir := config.GetBaseDir(); pythonPath := filepath.Join(baseDir, "bin", "python", "current")
+		_ = service.UpdatePythonPath(pythonPath, false)
 		a.orchestrator.RequestRefresh(); return
 	}
 	a.orchestrator.StopService(serviceName)
@@ -247,7 +249,11 @@ func (a *App) SwitchServiceVersion(serviceName string, version string) error {
 	}
 	if category == "php" { phpPath := filepath.Join(baseDir, "bin", "php", "current"); os.Setenv("PATH", phpPath+";"+os.Getenv("PATH")); _ = service.UpdatePHPConfig(phpPath); _ = service.UpdatePHPPath(phpPath, true) }
 	if category == "nodejs" { nodePath := filepath.Join(baseDir, "bin", "nodejs", "current"); _ = service.UpdateNodePath(nodePath, true) }
-	if category == "python" { pythonPath := filepath.Join(baseDir, "bin", "python", "current"); _ = service.UpdatePythonPath(pythonPath, true) }
+	if category == "python" {
+		// FIX: Update PATH saat switch versi
+		pythonPath := filepath.Join(baseDir, "bin", "python", "current")
+		_ = service.UpdatePythonPath(pythonPath, true)
+	}
 	if wasRunning { return a.StartService(serviceName) }
 	a.orchestrator.RequestRefresh(); return nil
 }

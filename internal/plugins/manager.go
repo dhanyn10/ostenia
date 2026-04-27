@@ -1,3 +1,6 @@
+// Package plugins provides functionality for managing external components.
+// This file contains the Manager struct which coordinates installation,
+// deletion, and environment linking for all plugins.
 package plugins
 
 import (
@@ -58,7 +61,7 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 
 	fmt.Printf("[Manager] Request to install %s version %s to %s\n", task.Name, task.Version, targetDir)
 
-	// 1. Validasi folder target secara ketat
+	// 1. Strict target folder validation
 	checkFile := filepath.Join(targetDir, task.CheckFile)
 	if task.Name == "Apache" {
 		if _, err := os.Stat(checkFile); os.IsNotExist(err) {
@@ -73,7 +76,7 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 		return nil
 	}
 
-	// 2. Mulai Download
+	// 2. Start Download
 	fmt.Printf("[Manager] Downloading %s from %s\n", task.Name, task.URL)
 	ctx, cancel := context.WithCancel(m.ctx)
 	m.cancelsMu.Lock()
@@ -96,7 +99,7 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 		return err
 	}
 
-	// 3. Ekstraksi
+	// 3. Extraction or execution
 	if !isZip {
 		os.MkdirAll(targetDir, 0755)
 		dest := filepath.Join(targetDir, "installer.exe")
@@ -118,7 +121,7 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 		return err
 	}
 
-	// Tangani nested folder (misal zip berisi folder tunggal)
+	// Handle nested folders (e.g., zip containing a single root folder)
 	es, _ := os.ReadDir(extractTmp)
 	if len(es) == 1 && es[0].IsDir() {
 		sDir := filepath.Join(extractTmp, es[0].Name())
@@ -173,7 +176,7 @@ func (m *Manager) unzipFile(ctx context.Context, src, dest, name string) error {
 			rc, err := f.Open(); if err != nil { outFile.Close(); return err }
 			_, err = io.Copy(outFile, rc); outFile.Close(); rc.Close()
 			if err != nil { return err }
-			if i%10 == 0 { // Kurangi noise event
+			if i%20 == 0 { // Reduce event noise
 				wruntime.EventsEmit(m.ctx, "download_progress", Progress{Name: name, Percentage: (float64(i+1)/float64(total))*100, Status: "Extracting..."})
 			}
 		}
@@ -185,7 +188,7 @@ func (m *Manager) ensureCurrentLink(task DownloadTask) error {
 	baseDir := config.GetBaseDir(); parts := strings.Split(filepath.ToSlash(task.Target), "/")
 	if len(parts) < 2 { return nil }
 	link := filepath.Join(baseDir, "bin", parts[0], "current"); target := filepath.Join(baseDir, "bin", task.Target)
-	_ = os.Remove(link)
+	_ = os.Remove(link) // Remove old junction
 	c := exec.Command("cmd", "/c", "mklink", "/J", link, target)
 	c.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}; return c.Run()
 }
