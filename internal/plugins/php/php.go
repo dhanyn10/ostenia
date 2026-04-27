@@ -1,9 +1,11 @@
 package php
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"regexp"
 )
@@ -24,15 +26,18 @@ func DetectVersions() ([]string, string) {
 		}
 	}
 
-	// Sort newest first
 	for i, j := 0, len(versions)-1; i < j; i, j = i+1, j-1 {
 		versions[i], versions[j] = versions[j], versions[i]
 	}
 
 	if len(versions) == 0 {
-		return []string{"8.2.12"}, baseURL
+		versions = []string{"8.2.12"}
 	}
-	return versions, baseURL
+
+	arch := utils.GetSystemArch()
+	downloadURL := fmt.Sprintf("%sphp-%s-Win32-vs16-%s.zip", baseURL, versions[0], arch)
+
+	return versions, downloadURL
 }
 
 func GetIcon() string {

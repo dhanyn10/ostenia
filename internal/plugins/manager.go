@@ -2,7 +2,6 @@ package plugins
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
 	"ostenia/internal/config"
@@ -62,27 +61,18 @@ func (m *Manager) CancelDownload(name string) {
 }
 
 func GetLatestKnownVersions() []DownloadTask {
-	phpVers, phpBase := php.DetectVersions()
+	phpVers, phpURL := php.DetectVersions()
 	apacheVers, apacheURLs := apache.DetectVersions()
 	mysqlVers, mysqlURLs := mysql.DetectVersions()
 	nodeVers, nodeURLs := nodejs.DetectVersions()
 	pythonVers, pythonURLs := python.DetectVersions()
-
-	nginxVersion := "1.24.0"
-	nginxURL := fmt.Sprintf("https://nginx.org/download/nginx-%s.zip", nginxVersion)
-
-	opensslVersion := "4.0.0"
-	arch := utils.GetSystemArch()
-	var opensslURL string
-	if arch == "x64" {
-		opensslURL = "https://slproweb.com/download/Win64OpenSSL_Light-4_0_0.exe"
-	} else {
-		opensslURL = "https://slproweb.com/download/Win32OpenSSL_Light-4_0_0.exe"
-	}
+	opensslVer, opensslURL := openssl.DetectVersions()
+	nginxVer, nginxURL := nginx.DetectVersions()
+	heidiVer, heidiURL := heidisql.DetectVersions()
 
 	tasks := []DownloadTask{
 		{
-			Name: "PHP", URL: phpBase + fmt.Sprintf("php-%s-Win32-vs16-%s.zip", phpVers[0], arch),
+			Name: "PHP", URL: phpURL,
 			Version: phpVers[0], Versions: phpVers, Target: "php/php-" + phpVers[0], CheckFile: "php.exe",
 			IconSVG: php.GetIcon(),
 		},
@@ -107,18 +97,18 @@ func GetLatestKnownVersions() []DownloadTask {
 			IconSVG: python.GetIcon(),
 		},
 		{
-			Name: "HeidiSQL", URL: "https://www.heidisql.com/downloads/releases/HeidiSQL_12.7_64_Portable.zip",
-			Version: "12.7", Target: "heidisql", CheckFile: "heidisql.exe",
+			Name: "HeidiSQL", URL: heidiURL,
+			Version: heidiVer, Target: "heidisql", CheckFile: "heidisql.exe",
 			IconSVG: heidisql.GetIcon(),
 		},
 		{
 			Name: "Nginx", URL: nginxURL,
-			Version: nginxVersion, Target: "nginx/nginx-" + nginxVersion, CheckFile: "nginx.exe",
+			Version: nginxVer, Target: "nginx/nginx-" + nginxVer, CheckFile: "nginx.exe",
 			IconSVG: nginx.GetIcon(),
 		},
 		{
 			Name: "OpenSSL", URL: opensslURL,
-			Version: opensslVersion, Target: "openssl/openssl-" + opensslVersion, CheckFile: "bin/openssl.exe",
+			Version: opensslVer, Target: "openssl/openssl-" + opensslVer, CheckFile: "bin/openssl.exe",
 			IconSVG: openssl.GetIcon(),
 		},
 	}
