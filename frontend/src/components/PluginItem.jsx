@@ -20,14 +20,19 @@ function PluginItem({
   onInstall, 
   onCancel, 
   onOpenFolder,
-  renderIcon // Use dynamic render function
+  renderIcon 
 }) {
   const availableVersions = task.versions || [];
   const installedVersions = task.installedVers || [];
   const dropdownOptions = [...new Set([...availableVersions, ...installedVersions])];
   const isCustomAllowed = task.name !== 'HeidiSQL' && task.name !== 'OpenSSL';
   
-  const isActive = progress && progress.percentage > 0 && progress.percentage < 100;
+  // Perbaikan logika isActive: bar tetap muncul selama proses belum "Ready" atau "Completed"
+  const isActive = progress && 
+                   progress.status !== 'Ready' && 
+                   progress.status !== 'Completed' && 
+                   !progress.status?.startsWith('Error');
+
   const isSelectedInstalled = installedVersions.includes(selectedVersion || task.version);
 
   return (
@@ -39,7 +44,6 @@ function PluginItem({
         "w-10 h-10 rounded-sm flex items-center justify-center shadow-lg transition-transform group-hover:scale-105",
         task.isInstalled ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
       )}>
-        {/* Dynamic Icon from Backend */}
         {renderIcon(task.name, 18, "text-slate-900 dark:text-white")}
       </div>
 

@@ -49,33 +49,19 @@ function App() {
   const [apacheHttps, setApacheHttps] = useState(false);
   const [nginxHttps, setNginxHttps] = useState(false);
 
-  // Dynamic Icon Mapping based on Backend SVG Content
   const renderIcon = (name, size = 20, className = "") => {
     const task = prerequisites.find(p => p.name === name);
-    if (task && task.iconSvg) {
-      return <Icons.Raw svgString={task.iconSvg} size={size} className={className} />;
-    }
-    // Static icons fallback (for non-plugin icons)
-    if (name === 'Plugins') {
-        const pluginsTask = prerequisites.find(p => p.name === 'Plugins');
-        return <Icons.Raw svgString={pluginsTask?.iconSvg} size={size} className={className} />;
-    }
+    if (task && task.iconSvg) return <Icons.Raw svgString={task.iconSvg} size={size} className={className} />;
     return null;
-  };
-
-  const addLog = (msg) => {
-    setLogs(prev => [{ time: new Date().toLocaleTimeString(), msg }, ...prev].slice(0, 500));
   };
 
   const addToast = (title, message, type = 'info') => {
     const id = Math.random().toString(36).substr(2, 9);
     setToasts(prev => [...prev, { id, title, message, type }]);
-    setTimeout(() => removeToast(id), 5000);
+    setTimeout(() => setToasts(curr => curr.filter(t => t.id !== id)), 5000);
   };
 
-  const removeToast = (id) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  };
+  const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
 
   const refreshPrerequisites = async () => {
     if (!AppBackend.GetPrerequisites) return;
@@ -98,9 +84,7 @@ function App() {
           return next;
         });
       }
-    } catch (err) {
-      console.error("Error refreshing prerequisites:", err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const loadInitialData = async () => {
@@ -113,66 +97,46 @@ function App() {
         setApacheHttps(cfg.apacheHttps || false);
         setNginxHttps(cfg.nginxHttps || false);
       }
-
       if (AppBackend.GetServiceStatus) {
         const updatedServices = await Promise.all(
           services.map(async (service) => {
              try {
                const detail = await AppBackend.GetServiceStatus(service.name);
                if (!detail) return service;
-               return { 
-                 ...service, 
-                 status: detail.status || 'Stopped', 
-                 pid: detail.pid || 0, 
-                 port: detail.port || 0, 
-                 ports: detail.ports || [], 
-                 remainingDays: detail.remainingDays || 0,
-                 activeVersion: detail.activeVersion || ''
-               };
-             } catch (e) {
-               return service;
-             }
+               return { ...service, ...detail, status: detail.status || 'Stopped' };
+             } catch (e) { return service; }
           })
         );
         setServices(updatedServices);
       }
-    } catch (err) {
-      console.error("Error loading initial data:", err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
   useEffect(() => {
-    const init = async () => {
-      await refreshPrerequisites();
-      await loadInitialData();
-    };
-    init();
+    refreshPrerequisites();
+    loadInitialData();
 
     if (window.runtime) {
       EventsOn('service_status', (data) => {
-        setServices(prev => prev.map(service => service.name === data.name ? { 
-          ...service, 
-          status: data.status || 'Stopped', 
-          pid: data.pid || 0, 
-          port: data.port || 0, 
-          ports: data.ports || [], 
-          remainingDays: data.remainingDays || 0,
-          activeVersion: data.activeVersion || ''
-        } : service));
-      });
-
-      EventsOn('environment_changed', () => {
-        loadInitialData();
-        refreshPrerequisites();
+        setServices(prev => prev.map(s => s.name === data.name ? { ...s, ...data } : s));
       });
 
       EventsOn('download_progress', (data) => {
         setDownloadProgress(prev => ({ ...prev, [data.name]: data }));
+        
+        // Diagnosa: Munculkan Toast jika ada error dari backend
+        if (data.status?.startsWith('Error')) {
+          addToast('Installation Failed', `${data.name}: ${data.status}`, 'error');
+        }
+
         if (data.percentage === 100 && (data.status === 'Completed' || data.status === 'Ready')) {
           refreshPrerequisites();
         }
+      });
+      
+      EventsOn('environment_changed', () => {
+        loadInitialData();
+        refreshPrerequisites();
       });
     }
   }, []);
@@ -262,18 +226,29 @@ function App() {
                 handleDeleteVersion={(name, ver) => AppBackend.DeleteVersion(name, ver).then(refreshPrerequisites)}
                 handleInstallSingle={async (task) => {
                     const selectedVer = selectedVersions[task.name] || task.version;
-                    const arch = navigator.userAgent.includes('Win64') || navigator.userAgent.includes('x64') ? 'amd64' : 'win32';
+                    
+                    // Reset progres UI
+                    setDownloadProgress(prev => ({ ...prev, [task.name]: { name: task.name, percentage: 0, status: 'Starting...' } }));
+
                     const modifiedTask = { ...task, version: selectedVer };
-                    if (task.name === 'Node.js') {
-                        modifiedTask.target = `nodejs/node-v${selectedVer}`;
-                        modifiedTask.url = `https://nodejs.org/dist/v${selectedVer}/node-v${selectedVer}-win-x64.zip`;
+                    const prefixMap = {
+                        'PHP': 'php-', 'Apache': 'httpd-', 'MySQL': 'mysql-',
+                        'Nginx': 'nginx-', 'OpenSSL': 'openssl-', 'Node.js': 'node-v', 'Python': 'python-'
+                    };
+                    const categoryMap = { 'Node.js': 'nodejs', 'HeidiSQL': 'heidisql' };
+                    const category = categoryMap[task.name] || task.name.toLowerCase();
+                    const prefix = prefixMap[task.name] || '';
+                    
+                    modifiedTask.target = `${category}/${prefix}${selectedVer}`;
+                    if (task.versionUrls && task.versionUrls[selectedVer]) {
+                        modifiedTask.url = task.versionUrls[selectedVer];
                     }
-                    if (task.name === 'Python') {
-                        modifiedTask.target = `python/python-${selectedVer}`;
-                        modifiedTask.url = `https://www.python.org/ftp/python/${selectedVer}/python-${selectedVer}-embed-${arch}.zip`;
+
+                    try {
+                      await AppBackend.InstallPrerequisite(modifiedTask);
+                    } catch (e) {
+                      addToast('Error', e.toString(), 'error');
                     }
-                    await AppBackend.InstallPrerequisite(modifiedTask);
-                    refreshPrerequisites();
                 }}
                 handleCancel={(name) => AppBackend.CancelDownload(name)}
                 renderIcon={renderIcon}

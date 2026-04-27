@@ -10,34 +10,35 @@ import (
 	"regexp"
 )
 
-func DetectVersions() ([]string, string) {
+func DetectVersions() ([]string, map[string]string) {
 	baseURL := "https://windows.php.net/downloads/releases/archives/"
 	content := fetchContent(baseURL)
-	re := regexp.MustCompile(`php-(\d+\.\d+\.\d+)-Win32-vs16-x64\.zip`)
+	arch := utils.GetSystemArch()
+
+	// Match both x64 and x86 versions
+	re := regexp.MustCompile(`php-(\d+\.\d+\.\d+)-Win32-vs16-` + arch + `\.zip`)
 	matches := re.FindAllStringSubmatch(content, -1)
 
 	var versions []string
+	urlMap := make(map[string]string)
 	seen := make(map[string]bool)
+
 	for _, m := range matches {
 		v := m[1]
 		if !seen[v] {
 			versions = append(versions, v)
+			urlMap[v] = baseURL + m[0]
 			seen[v] = true
 		}
 	}
 
-	for i, j := 0, len(versions)-1; i < j; i, j = i+1, j-1 {
-		versions[i], versions[j] = versions[j], versions[i]
-	}
-
 	if len(versions) == 0 {
-		versions = []string{"8.2.12"}
+		v := "8.2.12"
+		versions = []string{v}
+		urlMap[v] = fmt.Sprintf("%sphp-%s-Win32-vs16-%s.zip", baseURL, v, arch)
 	}
 
-	arch := utils.GetSystemArch()
-	downloadURL := fmt.Sprintf("%sphp-%s-Win32-vs16-%s.zip", baseURL, versions[0], arch)
-
-	return versions, downloadURL
+	return versions, urlMap
 }
 
 func GetIcon() string {
