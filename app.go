@@ -96,7 +96,8 @@ func (a *App) SelectServerRoot() (string, error) {
 	return selectedDir, nil
 }
 
-func (a *App) OpenServerRootFolder() error { return service.OpenExplorer(config.GetBaseDir()) }
+func (a *App) OpenServerRootFolder() error { return service.OpenExplorer(a.cfg.WWWRoot) }
+func (a *App) OpenAppsLocationFolder() error { return service.OpenExplorer(config.GetBaseDir()) }
 func (a *App) OpenPluginFolder(serviceName string) error {
 	baseDir := config.GetBaseDir(); binDir := filepath.Join(baseDir, "bin")
 	category := strings.ToLower(serviceName)
