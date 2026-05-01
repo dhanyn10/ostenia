@@ -253,6 +253,7 @@ function App() {
                 setActiveTab={setActiveTab}
                 handleOpenPluginFolder={(name) => AppBackend.OpenPluginFolder(name)}
                 handleOpenServerRootFolder={() => AppBackend.OpenServerRootFolder()}
+                handleOpenAppsLocationFolder={() => AppBackend.OpenAppsLocationFolder()}
                 apacheHttps={apacheHttps}
                 nginxHttps={nginxHttps}
                 handleToggleHttps={async (name) => {

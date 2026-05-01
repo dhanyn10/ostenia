@@ -20,6 +20,8 @@ export function InstallPrerequisite(arg1:plugins.DownloadTask):Promise<void>;
 
 export function IsAdmin():Promise<boolean>;
 
+export function OpenAppsLocationFolder():Promise<void>;
+
 export function OpenPluginFolder(arg1:string):Promise<void>;
 
 export function OpenServerRootFolder():Promise<void>;
