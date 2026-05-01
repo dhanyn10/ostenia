@@ -387,6 +387,10 @@ func (a *App) GetProxyApps() []ProxyAppInfo {
 }
 
 func (a *App) SaveProxyPort(name string, port int) error {
+	if !service.IsAdmin() {
+		service.ElevateAndExit()
+		return fmt.Errorf("elevation required")
+	}
 	if a.cfg.Proxies == nil {
 		a.cfg.Proxies = make(map[string]int)
 	}
