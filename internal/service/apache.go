@@ -44,8 +44,8 @@ func GenerateProxyVHost(projectName string, targetPort int, listenPort int, http
 `, listenPort, projectName, projectName, targetPort, targetPort)
 
 	if httpsEnabled {
-		crtPath := strings.ReplaceAll(filepath.Join(sslDir, projectName+".crt"), "\\", "/")
-		keyPath := strings.ReplaceAll(filepath.Join(sslDir, projectName+".key"), "\\", "/")
+		crtPath := strings.ReplaceAll(filepath.Join(sslDir, projectName+".test.crt"), "\\", "/")
+		keyPath := strings.ReplaceAll(filepath.Join(sslDir, projectName+".test.key"), "\\", "/")
 
 		vhost += fmt.Sprintf(`
 <VirtualHost *:443>

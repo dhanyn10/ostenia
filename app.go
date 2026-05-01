@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"ostenia/internal/config"
@@ -49,6 +50,24 @@ func (a *App) startup(ctx context.Context) {
 
 	// Start the periodic watcher for services
 	a.orchestrator.StartWatcher()
+
+	// Start proxy port watcher
+	go a.startProxyWatcher()
+}
+
+func (a *App) startProxyWatcher() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-a.ctx.Done():
+			return
+		case <-ticker.C:
+			statuses := a.CheckProxyPorts()
+			wruntime.EventsEmit(a.ctx, "proxy_status", statuses)
+		}
+	}
 }
 
 func (a *App) ensureEnvironmentStructure() {
@@ -73,6 +92,29 @@ func (a *App) SetWWWRoot(path string) error {
 	if a.orchestrator.IsRunning("Apache") { a.StopService("Apache"); time.Sleep(500 * time.Millisecond); a.StartService("Apache") }
 	if a.orchestrator.IsRunning("Nginx") { a.StopService("Nginx"); time.Sleep(500 * time.Millisecond); a.StartService("Nginx") }
 	return nil
+}
+
+type ProxyStatusInfo struct {
+	Name   string `json:"name"`
+	IsUp   bool   `json:"isUp"`
+	Port   int    `json:"port"`
+}
+
+func (a *App) CheckProxyPorts() []ProxyStatusInfo {
+	var statuses []ProxyStatusInfo
+	for name, port := range a.cfg.Proxies {
+		isUp := false
+		if port > 0 {
+			timeout := 500 * time.Millisecond
+			conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), timeout)
+			if err == nil {
+				isUp = true
+				conn.Close()
+			}
+		}
+		statuses = append(statuses, ProxyStatusInfo{Name: name, IsUp: isUp, Port: port})
+	}
+	return statuses
 }
 
 func (a *App) OpenProxyTerminal(name string, terminalType string) error {
@@ -292,7 +334,7 @@ func (a *App) updateApacheConfig(apachePath string, port int) error {
 		vhostsContent += service.GenerateProxyVHost(name, targetPort, port, a.cfg.ApacheHTTPS, sslDir)
 		_ = service.AddHostWithElevation("127.0.0.1", name+".test")
 		if a.cfg.ApacheHTTPS {
-			_ = ssl.SignCertificate(sslDir, name, sslDir)
+			_ = ssl.SignCertificate(sslDir, name+".test", sslDir)
 		}
 	}
 
@@ -316,7 +358,7 @@ func (a *App) updateNginxConfig(nginxPath string, port int) error {
 		proxies = append(proxies, service.ProxyConfig{Name: name, TargetPort: targetPort})
 		_ = service.AddHostWithElevation("127.0.0.1", name+".test")
 		if a.cfg.NginxHTTPS {
-			_ = ssl.SignCertificate(sslDir, name, sslDir)
+			_ = ssl.SignCertificate(sslDir, name+".test", sslDir)
 		}
 	}
 

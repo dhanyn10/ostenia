@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Save, ExternalLink, Search, Folder, Terminal, ChevronDown, Monitor } from 'lucide-react';
+import { Save, ExternalLink, Search, Folder, Terminal, ChevronDown, Monitor, Activity } from 'lucide-react';
+import { EventsOn } from '../../wailsjs/runtime/runtime';
 import * as AppBackend from '../../wailsjs/go/main/App';
 
 function ProxyTab({ addToast }) {
@@ -8,6 +9,7 @@ function ProxyTab({ addToast }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [savingMap, setSavingMap] = useState({});
   const [openTerminalDropdown, setOpenTerminalDropdown] = useState(null);
+  const [proxyStatuses, setProxyStatuses] = useState({});
 
   const fetchApps = async () => {
     try {
@@ -22,6 +24,16 @@ function ProxyTab({ addToast }) {
 
   useEffect(() => {
     fetchApps();
+
+    if (window.runtime) {
+      return EventsOn('proxy_status', (data) => {
+        const statusMap = {};
+        data.forEach(item => {
+          statusMap[item.name] = item.isUp;
+        });
+        setProxyStatuses(statusMap);
+      });
+    }
   }, []);
 
   const handlePortChange = (name, value) => {
@@ -83,7 +95,10 @@ function ProxyTab({ addToast }) {
                     <Folder size={20} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">{app.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-lg">{app.name}</h3>
+                      <div className={`w-2 h-2 rounded-full ${proxyStatuses[app.name] ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300 dark:bg-slate-700'}`} title={proxyStatuses[app.name] ? 'Online' : 'Offline'}></div>
+                    </div>
                     <div className="flex items-center gap-1 text-slate-500 text-xs">
                       <span className="truncate max-w-[150px]">{app.name}.test</span>
                       <a
