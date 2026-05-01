@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, ExternalLink, Search, Folder } from 'lucide-react';
+import { Save, ExternalLink, Search, Folder, Terminal, ChevronDown, Monitor } from 'lucide-react';
 import * as AppBackend from '../../wailsjs/go/main/App';
 
 function ProxyTab({ addToast }) {
@@ -7,6 +7,7 @@ function ProxyTab({ addToast }) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [savingMap, setSavingMap] = useState({});
+  const [openTerminalDropdown, setOpenTerminalDropdown] = useState(null);
 
   const fetchApps = async () => {
     try {
@@ -95,6 +96,40 @@ function ProxyTab({ addToast }) {
                       </a>
                     </div>
                   </div>
+                </div>
+
+                <div className="relative">
+                  <button
+                    onClick={() => setOpenTerminalDropdown(openTerminalDropdown === app.name ? null : app.name)}
+                    className={`w-10 h-8 flex items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-white/10 transition-all ${
+                      openTerminalDropdown === app.name ? "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white" : "bg-slate-50 dark:bg-white/5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10"
+                    }`}
+                    title="Terminal"
+                  >
+                    <Terminal size={16} /> <ChevronDown size={10} />
+                  </button>
+
+                  {openTerminalDropdown === app.name && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setOpenTerminalDropdown(null)} />
+                      <div className="absolute top-full right-0 mt-1 w-40 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg shadow-xl z-20 animate-in fade-in slide-in-from-top-1 duration-200 overflow-hidden">
+                        <div className="p-1">
+                          <button
+                            onClick={() => { AppBackend.OpenProxyTerminal(app.name, 'cmd'); setOpenTerminalDropdown(null); }}
+                            className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"
+                          >
+                            <Monitor size={14} className="text-blue-500" /> CMD
+                          </button>
+                          <button
+                            onClick={() => { AppBackend.OpenProxyTerminal(app.name, 'powershell'); setOpenTerminalDropdown(null); }}
+                            className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"
+                          >
+                            <Monitor size={14} className="text-blue-600" /> PowerShell
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 

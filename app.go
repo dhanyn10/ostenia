@@ -75,6 +75,15 @@ func (a *App) SetWWWRoot(path string) error {
 	return nil
 }
 
+func (a *App) OpenProxyTerminal(name string, terminalType string) error {
+	path := filepath.Join(a.cfg.WWWRoot, name)
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return fmt.Errorf("folder %s not found", name)
+	}
+	a.OpenTerminalAtPath(terminalType, path)
+	return nil
+}
+
 func (a *App) SetServerRoot(rootPath string) error {
 	fmt.Printf("[App] Switching Apps Location to: %s\n", rootPath)
 	a.orchestrator.StopAll()
