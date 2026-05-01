@@ -3,6 +3,7 @@ package utils
 import (
 	"os"
 	"os/exec"
+	"ostenia/internal/config"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -57,6 +58,62 @@ func GetInstalledVersionPaths(baseDir, category, checkFile string) map[string]st
 
 // GetOpenSSLVersion returns the version of OpenSSL installed in the system environment.
 func GetOpenSSLVersion(exePath string) string {
+	if runtime.GOOS == "windows" {
+		for _, path := range findOpenSSLExecutables() {
+			if version := getOpenSSLVersionFromExecutable(path); version != "" {
+				return version
+			}
+		}
+	}
+
+	return getOpenSSLVersionFromExecutable(exePath)
+}
+
+func findOpenSSLExecutables() []string {
+	paths := []string{}
+	seen := map[string]bool{}
+
+	addPath := func(path string) {
+		path = strings.Trim(path, " \t\r\n\"")
+		if path == "" {
+			return
+		}
+		key := strings.ToLower(path)
+		if seen[key] {
+			return
+		}
+		if _, err := os.Stat(path); err == nil {
+			seen[key] = true
+			paths = append(paths, path)
+		}
+	}
+
+	for _, cmd := range []*exec.Cmd{
+		exec.Command("cmd", "/d", "/c", "where openssl"),
+		exec.Command("where.exe", "openssl"),
+	} {
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		if out, err := cmd.Output(); err == nil {
+			for _, line := range strings.Split(string(out), "\n") {
+				addPath(line)
+			}
+		}
+	}
+
+	filepath.Walk(filepath.Join(config.GetBaseDir(), "bin"), func(path string, info os.FileInfo, err error) error {
+		if err != nil || info == nil || info.IsDir() {
+			return nil
+		}
+		if strings.EqualFold(info.Name(), "openssl.exe") {
+			addPath(path)
+		}
+		return nil
+	})
+
+	return paths
+}
+
+func getOpenSSLVersionFromExecutable(exePath string) string {
 	cmd := exec.Command(exePath, "version")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	out, err := cmd.Output()

@@ -7,6 +7,7 @@ export namespace config {
 	    nodeVersion: string;
 	    apacheHttps: boolean;
 	    nginxHttps: boolean;
+	    proxies: Record<string, number>;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -20,6 +21,42 @@ export namespace config {
 	        this.nodeVersion = source["nodeVersion"];
 	        this.apacheHttps = source["apacheHttps"];
 	        this.nginxHttps = source["nginxHttps"];
+	        this.proxies = source["proxies"];
+	    }
+	}
+
+}
+
+export namespace main {
+	
+	export class ProxyAppInfo {
+	    name: string;
+	    port: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProxyAppInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.port = source["port"];
+	    }
+	}
+	export class ProxyStatusInfo {
+	    name: string;
+	    isUp: boolean;
+	    port: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProxyStatusInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.isUp = source["isUp"];
+	        this.port = source["port"];
 	    }
 	}
 
