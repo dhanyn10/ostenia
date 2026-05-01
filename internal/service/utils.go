@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
-	"syscall"
 )
 
 // IsAdmin checks if the current process has administrative privileges
@@ -34,7 +33,6 @@ func RunMeAsAdmin() error {
 	args := strings.Join(os.Args[1:], " ")
 
 	if runtime.GOOS == "windows" {
-		cmd := fmt.Sprintf("/c start \"\" \"%s\" %s", exe, args)
 		return exec.Command("cmd", "/c", "powershell", "Start-Process", "-FilePath", fmt.Sprintf("'%s'", exe), "-ArgumentList", fmt.Sprintf("'%s'", args), "-Verb", verb).Run()
 	}
 
