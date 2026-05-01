@@ -33,7 +33,9 @@ function PluginItem({
                    progress.status !== 'Completed' && 
                    !progress.status?.startsWith('Error');
 
-  const isSelectedInstalled = installedVersions.includes(selectedVersion || task.version);
+  const isSelectedInstalled = task.name === 'OpenSSL'
+    ? task.isInstalled
+    : installedVersions.includes(selectedVersion || task.version);
 
   return (
     <div className={cn(

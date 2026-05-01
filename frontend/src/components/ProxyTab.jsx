@@ -58,7 +58,6 @@ function ProxyTab({ addToast }) {
     <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold mb-1">Apps & Proxies</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm">Configure local proxy pass for folders in your WWW directory.</p>
         </div>
         <div className="relative">

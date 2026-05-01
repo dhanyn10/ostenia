@@ -91,6 +91,10 @@ function App() {
         setSelectedVersions(prev => {
           const next = { ...prev };
           tasks.forEach(t => {
+            if (t.name === 'OpenSSL' && t.installedVers && t.installedVers.length > 0) {
+              next[t.name] = t.installedVers[0];
+              return;
+            }
             if (!next[t.name]) {
               if (t.installedVers && t.installedVers.length > 0) {
                 next[t.name] = t.installedVers[0];

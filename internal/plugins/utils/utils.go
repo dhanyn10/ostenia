@@ -2,11 +2,9 @@ package utils
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 )
 
 // GetSystemArch returns the architecture string for the current system ("x64" or "x86").
@@ -53,20 +51,4 @@ func GetInstalledVersionPaths(baseDir, category, checkFile string) map[string]st
 		}
 	}
 	return versions
-}
-
-// GetOpenSSLVersion returns the version of OpenSSL installed in the system environment.
-func GetOpenSSLVersion(exePath string) string {
-	cmd := exec.Command(exePath, "version")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	out, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-	// Parse output like: OpenSSL 3.0.0 7 sep 2021
-	parts := strings.Split(string(out), " ")
-	if len(parts) >= 2 {
-		return parts[1]
-	}
-	return ""
 }

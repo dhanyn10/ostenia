@@ -2,10 +2,8 @@ package plugins
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 )
 
 // GetInstalledVersionPaths returns a map of version string to its absolute path for a given category.
@@ -44,19 +42,4 @@ func GetInstalledVersionPaths(baseDir, category, checkFile string) map[string]st
 		}
 	}
 	return versions
-}
-
-// GetOpenSSLVersion returns the version of OpenSSL installed in the system.
-func GetOpenSSLVersion(exePath string) string {
-	cmd := exec.Command(exePath, "version")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	out, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-	parts := strings.Split(string(out), " ")
-	if len(parts) >= 2 {
-		return parts[1]
-	}
-	return ""
 }
