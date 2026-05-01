@@ -15,6 +15,11 @@ import (
 //go:embed templates/nginx.conf.tmpl
 var nginxTemplates embed.FS
 
+type ProxyConfig struct {
+	Name       string
+	TargetPort int
+}
+
 type NginxConfigData struct {
 	Port         int
 	WWWRoot      string
@@ -23,9 +28,11 @@ type NginxConfigData struct {
 	HTTPSEnabled bool
 	CertFile     string
 	KeyFile      string
+	Proxies      []ProxyConfig
+	SSLDir       string
 }
 
-func UpdateNginxConfig(nginxPath string, wwwRoot string, phpPort int, port int, httpsEnabled bool) error {
+func UpdateNginxConfig(nginxPath string, wwwRoot string, phpPort int, port int, httpsEnabled bool, proxies []ProxyConfig) error {
 	if port <= 0 { port = 80 }
 
 	confPath := filepath.Join(nginxPath, "conf", "nginx.conf")
@@ -66,6 +73,8 @@ func UpdateNginxConfig(nginxPath string, wwwRoot string, phpPort int, port int, 
 		HTTPSEnabled: httpsEnabled,
 		CertFile:     certFile,
 		KeyFile:      keyFile,
+		Proxies:      proxies,
+		SSLDir:       strings.ReplaceAll(sslDir, "\\", "/"),
 	}
 
 	tmplBytes, err := nginxTemplates.ReadFile("templates/nginx.conf.tmpl")

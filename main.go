@@ -2,6 +2,8 @@ package main
 
 import (
 	"embed"
+	"os"
+	"ostenia/internal/network"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -12,6 +14,17 @@ import (
 var assets embed.FS
 
 func main() {
+	// Check for admin helper command
+	if len(os.Args) >= 4 && os.Args[1] == "--add-host" {
+		ip := os.Args[2]
+		hostname := os.Args[3]
+		err := network.AddHost(ip, hostname)
+		if err != nil {
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
 	// Create an instance of the app structure
 	app := NewApp()
 

@@ -7,12 +7,13 @@ import (
 )
 
 type Config struct {
-	BaseDir     string `json:"baseDir"` // New: Root directory for the whole Ostenia environment
-	WWWRoot     string `json:"wwwRoot"`
-	PHPVersion  string `json:"phpVersion"`
-	NodeVersion string `json:"nodeVersion"`
-	ApacheHTTPS bool   `json:"apacheHttps"`
-	NginxHTTPS  bool   `json:"nginxHttps"`
+	BaseDir     string         `json:"baseDir"` // New: Root directory for the whole Ostenia environment
+	WWWRoot     string         `json:"wwwRoot"`
+	PHPVersion  string         `json:"phpVersion"`
+	NodeVersion string         `json:"nodeVersion"`
+	ApacheHTTPS bool           `json:"apacheHttps"`
+	NginxHTTPS  bool           `json:"nginxHttps"`
+	Proxies     map[string]int `json:"proxies"` // folder_name -> target_port
 }
 
 var globalConfig *Config
@@ -42,6 +43,7 @@ func LoadConfig() (*Config, error) {
 			WWWRoot:     filepath.Join(filepath.Dir(exePath), "www"),
 			ApacheHTTPS: false,
 			NginxHTTPS:  false,
+			Proxies:     make(map[string]int),
 		}
 		os.MkdirAll(cfg.WWWRoot, 0755)
 		SaveConfig(cfg)
@@ -57,6 +59,9 @@ func LoadConfig() (*Config, error) {
 	var cfg Config
 	err = json.Unmarshal(data, &cfg)
 	if err == nil {
+		if cfg.Proxies == nil {
+			cfg.Proxies = make(map[string]int)
+		}
 		globalConfig = &cfg
 	}
 	return &cfg, err
