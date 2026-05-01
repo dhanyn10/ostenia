@@ -58,7 +58,7 @@ func GetLatestKnownVersions() []DownloadTask {
 		if t.Name == "OpenSSL" {
 			t.InstalledVers = nil
 			t.IsInstalled = false
-			if gv := utils.GetOpenSSLVersion("openssl"); gv != "" {
+			if gv := openssl.DetectInstalledVersion(); gv != "" {
 				t.Version = gv
 				t.InstalledVers = []string{gv}
 				t.IsInstalled = true
