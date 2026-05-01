@@ -290,7 +290,7 @@ func (a *App) updateApacheConfig(apachePath string, port int) error {
 	sslDir := filepath.Join(config.GetBaseDir(), "ssl")
 	for name, targetPort := range a.cfg.Proxies {
 		vhostsContent += service.GenerateProxyVHost(name, targetPort, port, a.cfg.ApacheHTTPS, sslDir)
-		_ = network.AddHost("127.0.0.1", name+".test")
+		_ = service.AddHostWithElevation("127.0.0.1", name+".test")
 		if a.cfg.ApacheHTTPS {
 			_ = ssl.SignCertificate(sslDir, name, sslDir)
 		}
@@ -314,7 +314,7 @@ func (a *App) updateNginxConfig(nginxPath string, port int) error {
 	sslDir := filepath.Join(config.GetBaseDir(), "ssl")
 	for name, targetPort := range a.cfg.Proxies {
 		proxies = append(proxies, service.ProxyConfig{Name: name, TargetPort: targetPort})
-		_ = network.AddHost("127.0.0.1", name+".test")
+		_ = service.AddHostWithElevation("127.0.0.1", name+".test")
 		if a.cfg.NginxHTTPS {
 			_ = ssl.SignCertificate(sslDir, name, sslDir)
 		}
@@ -387,10 +387,6 @@ func (a *App) GetProxyApps() []ProxyAppInfo {
 }
 
 func (a *App) SaveProxyPort(name string, port int) error {
-	if !service.IsAdmin() {
-		service.ElevateAndExit()
-		return fmt.Errorf("elevation required")
-	}
 	if a.cfg.Proxies == nil {
 		a.cfg.Proxies = make(map[string]int)
 	}
