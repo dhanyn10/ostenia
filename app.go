@@ -75,6 +75,15 @@ func (a *App) SetWWWRoot(path string) error {
 	return nil
 }
 
+func (a *App) OpenProxyTerminal(name string, terminalType string) error {
+	path := filepath.Join(a.cfg.WWWRoot, name)
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return fmt.Errorf("folder %s not found", name)
+	}
+	a.OpenTerminalAtPath(terminalType, path)
+	return nil
+}
+
 func (a *App) SetServerRoot(rootPath string) error {
 	fmt.Printf("[App] Switching Apps Location to: %s\n", rootPath)
 	a.orchestrator.StopAll()
@@ -266,12 +275,52 @@ func (a *App) updateMySQLConfig(mysqlPath string, port int) error {
 	return service.InitializeMySQLDataDir(binDir, mysqlPath, dataDir, iniPath)
 }
 func (a *App) updateApacheConfig(apachePath string, port int) error {
-	if port <= 0 { port = 80 }; wwwDir := a.cfg.WWWRoot; os.MkdirAll(wwwDir, 0755); phpInfo := a.orchestrator.GetDetailedInfo("PHP"); phpPort := 0
-	if phpInfo.Status == "Running" { phpPort = phpInfo.Port }; return service.UpdateApacheConfig(apachePath, "", "", "", port, wwwDir, phpPort, a.cfg.ApacheHTTPS)
+	if port <= 0 {
+		port = 80
+	}
+	wwwDir := a.cfg.WWWRoot
+	os.MkdirAll(wwwDir, 0755)
+	phpInfo := a.orchestrator.GetDetailedInfo("PHP")
+	phpPort := 0
+	if phpInfo.Status == "Running" {
+		phpPort = phpInfo.Port
+	}
+
+	vhostsContent := ""
+	sslDir := filepath.Join(config.GetBaseDir(), "ssl")
+	for name, targetPort := range a.cfg.Proxies {
+		vhostsContent += service.GenerateProxyVHost(name, targetPort, port, a.cfg.ApacheHTTPS, sslDir)
+		_ = service.AddHostWithElevation("127.0.0.1", name+".test")
+		if a.cfg.ApacheHTTPS {
+			_ = ssl.SignCertificate(sslDir, name, sslDir)
+		}
+	}
+
+	return service.UpdateApacheConfig(apachePath, "", "", vhostsContent, port, wwwDir, phpPort, a.cfg.ApacheHTTPS)
 }
 func (a *App) updateNginxConfig(nginxPath string, port int) error {
-	if port <= 0 { port = 80 }; wwwDir := a.cfg.WWWRoot; os.MkdirAll(wwwDir, 0755); phpInfo := a.orchestrator.GetDetailedInfo("PHP"); phpPort := 0
-	if phpInfo.Status == "Running" { phpPort = phpInfo.Port }; return service.UpdateNginxConfig(nginxPath, wwwDir, phpPort, port, a.cfg.NginxHTTPS)
+	if port <= 0 {
+		port = 80
+	}
+	wwwDir := a.cfg.WWWRoot
+	os.MkdirAll(wwwDir, 0755)
+	phpInfo := a.orchestrator.GetDetailedInfo("PHP")
+	phpPort := 0
+	if phpInfo.Status == "Running" {
+		phpPort = phpInfo.Port
+	}
+
+	var proxies []service.ProxyConfig
+	sslDir := filepath.Join(config.GetBaseDir(), "ssl")
+	for name, targetPort := range a.cfg.Proxies {
+		proxies = append(proxies, service.ProxyConfig{Name: name, TargetPort: targetPort})
+		_ = service.AddHostWithElevation("127.0.0.1", name+".test")
+		if a.cfg.NginxHTTPS {
+			_ = ssl.SignCertificate(sslDir, name, sslDir)
+		}
+	}
+
+	return service.UpdateNginxConfig(nginxPath, wwwDir, phpPort, port, a.cfg.NginxHTTPS, proxies)
 }
 func (a *App) StopAllServices() { a.orchestrator.StopAll() }
 func (a *App) OpenTerminal(terminalType string) { a.OpenTerminalAtPath(terminalType, a.cfg.WWWRoot) }
@@ -309,5 +358,63 @@ func (a *App) GetPHPExtensions() ([]service.PHPExtensionInfo, error) { baseDir :
 func (a *App) TogglePHPExtension(extName string, enable bool) error {
 	baseDir := config.GetBaseDir(); phpPath := filepath.Join(baseDir, "bin", "php", "current"); err := service.TogglePHPExtension(phpPath, extName, enable); if err != nil { return err }
 	if a.orchestrator.IsRunning("PHP") { a.StopService("PHP"); time.Sleep(600 * time.Millisecond); return a.StartService("PHP") }
+	return nil
+}
+
+type ProxyAppInfo struct {
+	Name string `json:"name"`
+	Port int    `json:"port"`
+}
+
+func (a *App) GetProxyApps() []ProxyAppInfo {
+	var apps []ProxyAppInfo
+	entries, err := os.ReadDir(a.cfg.WWWRoot)
+	if err != nil {
+		return apps
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			name := entry.Name()
+			port := 0
+			if p, ok := a.cfg.Proxies[name]; ok {
+				port = p
+			}
+			apps = append(apps, ProxyAppInfo{Name: name, Port: port})
+		}
+	}
+	return apps
+}
+
+func (a *App) SaveProxyPort(name string, port int) error {
+	if a.cfg.Proxies == nil {
+		a.cfg.Proxies = make(map[string]int)
+	}
+	if port <= 0 {
+		delete(a.cfg.Proxies, name)
+	} else {
+		a.cfg.Proxies[name] = port
+	}
+	err := config.SaveConfig(a.cfg)
+	if err != nil {
+		return err
+	}
+
+	// Trigger web server re-config
+	if a.orchestrator.IsRunning("Apache") {
+		a.updateApacheConfig(filepath.Join(config.GetBaseDir(), "bin", "apache", "current"), a.orchestrator.GetDetailedInfo("Apache").Port)
+		// Apache might need full restart for some changes, but usually reload is enough if handled in updateApacheConfig
+		// For now we follow the existing pattern in SetWWWRoot
+		a.StopService("Apache")
+		time.Sleep(500 * time.Millisecond)
+		a.StartService("Apache")
+	}
+	if a.orchestrator.IsRunning("Nginx") {
+		a.updateNginxConfig(filepath.Join(config.GetBaseDir(), "bin", "nginx", "current"), a.orchestrator.GetDetailedInfo("Nginx").Port)
+		a.StopService("Nginx")
+		time.Sleep(500 * time.Millisecond)
+		a.StartService("Nginx")
+	}
+
 	return nil
 }
