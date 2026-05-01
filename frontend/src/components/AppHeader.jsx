@@ -12,12 +12,18 @@ function AppHeader({ activeTab, handleStartAll, handleStopAll, handleTerminal, i
   // or just show the appropriate title.
   if (activeTab === 'logs') return null;
 
+  const title = {
+    activity: 'Activity Center',
+    plugins: 'Plugin Management',
+    proxy: 'Proxy Management',
+  }[activeTab] || '';
+
   return (
     <header className="h-14 shrink-0">
       <div className="max-w-4xl mx-auto h-full px-8 flex items-center justify-between">
         <div className="space-y-0.5">
           <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight uppercase italic">
-            {activeTab === 'activity' ? 'Activity Center' : 'Plugin Management'}
+            {title}
           </h2>
         </div>
 
