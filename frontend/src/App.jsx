@@ -11,6 +11,7 @@ import Toast from './components/Toast';
 import LogViewer from './components/LogViewer';
 import ActivityTab from './components/ActivityTab';
 import PluginsTab from './components/PluginsTab';
+import ProxyTab from './components/ProxyTab';
 import Icons from './components/Icons';
 
 // Icons
@@ -294,6 +295,8 @@ function App() {
                 handleCancel={(name) => AppBackend.CancelDownload(name)}
                 renderIcon={renderIcon}
               />
+            ) : activeTab === 'proxy' ? (
+              <ProxyTab addToast={addToast} />
             ) : (
               <LogViewer logs={logs} />
             )}

@@ -27,6 +27,45 @@ func GenerateVHost(projectName string, projectPath string, port int) string {
 `, port, projectPath, projectName, projectName, projectPath)
 }
 
+func GenerateProxyVHost(projectName string, targetPort int, listenPort int, httpsEnabled bool, sslDir string) string {
+	if listenPort <= 0 {
+		listenPort = 80
+	}
+
+	vhost := fmt.Sprintf(`
+<VirtualHost *:%d>
+    ServerName %s.test
+    ServerAlias *.%s.test
+
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:%d/
+    ProxyPassReverse / http://127.0.0.1:%d/
+</VirtualHost>
+`, listenPort, projectName, projectName, targetPort, targetPort)
+
+	if httpsEnabled {
+		crtPath := strings.ReplaceAll(filepath.Join(sslDir, projectName+".crt"), "\\", "/")
+		keyPath := strings.ReplaceAll(filepath.Join(sslDir, projectName+".key"), "\\", "/")
+
+		vhost += fmt.Sprintf(`
+<VirtualHost *:443>
+    ServerName %s.test
+    ServerAlias *.%s.test
+
+    SSLEngine on
+    SSLCertificateFile "%s"
+    SSLCertificateKeyFile "%s"
+
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:%d/
+    ProxyPassReverse / http://127.0.0.1:%d/
+</VirtualHost>
+`, projectName, projectName, crtPath, keyPath, targetPort, targetPort)
+	}
+
+	return vhost
+}
+
 func UpdateApacheConfig(apachePath string, phpDllPath string, phpIniDir string, vhostsContent string, port int, wwwRoot string, phpPort int, httpsEnabled bool) error {
 	confPath := filepath.Join(apachePath, "conf", "httpd.conf")
 	phpConfPath := filepath.Join(apachePath, "conf", "extra", "httpd-ostenia-php.conf")
@@ -44,7 +83,7 @@ func UpdateApacheConfig(apachePath string, phpDllPath string, phpIniDir string, 
 	normalizedWWWRoot := strings.ReplaceAll(wwwRoot, "\\", "/")
 
 	// Modules
-	modules := []string{"rewrite_module", "alias_module", "proxy_module", "proxy_fcgi_module", "socache_shmcb_module"}
+	modules := []string{"rewrite_module", "alias_module", "proxy_module", "proxy_http_module", "proxy_fcgi_module", "socache_shmcb_module"}
 	if httpsEnabled {
 		modules = append(modules, "ssl_module")
 	}
@@ -94,6 +133,13 @@ func UpdateApacheConfig(apachePath string, phpDllPath string, phpIniDir string, 
 	content += "\nInclude conf/extra/httpd-ostenia-php.conf\n"
 	if httpsEnabled {
 		content += "Include conf/extra/httpd-ostenia-ssl.conf\n"
+	}
+	if vhostsContent != "" {
+		vhostsConfPath := filepath.Join(apachePath, "conf", "extra", "httpd-ostenia-vhosts.conf")
+		os.WriteFile(vhostsConfPath, []byte(vhostsContent), 0644)
+		if !strings.Contains(content, "Include conf/extra/httpd-ostenia-vhosts.conf") {
+			content += "\nInclude conf/extra/httpd-ostenia-vhosts.conf\n"
+		}
 	}
 
 	finalContent := header + "\n" + strings.TrimSpace(content)
