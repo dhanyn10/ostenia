@@ -147,6 +147,13 @@ func (a *App) SelectServerRoot() (string, error) {
 	return selectedDir, nil
 }
 
+func (a *App) SelectWWWRoot() (string, error) {
+	selectedDir, err := wruntime.OpenDirectoryDialog(a.ctx, wruntime.OpenDialogOptions{Title: "Select Server Root (www)"})
+	if err != nil { return "", err }
+	if selectedDir != "" { err = a.SetWWWRoot(selectedDir); if err != nil { return "", err } }
+	return selectedDir, nil
+}
+
 func (a *App) OpenServerRootFolder() error { return service.OpenExplorer(a.cfg.WWWRoot) }
 func (a *App) OpenAppsLocationFolder() error { return service.OpenExplorer(config.GetBaseDir()) }
 func (a *App) OpenPluginFolder(serviceName string) error {
