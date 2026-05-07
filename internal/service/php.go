@@ -2,13 +2,17 @@ package service
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
+	"ostenia/internal/config"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
 	"syscall"
+	"time"
 )
 
 type PHPExtensionInfo struct {
@@ -31,6 +35,42 @@ func GetPHPVersion(currentPath string) (string, error) {
 		return "", err
 	}
 	return string(out), nil
+}
+
+func ensureCACert() (string, error) {
+	baseDir := config.GetBaseDir()
+	certDir := filepath.Join(baseDir, "bin", "php")
+	certPath := filepath.Join(certDir, "cacert.pem")
+
+	if _, err := os.Stat(certPath); err == nil {
+		return certPath, nil
+	}
+
+	if err := os.MkdirAll(certDir, 0755); err != nil {
+		return "", err
+	}
+
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+	resp, err := client.Get("https://curl.se/ca/cacert.pem")
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to download cacert.pem: HTTP %d", resp.StatusCode)
+	}
+
+	out, err := os.Create(certPath)
+	if err != nil {
+		return "", err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	return certPath, err
 }
 
 // UpdatePHPConfig ensures required extensions and paths are set in php.ini
@@ -78,6 +118,25 @@ func UpdatePHPConfig(phpPath string) error {
 	for _, ext := range coreExts {
 		re := regexp.MustCompile(`(?m)^;\s*(extension\s*=\s*(?:php_)?` + ext + `(?:\.dll)?\s*)$`)
 		content = re.ReplaceAllString(content, "$1")
+	}
+
+	// Update SSL CA Cert paths
+	if caPath, err := ensureCACert(); err == nil {
+		caPath = strings.ReplaceAll(caPath, "\\", "/")
+
+		reCurl := regexp.MustCompile(`(?m)^;?\s*curl\.cainfo\s*=\s*.*$`)
+		if reCurl.MatchString(content) {
+			content = reCurl.ReplaceAllString(content, fmt.Sprintf("curl.cainfo = \"%s\"", caPath))
+		} else {
+			content += fmt.Sprintf("\ncurl.cainfo = \"%s\"", caPath)
+		}
+
+		reOpenSSL := regexp.MustCompile(`(?m)^;?\s*openssl\.cafile\s*=\s*.*$`)
+		if reOpenSSL.MatchString(content) {
+			content = reOpenSSL.ReplaceAllString(content, fmt.Sprintf("openssl.cafile = \"%s\"", caPath))
+		} else {
+			content += fmt.Sprintf("\nopenssl.cafile = \"%s\"", caPath)
+		}
 	}
 
 	return os.WriteFile(iniPath, []byte(content), 0644)
