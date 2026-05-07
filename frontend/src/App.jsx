@@ -236,10 +236,8 @@ function App() {
                    if (selected) { setAppsLocation(selected); initApp(); }
                 }}
                 handleBrowseServerRoot={async () => {
-                   if (window.runtime) {
-                     const selected = await window.runtime.OpenDirectoryDialog({ title: "Select Server Root (www)" });
-                     if (selected) { await AppBackend.SetWWWRoot(selected); setServerRootState(selected); }
-                   }
+                   const selected = await AppBackend.SelectWWWRoot();
+                   if (selected) { setServerRootState(selected); initApp(); }
                 }}
                 isAddingPlugin={isAddingPlugin}
                 setIsAddingPlugin={setIsAddingPlugin}

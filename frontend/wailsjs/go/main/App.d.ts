@@ -43,6 +43,8 @@ export function SaveProxyPort(arg1:string,arg2:number):Promise<void>;
 
 export function SelectServerRoot():Promise<string>;
 
+export function SelectWWWRoot():Promise<string>;
+
 export function SetApacheHTTPS(arg1:boolean):Promise<void>;
 
 export function SetNginxHTTPS(arg1:boolean):Promise<void>;
