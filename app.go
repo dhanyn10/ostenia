@@ -173,6 +173,34 @@ func (a *App) InstallPrerequisite(task plugins.DownloadTask) error {
 
 func (a *App) CancelDownload(taskName string) { a.downloader.CancelDownload(taskName) }
 
+func (a *App) InstallPluginModule(parentName string, moduleName string) error {
+	baseDir := config.GetBaseDir()
+	cat := strings.ToLower(parentName)
+	if cat == "node.js" { cat = "nodejs" }
+	targetPath := filepath.Join(baseDir, "bin", cat, "current")
+
+	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+		return fmt.Errorf("%s is not installed or active", parentName)
+	}
+
+	emitProgress := func(name string, pct float64, status string) {
+		wruntime.EventsEmit(a.ctx, "download_progress", plugins.Progress{Name: name, Percentage: pct, Status: status})
+	}
+
+	var err error
+	switch parentName {
+	case "PHP":
+		err = php.InstallModule(a.ctx, a.downloader, moduleName, targetPath, emitProgress)
+	case "Python":
+		err = python.InstallModule(a.ctx, a.downloader, moduleName, targetPath, emitProgress)
+	default:
+		err = fmt.Errorf("unsupported parent plugin: %s", parentName)
+	}
+
+	if err == nil { a.orchestrator.RequestRefresh() }
+	return err
+}
+
 func (a *App) StartService(serviceName string) error {
 	baseDir := config.GetBaseDir(); binDir := filepath.Join(baseDir, "bin")
 	fmt.Printf("[App] Starting service: %s\n", serviceName)

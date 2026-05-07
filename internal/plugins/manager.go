@@ -162,6 +162,10 @@ func (m *Manager) downloadFile(ctx context.Context, url, path, name string) erro
 	_, err = io.Copy(out, io.TeeReader(resp.Body, wc)); return err
 }
 
+func (m *Manager) DownloadFileManual(url, path, name string) error {
+	return m.downloadFile(m.ctx, url, path, name)
+}
+
 func (m *Manager) unzipFile(ctx context.Context, src, dest, name string) error {
 	r, err := zip.OpenReader(src); if err != nil { return err }; defer r.Close()
 	total := len(r.File)

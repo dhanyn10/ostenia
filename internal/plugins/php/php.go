@@ -71,6 +71,31 @@ func GetIcon() string {
 	return string(data)
 }
 
+func GetModules() []utils.ModuleDefinition {
+	return []utils.ModuleDefinition{
+		{Name: "Composer", CheckFile: "composer.phar"},
+	}
+}
+
+func InstallModule(ctx interface{}, m interface{}, moduleName string, phpPath string, emitProgress func(string, float64, string)) error {
+	if moduleName == "Composer" {
+		emitProgress("Composer", 10, "Downloading...")
+		composerPhar := filepath.Join(phpPath, "composer.phar")
+
+		// We need a way to download. Let's assume manager provides it or we do it here.
+		// To keep it clean, let's use a helper.
+		err := utils.DownloadFile(composerPhar, "https://getcomposer.org/composer.phar")
+		if err != nil { return err }
+
+		batContent := "@php \"%~dp0composer.phar\" %*"
+		os.WriteFile(filepath.Join(phpPath, "composer.bat"), []byte(batContent), 0755)
+
+		emitProgress("Composer", 100, "Completed")
+		return nil
+	}
+	return fmt.Errorf("unknown module: %s", moduleName)
+}
+
 func fetchContent(url string) string {
 	resp, err := http.Get(url)
 	if err != nil { return "" }

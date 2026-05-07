@@ -296,6 +296,15 @@ function App() {
                 }}
                 handleCancel={(name) => AppBackend.CancelDownload(name)}
                 renderIcon={renderIcon}
+                handleInstallModule={async (parentName, modName) => {
+                  setDownloadProgress(prev => ({ ...prev, [modName]: { name: modName, percentage: 0, status: 'Starting...' } }));
+                  try {
+                    await AppBackend.InstallPluginModule(parentName, modName);
+                  } catch (e) {
+                    addToast('Error', e.toString(), 'error');
+                    setDownloadProgress(prev => ({ ...prev, [modName]: { name: modName, percentage: 0, status: 'Error: ' + e.toString() } }));
+                  }
+                }}
               />
             ) : activeTab === 'proxy' ? (
               <ProxyTab addToast={addToast} />

@@ -14,6 +14,14 @@ type DownloadTask struct {
 	CheckFile     string            `json:"checkFile"`     // Executable to verify (e.g., "php.exe")
 	IsInstalled   bool              `json:"isInstalled"`   // True if the 'current' symlink is valid
 	IconSVG       string            `json:"iconSvg"`       // Icon for UI
+	Modules       []PluginModule    `json:"modules"`       // Sub-plugins/modules (e.g., Composer, Pip)
+}
+
+type PluginModule struct {
+	Name        string `json:"name"`
+	IsInstalled bool   `json:"isInstalled"`
+	Status      string `json:"status"` // e.g., "Not Installed", "Ready", "Installing..."
+	CheckFile   string `json:"-"`
 }
 
 // Progress reports download/extraction status to frontend.

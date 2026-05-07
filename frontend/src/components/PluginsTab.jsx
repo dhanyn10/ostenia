@@ -5,7 +5,7 @@ import { OpenPluginFolder } from '../../wailsjs/go/main/App';
 function PluginsTab({ 
   prerequisites, downloadProgress, openDropdown, setOpenDropdown,
   selectedVersions, setSelectedVersions, handleDeleteVersion,
-  handleInstallSingle, handleCancel, renderIcon 
+  handleInstallSingle, handleCancel, renderIcon, handleInstallModule
 }) {
   return (
     <div className="flex flex-col h-full pt-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -17,7 +17,7 @@ function PluginsTab({
             <PluginItem 
               key={task.name}
               task={task}
-              progress={downloadProgress[task.name]}
+              progress={downloadProgress}
               isDropdownOpen={openDropdown === task.name}
               onDropdownToggle={() => setOpenDropdown(openDropdown === task.name ? null : task.name)}
               selectedVersion={selectedVersions[task.name]}
@@ -27,6 +27,7 @@ function PluginsTab({
               onCancel={handleCancel}
               onOpenFolder={(name) => OpenPluginFolder(name)}
               renderIcon={renderIcon}
+              onInstallModule={handleInstallModule}
             />
           );
         })}

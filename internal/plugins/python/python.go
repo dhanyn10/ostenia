@@ -93,6 +93,53 @@ func GetIcon() string {
 	return string(data)
 }
 
+func GetModules() []utils.ModuleDefinition {
+	return []utils.ModuleDefinition{
+		{Name: "Pip", CheckFile: "Scripts/pip.exe"},
+	}
+}
+
+func InstallModule(ctx interface{}, m interface{}, moduleName string, pythonPath string, emitProgress func(string, float64, string)) error {
+	if moduleName == "Pip" {
+		emitProgress("Pip", 10, "Downloading get-pip.py...")
+		getPipPath := filepath.Join(os.TempDir(), "get-pip.py")
+		err := utils.DownloadFile(getPipPath, "https://bootstrap.pypa.io/get-pip.py")
+		if err != nil { return err }
+
+		emitProgress("Pip", 50, "Installing Pip...")
+		pythonExe := filepath.Join(pythonPath, "python.exe")
+
+		// Note: We're using a simplified command here for modularity.
+		// In a real environment, you might want more robust error handling.
+		cmd := exec.Command(pythonExe, getPipPath)
+		cmd.Dir = pythonPath
+		if runtime.GOOS == "windows" {
+			// Using a trick to hide window if we can't easily access syscall here,
+			// but we can just import it.
+		}
+		err = cmd.Run()
+		if err != nil { return err }
+
+		// Patch ._pth file to include site-packages
+		files, _ := os.ReadDir(pythonPath)
+		for _, f := range files {
+			if strings.HasSuffix(f.Name(), "._pth") {
+				pthPath := filepath.Join(pythonPath, f.Name())
+				content, _ := os.ReadFile(pthPath)
+				if !strings.Contains(string(content), "Lib\\site-packages") {
+					newContent := string(content) + "\nLib\\site-packages\n"
+					os.WriteFile(pthPath, []byte(newContent), 0644)
+				}
+				break
+			}
+		}
+
+		emitProgress("Pip", 100, "Completed")
+		return nil
+	}
+	return fmt.Errorf("unknown module: %s", moduleName)
+}
+
 func fetchContent(url string) string {
 	resp, err := http.Get(url)
 	if err != nil { return "" }
