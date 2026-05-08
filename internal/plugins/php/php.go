@@ -1,6 +1,7 @@
 package php
 
 import (
+	_ "embed"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +13,9 @@ import (
 	"sort"
 	"syscall"
 )
+
+//go:embed php.svg
+var iconSVG string
 
 func DetectVersions() ([]string, map[string]string) {
 	baseURL := "https://windows.php.net/downloads/releases/archives/"
@@ -69,8 +73,7 @@ func compareVersions(v1, v2 string) int {
 }
 
 func GetIcon() string {
-	data, _ := os.ReadFile(filepath.Join("internal", "plugins", "php", "php.svg"))
-	return string(data)
+	return iconSVG
 }
 
 func GetModules() []utils.ModuleDefinition {

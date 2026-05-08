@@ -1,14 +1,16 @@
 package nginx
 
 import (
+	_ "embed"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"regexp"
 	"sort"
 )
+
+//go:embed nginx.svg
+var iconSVG string
 
 func DetectVersions() ([]string, map[string]string) {
 	content := fetchContent("https://nginx.org/download/")
@@ -53,8 +55,7 @@ func compareVersions(v1, v2 string) int {
 }
 
 func GetIcon() string {
-	data, _ := os.ReadFile(filepath.Join("internal", "plugins", "nginx", "nginx.svg"))
-	return string(data)
+	return iconSVG
 }
 
 func fetchContent(url string) string {
