@@ -5,10 +5,14 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
+	"strings"
+	"syscall"
 )
 
 // DetectVersions scans the Python FTP server for available versions
@@ -114,8 +118,7 @@ func InstallModule(ctx interface{}, m interface{}, moduleName string, pythonPath
 		cmd := exec.Command(pythonExe, getPipPath)
 		cmd.Dir = pythonPath
 		if runtime.GOOS == "windows" {
-			// Using a trick to hide window if we can't easily access syscall here,
-			// but we can just import it.
+			cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 		}
 		err = cmd.Run()
 		if err != nil { return err }

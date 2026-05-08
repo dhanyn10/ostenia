@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"ostenia/internal/config"
 	"ostenia/internal/plugins"
+	"ostenia/internal/plugins/php"
+	"ostenia/internal/plugins/python"
 	"ostenia/internal/network"
 	"ostenia/internal/service"
 	"ostenia/internal/ssl"
