@@ -14,7 +14,6 @@ import (
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"sort"
-	"strings"
 )
 
 type pluginDefinition struct {
