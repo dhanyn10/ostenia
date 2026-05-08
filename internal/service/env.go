@@ -70,7 +70,10 @@ func UpdateNodePath(nodePath string, add bool) error {
 
 // UpdatePythonPath manages Python entries in the SYSTEM (Machine) PATH.
 func UpdatePythonPath(pythonPath string, add bool) error {
-	return updateSystemComponentPath(pythonPath, "python", add)
+	err := updateSystemComponentPath(pythonPath, "python", add)
+	if err != nil { return err }
+	scriptsPath := filepath.Join(pythonPath, "Scripts")
+	return updateSystemComponentPath(scriptsPath, "python-scripts", add)
 }
 
 // updateSystemComponentPath handles generic system-level PATH management for components.
