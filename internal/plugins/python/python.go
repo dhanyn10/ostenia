@@ -5,10 +5,14 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
+	"strings"
+	"syscall"
 )
 
 // DetectVersions scans the Python FTP server for available versions
@@ -91,6 +95,79 @@ func compare(i, j int) int {
 func GetIcon() string {
 	data, _ := os.ReadFile(filepath.Join("internal", "plugins", "python", "python.svg"))
 	return string(data)
+}
+
+func GetModules() []utils.ModuleDefinition {
+	return []utils.ModuleDefinition{
+		{Name: "Pip", CheckFile: "Scripts/pip.exe"},
+	}
+}
+
+func GetModuleVersion(moduleName string, pythonPath string) string {
+	if moduleName == "Pip" {
+		pipExe := filepath.Join(pythonPath, "Scripts", "pip.exe")
+		if _, err := os.Stat(pipExe); err != nil { return "" }
+		pythonExe := filepath.Join(pythonPath, "python.exe")
+		cmd := exec.Command(pythonExe, "-m", "pip", "--version")
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		out, err := cmd.Output()
+		if err != nil { return "" }
+		re := regexp.MustCompile(`pip (\d+\.\d+(?:\.\d+)?)`)
+		match := re.FindStringSubmatch(string(out))
+		if len(match) > 1 { return match[1] }
+	}
+	return ""
+}
+
+func UninstallModule(moduleName string, pythonPath string) error {
+	if moduleName == "Pip" {
+		// Pip is installed into Scripts and Lib/site-packages.
+		// For simplicity, we can just remove pip from Scripts
+		os.Remove(filepath.Join(pythonPath, "Scripts", "pip.exe"))
+		os.Remove(filepath.Join(pythonPath, "Scripts", "pip.exe.manifest"))
+		return nil
+	}
+	return fmt.Errorf("unknown module: %s", moduleName)
+}
+
+func InstallModule(ctx interface{}, m interface{}, moduleName string, pythonPath string, emitProgress func(string, float64, string)) error {
+	if moduleName == "Pip" {
+		emitProgress("Pip", 10, "Downloading get-pip.py...")
+		getPipPath := filepath.Join(os.TempDir(), "get-pip.py")
+		err := utils.DownloadFile(getPipPath, "https://bootstrap.pypa.io/get-pip.py")
+		if err != nil { return err }
+
+		emitProgress("Pip", 50, "Installing Pip...")
+		pythonExe := filepath.Join(pythonPath, "python.exe")
+
+		// Note: We're using a simplified command here for modularity.
+		// In a real environment, you might want more robust error handling.
+		cmd := exec.Command(pythonExe, getPipPath)
+		cmd.Dir = pythonPath
+		if runtime.GOOS == "windows" {
+			cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		}
+		err = cmd.Run()
+		if err != nil { return err }
+
+		// Patch ._pth file to include site-packages
+		files, _ := os.ReadDir(pythonPath)
+		for _, f := range files {
+			if strings.HasSuffix(f.Name(), "._pth") {
+				pthPath := filepath.Join(pythonPath, f.Name())
+				content, _ := os.ReadFile(pthPath)
+				if !strings.Contains(string(content), "Lib\\site-packages") {
+					newContent := string(content) + "\nLib\\site-packages\n"
+					os.WriteFile(pthPath, []byte(newContent), 0644)
+				}
+				break
+			}
+		}
+
+		emitProgress("Pip", 100, "Completed")
+		return nil
+	}
+	return fmt.Errorf("unknown module: %s", moduleName)
 }
 
 func fetchContent(url string) string {

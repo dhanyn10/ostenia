@@ -1,11 +1,36 @@
 package utils
 
 import (
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 )
+
+type ModuleDefinition struct {
+	Name      string
+	CheckFile string
+}
+
+// DownloadFile downloads a file from URL to the specified path.
+func DownloadFile(path string, url string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	out, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	return err
+}
 
 // GetSystemArch returns the architecture string for the current system ("x64" or "x86").
 func GetSystemArch() string {

@@ -69,8 +69,32 @@ func GetLatestKnownVersions() []DownloadTask {
 			continue
 		}
 
-		// 2. Check if the currently active 'current' link is functional
+		// 1.5 Detect Modules (Generically)
 		currentPath := filepath.Join(baseDir, "bin", category, "current")
+		var modDefs []utils.ModuleDefinition
+		switch t.Name {
+		case "PHP": modDefs = php.GetModules()
+		case "Python": modDefs = python.GetModules()
+		}
+
+		for _, def := range modDefs {
+			isModInstalled := false
+			if _, err := os.Stat(filepath.Join(currentPath, def.CheckFile)); err == nil {
+				isModInstalled = true
+			}
+			status := "Not Installed"
+			version := ""
+			if isModInstalled {
+				status = "Ready"
+				switch t.Name {
+				case "PHP": version = php.GetModuleVersion(def.Name, currentPath)
+				case "Python": version = python.GetModuleVersion(def.Name, currentPath)
+				}
+			}
+			t.Modules = append(t.Modules, PluginModule{Name: def.Name, IsInstalled: isModInstalled, Status: status, Version: version, CheckFile: def.CheckFile})
+		}
+
+		// 2. Check if the currently active 'current' link is functional
 		if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
 			cf := filepath.Join(resolved, t.CheckFile)
 			if t.Name == "Apache" {

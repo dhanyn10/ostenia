@@ -5,10 +5,12 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"regexp"
 	"sort"
+	"syscall"
 )
 
 func DetectVersions() ([]string, map[string]string) {
@@ -69,6 +71,56 @@ func compareVersions(v1, v2 string) int {
 func GetIcon() string {
 	data, _ := os.ReadFile(filepath.Join("internal", "plugins", "php", "php.svg"))
 	return string(data)
+}
+
+func GetModules() []utils.ModuleDefinition {
+	return []utils.ModuleDefinition{
+		{Name: "Composer", CheckFile: "composer.phar"},
+	}
+}
+
+func GetModuleVersion(moduleName string, phpPath string) string {
+	if moduleName == "Composer" {
+		composerPhar := filepath.Join(phpPath, "composer.phar")
+		if _, err := os.Stat(composerPhar); err != nil { return "" }
+		phpExe := filepath.Join(phpPath, "php.exe")
+		cmd := exec.Command(phpExe, composerPhar, "--version")
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		out, err := cmd.Output()
+		if err != nil { return "" }
+		re := regexp.MustCompile(`Composer version (\d+\.\d+\.\d+)`)
+		match := re.FindStringSubmatch(string(out))
+		if len(match) > 1 { return match[1] }
+	}
+	return ""
+}
+
+func UninstallModule(moduleName string, phpPath string) error {
+	if moduleName == "Composer" {
+		os.Remove(filepath.Join(phpPath, "composer.phar"))
+		os.Remove(filepath.Join(phpPath, "composer.bat"))
+		return nil
+	}
+	return fmt.Errorf("unknown module: %s", moduleName)
+}
+
+func InstallModule(ctx interface{}, m interface{}, moduleName string, phpPath string, emitProgress func(string, float64, string)) error {
+	if moduleName == "Composer" {
+		emitProgress("Composer", 10, "Downloading...")
+		composerPhar := filepath.Join(phpPath, "composer.phar")
+
+		// We need a way to download. Let's assume manager provides it or we do it here.
+		// To keep it clean, let's use a helper.
+		err := utils.DownloadFile(composerPhar, "https://getcomposer.org/composer.phar")
+		if err != nil { return err }
+
+		batContent := "@php \"%~dp0composer.phar\" %*"
+		os.WriteFile(filepath.Join(phpPath, "composer.bat"), []byte(batContent), 0755)
+
+		emitProgress("Composer", 100, "Completed")
+		return nil
+	}
+	return fmt.Errorf("unknown module: %s", moduleName)
 }
 
 func fetchContent(url string) string {

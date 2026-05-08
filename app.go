@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"ostenia/internal/config"
 	"ostenia/internal/plugins"
+	"ostenia/internal/plugins/php"
+	"ostenia/internal/plugins/python"
 	"ostenia/internal/network"
 	"ostenia/internal/service"
 	"ostenia/internal/ssl"
@@ -167,11 +169,75 @@ func (a *App) OpenPluginFolder(serviceName string) error {
 
 func (a *App) InstallPrerequisite(task plugins.DownloadTask) error {
 	err := a.downloader.DownloadAndExtract(task)
-	if err == nil { a.orchestrator.RequestRefresh() }
+	if err == nil {
+		baseDir := config.GetBaseDir()
+		cat := strings.ToLower(task.Name)
+		if cat == "node.js" { cat = "nodejs" }
+		targetPath := filepath.Join(baseDir, "bin", cat, "current")
+
+		if task.Name == "PHP" {
+			_ = service.UpdatePHPPath(targetPath, true)
+		} else if task.Name == "Python" {
+			_ = service.UpdatePythonPath(targetPath, true)
+		}
+		a.orchestrator.RequestRefresh()
+	}
 	return err
 }
 
 func (a *App) CancelDownload(taskName string) { a.downloader.CancelDownload(taskName) }
+
+func (a *App) InstallPluginModule(parentName string, moduleName string) error {
+	baseDir := config.GetBaseDir()
+	cat := strings.ToLower(parentName)
+	if cat == "node.js" { cat = "nodejs" }
+	targetPath := filepath.Join(baseDir, "bin", cat, "current")
+
+	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+		return fmt.Errorf("%s is not installed or active", parentName)
+	}
+
+	emitProgress := func(name string, pct float64, status string) {
+		wruntime.EventsEmit(a.ctx, "download_progress", plugins.Progress{Name: name, Percentage: pct, Status: status})
+	}
+
+	var err error
+	switch parentName {
+	case "PHP":
+		err = php.InstallModule(a.ctx, a.downloader, moduleName, targetPath, emitProgress)
+		if err == nil { _ = service.UpdatePHPPath(targetPath, true) }
+	case "Python":
+		err = python.InstallModule(a.ctx, a.downloader, moduleName, targetPath, emitProgress)
+		if err == nil { _ = service.UpdatePythonPath(targetPath, true) }
+	default:
+		err = fmt.Errorf("unsupported parent plugin: %s", parentName)
+	}
+
+	if err == nil { a.orchestrator.RequestRefresh() }
+	return err
+}
+
+func (a *App) UninstallPluginModule(parentName string, moduleName string) error {
+	baseDir := config.GetBaseDir()
+	cat := strings.ToLower(parentName)
+	if cat == "node.js" { cat = "nodejs" }
+	targetPath := filepath.Join(baseDir, "bin", cat, "current")
+
+	var err error
+	switch parentName {
+	case "PHP":
+		err = php.UninstallModule(moduleName, targetPath)
+		if err == nil { _ = service.UpdatePHPPath(targetPath, true) }
+	case "Python":
+		err = python.UninstallModule(moduleName, targetPath)
+		if err == nil { _ = service.UpdatePythonPath(targetPath, true) }
+	default:
+		err = fmt.Errorf("unsupported parent plugin: %s", parentName)
+	}
+
+	if err == nil { a.orchestrator.RequestRefresh() }
+	return err
+}
 
 func (a *App) StartService(serviceName string) error {
 	baseDir := config.GetBaseDir(); binDir := filepath.Join(baseDir, "bin")
