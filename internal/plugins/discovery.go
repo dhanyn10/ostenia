@@ -23,6 +23,7 @@ type pluginDefinition struct {
 	CheckFile string
 	Detect    func() ([]string, map[string]string)
 	GetIcon   func() string
+	GetInfo   func(path string) string
 	GetModules func() []utils.ModuleDefinition
 	GetModuleVersion func(name string, path string) string
 }
@@ -49,6 +50,7 @@ func GetLatestKnownVersions() []DownloadTask {
 		{
 			Name: "Python", Category: "python", TargetPrefix: "python/python-", CheckFile: "python.exe",
 			Detect: python.DetectVersions, GetIcon: python.GetIcon,
+			GetInfo: python.GetInfo,
 			GetModules: python.GetModules, GetModuleVersion: python.GetModuleVersion,
 		},
 		{
@@ -134,6 +136,11 @@ func GetLatestKnownVersions() []DownloadTask {
 					Name: modDef.Name, IsInstalled: isModInstalled, Status: status, Version: version, CheckFile: modDef.CheckFile,
 				})
 			}
+		}
+
+		// 1.7 Get Info (if installed)
+		if def.GetInfo != nil {
+			t.Info = def.GetInfo(currentPath)
 		}
 
 		// 2. Check if the currently active 'current' link is functional

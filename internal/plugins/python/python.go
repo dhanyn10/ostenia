@@ -70,37 +70,37 @@ func GetIcon() string {
 }
 
 func GetModules() []utils.ModuleDefinition {
-	return []utils.ModuleDefinition{
-		{Name: "Pip", CheckFile: "python.exe"}, // Nuget Python has pip by default
-	}
+	return nil
 }
 
 func GetModuleVersion(moduleName string, pythonPath string) string {
-	if moduleName == "Pip" {
-		pythonExe := filepath.Join(pythonPath, "python.exe")
-		if _, err := os.Stat(pythonExe); err != nil { return "" }
-		cmd := exec.Command(pythonExe, "-m", "pip", "--version")
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-		out, err := cmd.Output()
-		if err != nil { return "" }
-		re := regexp.MustCompile(`pip (\d+\.\d+(?:\.\d+)?)`)
-		match := re.FindStringSubmatch(string(out))
-		if len(match) > 1 { return match[1] }
+	return ""
+}
+
+func GetInfo(pythonPath string) string {
+	pythonExe := filepath.Join(pythonPath, "python.exe")
+	if _, err := os.Stat(pythonExe); err != nil {
+		return ""
+	}
+	cmd := exec.Command(pythonExe, "-m", "pip", "--version")
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	re := regexp.MustCompile(`pip (\d+\.\d+(?:\.\d+)?)`)
+	match := re.FindStringSubmatch(string(out))
+	if len(match) > 1 {
+		return "Pip " + match[1]
 	}
 	return ""
 }
 
 func UninstallModule(moduleName string, pythonPath string) error {
-	// For Nuget Python, pip is built-in. Uninstalling it might be counter-productive
-	// but we can satisfy the interface.
-	return nil
+	return fmt.Errorf("unknown module: %s", moduleName)
 }
 
 func InstallModule(ctx interface{}, m interface{}, moduleName string, pythonPath string, emitProgress func(string, float64, string)) error {
-	if moduleName == "Pip" {
-		emitProgress("Pip", 100, "Ready")
-		return nil
-	}
 	return fmt.Errorf("unknown module: %s", moduleName)
 }
 
