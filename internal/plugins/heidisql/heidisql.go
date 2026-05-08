@@ -1,9 +1,11 @@
 package heidisql
 
 import (
-	"os"
-	"path/filepath"
+	_ "embed"
 )
+
+//go:embed heidisql.svg
+var iconSVG string
 
 func DetectVersions() (string, string) {
 	version := "12.7"
@@ -12,6 +14,5 @@ func DetectVersions() (string, string) {
 }
 
 func GetIcon() string {
-	data, _ := os.ReadFile(filepath.Join("internal", "plugins", "heidisql", "heidisql.svg"))
-	return string(data)
+	return iconSVG
 }

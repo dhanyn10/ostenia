@@ -1,12 +1,14 @@
 package mysql
 
 import (
+	_ "embed"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 )
+
+//go:embed mysql.svg
+var iconSVG string
 
 func DetectVersions() ([]string, map[string]string) {
 	// MySQL versions usually fixed for LTS
@@ -22,8 +24,7 @@ func DetectVersions() ([]string, map[string]string) {
 }
 
 func GetIcon() string {
-	data, _ := os.ReadFile(filepath.Join("internal", "plugins", "mysql", "mysql.svg"))
-	return string(data)
+	return iconSVG
 }
 
 func fetchContent(url string) string {

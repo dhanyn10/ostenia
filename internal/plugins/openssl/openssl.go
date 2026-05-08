@@ -1,6 +1,7 @@
 package openssl
 
 import (
+	_ "embed"
 	"os"
 	"os/exec"
 	"ostenia/internal/config"
@@ -10,6 +11,9 @@ import (
 	"strings"
 	"syscall"
 )
+
+//go:embed openssl.svg
+var iconSVG string
 
 func DetectVersions() (string, string) {
 	version := "4.0.0"
@@ -24,8 +28,7 @@ func DetectVersions() (string, string) {
 }
 
 func GetIcon() string {
-	data, _ := os.ReadFile(filepath.Join("internal", "plugins", "openssl", "openssl.svg"))
-	return string(data)
+	return iconSVG
 }
 
 // DetectInstalledVersion verifies an OpenSSL executable by running `<path> version`.

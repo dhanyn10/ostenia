@@ -1,6 +1,7 @@
 package python
 
 import (
+	_ "embed"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +15,9 @@ import (
 	"strings"
 	"syscall"
 )
+
+//go:embed python.svg
+var iconSVG string
 
 // DetectVersions scans the Python FTP server for available versions
 // and returns only the latest patch for each minor version starting from 3.10,
@@ -93,8 +97,7 @@ func compare(i, j int) int {
 }
 
 func GetIcon() string {
-	data, _ := os.ReadFile(filepath.Join("internal", "plugins", "python", "python.svg"))
-	return string(data)
+	return iconSVG
 }
 
 func GetModules() []utils.ModuleDefinition {

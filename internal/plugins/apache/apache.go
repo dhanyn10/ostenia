@@ -1,13 +1,15 @@
 package apache
 
 import (
+	_ "embed"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"regexp"
 	"runtime"
 )
+
+//go:embed apache.svg
+var iconSVG string
 
 func DetectVersions() ([]string, map[string]string) {
 	arch := "x64"
@@ -45,8 +47,7 @@ func DetectVersions() ([]string, map[string]string) {
 }
 
 func GetIcon() string {
-	data, _ := os.ReadFile(filepath.Join("internal", "plugins", "apache", "apache.svg"))
-	return string(data)
+	return iconSVG
 }
 
 func fetchContent(url string) string {
