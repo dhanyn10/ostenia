@@ -90,7 +90,13 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 	}()
 
 	isZip := strings.HasSuffix(strings.ToLower(task.URL), ".zip")
-	ext := ".exe"; if isZip { ext = ".zip" }
+	isNupkg := strings.HasSuffix(strings.ToLower(task.URL), ".nupkg")
+	ext := ".exe"
+	if isZip {
+		ext = ".zip"
+	} else if isNupkg {
+		ext = ".nupkg"
+	}
 	tmp := filepath.Join(os.TempDir(), "ostenia_"+task.Name+ext)
 
 	if err := m.downloadFile(ctx, task.URL, tmp, task.Name); err != nil {
@@ -100,7 +106,7 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 	}
 
 	// 3. Extraction or execution
-	if !isZip {
+	if !isZip && !isNupkg {
 		os.MkdirAll(targetDir, 0755)
 		dest := filepath.Join(targetDir, "installer.exe")
 		_ = exec.Command("cmd", "/c", "move", "/Y", tmp, dest).Run()
@@ -119,6 +125,18 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 		fmt.Printf("[Manager] Extraction failed: %v\n", err)
 		wruntime.EventsEmit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: "Error: " + err.Error()})
 		return err
+	}
+
+	// Handle Nuget package structure (files are in 'tools' folder)
+	if isNupkg {
+		toolsDir := filepath.Join(extractTmp, "tools")
+		if _, err := os.Stat(toolsDir); err == nil {
+			es, _ := os.ReadDir(toolsDir)
+			for _, e := range es {
+				_ = os.Rename(filepath.Join(toolsDir, e.Name()), filepath.Join(extractTmp, e.Name()))
+			}
+			_ = os.Remove(toolsDir)
+		}
 	}
 
 	// Handle nested folders (e.g., zip containing a single root folder)
