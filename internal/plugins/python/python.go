@@ -10,73 +10,48 @@ import (
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
-	"strings"
 	"syscall"
 )
 
 //go:embed python.svg
 var iconSVG string
 
-// DetectVersions scans the Python FTP server for available versions
-// and returns only the latest patch for each minor version starting from 3.10,
-// verifying that the embeddable package URL actually exists.
+// DetectVersions scans the NuGet API for available Python versions.
 func DetectVersions() ([]string, map[string]string) {
-	arch := utils.GetSystemArch()
-	if arch == "x64" { arch = "amd64" } else { arch = "win32" }
+	content := fetchContent("https://api.nuget.org/v3-flatcontainer/python/index.json")
+	if content == "" {
+		// Fallback to a safe version if API is down
+		v := "3.13.13"
+		return []string{v}, map[string]string{v: fmt.Sprintf("https://api.nuget.org/v3-flatcontainer/python/%s/python.%s.nupkg", v, v)}
+	}
 
-	content := fetchContent("https://www.python.org/ftp/python/")
-	re := regexp.MustCompile(`(\d+\.\d+\.\d+)/`)
+	// Match versions like "3.12.10" or "3.13.13" from the JSON array
+	re := regexp.MustCompile(`"(3\.(1[0-9])\.\d+)"`)
 	matches := re.FindAllStringSubmatch(content, -1)
 
-	latestPatches := make(map[string]int)
+	latestPatches := make(map[string]string)
 	for _, m := range matches {
-		v := m[1]
-		var major, minor, patch int
-		_, err := fmt.Sscanf(v, "%d.%d.%d", &major, &minor, &patch)
-		if err != nil { continue }
+		fullVer := m[1]
+		minorKey := "3." + m[2]
 
-		// Boundary: Only Python 3.10+
-		if major == 3 && minor >= 10 {
-			minorKey := fmt.Sprintf("%d.%d", major, minor)
-			if patch > latestPatches[minorKey] {
-				latestPatches[minorKey] = patch
-			}
+		if existing, ok := latestPatches[minorKey]; !ok || compareVersions(fullVer, existing) > 0 {
+			latestPatches[minorKey] = fullVer
 		}
 	}
 
 	var versions []string
 	urlMap := make(map[string]string)
-
-	for minorKey, patch := range latestPatches {
-		fullVer := fmt.Sprintf("%s.%d", minorKey, patch)
-		expectedURL := fmt.Sprintf("https://www.python.org/ftp/python/%s/python-%s-embed-%s.zip", fullVer, fullVer, arch)
-
-		// Silent check: if doesn't exist, just skip without logging to console
-		if checkURLExists(expectedURL) {
-			versions = append(versions, fullVer)
-			urlMap[fullVer] = expectedURL
-		}
+	for _, fullVer := range latestPatches {
+		versions = append(versions, fullVer)
+		urlMap[fullVer] = fmt.Sprintf("https://api.nuget.org/v3-flatcontainer/python/%s/python.%s.nupkg", fullVer, fullVer)
 	}
 
 	sort.Slice(versions, func(i, j int) bool {
 		return compareVersions(versions[i], versions[j]) > 0
 	})
 
-	if len(versions) == 0 {
-		v := "3.12.2"
-		fallbackURL := fmt.Sprintf("https://www.python.org/ftp/python/%s/python-%s-embed-%s.zip", v, v, arch)
-		return []string{v}, map[string]string{v: fallbackURL}
-	}
 	return versions, urlMap
-}
-
-func checkURLExists(url string) bool {
-	resp, err := http.Head(url)
-	if err != nil { return false }
-	defer resp.Body.Close()
-	return resp.StatusCode == http.StatusOK
 }
 
 func compareVersions(v1, v2 string) int {
@@ -85,15 +60,9 @@ func compareVersions(v1, v2 string) int {
 	fmt.Sscanf(v1, "%d.%d.%d", &a1, &b1, &c1)
 	fmt.Sscanf(v2, "%d.%d.%d", &a2, &b2, &c2)
 
-	if a1 != a2 { return compare(a1, a2) }
-	if b1 != b2 { return compare(b1, b2) }
-	return compare(c1, c2)
-}
-
-func compare(i, j int) int {
-	if i > j { return 1 }
-	if i < j { return -1 }
-	return 0
+	if a1 != a2 { return a1 - a2 }
+	if b1 != b2 { return b1 - b2 }
+	return c1 - c2
 }
 
 func GetIcon() string {
@@ -102,15 +71,14 @@ func GetIcon() string {
 
 func GetModules() []utils.ModuleDefinition {
 	return []utils.ModuleDefinition{
-		{Name: "Pip", CheckFile: "Scripts/pip.exe"},
+		{Name: "Pip", CheckFile: "python.exe"}, // Nuget Python has pip by default
 	}
 }
 
 func GetModuleVersion(moduleName string, pythonPath string) string {
 	if moduleName == "Pip" {
-		pipExe := filepath.Join(pythonPath, "Scripts", "pip.exe")
-		if _, err := os.Stat(pipExe); err != nil { return "" }
 		pythonExe := filepath.Join(pythonPath, "python.exe")
+		if _, err := os.Stat(pythonExe); err != nil { return "" }
 		cmd := exec.Command(pythonExe, "-m", "pip", "--version")
 		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 		out, err := cmd.Output()
@@ -123,51 +91,14 @@ func GetModuleVersion(moduleName string, pythonPath string) string {
 }
 
 func UninstallModule(moduleName string, pythonPath string) error {
-	if moduleName == "Pip" {
-		// Pip is installed into Scripts and Lib/site-packages.
-		// For simplicity, we can just remove pip from Scripts
-		os.Remove(filepath.Join(pythonPath, "Scripts", "pip.exe"))
-		os.Remove(filepath.Join(pythonPath, "Scripts", "pip.exe.manifest"))
-		return nil
-	}
-	return fmt.Errorf("unknown module: %s", moduleName)
+	// For Nuget Python, pip is built-in. Uninstalling it might be counter-productive
+	// but we can satisfy the interface.
+	return nil
 }
 
 func InstallModule(ctx interface{}, m interface{}, moduleName string, pythonPath string, emitProgress func(string, float64, string)) error {
 	if moduleName == "Pip" {
-		emitProgress("Pip", 10, "Downloading get-pip.py...")
-		getPipPath := filepath.Join(os.TempDir(), "get-pip.py")
-		err := utils.DownloadFile(getPipPath, "https://bootstrap.pypa.io/get-pip.py")
-		if err != nil { return err }
-
-		emitProgress("Pip", 50, "Installing Pip...")
-		pythonExe := filepath.Join(pythonPath, "python.exe")
-
-		// Note: We're using a simplified command here for modularity.
-		// In a real environment, you might want more robust error handling.
-		cmd := exec.Command(pythonExe, getPipPath)
-		cmd.Dir = pythonPath
-		if runtime.GOOS == "windows" {
-			cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-		}
-		err = cmd.Run()
-		if err != nil { return err }
-
-		// Patch ._pth file to include site-packages
-		files, _ := os.ReadDir(pythonPath)
-		for _, f := range files {
-			if strings.HasSuffix(f.Name(), "._pth") {
-				pthPath := filepath.Join(pythonPath, f.Name())
-				content, _ := os.ReadFile(pthPath)
-				if !strings.Contains(string(content), "Lib\\site-packages") {
-					newContent := string(content) + "\nLib\\site-packages\n"
-					os.WriteFile(pthPath, []byte(newContent), 0644)
-				}
-				break
-			}
-		}
-
-		emitProgress("Pip", 100, "Completed")
+		emitProgress("Pip", 100, "Ready")
 		return nil
 	}
 	return fmt.Errorf("unknown module: %s", moduleName)
