@@ -83,8 +83,15 @@ func GetLatestKnownVersions() []DownloadTask {
 				isModInstalled = true
 			}
 			status := "Not Installed"
-			if isModInstalled { status = "Ready" }
-			t.Modules = append(t.Modules, PluginModule{Name: def.Name, IsInstalled: isModInstalled, Status: status, CheckFile: def.CheckFile})
+			version := ""
+			if isModInstalled {
+				status = "Ready"
+				switch t.Name {
+				case "PHP": version = php.GetModuleVersion(def.Name, currentPath)
+				case "Python": version = python.GetModuleVersion(def.Name, currentPath)
+				}
+			}
+			t.Modules = append(t.Modules, PluginModule{Name: def.Name, IsInstalled: isModInstalled, Status: status, Version: version, CheckFile: def.CheckFile})
 		}
 
 		// 2. Check if the currently active 'current' link is functional

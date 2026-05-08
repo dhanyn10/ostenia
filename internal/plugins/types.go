@@ -21,6 +21,7 @@ type PluginModule struct {
 	Name        string `json:"name"`
 	IsInstalled bool   `json:"isInstalled"`
 	Status      string `json:"status"` // e.g., "Not Installed", "Ready", "Installing..."
+	Version     string `json:"version"`
 	CheckFile   string `json:"-"`
 }
 

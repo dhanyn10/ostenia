@@ -103,6 +103,33 @@ func GetModules() []utils.ModuleDefinition {
 	}
 }
 
+func GetModuleVersion(moduleName string, pythonPath string) string {
+	if moduleName == "Pip" {
+		pipExe := filepath.Join(pythonPath, "Scripts", "pip.exe")
+		if _, err := os.Stat(pipExe); err != nil { return "" }
+		pythonExe := filepath.Join(pythonPath, "python.exe")
+		cmd := exec.Command(pythonExe, "-m", "pip", "--version")
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		out, err := cmd.Output()
+		if err != nil { return "" }
+		re := regexp.MustCompile(`pip (\d+\.\d+(?:\.\d+)?)`)
+		match := re.FindStringSubmatch(string(out))
+		if len(match) > 1 { return match[1] }
+	}
+	return ""
+}
+
+func UninstallModule(moduleName string, pythonPath string) error {
+	if moduleName == "Pip" {
+		// Pip is installed into Scripts and Lib/site-packages.
+		// For simplicity, we can just remove pip from Scripts
+		os.Remove(filepath.Join(pythonPath, "Scripts", "pip.exe"))
+		os.Remove(filepath.Join(pythonPath, "Scripts", "pip.exe.manifest"))
+		return nil
+	}
+	return fmt.Errorf("unknown module: %s", moduleName)
+}
+
 func InstallModule(ctx interface{}, m interface{}, moduleName string, pythonPath string, emitProgress func(string, float64, string)) error {
 	if moduleName == "Pip" {
 		emitProgress("Pip", 10, "Downloading get-pip.py...")

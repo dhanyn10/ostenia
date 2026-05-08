@@ -305,6 +305,14 @@ function App() {
                     setDownloadProgress(prev => ({ ...prev, [modName]: { name: modName, percentage: 0, status: 'Error: ' + e.toString() } }));
                   }
                 }}
+                handleUninstallModule={async (parentName, modName) => {
+                  try {
+                    await AppBackend.UninstallPluginModule(parentName, modName);
+                    refreshPrerequisites();
+                  } catch (e) {
+                    addToast('Error', e.toString(), 'error');
+                  }
+                }}
               />
             ) : activeTab === 'proxy' ? (
               <ProxyTab addToast={addToast} />

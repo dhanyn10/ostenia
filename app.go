@@ -173,6 +173,26 @@ func (a *App) InstallPrerequisite(task plugins.DownloadTask) error {
 	return err
 }
 
+func (a *App) UninstallPluginModule(parentName string, moduleName string) error {
+	baseDir := config.GetBaseDir()
+	cat := strings.ToLower(parentName)
+	if cat == "node.js" { cat = "nodejs" }
+	targetPath := filepath.Join(baseDir, "bin", cat, "current")
+
+	var err error
+	switch parentName {
+	case "PHP":
+		err = php.UninstallModule(moduleName, targetPath)
+	case "Python":
+		err = python.UninstallModule(moduleName, targetPath)
+	default:
+		err = fmt.Errorf("unsupported parent plugin: %s", parentName)
+	}
+
+	if err == nil { a.orchestrator.RequestRefresh() }
+	return err
+}
+
 func (a *App) CancelDownload(taskName string) { a.downloader.CancelDownload(taskName) }
 
 func (a *App) InstallPluginModule(parentName string, moduleName string) error {

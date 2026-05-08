@@ -5,10 +5,12 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"regexp"
 	"sort"
+	"syscall"
 )
 
 func DetectVersions() ([]string, map[string]string) {
@@ -75,6 +77,31 @@ func GetModules() []utils.ModuleDefinition {
 	return []utils.ModuleDefinition{
 		{Name: "Composer", CheckFile: "composer.phar"},
 	}
+}
+
+func GetModuleVersion(moduleName string, phpPath string) string {
+	if moduleName == "Composer" {
+		composerPhar := filepath.Join(phpPath, "composer.phar")
+		if _, err := os.Stat(composerPhar); err != nil { return "" }
+		phpExe := filepath.Join(phpPath, "php.exe")
+		cmd := exec.Command(phpExe, composerPhar, "--version")
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		out, err := cmd.Output()
+		if err != nil { return "" }
+		re := regexp.MustCompile(`Composer version (\d+\.\d+\.\d+)`)
+		match := re.FindStringSubmatch(string(out))
+		if len(match) > 1 { return match[1] }
+	}
+	return ""
+}
+
+func UninstallModule(moduleName string, phpPath string) error {
+	if moduleName == "Composer" {
+		os.Remove(filepath.Join(phpPath, "composer.phar"))
+		os.Remove(filepath.Join(phpPath, "composer.bat"))
+		return nil
+	}
+	return fmt.Errorf("unknown module: %s", moduleName)
 }
 
 func InstallModule(ctx interface{}, m interface{}, moduleName string, phpPath string, emitProgress func(string, float64, string)) error {

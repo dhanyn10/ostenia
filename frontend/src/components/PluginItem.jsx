@@ -21,7 +21,8 @@ function PluginItem({
   onCancel, 
   onOpenFolder,
   renderIcon,
-  onInstallModule
+  onInstallModule,
+  onUninstallModule
 }) {
   const [isModulesExpanded, setIsModulesExpanded] = useState(false);
   const availableVersions = task.versions || [];
@@ -142,9 +143,15 @@ function PluginItem({
                      )}>
                        {mod.name[0]}
                      </div>
-                     <div>
-                       <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{mod.name}</span>
-                       <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter mt-0.5">{mod.status}</p>
+                     <div className="flex items-center gap-3">
+                       <div className="flex flex-col">
+                         <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{mod.name}</span>
+                         <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter mt-0.5">{mod.status}</p>
+                       </div>
+
+                       {mod.version && (
+                         <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded-sm h-fit">v{mod.version}</span>
+                       )}
                      </div>
                    </div>
 
@@ -162,21 +169,33 @@ function PluginItem({
                      )}
 
                      {!isModActive && (
-                       <button
-                         disabled={isModInstalled || !task.isInstalled}
-                         onClick={() => onInstallModule(task.name, mod.name)}
-                         className={cn(
-                           "p-2 rounded-sm transition-all",
-                           isModInstalled
-                            ? "text-emerald-500 cursor-not-allowed"
-                            : !task.isInstalled
-                              ? "text-slate-300 cursor-not-allowed"
-                              : "text-blue-500 hover:bg-blue-500/10 hover:scale-110"
+                       <div className="flex items-center gap-2">
+                         {isModInstalled && (
+                           <button
+                             onClick={() => onUninstallModule(task.name, mod.name)}
+                             className="p-1.5 bg-slate-100 dark:bg-white/5 hover:bg-rose-500/10 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-sm transition-all border border-slate-200 dark:border-white/5"
+                             title={`Uninstall ${mod.name}`}
+                           >
+                             <Trash2 size={12} />
+                           </button>
                          )}
-                         title={!task.isInstalled ? `Install ${task.name} first` : isModInstalled ? "Installed" : `Install ${mod.name}`}
-                       >
-                         {isModInstalled ? <CheckCircle2 size={16} /> : <Download size={16} />}
-                       </button>
+
+                         <button
+                           disabled={isModInstalled || !task.isInstalled}
+                           onClick={() => onInstallModule(task.name, mod.name)}
+                           className={cn(
+                             "p-2 rounded-sm transition-all",
+                             isModInstalled
+                              ? "text-emerald-500 cursor-not-allowed"
+                              : !task.isInstalled
+                                ? "text-slate-300 cursor-not-allowed"
+                                : "text-blue-500 hover:bg-blue-500/10 hover:scale-110"
+                           )}
+                           title={!task.isInstalled ? `Install ${task.name} first` : isModInstalled ? "Installed" : `Install ${mod.name}`}
+                         >
+                           {isModInstalled ? <CheckCircle2 size={16} /> : <Download size={16} />}
+                         </button>
+                       </div>
                      )}
                    </div>
                  </div>
