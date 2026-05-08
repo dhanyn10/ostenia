@@ -185,7 +185,6 @@ function PluginItem({
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }
