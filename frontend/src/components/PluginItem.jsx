@@ -71,6 +71,12 @@ function PluginItem({
               <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded-sm">v{task.version}</span>
             )}
 
+            {task.info && (
+              <span className="text-[9px] font-bold text-blue-500 dark:text-blue-400 uppercase tracking-widest bg-blue-500/10 px-1.5 py-0.5 rounded-sm border border-blue-500/20">
+                {task.info}
+              </span>
+            )}
+
             {installedVersions.map(ver => (
               <div
                 key={ver}
