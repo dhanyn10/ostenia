@@ -8,8 +8,8 @@ import (
 var iconSVG string
 
 func DetectVersions() (string, string) {
-	version := "12.8"
-	url := "https://www.heidisql.com/downloads/releases/HeidiSQL_12.8_Setup.exe"
+	version := "12.17"
+	url := "https://github.com/HeidiSQL/HeidiSQL/releases/download/12.17/HeidiSQL_12.17.0.7270_Setup.exe"
 	return version, url
 }
 
