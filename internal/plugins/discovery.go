@@ -27,6 +27,10 @@ type pluginDefinition struct {
 	GetModuleVersion func(name string, path string) string
 }
 
+func DetectHeidiSQLInstallation() (string, string) {
+	return utils.DetectHeidiSQLInstallation()
+}
+
 func GetLatestKnownVersions() []DownloadTask {
 	definitions := []pluginDefinition{
 		{
@@ -100,6 +104,19 @@ func GetLatestKnownVersions() []DownloadTask {
 			t.InstalledVers = append(t.InstalledVers, v)
 		}
 		sort.Strings(t.InstalledVers)
+
+		// Special case for HeidiSQL (system-wide detection)
+		if t.Name == "HeidiSQL" {
+			exePath, _ := utils.DetectHeidiSQLInstallation()
+			if exePath != "" {
+				t.IsInstalled = true
+				if len(t.InstalledVers) == 0 {
+					t.InstalledVers = []string{"System"}
+				}
+			}
+			tasks = append(tasks, t)
+			continue
+		}
 
 		// Special case for OpenSSL
 		if t.Name == "OpenSSL" {

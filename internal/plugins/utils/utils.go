@@ -4,9 +4,11 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 )
 
 type ModuleDefinition struct {
@@ -38,6 +40,58 @@ func GetSystemArch() string {
 		return "x64"
 	}
 	return "x86"
+}
+
+// DetectHeidiSQLInstallation checks if HeidiSQL is installed in the system and returns its path and uninstaller.
+func DetectHeidiSQLInstallation() (exePath string, uninstaller string) {
+	if runtime.GOOS != "windows" {
+		return "", ""
+	}
+
+	// 1. Check common installation paths
+	commonPaths := []string{
+		filepath.Join(os.Getenv("ProgramFiles"), "HeidiSQL", "heidisql.exe"),
+		filepath.Join(os.Getenv("ProgramFiles(x86)"), "HeidiSQL", "heidisql.exe"),
+	}
+
+	for _, p := range commonPaths {
+		if _, err := os.Stat(p); err == nil {
+			exePath = p
+			// Inno Setup (HeidiSQL) uses unins000.exe
+			uninstaller = filepath.Join(filepath.Dir(p), "unins000.exe")
+			if _, err := os.Stat(uninstaller); err != nil {
+				uninstaller = filepath.Join(filepath.Dir(p), "uninstall.exe")
+				if _, err := os.Stat(uninstaller); err != nil {
+					uninstaller = ""
+				}
+			}
+			return
+		}
+	}
+
+	// 2. Fallback to Registry check via WMIC or cmd
+	// We use "where heidisql" as a simple fallback if it's in the PATH
+	cmd := exec.Command("cmd", "/c", "where heidisql.exe")
+	if runtime.GOOS == "windows" {
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	}
+	out, err := cmd.Output()
+	if err == nil {
+		p := strings.TrimSpace(strings.Split(string(out), "\r\n")[0])
+		if p != "" {
+			exePath = p
+			uninstaller = filepath.Join(filepath.Dir(p), "unins000.exe")
+			if _, err := os.Stat(uninstaller); err != nil {
+				uninstaller = filepath.Join(filepath.Dir(p), "uninstall.exe")
+				if _, err := os.Stat(uninstaller); err != nil {
+					uninstaller = ""
+				}
+			}
+			return
+		}
+	}
+
+	return "", ""
 }
 
 // GetInstalledVersionPaths returns a map of version strings to their absolute paths for a given category.

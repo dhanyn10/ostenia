@@ -251,7 +251,16 @@ function App() {
                   setIsAddingPlugin(false);
                 }}
                 renderIcon={renderIcon}
-                handleToggleService={(name, status) => status === 'Running' ? AppBackend.StopService(name) : AppBackend.StartService(name)}
+                handleToggleService={(name, status) => {
+                  if (status === 'Running') {
+                    if (name === 'HeidiSQL') {
+                      if (!window.confirm('Are you sure you want to uninstall HeidiSQL from your system?')) return;
+                    }
+                    AppBackend.StopService(name);
+                  } else {
+                    AppBackend.StartService(name);
+                  }
+                }}
                 handleRemoveFromHome={(name) => setServices(prev => prev.filter(s => s.name !== name))}
                 setActiveTab={setActiveTab}
                 handleOpenPluginFolder={(name) => AppBackend.OpenPluginFolder(name)}
