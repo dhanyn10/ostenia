@@ -237,119 +237,127 @@ function App() {
             "w-full mx-auto flex flex-col h-full",
             activeTab === 'logs' ? "max-w-none" : "max-w-4xl px-8 pb-8"
           )}>
-            {activeTab === 'activity' ? (
-              <ActivityTab 
-                serverRoot={serverRootState}
-                appsLocation={appsLocation}
-                handleBrowseAppsLocation={async () => {
-                   const selected = await AppBackend.SelectServerRoot();
-                   if (selected) { setAppsLocation(selected); initApp(); }
-                }}
-                handleBrowseServerRoot={async () => {
-                   const selected = await AppBackend.SelectWWWRoot();
-                   if (selected) { setServerRootState(selected); initApp(); }
-                }}
-                isAddingPlugin={isAddingPlugin}
-                setIsAddingPlugin={setIsAddingPlugin}
-                prerequisites={prerequisites}
-                services={services}
-                handleAddToHome={(task) => {
-                  setServices(prev => {
-                    if (prev.find(s => s.name === task.name)) return prev;
-                    return [...prev, { name: task.name, status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '', remainingDays: 0 }];
-                  });
-                  setIsAddingPlugin(false);
-                }}
-                renderIcon={renderIcon}
-                handleToggleService={(name, status) => {
-                  if (status === 'Running') {
-                    if (name === 'HeidiSQL') {
-                      setConfirmModal({
-                        isOpen: true,
-                        title: 'Uninstall HeidiSQL',
-                        message: 'Are you sure you want to uninstall HeidiSQL from your system? This will remove the application but your database data should remain intact.',
-                        type: 'danger',
-                        onConfirm: () => {
-                          AppBackend.StopService(name);
-                          setConfirmModal(prev => ({ ...prev, isOpen: false }));
-                        }
-                      });
-                      return;
+            <div className={cn("h-full flex flex-col", activeTab !== 'activity' && "hidden")}>
+                <ActivityTab
+                  serverRoot={serverRootState}
+                  appsLocation={appsLocation}
+                  handleBrowseAppsLocation={async () => {
+                     const selected = await AppBackend.SelectServerRoot();
+                     if (selected) { setAppsLocation(selected); initApp(); }
+                  }}
+                  handleBrowseServerRoot={async () => {
+                     const selected = await AppBackend.SelectWWWRoot();
+                     if (selected) { setServerRootState(selected); initApp(); }
+                  }}
+                  isAddingPlugin={isAddingPlugin}
+                  setIsAddingPlugin={setIsAddingPlugin}
+                  prerequisites={prerequisites}
+                  services={services}
+                  handleAddToHome={(task) => {
+                    setServices(prev => {
+                      if (prev.find(s => s.name === task.name)) return prev;
+                      return [...prev, { name: task.name, status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '', remainingDays: 0 }];
+                    });
+                    setIsAddingPlugin(false);
+                  }}
+                  renderIcon={renderIcon}
+                  handleToggleService={(name, status) => {
+                    if (status === 'Running') {
+                      if (name === 'HeidiSQL') {
+                        setConfirmModal({
+                          isOpen: true,
+                          title: 'Uninstall HeidiSQL',
+                          message: 'Are you sure you want to uninstall HeidiSQL from your system? This will remove the application but your database data should remain intact.',
+                          type: 'danger',
+                          onConfirm: () => {
+                            AppBackend.StopService(name);
+                            setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                          }
+                        });
+                        return;
+                      }
+                      AppBackend.StopService(name);
+                    } else {
+                      AppBackend.StartService(name);
                     }
-                    AppBackend.StopService(name);
-                  } else {
-                    AppBackend.StartService(name);
-                  }
-                }}
-                handleRemoveFromHome={(name) => setServices(prev => prev.filter(s => s.name !== name))}
-                setActiveTab={setActiveTab}
-                handleOpenPluginFolder={(name) => AppBackend.OpenPluginFolder(name)}
-                handleOpenServerRootFolder={() => AppBackend.OpenServerRootFolder()}
-                handleOpenAppsLocationFolder={() => AppBackend.OpenAppsLocationFolder()}
-                apacheHttps={apacheHttps}
-                nginxHttps={nginxHttps}
-                handleToggleHttps={async (name) => {
-                  if (name === 'Apache') {
-                    const next = !apacheHttps; setApacheHttps(next); await AppBackend.SetApacheHTTPS(next);
-                  } else {
-                    const next = !nginxHttps; setNginxHttps(next); await AppBackend.SetNginxHTTPS(next);
-                  }
-                }}
-                isLoading={loading}
-              />
-            ) : activeTab === 'plugins' ? (
-              <PluginsTab 
-                prerequisites={prerequisites}
-                downloadProgress={downloadProgress}
-                openDropdown={openDropdown}
-                setOpenDropdown={setOpenDropdown}
-                selectedVersions={selectedVersions}
-                setSelectedVersions={setSelectedVersions}
-                handleDeleteVersion={(name, ver) => AppBackend.DeleteVersion(name, ver).then(refreshPrerequisites)}
-                handleInstallSingle={async (task) => {
-                    const selectedVer = selectedVersions[task.name] || task.version;
-                    setDownloadProgress(prev => ({ ...prev, [task.name]: { name: task.name, percentage: 0, status: 'Starting...' } }));
-                    const modifiedTask = { ...task, version: selectedVer };
-                    const prefixMap = {
-                        'PHP': 'php-', 'Apache': 'httpd-', 'MySQL': 'mysql-',
-                        'Nginx': 'nginx-', 'OpenSSL': 'openssl-', 'Node.js': 'node-v', 'Python': 'python-'
-                    };
-                    const categoryMap = { 'Node.js': 'nodejs', 'HeidiSQL': 'heidisql' };
-                    const category = categoryMap[task.name] || task.name.toLowerCase();
-                    const prefix = prefixMap[task.name] || '';
-                    modifiedTask.target = `${category}/${prefix}${selectedVer}`;
-                    if (task.versionUrls && task.versionUrls[selectedVer]) {
-                        modifiedTask.url = task.versionUrls[selectedVer];
+                  }}
+                  handleRemoveFromHome={(name) => setServices(prev => prev.filter(s => s.name !== name))}
+                  setActiveTab={setActiveTab}
+                  handleOpenPluginFolder={(name) => AppBackend.OpenPluginFolder(name)}
+                  handleOpenServerRootFolder={() => AppBackend.OpenServerRootFolder()}
+                  handleOpenAppsLocationFolder={() => AppBackend.OpenAppsLocationFolder()}
+                  apacheHttps={apacheHttps}
+                  nginxHttps={nginxHttps}
+                  handleToggleHttps={async (name) => {
+                    if (name === 'Apache') {
+                      const next = !apacheHttps; setApacheHttps(next); await AppBackend.SetApacheHTTPS(next);
+                    } else {
+                      const next = !nginxHttps; setNginxHttps(next); await AppBackend.SetNginxHTTPS(next);
                     }
-                    try { await AppBackend.InstallPrerequisite(modifiedTask); } catch (e) { addToast('Error', e.toString(), 'error'); }
-                }}
-                handleCancel={(name) => AppBackend.CancelDownload(name)}
-                renderIcon={renderIcon}
-                handleInstallModule={async (parentName, modName) => {
-                  setDownloadProgress(prev => ({ ...prev, [modName]: { name: modName, percentage: 0, status: 'Starting...' } }));
-                  try {
-                    await AppBackend.InstallPluginModule(parentName, modName);
-                  } catch (e) {
-                    addToast('Error', e.toString(), 'error');
-                    setDownloadProgress(prev => ({ ...prev, [modName]: { name: modName, percentage: 0, status: 'Error: ' + e.toString() } }));
-                  }
-                }}
-                handleUninstallModule={async (parentName, modName) => {
-                  try {
-                    await AppBackend.UninstallPluginModule(parentName, modName);
-                    refreshPrerequisites();
-                  } catch (e) {
-                    addToast('Error', e.toString(), 'error');
-                  }
-                }}
-              />
-            ) : activeTab === 'proxy' ? (
-              <ProxyTab addToast={addToast} />
-            ) : activeTab === 'ssh' ? (
-              <SSHTab addToast={addToast} />
-            ) : (
-              <LogViewer logs={logs} />
-            )}
+                  }}
+                  isLoading={loading}
+                />
+            </div>
+
+            <div className={cn("h-full flex flex-col", activeTab !== 'plugins' && "hidden")}>
+                <PluginsTab
+                  prerequisites={prerequisites}
+                  downloadProgress={downloadProgress}
+                  openDropdown={openDropdown}
+                  setOpenDropdown={setOpenDropdown}
+                  selectedVersions={selectedVersions}
+                  setSelectedVersions={setSelectedVersions}
+                  handleDeleteVersion={(name, ver) => AppBackend.DeleteVersion(name, ver).then(refreshPrerequisites)}
+                  handleInstallSingle={async (task) => {
+                      const selectedVer = selectedVersions[task.name] || task.version;
+                      setDownloadProgress(prev => ({ ...prev, [task.name]: { name: task.name, percentage: 0, status: 'Starting...' } }));
+                      const modifiedTask = { ...task, version: selectedVer };
+                      const prefixMap = {
+                          'PHP': 'php-', 'Apache': 'httpd-', 'MySQL': 'mysql-',
+                          'Nginx': 'nginx-', 'OpenSSL': 'openssl-', 'Node.js': 'node-v', 'Python': 'python-'
+                      };
+                      const categoryMap = { 'Node.js': 'nodejs', 'HeidiSQL': 'heidisql' };
+                      const category = categoryMap[task.name] || task.name.toLowerCase();
+                      const prefix = prefixMap[task.name] || '';
+                      modifiedTask.target = `${category}/${prefix}${selectedVer}`;
+                      if (task.versionUrls && task.versionUrls[selectedVer]) {
+                          modifiedTask.url = task.versionUrls[selectedVer];
+                      }
+                      try { await AppBackend.InstallPrerequisite(modifiedTask); } catch (e) { addToast('Error', e.toString(), 'error'); }
+                  }}
+                  handleCancel={(name) => AppBackend.CancelDownload(name)}
+                  renderIcon={renderIcon}
+                  handleInstallModule={async (parentName, modName) => {
+                    setDownloadProgress(prev => ({ ...prev, [modName]: { name: modName, percentage: 0, status: 'Starting...' } }));
+                    try {
+                      await AppBackend.InstallPluginModule(parentName, modName);
+                    } catch (e) {
+                      addToast('Error', e.toString(), 'error');
+                      setDownloadProgress(prev => ({ ...prev, [modName]: { name: modName, percentage: 0, status: 'Error: ' + e.toString() } }));
+                    }
+                  }}
+                  handleUninstallModule={async (parentName, modName) => {
+                    try {
+                      await AppBackend.UninstallPluginModule(parentName, modName);
+                      refreshPrerequisites();
+                    } catch (e) {
+                      addToast('Error', e.toString(), 'error');
+                    }
+                  }}
+                />
+            </div>
+
+            <div className={cn("h-full flex flex-col", activeTab !== 'proxy' && "hidden")}>
+                <ProxyTab addToast={addToast} />
+            </div>
+
+            <div className={cn("h-full flex flex-col", activeTab !== 'ssh' && "hidden")}>
+                <SSHTab addToast={addToast} />
+            </div>
+
+            <div className={cn("h-full flex flex-col", activeTab !== 'logs' && "hidden")}>
+                <LogViewer logs={logs} />
+            </div>
           </div>
         </main>
       </div>

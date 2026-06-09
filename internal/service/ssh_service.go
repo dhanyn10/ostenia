@@ -14,7 +14,10 @@ import (
 
 	"github.com/melbahja/goph"
 	"github.com/pkg/sftp"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"golang.org/x/crypto/ssh"
+	"path"
+	"runtime"
 )
 
 type SSHConnection struct {
@@ -24,6 +27,7 @@ type SSHConnection struct {
 	Shell     io.WriteCloser
 	Context   context.Context
 	Cancel    context.CancelFunc
+	LastSync  time.Time
 }
 
 type SSHManager struct {
@@ -43,14 +47,9 @@ func (m *SSHManager) Connect(session config.SSHSession) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Close existing if any
-	if conn, ok := m.connections[session.ID]; ok {
-		conn.Cancel()
-		if conn.SFTP != nil {
-			conn.SFTP.Close()
-		}
-		conn.Client.Close()
-		delete(m.connections, session.ID)
+	// If already connected, do nothing
+	if _, ok := m.connections[session.ID]; ok {
+		return nil
 	}
 
 	var auth goph.Auth
@@ -75,7 +74,7 @@ func (m *SSHManager) Connect(session config.SSHSession) error {
 		Port:     uint(session.Port),
 		Auth:     auth,
 		Timeout:  10 * time.Second,
-		Callback: goph.InsecureIgnoreHostKey(), // For simplicity, in production you'd want host key verification
+		Callback: ssh.InsecureIgnoreHostKey(), // For simplicity, in production you'd want host key verification
 	})
 
 	if err != nil {
@@ -118,10 +117,10 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 	stdin, _ := sshSession.StdinPipe()
 	conn.Shell = stdin
 
-	modes := goph.TerminalModes{
-		goph.ECHO:          1,
-		goph.TTY_OP_ISPEED: 14400,
-		goph.TTY_OP_OSPEED: 14400,
+	modes := ssh.TerminalModes{
+		ssh.ECHO:          1,
+		ssh.TTY_OP_ISPEED: 14400,
+		ssh.TTY_OP_OSPEED: 14400,
 	}
 
 	if err := sshSession.RequestPty("xterm-256color", 80, 40, modes); err != nil {
@@ -143,29 +142,29 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 			n, err := stdout.Read(buf)
 			if n > 0 {
 				data := string(buf[:n])
-				runtime.EventsEmit(m.ctx, "ssh_output", map[string]interface{}{
+				wruntime.EventsEmit(m.ctx, "ssh_output", map[string]interface{}{
 					"sessionId": conn.SessionID,
 					"data":      data,
 				})
 
 				// Heuristic to detect directory change:
 				// If we see a common prompt pattern, we try to get the real PWD from the shell.
-				if strings.Contains(data, "$") || strings.Contains(data, "#") || strings.Contains(data, ">") {
+				// Throttled to once every 500ms to avoid spamming pwd commands.
+				if (strings.Contains(data, "$") || strings.Contains(data, "#") || strings.Contains(data, ">")) && time.Since(conn.LastSync) > 500*time.Millisecond {
+					conn.LastSync = time.Now()
 					go func() {
-						time.Sleep(150 * time.Millisecond) // Wait for command to finish and prompt to appear
+						time.Sleep(200 * time.Millisecond) // Wait for command to finish and prompt to appear
 
-						// Create a one-off session to get the current working directory of the user's shell.
-						// Note: This assumes a Unix-like environment for SSH.
 						cmdSess, err := conn.Client.NewSession()
 						if err == nil {
 							defer cmdSess.Close()
 							out, err := cmdSess.Output("pwd")
 							if err == nil {
-								path := strings.TrimSpace(string(out))
-								if path != "" {
-									runtime.EventsEmit(m.ctx, "ssh_path_changed", map[string]interface{}{
+								currPath := strings.TrimSpace(string(out))
+								if currPath != "" {
+									wruntime.EventsEmit(m.ctx, "ssh_path_changed", map[string]interface{}{
 										"sessionId": conn.SessionID,
-										"path":      path,
+										"path":      currPath,
 									})
 								}
 							}
@@ -185,7 +184,7 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 		for {
 			n, err := stderr.Read(buf)
 			if n > 0 {
-				runtime.EventsEmit(m.ctx, "ssh_output", map[string]interface{}{
+				wruntime.EventsEmit(m.ctx, "ssh_output", map[string]interface{}{
 					"sessionId": conn.SessionID,
 					"data":      string(buf[:n]),
 				})
@@ -200,7 +199,7 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 	case <-conn.Context.Done():
 		sshSession.Close()
 	case <-exitChan:
-		runtime.EventsEmit(m.ctx, "ssh_disconnected", conn.SessionID)
+		wruntime.EventsEmit(m.ctx, "ssh_disconnected", conn.SessionID)
 		m.mu.Lock()
 		delete(m.connections, conn.SessionID)
 		m.mu.Unlock()
@@ -242,7 +241,7 @@ type RemoteFile struct {
 	Mode    string `json:"mode"`
 }
 
-func (m *SSHManager) ListFiles(sessionID string, path string) ([]RemoteFile, error) {
+func (m *SSHManager) ListFiles(sessionID string, pathStr string) ([]RemoteFile, error) {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()
@@ -251,11 +250,11 @@ func (m *SSHManager) ListFiles(sessionID string, path string) ([]RemoteFile, err
 		return nil, fmt.Errorf("session not found or SFTP not connected")
 	}
 
-	if path == "" {
-		path = "."
+	if pathStr == "" {
+		pathStr = "."
 	}
 
-	entries, err := conn.SFTP.ReadDir(path)
+	entries, err := conn.SFTP.ReadDir(pathStr)
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +273,7 @@ func (m *SSHManager) ListFiles(sessionID string, path string) ([]RemoteFile, err
 	return files, nil
 }
 
-func (m *SSHManager) ExecuteSFTPAction(sessionID string, action string, path string, target string) error {
+func (m *SSHManager) ExecuteSFTPAction(sessionID string, action string, pathStr string, target string) error {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()
@@ -283,21 +282,26 @@ func (m *SSHManager) ExecuteSFTPAction(sessionID string, action string, path str
 		return fmt.Errorf("session not found or SFTP not connected")
 	}
 
+	pathStr = path.Clean(pathStr)
+	if target != "" {
+		target = path.Clean(target)
+	}
+
 	switch action {
 	case "delete":
 		// Check if it's a directory
-		info, err := conn.SFTP.Stat(path)
+		info, err := conn.SFTP.Stat(pathStr)
 		if err != nil {
 			return err
 		}
 		if info.IsDir() {
-			return conn.SFTP.RemoveAll(path)
+			return conn.SFTP.RemoveAll(pathStr)
 		}
-		return conn.SFTP.Remove(path)
+		return conn.SFTP.Remove(pathStr)
 	case "rename":
-		return conn.SFTP.Rename(path, target)
+		return conn.SFTP.Rename(pathStr, target)
 	case "mkdir":
-		return conn.SFTP.Mkdir(path)
+		return conn.SFTP.Mkdir(pathStr)
 	default:
 		return fmt.Errorf("unknown action: %s", action)
 	}
@@ -311,6 +315,8 @@ func (m *SSHManager) DownloadFile(sessionID string, remotePath string, localPath
 	if !ok || conn.SFTP == nil {
 		return fmt.Errorf("session not found or SFTP not connected")
 	}
+
+	remotePath = path.Clean(remotePath)
 
 	src, err := conn.SFTP.Open(remotePath)
 	if err != nil {
@@ -337,6 +343,9 @@ func (m *SSHManager) UploadFile(sessionID string, localPath string, remotePath s
 		return fmt.Errorf("session not found or SFTP not connected")
 	}
 
+	// Use path.Join for remote paths
+	remotePath = path.Clean(remotePath)
+
 	src, err := os.Open(localPath)
 	if err != nil {
 		return err
@@ -362,10 +371,12 @@ func (m *SSHManager) EditFile(sessionID string, remotePath string) error {
 		return fmt.Errorf("session not found or SFTP not connected")
 	}
 
+	remotePath = path.Clean(remotePath)
+
 	tempDir := filepath.Join(os.TempDir(), "ostenia-ssh-edit")
 	os.MkdirAll(tempDir, 0755)
 
-	fileName := filepath.Base(remotePath)
+	fileName := path.Base(remotePath)
 	localPath := filepath.Join(tempDir, fmt.Sprintf("%d-%s", time.Now().Unix(), fileName))
 
 	err := m.DownloadFile(sessionID, remotePath, localPath)
@@ -420,6 +431,6 @@ func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
 		return "", fmt.Errorf("session not found or SFTP not connected")
 	}
 
-	path, err := conn.SFTP.Getwd()
-	return path, err
+	pathStr, err := conn.SFTP.Getwd()
+	return pathStr, err
 }

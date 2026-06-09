@@ -88,7 +88,7 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
       EventsOff('ssh_path_changed', handlePathChange);
       EventsOff('ssh_disconnected', handleDisconnect);
       window.removeEventListener('resize', handleResize);
-      AppBackend.DisconnectSSH(session.id);
+      // Removed AppBackend.DisconnectSSH here to persist session on tab switch
       if (xterm.current) xterm.current.dispose();
     };
   }, [session.id]);

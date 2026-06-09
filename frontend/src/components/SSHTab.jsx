@@ -38,6 +38,7 @@ const SSHTab = ({ addToast }) => {
   };
 
   const handleCloseSession = (id) => {
+      AppBackend.DisconnectSSH(id);
       const nextActive = activeSessionIds.filter(sid => sid !== id);
       setActiveSessionIds(nextActive);
       if (currentSessionId === id) {
