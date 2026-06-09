@@ -12,6 +12,7 @@ import LogViewer from './components/LogViewer';
 import ActivityTab from './components/ActivityTab';
 import PluginsTab from './components/PluginsTab';
 import ProxyTab from './components/ProxyTab';
+import SSHTab from './components/SSHTab';
 import Icons from './components/Icons';
 import ConfirmationModal from './components/ConfirmationModal';
 
@@ -344,6 +345,8 @@ function App() {
               />
             ) : activeTab === 'proxy' ? (
               <ProxyTab addToast={addToast} />
+            ) : activeTab === 'ssh' ? (
+              <SSHTab addToast={addToast} />
             ) : (
               <LogViewer logs={logs} />
             )}

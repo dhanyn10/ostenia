@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, List, Sun, Moon, Globe } from 'lucide-react';
+import { Home, List, Sun, Moon, Globe, Terminal } from 'lucide-react';
 import Icons from './Icons';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -39,6 +39,21 @@ function VerticalNav({ activeTab, setActiveTab, toggleTheme, theme }) {
       >
         {activeTab === 'proxy' && <div className="absolute left-[-16px] top-3 bottom-3 w-1 bg-blue-500 rounded-r-sm" />}
         <Globe size={20} />
+      </button>
+
+      {/* SSH Management */}
+      <button
+        onClick={() => setActiveTab('ssh')}
+        title="SSH & Remote Files"
+        className={cn(
+          "p-3 rounded-sm transition-all relative group",
+          activeTab === 'ssh'
+            ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30"
+            : "text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
+        )}
+      >
+        {activeTab === 'ssh' && <div className="absolute left-[-16px] top-3 bottom-3 w-1 bg-blue-500 rounded-r-sm" />}
+        <Terminal size={20} />
       </button>
 
       {/* Plugin Management */}
