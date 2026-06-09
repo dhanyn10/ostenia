@@ -4,7 +4,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime';
 import * as AppBackend from '../../wailsjs/go/main/App';
-import { X, Maximize2, Minimize2, Folder, File, ChevronLeft, ChevronRight, RefreshCw, Upload, Download, Edit3, Trash2, Home, Search, Terminal } from 'lucide-react';
+import { X, Maximize2, Minimize2, Folder, File, ChevronLeft, ChevronRight, RefreshCw, Upload, Download, Edit2, Edit3, Trash2, Home, Search, Terminal } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
