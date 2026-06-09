@@ -36,7 +36,7 @@ function PluginItem({
                    parentProgress.status !== 'Completed' &&
                    !parentProgress.status?.startsWith('Error');
 
-  const isSelectedInstalled = task.name === 'OpenSSL'
+  const isSelectedInstalled = (task.name === 'OpenSSL' || task.name === 'HeidiSQL')
     ? task.isInstalled
     : installedVersions.includes(selectedVersion || task.version);
 
