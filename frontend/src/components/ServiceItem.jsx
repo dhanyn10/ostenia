@@ -32,11 +32,12 @@ function ServiceItem({
   const isHttpsEnabled = service.name === 'Apache' ? apacheHttps : (service.name === 'Nginx' ? nginxHttps : false);
   
   const hasTerminalFacility = service.name !== 'HeidiSQL' && service.name !== 'OpenSSL';
-  const hasOpenFolder = isInstalled && service.name !== 'OpenSSL';
+  const hasOpenFolder = isInstalled && service.name !== 'OpenSSL' && service.name !== 'HeidiSQL';
   const hasTerminal = isInstalled && hasTerminalFacility;
   const hasHttpsToggle = isWebServer && isOpenSslEnabled;
-  const hasPhpExtManager = service.name === 'PHP'; 
-  const hasExtraActions = hasOpenFolder || hasTerminal || hasHttpsToggle || hasPhpExtManager;
+  const hasPhpExtManager = service.name === 'PHP';
+  const hasHeidiOpen = service.name === 'HeidiSQL' && isInstalled;
+  const hasExtraActions = hasOpenFolder || hasTerminal || hasHttpsToggle || hasPhpExtManager || hasHeidiOpen;
 
   const installedVersions = task?.installedVers || [];
 
@@ -171,6 +172,15 @@ function ServiceItem({
             {hasOpenFolder && (
               <button onClick={() => handleOpenPluginFolder(service.name)} className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-white/5 hover:bg-blue-600/10 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-sm border border-slate-200 dark:border-white/5 transition-all" title="Open Folder">
                 <FolderOpen size={16} />
+              </button>
+            )}
+
+            {hasHeidiOpen && (
+              <button
+                onClick={(e) => { e.stopPropagation(); window.go.main.App.OpenHeidiSQL(); }}
+                className="flex items-center gap-2 px-3 py-1.5 h-8 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20"
+              >
+                <Monitor size={14} /> Open HeidiSQL
               </button>
             )}
 

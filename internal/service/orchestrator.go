@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"ostenia/internal/config"
+	"ostenia/internal/plugins/utils"
 	"ostenia/internal/ssl"
 	"path/filepath"
 	"runtime"
@@ -161,6 +162,15 @@ func (o *Orchestrator) updateServiceInfo(name string) ServiceDetailedInfo {
 		o.updateCache(name, info); return info
 	}
 
+	if name == "HeidiSQL" {
+		exePath, _ := utils.DetectHeidiSQLInstallation()
+		if exePath != "" {
+			info.Status = "Running"
+			info.ActiveVersion = "System"
+		}
+		o.updateCache(name, info); return info
+	}
+
 	var exeName string
 	switch name {
 	case "Apache": exeName = "httpd.exe"
@@ -283,15 +293,45 @@ func (o *Orchestrator) StartService(name string, binaryPath string, args []strin
 
 func (o *Orchestrator) StopService(name string) error {
 	if runtime.GOOS == "windows" {
+		if name == "HeidiSQL" {
+			_, uninstaller := utils.DetectHeidiSQLInstallation()
+			if uninstaller != "" {
+				cmd := exec.Command("cmd", "/c", "start", "", uninstaller)
+				cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+				_ = cmd.Run()
+			} else {
+				// Fallback to taskkill if uninstaller not found
+				pids := findOsteniaPIDs("heidisql.exe")
+				for _, pid := range pids {
+					killCmd := exec.Command("taskkill", "/F", "/PID", strconv.Itoa(pid), "/T")
+					killCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+					killCmd.Run()
+				}
+			}
+			o.mu.Lock()
+			delete(o.services, name)
+			o.mu.Unlock()
+			o.RequestRefresh()
+			o.emitStatus(name, "Stopped")
+			return nil
+		}
+
 		var exeNames []string
 		switch name {
-		case "Apache": exeNames = []string{"httpd.exe"}
-		case "MySQL":  exeNames = []string{"mysqld.exe"}
-		case "HeidiSQL": exeNames = []string{"heidisql.exe"}
-		case "Nginx":  exeNames = []string{"nginx.exe"}
-		case "PHP":    exeNames = []string{"php.exe", "php-cgi.exe"}
-		case "Node.js": exeNames = []string{"node.exe"}
-		case "Python": exeNames = []string{"python.exe"}
+		case "Apache":
+			exeNames = []string{"httpd.exe"}
+		case "MySQL":
+			exeNames = []string{"mysqld.exe"}
+		case "HeidiSQL":
+			exeNames = []string{"heidisql.exe"}
+		case "Nginx":
+			exeNames = []string{"nginx.exe"}
+		case "PHP":
+			exeNames = []string{"php.exe", "php-cgi.exe"}
+		case "Node.js":
+			exeNames = []string{"node.exe"}
+		case "Python":
+			exeNames = []string{"python.exe"}
 		}
 		for _, exe := range exeNames {
 			pids := findOsteniaPIDs(exe)

@@ -109,8 +109,15 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 	if !isZip && !isNupkg {
 		os.MkdirAll(targetDir, 0755)
 		dest := filepath.Join(targetDir, "installer.exe")
-		_ = exec.Command("cmd", "/c", "move", "/Y", tmp, dest).Run()
-		_ = exec.Command("cmd", "/c", "start", "", dest).Run()
+		// Correct move for Windows (replace old installer if it exists)
+		_ = exec.Command("cmd", "/c", "copy", "/Y", tmp, dest).Run()
+
+		cmd := exec.Command("cmd", "/c", "start", "", dest)
+		if runtime.GOOS == "windows" {
+			cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		}
+		_ = cmd.Run()
+
 		wruntime.EventsEmit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Completed"})
 		return nil
 	}
