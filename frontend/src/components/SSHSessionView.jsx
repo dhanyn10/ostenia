@@ -4,7 +4,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime';
 import * as AppBackend from '../../wailsjs/go/main/App';
-import { X, Maximize2, Minimize2, Folder, File, ChevronLeft, ChevronRight, RefreshCw, Upload, Download, Edit2, Edit3, Trash2, Home, Search, Terminal } from 'lucide-react';
+import { X, Maximize2, Minimize2, Folder, File, ChevronLeft, RefreshCw, Upload, Download, Edit2, Edit3, Trash2, Home, Search, Terminal } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -27,7 +27,7 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
     // Initialize XTerm
     xterm.current = new XTerm({
       cursorBlink: true,
-      fontSize: 14,
+      fontSize: 13,
       fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, "Courier New", monospace',
       theme: {
         background: '#0f172a',
@@ -46,7 +46,6 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
       AppBackend.SendSSHInput(session.id, data);
     });
 
-    // Handle incoming data
     const handleOutput = (event) => {
       if (event.sessionId === session.id && xterm.current) {
         xterm.current.write(event.data);
@@ -75,7 +74,6 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
     EventsOn('ssh_path_changed', handlePathChange);
     EventsOn('ssh_disconnected', handleDisconnect);
 
-    // Connect
     connectSSH();
 
     const handleResize = () => {
@@ -88,7 +86,6 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
       EventsOff('ssh_path_changed', handlePathChange);
       EventsOff('ssh_disconnected', handleDisconnect);
       window.removeEventListener('resize', handleResize);
-      // Removed AppBackend.DisconnectSSH here to persist session on tab switch
       if (xterm.current) xterm.current.dispose();
     };
   }, [session.id]);
@@ -122,20 +119,10 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
     }
   };
 
-  const syncExplorer = async () => {
-      try {
-          const current = await AppBackend.GetRemoteCurrentPath(session.id);
-          if (current !== remotePath) {
-              loadRemoteFiles(current);
-          }
-      } catch(e) {}
-  };
-
   const handleFileClick = (file) => {
     if (file.isDir) {
       const newPath = remotePath === '/' || remotePath === '' ? `/${file.name}` : `${remotePath}/${file.name}`;
       loadRemoteFiles(newPath);
-      // Sync terminal
       AppBackend.SendSSHInput(session.id, `cd "${newPath}"\r`);
     }
   };
@@ -194,79 +181,77 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
   const filteredFiles = files.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <div className="flex flex-col h-full bg-[#0f172a] rounded-xl overflow-hidden border border-slate-200 dark:border-white/5 shadow-2xl">
-      {/* Toolbar */}
-      <div className="h-12 flex items-center justify-between px-4 bg-slate-900 border-b border-white/5">
-        <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded text-blue-400 font-mono text-sm">
-                <Terminal size={14} />
+    <div className="flex flex-col h-full bg-[#0f172a] rounded-lg overflow-hidden border border-slate-200 dark:border-white/5 shadow-lg">
+      {/* Header / Toolbar */}
+      <div className="h-10 flex items-center justify-between px-3 bg-slate-900 border-b border-white/5 shrink-0">
+        <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 px-2 py-0.5 bg-white/5 rounded text-blue-400 font-bold text-[11px] uppercase tracking-wider">
+                <Terminal size={12} />
                 <span>{session.name}</span>
             </div>
-            <div className="h-4 w-[1px] bg-white/10 mx-1" />
             <button
                 onClick={() => setExplorerVisible(!explorerVisible)}
                 className={cn(
-                    "p-1.5 rounded transition-colors",
-                    explorerVisible ? "bg-blue-600 text-white" : "text-slate-400 hover:text-white hover:bg-white/5"
+                    "p-1 rounded text-slate-400 hover:text-white transition-colors",
+                    explorerVisible && "text-blue-500 bg-blue-500/10"
                 )}
-                title="Toggle File Explorer"
+                title="Toggle Explorer"
             >
-                <Folder size={18} />
+                <Folder size={16} />
             </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
             <button
                 onClick={() => connectSSH()}
                 disabled={connecting}
-                className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded disabled:opacity-50"
+                className="p-1 text-slate-500 hover:text-white transition-colors disabled:opacity-30"
                 title="Reconnect"
             >
-                <RefreshCw size={18} className={connecting ? "animate-spin" : ""} />
+                <RefreshCw size={14} className={connecting ? "animate-spin" : ""} />
             </button>
             <button
                 onClick={onClose}
-                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"
-                title="Close Session"
+                className="p-1 text-slate-500 hover:text-red-500 transition-colors"
+                title="Close"
             >
-                <X size={20} />
+                <X size={16} />
             </button>
         </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Remote File Explorer */}
+        {/* SFTP Explorer Sidebar */}
         {explorerVisible && (
-            <div className="w-80 flex flex-col border-r border-white/5 bg-[#0f172a]">
-                <div className="p-3 space-y-3">
-                    <div className="flex items-center gap-1">
-                        <button onClick={navigateUp} className="p-1.5 hover:bg-white/5 rounded text-slate-400">
-                            <ChevronLeft size={18} />
+            <div className="w-72 flex flex-col border-r border-white/5 bg-[#0f172a] shrink-0">
+                <div className="p-3 border-b border-white/5 space-y-3 bg-slate-900/30">
+                    <div className="flex items-center gap-1 bg-white/5 rounded px-1 py-0.5 border border-white/5">
+                        <button onClick={navigateUp} className="p-1 text-slate-400 hover:text-white transition-colors">
+                            <ChevronLeft size={16} />
                         </button>
-                        <div className="flex-1 px-2 py-1.5 bg-white/5 rounded text-xs text-slate-400 truncate font-mono">
+                        <div className="flex-1 px-1 text-[10px] text-slate-400 truncate font-mono">
                             {remotePath || '/'}
                         </div>
-                        <button onClick={() => loadRemoteFiles(remotePath)} className="p-1.5 hover:bg-white/5 rounded text-slate-400">
-                            <RefreshCw size={16} />
-                        </button>
                     </div>
+
                     <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500" size={12} />
                         <input
                             type="text"
-                            placeholder="Search files..."
-                            className="w-full bg-white/5 border-none rounded-md py-1.5 pl-8 pr-3 text-xs text-slate-300 focus:ring-1 focus:ring-blue-500"
+                            placeholder="Search..."
+                            className="w-full bg-white/5 border border-white/5 rounded py-1 pl-7 pr-2 text-[11px] text-slate-300 outline-none focus:border-blue-500 transition-all"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <div className="flex gap-2">
-                        <button onClick={handleUpload} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-white/5 hover:bg-white/10 rounded text-xs text-slate-300 transition-colors">
-                            <Upload size={14} /> Upload
+
+                    <div className="flex gap-1.5">
+                        <button onClick={handleUpload} className="flex-1 flex items-center justify-center gap-1.5 py-1 bg-blue-600 hover:bg-blue-700 rounded text-[10px] font-bold text-white transition-colors">
+                            <Upload size={12} /> Upload
                         </button>
                         <button
                             onClick={async () => {
-                                const name = prompt('Enter folder name:');
+                                const name = prompt('Folder Name:');
                                 if (name) {
                                     try {
                                         await AppBackend.ExecuteSFTPAction(session.id, 'mkdir', `${remotePath}/${name}`, '');
@@ -274,34 +259,33 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
                                     } catch (e) { addToast('Error', e.toString(), 'error'); }
                                 }
                             }}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-white/5 hover:bg-white/10 rounded text-xs text-slate-300 transition-colors"
+                            className="flex-1 flex items-center justify-center gap-1.5 py-1 bg-white/10 hover:bg-white/20 rounded text-[10px] font-bold text-slate-200 transition-colors"
                         >
-                            <Folder size={14} /> New Folder
+                            <Folder size={12} /> New
                         </button>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-2 pb-4">
+                <div className="flex-1 overflow-y-auto px-1 py-2 custom-scrollbar">
                     {loadingFiles ? (
                         <div className="flex flex-col items-center justify-center h-40 space-y-2">
-                            <RefreshCw className="animate-spin text-slate-600" />
-                            <span className="text-xs text-slate-500">Reading directory...</span>
+                            <RefreshCw className="animate-spin text-slate-600" size={20} />
                         </div>
                     ) : (
-                        <div className="space-y-0.5">
+                        <div className="space-y-px">
                             {filteredFiles.sort((a, b) => (b.isDir ? 1 : 0) - (a.isDir ? 1 : 0)).map((file) => (
                                 <div
                                     key={file.name}
-                                    className="group flex items-center gap-2 p-2 rounded-md hover:bg-white/5 cursor-pointer text-slate-400 hover:text-white"
+                                    className="group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5 cursor-pointer border border-transparent hover:border-white/5 transition-all"
                                     onClick={() => handleFileClick(file)}
                                 >
-                                    {file.isDir ? <Folder size={16} className="text-blue-400 shrink-0" /> : <File size={16} className="text-slate-500 shrink-0" />}
-                                    <span className="flex-1 text-xs truncate">{file.name}</span>
-                                    <div className="hidden group-hover:flex items-center gap-1">
+                                    {file.isDir ? <Folder size={14} className="text-blue-400 shrink-0" /> : <File size={14} className="text-slate-500 shrink-0" />}
+                                    <span className="flex-1 text-[11px] text-slate-400 group-hover:text-white truncate">{file.name}</span>
+                                    <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
                                         <button
                                             onClick={async (e) => {
                                                 e.stopPropagation();
-                                                const newName = prompt('Rename to:', file.name);
+                                                const newName = prompt('Rename:', file.name);
                                                 if (newName && newName !== file.name) {
                                                     try {
                                                         await AppBackend.ExecuteSFTPAction(session.id, 'rename', `${remotePath}/${file.name}`, `${remotePath}/${newName}`);
@@ -309,18 +293,17 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
                                                     } catch (err) { addToast('Error', err.toString(), 'error'); }
                                                 }
                                             }}
-                                            className="p-1 hover:text-blue-400"
-                                            title="Rename"
+                                            className="p-1 text-slate-500 hover:text-blue-400"
                                         >
-                                            <Edit2 size={12} />
+                                            <Edit2 size={10} />
                                         </button>
                                         {!file.isDir && (
                                             <>
-                                                <button onClick={(e) => { e.stopPropagation(); handleEdit(file); }} className="p-1 hover:text-blue-400" title="Edit"><Edit3 size={12} /></button>
-                                                <button onClick={(e) => { e.stopPropagation(); handleDownload(file); }} className="p-1 hover:text-green-400" title="Download"><Download size={12} /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleEdit(file); }} className="p-1 text-slate-500 hover:text-blue-400" title="Edit"><Edit3 size={10} /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleDownload(file); }} className="p-1 text-slate-500 hover:text-green-400" title="Download"><Download size={10} /></button>
                                             </>
                                         )}
-                                        <button onClick={(e) => { e.stopPropagation(); handleDelete(file); }} className="p-1 hover:text-red-400" title="Delete"><Trash2 size={12} /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleDelete(file); }} className="p-1 text-slate-500 hover:text-red-500" title="Delete"><Trash2 size={10} /></button>
                                     </div>
                                 </div>
                             ))}
@@ -330,14 +313,14 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
             </div>
         )}
 
-        {/* Terminal */}
-        <div className="flex-1 flex flex-col bg-[#0f172a] relative">
-          <div ref={terminalRef} className="flex-1 w-full h-full p-4" />
+        {/* Integrated Terminal */}
+        <div className="flex-1 flex flex-col bg-[#0f172a] relative overflow-hidden">
+          <div ref={terminalRef} className="flex-1 w-full h-full p-2" />
           {connecting && (
-            <div className="absolute inset-0 bg-[#0f172a]/50 backdrop-blur-sm flex items-center justify-center">
-              <div className="flex items-center gap-3 bg-slate-900 p-4 rounded-xl border border-white/10 shadow-2xl">
-                <RefreshCw className="animate-spin text-blue-500" />
-                <span className="text-slate-200 font-medium">Establishing connection...</span>
+            <div className="absolute inset-0 bg-[#0f172a] flex items-center justify-center">
+              <div className="flex items-center gap-3">
+                <RefreshCw className="animate-spin text-blue-500" size={18} />
+                <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">Connecting...</span>
               </div>
             </div>
           )}
