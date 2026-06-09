@@ -13,6 +13,7 @@ import ActivityTab from './components/ActivityTab';
 import PluginsTab from './components/PluginsTab';
 import ProxyTab from './components/ProxyTab';
 import Icons from './components/Icons';
+import ConfirmationModal from './components/ConfirmationModal';
 
 // Icons
 import { Loader2 } from 'lucide-react';
@@ -50,6 +51,14 @@ function App() {
   const [appsLocation, setAppsLocation] = useState('');
   const [apacheHttps, setApacheHttps] = useState(false);
   const [nginxHttps, setNginxHttps] = useState(false);
+
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    type: 'danger'
+  });
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -254,7 +263,17 @@ function App() {
                 handleToggleService={(name, status) => {
                   if (status === 'Running') {
                     if (name === 'HeidiSQL') {
-                      if (!window.confirm('Are you sure you want to uninstall HeidiSQL from your system?')) return;
+                      setConfirmModal({
+                        isOpen: true,
+                        title: 'Uninstall HeidiSQL',
+                        message: 'Are you sure you want to uninstall HeidiSQL from your system? This will remove the application but your database data should remain intact.',
+                        type: 'danger',
+                        onConfirm: () => {
+                          AppBackend.StopService(name);
+                          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                        }
+                      });
+                      return;
                     }
                     AppBackend.StopService(name);
                   } else {
@@ -331,6 +350,15 @@ function App() {
           </div>
         </main>
       </div>
+
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }
