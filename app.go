@@ -85,6 +85,16 @@ func (a *App) IsAdmin() bool { return service.IsAdmin() }
 func (a *App) GetPrerequisites() []plugins.DownloadTask { return plugins.GetLatestKnownVersions() }
 func (a *App) GetServiceStatus(serviceName string) service.ServiceDetailedInfo { return a.orchestrator.GetDetailedInfo(serviceName) }
 
+func (a *App) OpenHeidiSQL() error {
+	exePath, _ := plugins.DetectHeidiSQLInstallation()
+	if exePath == "" {
+		return fmt.Errorf("HeidiSQL is not installed")
+	}
+	cmd := exec.Command("cmd", "/c", "start", "", exePath)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	return cmd.Run()
+}
+
 func (a *App) SetWWWRoot(path string) error {
 	fmt.Printf("[App] Setting Server Root (www) to: %s\n", path)
 	a.cfg.WWWRoot = path
@@ -398,14 +408,28 @@ func (a *App) StartService(serviceName string) error {
 		return a.orchestrator.StartServiceWithPort("Nginx", nginxBin, []string{"-p", nginxBase}, nginxBase, port)
 
 	case "HeidiSQL":
-		hBin := filepath.Join(currentPath, "heidisql.exe")
-		if _, err := os.Stat(hBin); os.IsNotExist(err) {
-			hBin = filepath.Join(binDir, "heidisql.exe")
-			if _, err := os.Stat(hBin); os.IsNotExist(err) {
-				return fmt.Errorf("heidisql.exe not found")
+		exePath, _ := plugins.DetectHeidiSQLInstallation()
+		if exePath != "" {
+			// If already installed, the button might mean "Start" but the user wants "ON" status to mean "Installed"
+			// Actually, StartService is called when the toggle is clicked from OFF to ON.
+			// Since it's already installed, we just refresh.
+			a.orchestrator.RequestRefresh()
+			return nil
+		}
+
+		// Not installed, we need to run the installer
+		tasks := plugins.GetLatestKnownVersions()
+		var heidiTask *plugins.DownloadTask
+		for _, t := range tasks {
+			if t.Name == "HeidiSQL" {
+				heidiTask = &t
+				break
 			}
 		}
-		return a.orchestrator.StartService("HeidiSQL", hBin, []string{}, filepath.Dir(hBin))
+		if heidiTask == nil {
+			return fmt.Errorf("HeidiSQL task not found")
+		}
+		return a.downloader.DownloadAndExtract(*heidiTask)
 
 	case "PHP":
 		phpCgi := filepath.Join(currentPath, "php-cgi.exe")
