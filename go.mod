@@ -4,12 +4,17 @@ go 1.24.0
 
 toolchain go1.24.3
 
-require github.com/wailsapp/wails/v2 v2.12.0
+require (
+	github.com/melbahja/goph v1.5.1
+	github.com/pkg/sftp v1.13.10
+	github.com/wailsapp/wails/v2 v2.12.0
+	golang.org/x/crypto v0.48.0
+	golang.org/x/sys v0.41.0
+)
 
 require (
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
-	github.com/creack/pty v1.1.24 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -24,10 +29,8 @@ require (
 	github.com/leaanthony/u v1.1.1 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/melbahja/goph v1.5.1 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pkg/sftp v1.13.10 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/samber/lo v1.49.1 // indirect
 	github.com/tkrajina/go-reflector v0.5.8 // indirect
@@ -35,9 +38,7 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
 	github.com/wailsapp/mimetype v1.4.1 // indirect
-	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/net v0.49.0 // indirect
-	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
 )
 

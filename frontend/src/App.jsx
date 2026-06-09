@@ -235,7 +235,7 @@ function App() {
         <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
           <div className={cn(
             "w-full mx-auto flex flex-col h-full",
-            activeTab === 'logs' ? "max-w-none" : "max-w-4xl px-8 pb-8"
+            (activeTab === 'logs' || activeTab === 'ssh') ? "max-w-none" : "max-w-4xl px-8 pb-8"
           )}>
             <div className={cn("h-full flex flex-col", activeTab !== 'activity' && "hidden")}>
                 <ActivityTab

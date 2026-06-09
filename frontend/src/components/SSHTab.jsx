@@ -194,9 +194,9 @@ const SSHTab = ({ addToast }) => {
                                 <Server size={24} />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                <h4 className="font-bold text-slate-900 dark:text-white truncate text-base">{session.name}</h4>
-                                <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-1 font-mono">
-                                    {session.user}@{session.host}
+                                <h4 className="font-bold text-slate-900 dark:text-white truncate text-base">{session.host}</h4>
+                                <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mt-1">
+                                    SSH Protocol
                                 </p>
                                 </div>
                             </div>

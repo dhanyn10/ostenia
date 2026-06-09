@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, List, Sun, Moon, Globe, Terminal } from 'lucide-react';
+import { Home, List, Sun, Moon, Globe, Server } from 'lucide-react';
 import Icons from './Icons';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -53,7 +53,7 @@ function VerticalNav({ activeTab, setActiveTab, toggleTheme, theme }) {
         )}
       >
         {activeTab === 'ssh' && <div className="absolute left-[-16px] top-3 bottom-3 w-1 bg-blue-500 rounded-r-sm" />}
-        <Terminal size={20} />
+        <Server size={20} />
       </button>
 
       {/* Plugin Management */}
