@@ -163,59 +163,55 @@ const SSHTab = ({ addToast }) => {
                         </button>
                         </div>
                     ) : (
-                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 overflow-y-auto pr-2 pb-4 custom-scrollbar">
-                        {sessions.map((session) => (
-                            <div
-                            key={session.id}
-                            className="group bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-white/5 rounded-xl p-5 hover:border-blue-500/50 hover:shadow-md transition-all relative overflow-hidden flex flex-col h-[180px]"
-                            >
-                            <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                                <button
-                                onClick={() => {
-                                    setEditingSession(session);
-                                    setShowForm(true);
-                                }}
-                                className="p-1.5 hover:bg-slate-200 dark:hover:bg-white/10 rounded-md text-slate-500"
-                                title="Edit"
-                                >
-                                <Edit2 size={14} />
-                                </button>
-                                <button
-                                onClick={() => handleDelete(session.id)}
-                                className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md text-slate-500 hover:text-red-500"
-                                title="Delete"
-                                >
-                                <Trash2 size={14} />
-                                </button>
-                            </div>
+                        <div className="flex-1 overflow-y-auto pr-2 pb-4 custom-scrollbar">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+                                {sessions.map((session) => (
+                                    <div
+                                        key={session.id}
+                                        className="group bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-white/5 rounded-lg p-3 hover:border-blue-500/50 hover:shadow-sm transition-all relative overflow-hidden flex items-center gap-3"
+                                    >
+                                        <div className="bg-blue-600 text-white p-2 rounded-md shrink-0">
+                                            <Server size={18} />
+                                        </div>
 
-                            <div className="flex items-start gap-4 flex-1 min-w-0">
-                                <div className="bg-blue-600 text-white p-3 rounded-lg shrink-0">
-                                <Server size={24} />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                <h4 className="font-bold text-slate-900 dark:text-white truncate text-base">{session.host}</h4>
-                                <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mt-1">
-                                    SSH Protocol
-                                </p>
-                                </div>
-                            </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-bold text-slate-900 dark:text-white truncate text-sm leading-tight">{session.host}</h4>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-[9px] font-black text-blue-500 uppercase tracking-tighter">SSH</span>
+                                                <div className="w-1 h-1 bg-slate-300 dark:bg-slate-600 rounded-full" />
+                                                <span className="text-[9px] font-medium text-slate-400 uppercase">{session.authMethod}</span>
+                                            </div>
+                                        </div>
 
-                            <div className="mt-4 flex items-center justify-between pt-4 border-t border-slate-200 dark:border-white/5">
-                                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                {session.authMethod === 'password' ? <Lock size={12} /> : <Key size={12} />}
-                                {session.authMethod}
-                                </div>
-                                <button
-                                onClick={() => handleConnect(session)}
-                                className="px-5 py-2 bg-slate-900 dark:bg-blue-600 hover:bg-black dark:hover:bg-blue-700 text-white rounded-md text-xs font-bold transition-all flex items-center gap-1.5"
-                                >
-                                <Play size={12} fill="currentColor" />
-                                Connect
-                                </button>
+                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => handleConnect(session)}
+                                                className="p-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-sm"
+                                                title="Connect"
+                                            >
+                                                <Play size={12} fill="currentColor" />
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setEditingSession(session);
+                                                    setShowForm(true);
+                                                }}
+                                                className="p-1.5 hover:bg-slate-200 dark:hover:bg-white/10 rounded-md text-slate-500"
+                                                title="Edit"
+                                            >
+                                                <Edit2 size={12} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(session.id)}
+                                                className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md text-slate-400 hover:text-red-500"
+                                                title="Delete"
+                                            >
+                                                <Trash2 size={12} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                            </div>
-                        ))}
                         </div>
                     )}
                 </div>
