@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+
+	"golang.org/x/sys/windows/registry"
 )
 
 type ModuleDefinition struct {
@@ -48,7 +50,34 @@ func DetectHeidiSQLInstallation() (exePath string, uninstaller string) {
 		return "", ""
 	}
 
-	// 1. Check common installation paths
+	// 1. Try Registry first (Standard Windows way)
+	keys := []string{
+		`SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\HeidiSQL_is1`,
+		`SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\HeidiSQL_is1`,
+	}
+
+	for _, k := range keys {
+		regKey, err := registry.OpenKey(registry.LOCAL_MACHINE, k, registry.QUERY_VALUE)
+		if err != nil {
+			regKey, err = registry.OpenKey(registry.CURRENT_USER, k, registry.QUERY_VALUE)
+		}
+		if err == nil {
+			displayIcon, _, err := regKey.GetStringValue("DisplayIcon")
+			if err == nil {
+				exePath = strings.Trim(displayIcon, "\"")
+			}
+			uninstString, _, err := regKey.GetStringValue("UninstallString")
+			if err == nil {
+				uninstaller = strings.Trim(uninstString, "\"")
+			}
+			regKey.Close()
+			if exePath != "" {
+				return
+			}
+		}
+	}
+
+	// 2. Check common installation paths
 	commonPaths := []string{
 		filepath.Join(os.Getenv("ProgramFiles"), "HeidiSQL", "heidisql.exe"),
 		filepath.Join(os.Getenv("ProgramFiles(x86)"), "HeidiSQL", "heidisql.exe"),
