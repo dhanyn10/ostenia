@@ -377,8 +377,8 @@ const SSHSessionView = ({ session, onClose, addToast, isActive, theme }) => {
         {/* SFTP Explorer Sidebar */}
         {explorerVisible && (
             <div className="w-72 flex flex-col border-r border-mui-grey-200 dark:border-white/5 bg-white dark:bg-mui-dark-bg shrink-0">
-                <div className="p-3 border-b border-mui-grey-100 dark:border-white/5 space-y-3 bg-mui-grey-50 dark:bg-mui-grey-900/30">
-                    <div className="flex items-center gap-1 bg-white dark:bg-white/5 rounded px-1 py-0.5 border border-mui-grey-200 dark:border-white/5">
+                <div className="p-3 border-b border-mui-grey-100 dark:border-white/5 space-y-3 bg-mui-grey-50 dark:bg-mui-dark-paper/50">
+                    <div className="flex items-center gap-1 bg-white dark:bg-mui-dark-bg rounded px-1 py-0.5 border border-mui-grey-200 dark:border-white/10">
                         <button onClick={navigateUp} className="p-1 text-mui-grey-500 dark:text-mui-grey-400 hover:text-mui-blue-600 dark:hover:text-white transition-colors" title="Back">
                             <ChevronLeft size={16} />
                         </button>
@@ -395,7 +395,7 @@ const SSHSessionView = ({ session, onClose, addToast, isActive, theme }) => {
                         <input
                             type="text"
                             placeholder="Search..."
-                            className="w-full bg-mui-grey-50 dark:bg-white/5 border border-mui-grey-200 dark:border-white/5 rounded py-1 pl-7 pr-2 text-[11px] text-mui-grey-700 dark:text-mui-grey-300 outline-none focus:border-mui-blue-500 transition-all"
+                            className="w-full bg-mui-grey-50 dark:bg-mui-dark-bg border border-mui-grey-200 dark:border-white/10 rounded py-1 pl-7 pr-2 text-[11px] text-mui-grey-700 dark:text-mui-grey-300 outline-none focus:border-mui-blue-500 transition-all"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -415,7 +415,7 @@ const SSHSessionView = ({ session, onClose, addToast, isActive, theme }) => {
                                     } catch (e) { addToast('Error', e.toString(), 'error'); }
                                 }
                             }}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-1 bg-mui-grey-100 dark:bg-white/10 hover:bg-mui-grey-200 dark:hover:bg-white/20 rounded text-[10px] font-bold text-mui-grey-700 dark:text-mui-grey-200 transition-colors"
+                            className="flex-1 flex items-center justify-center gap-1.5 py-1 bg-mui-grey-100 dark:bg-white/10 hover:bg-mui-grey-200 dark:hover:bg-white/10 rounded text-[10px] font-bold text-mui-grey-700 dark:text-mui-grey-200 transition-colors"
                         >
                             <Folder size={12} /> New
                         </button>
@@ -433,7 +433,7 @@ const SSHSessionView = ({ session, onClose, addToast, isActive, theme }) => {
                                 <div
                                     key={file.name}
                                     onContextMenu={(e) => handleFileContextMenu(e, file)}
-                                    className="group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-mui-grey-100 dark:hover:bg-white/5 cursor-pointer border border-transparent hover:border-mui-grey-200 dark:hover:border-white/5 transition-all"
+                                    className="group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-mui-grey-100 dark:hover:bg-mui-dark-paper cursor-pointer border border-transparent hover:border-mui-grey-200 dark:hover:border-white/5 transition-all"
                                     onClick={() => handleFileClick(file)}
                                 >
                                     {file.isDir ? <Folder size={14} className="text-mui-blue-500 dark:text-mui-blue-400 shrink-0" /> : <File size={14} className="text-mui-grey-400 dark:text-mui-grey-500 shrink-0" />}
