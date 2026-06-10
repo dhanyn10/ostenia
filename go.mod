@@ -1,8 +1,16 @@
 module ostenia
 
-go 1.23.0
+go 1.24.0
 
-require github.com/wailsapp/wails/v2 v2.12.0
+toolchain go1.24.3
+
+require (
+	github.com/melbahja/goph v1.5.1
+	github.com/pkg/sftp v1.13.10
+	github.com/wailsapp/wails/v2 v2.12.0
+	golang.org/x/crypto v0.48.0
+	golang.org/x/sys v0.41.0
+)
 
 require (
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
@@ -12,6 +20,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/jchv/go-winloader v0.0.0-20210711035445-715c2860da7e // indirect
+	github.com/kr/fs v0.1.0 // indirect
 	github.com/labstack/echo/v4 v4.13.3 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/leaanthony/go-ansi-parser v1.6.1 // indirect
@@ -29,10 +38,8 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
 	github.com/wailsapp/mimetype v1.4.1 // indirect
-	golang.org/x/crypto v0.33.0 // indirect
-	golang.org/x/net v0.35.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/net v0.49.0 // indirect
+	golang.org/x/text v0.34.0 // indirect
 )
 
 // replace github.com/wailsapp/wails/v2 v2.12.0 => /home/jules/go/pkg/mod

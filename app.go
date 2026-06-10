@@ -28,6 +28,7 @@ type App struct {
 	downloader   *plugins.Manager
 	orchestrator *service.Orchestrator
 	symlinkMgr   *service.SymlinkManager
+	sshManager   *service.SSHManager
 	cfg          *config.Config
 }
 
@@ -43,6 +44,7 @@ func (a *App) startup(ctx context.Context) {
 	a.downloader = plugins.NewManager(ctx)
 	a.orchestrator = service.NewOrchestrator(ctx)
 	a.symlinkMgr = service.NewSymlinkManager()
+	a.sshManager = service.NewSSHManager(ctx)
 
 	cfg, _ := config.LoadConfig()
 	a.cfg = cfg
@@ -713,6 +715,81 @@ func (a *App) TogglePHPExtension(extName string, enable bool) error {
 	baseDir := config.GetBaseDir(); phpPath := filepath.Join(baseDir, "bin", "php", "current"); err := service.TogglePHPExtension(phpPath, extName, enable); if err != nil { return err }
 	if a.orchestrator.IsRunning("PHP") { a.StopService("PHP"); time.Sleep(600 * time.Millisecond); return a.StartService("PHP") }
 	return nil
+}
+
+func (a *App) GetSSHSessions() ([]config.SSHSession, error) {
+	return config.LoadSSHSessions()
+}
+
+func (a *App) SaveSSHSessions(sessions []config.SSHSession) error {
+	return config.SaveSSHSessions(sessions)
+}
+
+func (a *App) AddSSHSession(session config.SSHSession) error {
+	return config.AddSSHSession(session)
+}
+
+func (a *App) UpdateSSHSession(session config.SSHSession) error {
+	return config.UpdateSSHSession(session)
+}
+
+func (a *App) DeleteSSHSession(id string) error {
+	return config.DeleteSSHSession(id)
+}
+
+func (a *App) ConnectSSH(session config.SSHSession) error {
+	return a.sshManager.Connect(session)
+}
+
+func (a *App) DisconnectSSH(sessionID string) {
+	a.sshManager.Disconnect(sessionID)
+}
+
+func (a *App) SendSSHInput(sessionID string, data string) error {
+	return a.sshManager.SendInput(sessionID, data)
+}
+
+func (a *App) ResizeSSHTerminal(sessionID string, cols int, rows int) error {
+	return a.sshManager.ResizeTerminal(sessionID, cols, rows)
+}
+
+func (a *App) GetRemoteFiles(sessionID string, path string) ([]service.RemoteFile, error) {
+	return a.sshManager.ListFiles(sessionID, path)
+}
+
+func (a *App) ExecuteSFTPAction(sessionID string, action string, path string, target string) error {
+	return a.sshManager.ExecuteSFTPAction(sessionID, action, path, target)
+}
+
+func (a *App) EditRemoteFile(sessionID string, remotePath string) error {
+	return a.sshManager.EditFile(sessionID, remotePath)
+}
+
+func (a *App) GetRemoteCurrentPath(sessionID string) (string, error) {
+	return a.sshManager.GetCurrentPath(sessionID)
+}
+
+func (a *App) DownloadRemoteFile(sessionID string, remotePath string) error {
+	fileName := filepath.Base(remotePath)
+	localPath, err := wruntime.SaveFileDialog(a.ctx, wruntime.SaveDialogOptions{
+		Title: "Download File",
+		DefaultFilename: fileName,
+	})
+	if err != nil || localPath == "" {
+		return err
+	}
+	return a.sshManager.DownloadFile(sessionID, remotePath, localPath)
+}
+
+func (a *App) UploadRemoteFile(sessionID string, remoteDir string) error {
+	localPath, err := wruntime.OpenFileDialog(a.ctx, wruntime.OpenDialogOptions{
+		Title: "Upload File",
+	})
+	if err != nil || localPath == "" {
+		return err
+	}
+	remotePath := filepath.ToSlash(filepath.Join(remoteDir, filepath.Base(localPath)))
+	return a.sshManager.UploadFile(sessionID, localPath, remotePath)
 }
 
 type ProxyAppInfo struct {
