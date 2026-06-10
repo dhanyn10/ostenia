@@ -109,27 +109,25 @@ const SSHTab = ({ addToast }) => {
                     return (
                         <div
                           key={id}
+                          onClick={() => setCurrentSessionId(id)}
                           className={clsx(
-                              "flex items-center rounded-full transition-all group",
+                              "flex items-center rounded-full transition-all group cursor-pointer h-8",
                               isActive
                                 ? "bg-mui-dark-paper text-mui-blue-400 shadow-lg border border-white/5"
                                 : "text-mui-grey-500 hover:text-mui-grey-300 hover:bg-white/5"
                           )}
                         >
-                            <button
-                              onClick={() => setCurrentSessionId(id)}
-                              className="pl-4 pr-2 py-1.5 text-xs font-semibold flex items-center gap-2 whitespace-nowrap"
-                            >
+                            <span className="pl-4 pr-2 text-xs font-bold whitespace-nowrap">
                                 {session.name}
-                            </button>
+                            </span>
                             <button
                               onClick={(e) => {
                                   e.stopPropagation();
                                   handleCloseSession(id);
                               }}
-                              className="pr-3 pl-1 hover:text-red-500 transition-colors"
+                              className="mr-2 p-1 hover:bg-red-500/10 hover:text-red-500 rounded-full transition-all"
                             >
-                                <X size={12} />
+                                <X size={10} />
                             </button>
                         </div>
                     );
