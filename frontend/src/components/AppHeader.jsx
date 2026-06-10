@@ -8,9 +8,9 @@ function cn(...inputs) {
 }
 
 function AppHeader({ activeTab, handleStartAll, handleStopAll, handleTerminal, isTerminalOpen, setIsTerminalOpen }) {
-  // Hide header elements completely for logs tab if preferred, 
+  // Hide header elements completely for logs and ssh tab if preferred,
   // or just show the appropriate title.
-  if (activeTab === 'logs') return null;
+  if (activeTab === 'logs' || activeTab === 'ssh') return null;
 
   const title = {
     activity: 'Activity Center',
