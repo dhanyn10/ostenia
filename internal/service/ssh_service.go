@@ -178,12 +178,12 @@ func (m *SSHManager) ResizeTerminal(sessionID string, cols int, rows int) error 
 		return fmt.Errorf("session not found")
 	}
 
-	// Safety floor for terminal dimensions
-	if cols < 40 {
-		cols = 40
+	// Safety floor for terminal dimensions to prevent wrapping/ghosting
+	if cols < 80 {
+		cols = 80
 	}
-	if rows < 10 {
-		rows = 10
+	if rows < 24 {
+		rows = 24
 	}
 
 	fmt.Printf("[SSH] Resizing session %s to %dx%d\n", sessionID, cols, rows)

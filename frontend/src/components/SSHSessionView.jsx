@@ -40,6 +40,7 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
       },
       allowProposedApi: true,
       scrollback: 10000,
+      macOptionIsMeta: true,
     });
 
     xterm.current.loadAddon(fitAddon.current);
@@ -51,22 +52,26 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
         const entry = entries[0];
         if (!entry) return;
 
+        // Check if the element is actually visible and has valid dimensions
+        // offsetParent is null when the element or its parent is hidden (display: none)
+        const isVisible = terminalRef.current && terminalRef.current.offsetParent !== null;
         const { width, height } = entry.contentRect;
 
-        // Terminal needs a stable size. Ignore collapses during UI shifts.
-        if (width > 200 && height > 100 && xterm.current) {
+        if (isVisible && width > 100 && height > 100 && xterm.current) {
             clearTimeout(resizeTimeout);
             resizeTimeout = setTimeout(() => {
                 try {
+                    // Refit only when visible to prevent collapsing to 0x0
                     fitAddon.current.fit();
                     const dims = fitAddon.current.proposeDimensions();
-                    // Termius-like safety floor for reported dimensions
-                    if (dims && dims.cols >= 40 && dims.rows >= 10) {
+
+                    // Safety floor to prevent wrapping issues
+                    if (dims && dims.cols >= 40 && dims.rows >= 5) {
                         AppBackend.ResizeSSHTerminal(session.id, dims.cols, dims.rows);
                         xterm.current.focus();
                     }
                 } catch (e) {}
-            }, 200);
+            }, 150);
         }
     });
 
