@@ -130,8 +130,8 @@ const SSHTab = ({ addToast, theme }) => {
                           className={clsx(
                               "relative pl-6 pr-2 py-2 text-xs transition-all group cursor-pointer rounded-t-xl flex items-center justify-between min-w-[140px] max-w-[220px]",
                               isActive
-                                ? "bg-white dark:bg-mui-dark-bg text-mui-blue-600 z-10 border-t border-x border-mui-grey-200 dark:border-white/5"
-                                : "text-mui-grey-500 hover:bg-mui-grey-200 dark:hover:bg-white/10"
+                                ? "bg-white dark:bg-mui-dark-bg text-mui-blue-600 z-10 border-t border-x border-mui-grey-200 dark:border-mui-grey-800"
+                                : "text-mui-grey-500 hover:bg-mui-grey-200 dark:hover:bg-mui-grey-800"
                           )}
                         >
                             <span className={clsx(
@@ -212,7 +212,7 @@ const SSHTab = ({ addToast, theme }) => {
                                         key={session.id}
                                         onDoubleClick={() => handleConnect(session)}
                                         onContextMenu={(e) => handleContextMenu(e, session)}
-                                        className="group bg-mui-grey-50 dark:bg-mui-dark-paper border border-mui-grey-200 dark:border-white/5 rounded-lg p-3 hover:border-mui-blue-500/50 hover:shadow-md transition-all relative overflow-hidden flex items-center gap-3 cursor-pointer select-none"
+                                            className="group bg-mui-grey-50 dark:bg-mui-dark-paper border border-mui-grey-200 dark:border-mui-grey-800 rounded-lg p-3 hover:border-mui-blue-500/50 hover:shadow-md transition-all relative overflow-hidden flex items-center gap-3 cursor-pointer select-none"
                                     >
                                         <div className="bg-mui-blue-600 text-white p-2 rounded-md shrink-0">
                                             <Server size={18} />
