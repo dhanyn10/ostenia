@@ -70,10 +70,10 @@ const SSHSessionView = ({ session, onClose, addToast, isActive }) => {
       lineHeight: 1.2,
       fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, "Courier New", monospace',
       theme: {
-        background: '#0f172a',
-        foreground: '#e2e8f0',
-        cursor: '#3b82f6',
-        selectionBackground: 'rgba(59, 130, 246, 0.3)',
+        background: '#121212', // mui-dark-bg
+        foreground: '#eeeeee', // mui-grey-200
+        cursor: '#2196f3',     // mui-blue-500
+        selectionBackground: 'rgba(33, 150, 243, 0.3)',
       },
       allowProposedApi: true,
       scrollback: 10000,
@@ -288,15 +288,15 @@ const SSHSessionView = ({ session, onClose, addToast, isActive }) => {
   const filteredFiles = files.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <div className="flex flex-col h-full bg-[#0f172a] rounded-lg overflow-hidden border border-slate-200 dark:border-white/5 shadow-lg">
+    <div className="flex flex-col h-full bg-mui-dark-bg rounded-lg overflow-hidden border border-mui-grey-200 dark:border-white/5 shadow-lg">
       {/* Header / Toolbar */}
-      <div className="h-10 flex items-center justify-between px-3 bg-[#0f172a] border-b border-white/5 shrink-0">
+      <div className="h-10 flex items-center justify-between px-3 bg-mui-dark-bg border-b border-white/5 shrink-0">
         <div className="flex items-center gap-2">
             <button
                 onClick={() => setExplorerVisible(!explorerVisible)}
                 className={cn(
-                    "p-1 rounded text-slate-400 hover:text-white transition-colors",
-                    explorerVisible && "text-blue-500 bg-blue-500/10"
+                    "p-1 rounded text-mui-grey-400 hover:text-white transition-colors",
+                    explorerVisible && "text-mui-blue-500 bg-mui-blue-500/10"
                 )}
                 title="Toggle Explorer"
             >
@@ -311,7 +311,7 @@ const SSHSessionView = ({ session, onClose, addToast, isActive }) => {
                     const dims = fitAddon.current.proposeDimensions();
                     if (dims) AppBackend.ResizeSSHTerminal(session.id, dims.cols, dims.rows);
                 }}
-                className="p-1 text-slate-500 hover:text-white transition-colors"
+                className="p-1 text-mui-grey-500 hover:text-white transition-colors"
                 title="Fit Terminal"
             >
                 <Maximize2 size={14} />
@@ -319,14 +319,14 @@ const SSHSessionView = ({ session, onClose, addToast, isActive }) => {
             <button
                 onClick={() => connectSSH()}
                 disabled={connecting}
-                className="p-1 text-slate-500 hover:text-white transition-colors disabled:opacity-30"
+                className="p-1 text-mui-grey-500 hover:text-white transition-colors disabled:opacity-30"
                 title="Reconnect"
             >
                 <RefreshCw size={14} className={connecting ? "animate-spin" : ""} />
             </button>
             <button
                 onClick={onClose}
-                className="p-1 text-slate-500 hover:text-red-500 transition-colors"
+                className="p-1 text-mui-grey-500 hover:text-red-500 transition-colors"
                 title="Close"
             >
                 <X size={16} />
@@ -337,33 +337,33 @@ const SSHSessionView = ({ session, onClose, addToast, isActive }) => {
       <div className="flex-1 flex overflow-hidden">
         {/* SFTP Explorer Sidebar */}
         {explorerVisible && (
-            <div className="w-72 flex flex-col border-r border-white/5 bg-[#0f172a] shrink-0">
-                <div className="p-3 border-b border-white/5 space-y-3 bg-slate-900/30">
+            <div className="w-72 flex flex-col border-r border-white/5 bg-mui-dark-bg shrink-0">
+                <div className="p-3 border-b border-white/5 space-y-3 bg-mui-grey-900/30">
                     <div className="flex items-center gap-1 bg-white/5 rounded px-1 py-0.5 border border-white/5">
-                        <button onClick={navigateUp} className="p-1 text-slate-400 hover:text-white transition-colors" title="Back">
+                        <button onClick={navigateUp} className="p-1 text-mui-grey-400 hover:text-white transition-colors" title="Back">
                             <ChevronLeft size={16} />
                         </button>
-                        <div className="flex-1 px-1 text-[10px] text-slate-400 truncate font-mono">
+                        <div className="flex-1 px-1 text-[10px] text-mui-grey-400 truncate font-mono">
                             {remotePath || '/'}
                         </div>
-                        <button onClick={() => syncExplorer()} className="p-1 text-slate-400 hover:text-blue-400 transition-colors" title="Sync with terminal">
+                        <button onClick={() => syncExplorer()} className="p-1 text-mui-grey-400 hover:text-mui-blue-400 transition-colors" title="Sync with terminal">
                             <RefreshCw size={12} />
                         </button>
                     </div>
 
                     <div className="relative">
-                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500" size={12} />
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-mui-grey-500" size={12} />
                         <input
                             type="text"
                             placeholder="Search..."
-                            className="w-full bg-white/5 border border-white/5 rounded py-1 pl-7 pr-2 text-[11px] text-slate-300 outline-none focus:border-blue-500 transition-all"
+                            className="w-full bg-white/5 border border-white/5 rounded py-1 pl-7 pr-2 text-[11px] text-mui-grey-300 outline-none focus:border-mui-blue-500 transition-all"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
 
                     <div className="flex gap-1.5">
-                        <button onClick={handleUpload} className="flex-1 flex items-center justify-center gap-1.5 py-1 bg-blue-600 hover:bg-blue-700 rounded text-[10px] font-bold text-white transition-colors">
+                        <button onClick={handleUpload} className="flex-1 flex items-center justify-center gap-1.5 py-1 bg-mui-blue-600 hover:bg-mui-blue-700 rounded text-[10px] font-bold text-white transition-colors">
                             <Upload size={12} /> Upload
                         </button>
                         <button
@@ -376,7 +376,7 @@ const SSHSessionView = ({ session, onClose, addToast, isActive }) => {
                                     } catch (e) { addToast('Error', e.toString(), 'error'); }
                                 }
                             }}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-1 bg-white/10 hover:bg-white/20 rounded text-[10px] font-bold text-slate-200 transition-colors"
+                            className="flex-1 flex items-center justify-center gap-1.5 py-1 bg-white/10 hover:bg-white/20 rounded text-[10px] font-bold text-mui-grey-200 transition-colors"
                         >
                             <Folder size={12} /> New
                         </button>
@@ -386,7 +386,7 @@ const SSHSessionView = ({ session, onClose, addToast, isActive }) => {
                 <div className="flex-1 overflow-y-auto px-1 py-2 custom-scrollbar">
                     {loadingFiles ? (
                         <div className="flex flex-col items-center justify-center h-40 space-y-2">
-                            <RefreshCw className="animate-spin text-slate-600" size={20} />
+                            <RefreshCw className="animate-spin text-mui-grey-600" size={20} />
                         </div>
                     ) : (
                         <div className="space-y-px">
@@ -396,8 +396,8 @@ const SSHSessionView = ({ session, onClose, addToast, isActive }) => {
                                     className="group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5 cursor-pointer border border-transparent hover:border-white/5 transition-all"
                                     onClick={() => handleFileClick(file)}
                                 >
-                                    {file.isDir ? <Folder size={14} className="text-blue-400 shrink-0" /> : <File size={14} className="text-slate-500 shrink-0" />}
-                                    <span className="flex-1 text-[11px] text-slate-400 group-hover:text-white truncate">{file.name}</span>
+                                    {file.isDir ? <Folder size={14} className="text-mui-blue-400 shrink-0" /> : <File size={14} className="text-mui-grey-500 shrink-0" />}
+                                    <span className="flex-1 text-[11px] text-mui-grey-400 group-hover:text-white truncate">{file.name}</span>
                                     <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
                                         <button
                                             onClick={async (e) => {
@@ -410,17 +410,17 @@ const SSHSessionView = ({ session, onClose, addToast, isActive }) => {
                                                     } catch (err) { addToast('Error', err.toString(), 'error'); }
                                                 }
                                             }}
-                                            className="p-1 text-slate-500 hover:text-blue-400"
+                                            className="p-1 text-mui-grey-500 hover:text-mui-blue-400"
                                         >
                                             <Edit2 size={10} />
                                         </button>
                                         {!file.isDir && (
                                             <>
-                                                <button onClick={(e) => { e.stopPropagation(); handleEdit(file); }} className="p-1 text-slate-500 hover:text-blue-400" title="Edit"><Edit3 size={10} /></button>
-                                                <button onClick={(e) => { e.stopPropagation(); handleDownload(file); }} className="p-1 text-slate-500 hover:text-green-400" title="Download"><Download size={10} /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleEdit(file); }} className="p-1 text-mui-grey-500 hover:text-mui-blue-400" title="Edit"><Edit3 size={10} /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleDownload(file); }} className="p-1 text-mui-grey-500 hover:text-green-400" title="Download"><Download size={10} /></button>
                                             </>
                                         )}
-                                        <button onClick={(e) => { e.stopPropagation(); handleDelete(file); }} className="p-1 text-slate-500 hover:text-red-500" title="Delete"><Trash2 size={10} /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleDelete(file); }} className="p-1 text-mui-grey-500 hover:text-red-500" title="Delete"><Trash2 size={10} /></button>
                                     </div>
                                 </div>
                             ))}
@@ -431,13 +431,13 @@ const SSHSessionView = ({ session, onClose, addToast, isActive }) => {
         )}
 
         {/* Integrated Terminal */}
-        <div className="flex-1 bg-[#0f172a] relative overflow-hidden">
+        <div className="flex-1 bg-mui-dark-bg relative overflow-hidden">
           <div ref={terminalRef} className="absolute inset-0" />
           {connecting && (
-            <div className="absolute inset-0 bg-[#0f172a] flex items-center justify-center">
+            <div className="absolute inset-0 bg-mui-dark-bg flex items-center justify-center">
               <div className="flex items-center gap-3">
-                <RefreshCw className="animate-spin text-blue-500" size={18} />
-                <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">Connecting...</span>
+                <RefreshCw className="animate-spin text-mui-blue-500" size={18} />
+                <span className="text-mui-grey-400 text-xs font-bold uppercase tracking-widest">Connecting...</span>
               </div>
             </div>
           )}

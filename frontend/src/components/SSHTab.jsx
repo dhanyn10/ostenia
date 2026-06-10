@@ -78,7 +78,7 @@ const SSHTab = ({ addToast }) => {
   return (
     <div className={clsx(
         "flex h-full overflow-hidden transition-colors duration-300",
-        currentSessionId ? "bg-[#0f172a]" : "bg-white dark:bg-[#0f172a]"
+        currentSessionId ? "bg-mui-dark-bg" : "bg-white dark:bg-mui-dark-bg"
     )}>
       {/* Main Content Area */}
       <div className={clsx(
@@ -89,15 +89,15 @@ const SSHTab = ({ addToast }) => {
         {activeSessionIds.length > 0 && (
             <div className={clsx(
                 "flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0",
-                currentSessionId ? "bg-[#0f172a] p-2" : "border-b border-slate-200 dark:border-white/5 mb-4 pb-1"
+                currentSessionId ? "bg-mui-dark-bg p-2" : "border-b border-mui-grey-200 dark:border-white/5 mb-4 pb-1"
             )}>
                 <button
                   onClick={() => setCurrentSessionId(null)}
                   className={clsx(
                       "px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-2 whitespace-nowrap",
                       currentSessionId === null
-                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
-                        : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                        ? "bg-mui-blue-600 text-white shadow-lg shadow-mui-blue-500/20"
+                        : "text-mui-grey-500 hover:text-mui-grey-200 hover:bg-white/5"
                   )}
                 >
                     Dashboard
@@ -112,8 +112,8 @@ const SSHTab = ({ addToast }) => {
                           className={clsx(
                               "flex items-center rounded-full transition-all group",
                               isActive
-                                ? "bg-slate-800 text-blue-400 shadow-lg border border-white/5"
-                                : "text-slate-500 hover:text-slate-300 hover:bg-white/5"
+                                ? "bg-mui-dark-paper text-mui-blue-400 shadow-lg border border-white/5"
+                                : "text-mui-grey-500 hover:text-mui-grey-300 hover:bg-white/5"
                           )}
                         >
                             <button
@@ -155,10 +155,10 @@ const SSHTab = ({ addToast }) => {
                 <div className="flex flex-col h-full space-y-6">
                     <div className="flex justify-between items-center shrink-0">
                         <div>
-                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <h2 className="text-2xl font-bold text-mui-grey-900 dark:text-white flex items-center gap-2">
                             SSH Connections
                         </h2>
-                        <p className="text-slate-500 dark:text-slate-400">Manage and connect to your remote servers.</p>
+                        <p className="text-mui-grey-600 dark:text-mui-grey-400">Manage and connect to your remote servers.</p>
                         </div>
                         {!showForm && (
                             <button
@@ -166,7 +166,7 @@ const SSHTab = ({ addToast }) => {
                                 setEditingSession(null);
                                 setShowForm(true);
                             }}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                            className="flex items-center gap-2 px-4 py-2 bg-mui-blue-600 hover:bg-mui-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm"
                             >
                             <Plus size={18} />
                             New Connection
@@ -176,20 +176,20 @@ const SSHTab = ({ addToast }) => {
 
                     {loading ? (
                         <div className="flex-1 flex items-center justify-center">
-                        <RefreshCw className="animate-spin text-slate-400" size={32} />
+                        <RefreshCw className="animate-spin text-mui-grey-400" size={32} />
                         </div>
                     ) : sessions.length === 0 ? (
-                        <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-white/5 rounded-xl p-12 text-center">
-                        <div className="bg-slate-100 dark:bg-white/5 p-4 rounded-full mb-4">
-                            <Server size={32} className="text-slate-400" />
+                        <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-mui-grey-200 dark:border-white/5 rounded-xl p-12 text-center">
+                        <div className="bg-mui-grey-100 dark:bg-white/5 p-4 rounded-full mb-4">
+                            <Server size={32} className="text-mui-grey-400" />
                         </div>
-                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">No sessions found</h3>
-                        <p className="text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
+                        <h3 className="text-lg font-semibold text-mui-grey-900 dark:text-white">No sessions found</h3>
+                        <p className="text-mui-grey-600 dark:text-mui-grey-400 mt-1 max-w-sm">
                             Add your first SSH connection to start managing remote servers and files.
                         </p>
                         <button
                             onClick={() => setShowForm(true)}
-                            className="mt-6 text-blue-500 hover:text-blue-600 font-medium flex items-center gap-1"
+                            className="mt-6 text-mui-blue-500 hover:text-mui-blue-600 font-medium flex items-center gap-1"
                         >
                             Create session now <ChevronRight size={18} />
                         </button>
@@ -202,18 +202,18 @@ const SSHTab = ({ addToast }) => {
                                         key={session.id}
                                         onDoubleClick={() => handleConnect(session)}
                                         onContextMenu={(e) => handleContextMenu(e, session)}
-                                        className="group bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-white/5 rounded-lg p-3 hover:border-blue-500/50 hover:shadow-md transition-all relative overflow-hidden flex items-center gap-3 cursor-pointer select-none"
+                                        className="group bg-mui-grey-50 dark:bg-mui-dark-paper border border-mui-grey-200 dark:border-white/5 rounded-lg p-3 hover:border-mui-blue-500/50 hover:shadow-md transition-all relative overflow-hidden flex items-center gap-3 cursor-pointer select-none"
                                     >
-                                        <div className="bg-blue-600 text-white p-2 rounded-md shrink-0">
+                                        <div className="bg-mui-blue-600 text-white p-2 rounded-md shrink-0">
                                             <Server size={18} />
                                         </div>
 
                                         <div className="flex-1 min-w-0">
-                                            <h4 className="font-bold text-slate-900 dark:text-white truncate text-sm leading-tight">{session.host}</h4>
+                                            <h4 className="font-bold text-mui-grey-900 dark:text-white truncate text-sm leading-tight">{session.host}</h4>
                                             <div className="flex items-center gap-2 mt-0.5">
-                                                <span className="text-[9px] font-black text-blue-500 uppercase tracking-tighter">SSH</span>
-                                                <div className="w-1 h-1 bg-slate-300 dark:bg-slate-600 rounded-full" />
-                                                <span className="text-[9px] font-medium text-slate-400 uppercase">{session.authMethod}</span>
+                                                <span className="text-[9px] font-black text-mui-blue-500 uppercase tracking-tighter">SSH</span>
+                                                <div className="w-1 h-1 bg-mui-grey-300 dark:bg-mui-grey-600 rounded-full" />
+                                                <span className="text-[9px] font-medium text-mui-grey-400 uppercase">{session.authMethod}</span>
                                             </div>
                                         </div>
 
@@ -224,7 +224,7 @@ const SSHTab = ({ addToast }) => {
                                                     setEditingSession(session);
                                                     setShowForm(true);
                                                 }}
-                                                className="p-1.5 hover:bg-slate-200 dark:hover:bg-white/10 rounded-md text-slate-500"
+                                                className="p-1.5 hover:bg-mui-grey-200 dark:hover:bg-white/10 rounded-md text-mui-grey-500"
                                                 title="Edit"
                                             >
                                                 <Edit2 size={12} />
@@ -256,7 +256,7 @@ const SSHTab = ({ addToast }) => {
       {/* Context Menu */}
       {contextMenu && (
           <div
-            className="fixed z-50 bg-white dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-white/10 rounded-lg py-1 min-w-[120px]"
+            className="fixed z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg py-1 min-w-[120px]"
             style={{ top: contextMenu.y, left: contextMenu.x }}
           >
               <button
