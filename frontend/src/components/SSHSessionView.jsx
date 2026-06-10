@@ -265,11 +265,14 @@ const SSHSessionView = ({ session, onClose, addToast, isActive, theme }) => {
       } catch(e) {}
   };
 
-  const handleFileClick = (file) => {
+  const handleFileDoubleClick = (file) => {
     if (file.isDir) {
-      const newPath = remotePath === '/' || remotePath === '' ? `/${file.name}` : `${remotePath}/${file.name}`;
+      const current = remotePath || '/';
+      const newPath = current.endsWith('/') ? `${current}${file.name}` : `${current}/${file.name}`;
       loadRemoteFiles(newPath);
       AppBackend.SendSSHInput(session.id, `cd "${newPath}"\r`);
+    } else {
+        handleEdit(file);
     }
   };
 
@@ -433,8 +436,8 @@ const SSHSessionView = ({ session, onClose, addToast, isActive, theme }) => {
                                 <div
                                     key={file.name}
                                     onContextMenu={(e) => handleFileContextMenu(e, file)}
-                                    className="group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-mui-grey-100 dark:hover:bg-mui-grey-800 cursor-pointer border border-transparent hover:border-mui-grey-200 dark:hover:border-mui-grey-700 transition-all"
-                                    onClick={() => handleFileClick(file)}
+                                    className="group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-mui-grey-100 dark:hover:bg-mui-grey-800 cursor-pointer border border-transparent hover:border-mui-grey-200 dark:hover:border-mui-grey-700 transition-all select-none"
+                                    onDoubleClick={() => handleFileDoubleClick(file)}
                                 >
                                     {file.isDir ? <Folder size={14} className="text-mui-blue-500 dark:text-mui-blue-400 shrink-0" /> : <File size={14} className="text-mui-grey-400 dark:text-mui-grey-500 shrink-0" />}
                                     <span className="flex-1 text-[11px] text-mui-grey-700 dark:text-mui-grey-400 group-hover:text-mui-grey-900 dark:group-hover:text-white truncate">{file.name}</span>
