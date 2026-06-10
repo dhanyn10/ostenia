@@ -39,6 +39,7 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
         selectionBackground: 'rgba(59, 130, 246, 0.3)',
       },
       allowProposedApi: true,
+      scrollback: 10000,
     });
 
     xterm.current.loadAddon(fitAddon.current);
@@ -52,21 +53,20 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
 
         const { width, height } = entry.contentRect;
 
-        // Only fit if the container is visible and has dimensions
-        if (width > 0 && height > 0 && xterm.current) {
+        // Terminal needs a stable size. Ignore collapses during UI shifts.
+        if (width > 200 && height > 100 && xterm.current) {
             clearTimeout(resizeTimeout);
             resizeTimeout = setTimeout(() => {
                 try {
                     fitAddon.current.fit();
                     const dims = fitAddon.current.proposeDimensions();
-                    if (dims && dims.cols > 0 && dims.rows > 0) {
+                    // Termius-like safety floor for reported dimensions
+                    if (dims && dims.cols >= 40 && dims.rows >= 10) {
                         AppBackend.ResizeSSHTerminal(session.id, dims.cols, dims.rows);
                         xterm.current.focus();
                     }
-                } catch (e) {
-                    console.error("Fit error:", e);
-                }
-            }, 50);
+                } catch (e) {}
+            }, 200);
         }
     });
 
@@ -402,8 +402,8 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
         )}
 
         {/* Integrated Terminal */}
-        <div className="flex-1 flex flex-col bg-[#0f172a] relative overflow-hidden">
-          <div ref={terminalRef} className="flex-1 w-full h-full" />
+        <div className="flex-1 bg-[#0f172a] relative overflow-hidden">
+          <div ref={terminalRef} className="absolute inset-0" />
           {connecting && (
             <div className="absolute inset-0 bg-[#0f172a] flex items-center justify-center">
               <div className="flex items-center gap-3">

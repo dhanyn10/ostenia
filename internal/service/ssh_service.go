@@ -113,7 +113,6 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 	conn.PTY = sshSession
 
 	stdout, _ := sshSession.StdoutPipe()
-	stderr, _ := sshSession.StderrPipe()
 	stdin, _ := sshSession.StdinPipe()
 	conn.Shell = stdin
 
@@ -136,13 +135,12 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 	// Channel to signal shell exit
 	exitChan := make(chan struct{})
 
-	// Helper to stream terminal output
-	// For PTY sessions, stdout and stderr are usually directed to the same PTY device.
-	// We read them in parallel, but we use a small buffer and emit frequently.
-	stream := func(r io.Reader, canClose bool) {
-		buf := make([]byte, 1024) // Smaller buffer for more frequent updates (prevents ghosting)
+	// For PTY sessions, SSH combines Stdout and Stderr into a single stream.
+	// Reading them separately in parallel causes character interleaving and corrupted escape sequences.
+	go func() {
+		buf := make([]byte, 2048)
 		for {
-			n, err := r.Read(buf)
+			n, err := stdout.Read(buf)
 			if n > 0 {
 				wruntime.EventsEmit(m.ctx, "ssh_output", map[string]interface{}{
 					"sessionId": conn.SessionID,
@@ -150,20 +148,15 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 				})
 			}
 			if err != nil {
-				if canClose {
-					select {
-					case <-exitChan:
-					default:
-						close(exitChan)
-					}
+				select {
+				case <-exitChan:
+				default:
+					close(exitChan)
 				}
 				break
 			}
 		}
-	}
-
-	go stream(stdout, true)
-	go stream(stderr, false)
+	}()
 
 	select {
 	case <-conn.Context.Done():
@@ -183,6 +176,14 @@ func (m *SSHManager) ResizeTerminal(sessionID string, cols int, rows int) error 
 
 	if !ok || conn.PTY == nil {
 		return fmt.Errorf("session not found")
+	}
+
+	// Safety floor for terminal dimensions
+	if cols < 40 {
+		cols = 40
+	}
+	if rows < 10 {
+		rows = 10
 	}
 
 	fmt.Printf("[SSH] Resizing session %s to %dx%d\n", sessionID, cols, rows)
