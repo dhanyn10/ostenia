@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"ostenia/internal/config"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -25,6 +24,7 @@ type SSHConnection struct {
 	Client    *goph.Client
 	SFTP      *sftp.Client
 	Shell     io.WriteCloser
+	PTY       *ssh.Session
 	Context   context.Context
 	Cancel    context.CancelFunc
 	LastSync  time.Time
@@ -110,7 +110,7 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 		fmt.Printf("Failed to create SSH session: %v\n", err)
 		return
 	}
-	defer sshSession.Close()
+	conn.PTY = sshSession
 
 	stdout, _ := sshSession.StdoutPipe()
 	stderr, _ := sshSession.StderrPipe()
@@ -147,30 +147,6 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 					"data":      data,
 				})
 
-				// Heuristic to detect directory change:
-				// If we see a common prompt pattern, we try to get the real PWD from the shell.
-				// Throttled to once every 500ms to avoid spamming pwd commands.
-				if (strings.Contains(data, "$") || strings.Contains(data, "#") || strings.Contains(data, ">")) && time.Since(conn.LastSync) > 500*time.Millisecond {
-					conn.LastSync = time.Now()
-					go func() {
-						time.Sleep(200 * time.Millisecond) // Wait for command to finish and prompt to appear
-
-						cmdSess, err := conn.Client.NewSession()
-						if err == nil {
-							defer cmdSess.Close()
-							out, err := cmdSess.Output("pwd")
-							if err == nil {
-								currPath := strings.TrimSpace(string(out))
-								if currPath != "" {
-									wruntime.EventsEmit(m.ctx, "ssh_path_changed", map[string]interface{}{
-										"sessionId": conn.SessionID,
-										"path":      currPath,
-									})
-								}
-							}
-						}
-					}()
-				}
 			}
 			if err != nil {
 				break
@@ -204,6 +180,18 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 		delete(m.connections, conn.SessionID)
 		m.mu.Unlock()
 	}
+}
+
+func (m *SSHManager) ResizeTerminal(sessionID string, cols int, rows int) error {
+	m.mu.RLock()
+	conn, ok := m.connections[sessionID]
+	m.mu.RUnlock()
+
+	if !ok || conn.PTY == nil {
+		return fmt.Errorf("session not found")
+	}
+
+	return conn.PTY.WindowChange(rows, cols)
 }
 
 func (m *SSHManager) SendInput(sessionID string, data string) error {

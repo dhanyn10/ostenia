@@ -44,6 +44,19 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
 
     xterm.current.onData(data => {
       AppBackend.SendSSHInput(session.id, data);
+
+      // Heuristic: If user presses Enter, they might have changed directory
+      if (data === '\r' || data === '\n') {
+          setTimeout(() => syncExplorer(), 400);
+      }
+    });
+
+    // Detect terminal title changes (many shells update title with CWD)
+    xterm.current.onTitleChange(title => {
+        // If title looks like a path, try to sync
+        if (title.includes('/') || title.includes('~')) {
+            syncExplorer();
+        }
     });
 
     const handleOutput = (event) => {
@@ -78,6 +91,10 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
 
     const handleResize = () => {
       fitAddon.current.fit();
+      const dims = fitAddon.current.proposeDimensions();
+      if (dims) {
+          AppBackend.ResizeSSHTerminal(session.id, dims.cols, dims.rows);
+      }
     };
     window.addEventListener('resize', handleResize);
 
@@ -111,12 +128,21 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
       const result = await AppBackend.GetRemoteFiles(session.id, path);
       setFiles(result || []);
       const current = await AppBackend.GetRemoteCurrentPath(session.id);
-      setRemotePath(current);
+      if (current) setRemotePath(current);
     } catch (err) {
       addToast('Explorer', 'Failed to list files: ' + err, 'error');
     } finally {
       setLoadingFiles(false);
     }
+  };
+
+  const syncExplorer = async () => {
+      try {
+          const current = await AppBackend.GetRemoteCurrentPath(session.id);
+          if (current && current !== remotePath) {
+              loadRemoteFiles(current);
+          }
+      } catch(e) {}
   };
 
   const handleFileClick = (file) => {
@@ -226,12 +252,15 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
             <div className="w-72 flex flex-col border-r border-white/5 bg-[#0f172a] shrink-0">
                 <div className="p-3 border-b border-white/5 space-y-3 bg-slate-900/30">
                     <div className="flex items-center gap-1 bg-white/5 rounded px-1 py-0.5 border border-white/5">
-                        <button onClick={navigateUp} className="p-1 text-slate-400 hover:text-white transition-colors">
+                        <button onClick={navigateUp} className="p-1 text-slate-400 hover:text-white transition-colors" title="Back">
                             <ChevronLeft size={16} />
                         </button>
                         <div className="flex-1 px-1 text-[10px] text-slate-400 truncate font-mono">
                             {remotePath || '/'}
                         </div>
+                        <button onClick={() => syncExplorer()} className="p-1 text-slate-400 hover:text-blue-400 transition-colors" title="Sync with terminal">
+                            <RefreshCw size={12} />
+                        </button>
                     </div>
 
                     <div className="relative">

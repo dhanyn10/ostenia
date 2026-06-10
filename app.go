@@ -749,6 +749,10 @@ func (a *App) SendSSHInput(sessionID string, data string) error {
 	return a.sshManager.SendInput(sessionID, data)
 }
 
+func (a *App) ResizeSSHTerminal(sessionID string, cols int, rows int) error {
+	return a.sshManager.ResizeTerminal(sessionID, cols, rows)
+}
+
 func (a *App) GetRemoteFiles(sessionID string, path string) ([]service.RemoteFile, error) {
 	return a.sshManager.ListFiles(sessionID, path)
 }
