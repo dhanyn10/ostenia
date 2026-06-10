@@ -209,8 +209,8 @@ function App() {
 
   return (
     <div className={cn(
-      "flex h-screen font-sans selection:bg-blue-500/30 overflow-hidden transition-colors duration-300 fixed inset-0", // Added fixed inset-0
-      theme === 'dark' ? "bg-[#0f172a] text-slate-200" : "bg-slate-50 text-slate-900"
+      "flex h-screen font-sans selection:bg-mui-blue-500/30 overflow-hidden transition-colors duration-300 fixed inset-0", // Added fixed inset-0
+      theme === 'dark' ? "bg-mui-dark-bg text-mui-grey-200" : "bg-mui-grey-50 text-mui-grey-900"
     )}>
       <Toast toasts={toasts} removeToast={removeToast} />
 
@@ -352,7 +352,7 @@ function App() {
             </div>
 
             <div className={cn("h-full flex flex-col", activeTab !== 'ssh' && "hidden")}>
-                <SSHTab addToast={addToast} />
+                <SSHTab addToast={addToast} theme={theme} />
             </div>
 
             <div className={cn("h-full flex flex-col", activeTab !== 'logs' && "hidden")}>

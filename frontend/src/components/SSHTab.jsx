@@ -5,7 +5,7 @@ import SSHSessionView from './SSHSessionView';
 import SSHSessionForm from './SSHSessionForm';
 import { clsx } from 'clsx';
 
-const SSHTab = ({ addToast }) => {
+const SSHTab = ({ addToast, theme }) => {
   const [sessions, setSessions] = useState([]);
   const [activeSessionIds, setActiveSessionIds] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
@@ -176,6 +176,7 @@ const SSHTab = ({ addToast }) => {
                                 onClose={() => handleCloseSession(id)}
                                 addToast={addToast}
                                 isActive={currentSessionId === id}
+                                theme={theme}
                             />
                         </div>
                     ))}

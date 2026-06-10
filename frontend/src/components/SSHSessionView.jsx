@@ -13,7 +13,7 @@ function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
-const SSHSessionView = ({ session, onClose, addToast, isActive }) => {
+const SSHSessionView = ({ session, onClose, addToast, isActive, theme }) => {
   const terminalRef = useRef(null);
   const xterm = useRef(null);
   const fitAddon = useRef(new FitAddon());
@@ -51,6 +51,24 @@ const SSHSessionView = ({ session, onClose, addToast, isActive }) => {
     }
   };
 
+  // Update XTerm theme when theme prop changes
+  useEffect(() => {
+    if (xterm.current) {
+        const newTheme = theme === 'dark' ? {
+            background: '#121212', // mui-dark-bg
+            foreground: '#eeeeee', // mui-grey-200
+            cursor: '#2196f3',     // mui-blue-500
+            selectionBackground: 'rgba(33, 150, 243, 0.3)',
+        } : {
+            background: '#fafafa', // mui-grey-50
+            foreground: '#212121', // mui-grey-900
+            cursor: '#1976d2',     // mui-blue-700
+            selectionBackground: 'rgba(25, 118, 210, 0.2)',
+        };
+        xterm.current.options.theme = newTheme;
+    }
+  }, [theme]);
+
   // Re-fit when tab becomes active (unhidden) or isActive changes
   useEffect(() => {
     if (isActive) {
@@ -69,11 +87,16 @@ const SSHSessionView = ({ session, onClose, addToast, isActive }) => {
       fontSize: 14,
       lineHeight: 1.2,
       fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, "Courier New", monospace',
-      theme: {
+      theme: theme === 'dark' ? {
         background: '#121212', // mui-dark-bg
         foreground: '#eeeeee', // mui-grey-200
         cursor: '#2196f3',     // mui-blue-500
         selectionBackground: 'rgba(33, 150, 243, 0.3)',
+      } : {
+        background: '#fafafa', // mui-grey-50
+        foreground: '#212121', // mui-grey-900
+        cursor: '#1976d2',     // mui-blue-700
+        selectionBackground: 'rgba(25, 118, 210, 0.2)',
       },
       allowProposedApi: true,
       scrollback: 10000,
@@ -356,7 +379,7 @@ const SSHSessionView = ({ session, onClose, addToast, isActive }) => {
                         <input
                             type="text"
                             placeholder="Search..."
-                            className="w-full bg-white dark:bg-white/5 border border-mui-grey-200 dark:border-white/5 rounded py-1 pl-7 pr-2 text-[11px] text-mui-grey-700 dark:text-mui-grey-300 outline-none focus:border-mui-blue-500 transition-all"
+                            className="w-full bg-mui-grey-50 dark:bg-white/5 border border-mui-grey-200 dark:border-white/5 rounded py-1 pl-7 pr-2 text-[11px] text-mui-grey-700 dark:text-mui-grey-300 outline-none focus:border-mui-blue-500 transition-all"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -431,13 +454,13 @@ const SSHSessionView = ({ session, onClose, addToast, isActive }) => {
         )}
 
         {/* Integrated Terminal */}
-        <div className="flex-1 bg-mui-dark-bg relative overflow-hidden">
-          <div ref={terminalRef} className="absolute inset-0" />
+        <div className="flex-1 bg-white dark:bg-mui-dark-bg relative overflow-hidden">
+          <div ref={terminalRef} className="absolute inset-0 px-2 pt-2" />
           {connecting && (
-            <div className="absolute inset-0 bg-mui-dark-bg flex items-center justify-center">
+            <div className="absolute inset-0 bg-white dark:bg-mui-dark-bg flex items-center justify-center">
               <div className="flex items-center gap-3">
-                <RefreshCw className="animate-spin text-mui-blue-500" size={18} />
-                <span className="text-mui-grey-400 text-xs font-bold uppercase tracking-widest">Connecting...</span>
+                <RefreshCw className="animate-spin text-mui-blue-600 dark:text-mui-blue-500" size={18} />
+                <span className="text-mui-grey-600 dark:text-mui-grey-400 text-xs font-bold uppercase tracking-widest">Connecting...</span>
               </div>
             </div>
           )}
