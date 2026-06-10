@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { WebglAddon } from '@xterm/addon-webgl';
 import '@xterm/xterm/css/xterm.css';
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime';
 import * as AppBackend from '../../wailsjs/go/main/App';
@@ -16,6 +17,7 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
   const terminalRef = useRef(null);
   const xterm = useRef(null);
   const fitAddon = useRef(new FitAddon());
+  const currentPathRef = useRef('');
   const [connecting, setConnecting] = useState(true);
   const [remotePath, setRemotePath] = useState('');
   const [files, setFiles] = useState([]);
@@ -41,31 +43,49 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
     xterm.current.loadAddon(fitAddon.current);
     xterm.current.open(terminalRef.current);
 
-    // Initial fit
-    setTimeout(() => {
-        fitAddon.current.fit();
-        const dims = fitAddon.current.proposeDimensions();
-        if (dims && dims.cols > 0 && dims.rows > 0) {
-            AppBackend.ResizeSSHTerminal(session.id, dims.cols, dims.rows);
+    // Try to load WebGL addon for better performance
+    try {
+        const webglAddon = new WebglAddon();
+        xterm.current.loadAddon(webglAddon);
+    } catch (e) {
+        console.warn('WebGL addon could not be loaded, falling back to canvas renderer', e);
+    }
+
+    // Monitor container size changes with a debounce to prevent PTY flood
+    let resizeTimeout;
+    const resizeObserver = new ResizeObserver(() => {
+        if (terminalRef.current && xterm.current) {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                try {
+                    fitAddon.current.fit();
+                    const dims = fitAddon.current.proposeDimensions();
+                    if (dims && dims.cols > 0 && dims.rows > 0) {
+                        AppBackend.ResizeSSHTerminal(session.id, dims.cols, dims.rows);
+                    }
+                } catch (e) {
+                    console.error("Fit error:", e);
+                }
+            }, 150);
         }
-    }, 100);
+    });
+
+    if (terminalRef.current) {
+        resizeObserver.observe(terminalRef.current);
+    }
 
     xterm.current.onData(data => {
       AppBackend.SendSSHInput(session.id, data);
-
-      // Heuristic: If user presses Enter, they might have changed directory
-      if (data === '\r' || data === '\n') {
-          setTimeout(() => syncExplorer(), 400);
-      }
     });
-
-    // Detect terminal title changes (many shells update title with CWD)
     xterm.current.onTitleChange(title => {
         // Extract path from title if it follows common patterns like "user@host: /path"
         if (title.includes(':')) {
             const parts = title.split(':');
             const potentialPath = parts[parts.length - 1].trim();
             if (potentialPath.startsWith('/') || potentialPath.startsWith('~')) {
+                // If it's a home relative path like ~ or ~/projects, the backend GetRemoteCurrentPath
+                // will return the absolute path. For title sync, we might need more logic but
+                // let's try to sync based on raw potentialPath if it differs.
                 syncExplorer(potentialPath);
             }
         }
@@ -101,20 +121,12 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
 
     connectSSH();
 
-    const handleResize = () => {
-      fitAddon.current.fit();
-      const dims = fitAddon.current.proposeDimensions();
-      if (dims) {
-          AppBackend.ResizeSSHTerminal(session.id, dims.cols, dims.rows);
-      }
-    };
-    window.addEventListener('resize', handleResize);
-
     return () => {
       EventsOff('ssh_output', handleOutput);
       EventsOff('ssh_path_changed', handlePathChange);
       EventsOff('ssh_disconnected', handleDisconnect);
-      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
+      clearTimeout(resizeTimeout);
       if (xterm.current) xterm.current.dispose();
     };
   }, [session.id]);
@@ -147,7 +159,10 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
       const result = await AppBackend.GetRemoteFiles(session.id, path);
       setFiles(result || []);
       const current = await AppBackend.GetRemoteCurrentPath(session.id);
-      if (current) setRemotePath(current);
+      if (current) {
+          setRemotePath(current);
+          currentPathRef.current = current;
+      }
     } catch (err) {
       addToast('Explorer', 'Failed to list files: ' + err, 'error');
     } finally {
@@ -157,17 +172,23 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
 
   const syncExplorer = async (forcedPath = null) => {
       try {
-          // If we have a forced path (e.g. from title), use it.
-          // But resolve ~ to home if necessary (logic can be added to backend)
           let current = forcedPath;
 
           if (!current) {
-              // Fallback to SFTP wd (might be out of sync with shell, but better than nothing)
               current = await AppBackend.GetRemoteCurrentPath(session.id);
           }
 
-          if (current && current !== remotePath) {
-              loadRemoteFiles(current);
+          if (!current) return;
+
+          // Normalize: remove trailing slash and resolve ~ if possible
+          let normalized = current.trim();
+          if (normalized.length > 1 && normalized.endsWith('/')) {
+              normalized = normalized.substring(0, normalized.length - 1);
+          }
+
+          // Use the ref for comparison to avoid stale state in callbacks
+          if (normalized !== currentPathRef.current) {
+              loadRemoteFiles(normalized);
           }
       } catch(e) {}
   };
@@ -371,7 +392,7 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
 
         {/* Integrated Terminal */}
         <div className="flex-1 flex flex-col bg-[#0f172a] relative overflow-hidden">
-          <div ref={terminalRef} className="flex-1 w-full h-full p-2" />
+          <div ref={terminalRef} className="flex-1 w-full h-full" />
           {connecting && (
             <div className="absolute inset-0 bg-[#0f172a] flex items-center justify-center">
               <div className="flex items-center gap-3">

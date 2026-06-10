@@ -123,7 +123,7 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 		ssh.TTY_OP_OSPEED: 14400,
 	}
 
-	if err := sshSession.RequestPty("xterm-256color", 80, 40, modes); err != nil {
+	if err := sshSession.RequestPty("xterm-256color", 120, 40, modes); err != nil {
 		fmt.Printf("request for pseudo terminal failed: %v\n", err)
 		return
 	}
@@ -136,29 +136,11 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 	// Channel to signal shell exit
 	exitChan := make(chan struct{})
 
-	go func() {
-		buf := make([]byte, 1024)
+	// Helper to stream terminal output
+	stream := func(r io.Reader, canClose bool) {
+		buf := make([]byte, 4096)
 		for {
-			n, err := stdout.Read(buf)
-			if n > 0 {
-				data := string(buf[:n])
-				wruntime.EventsEmit(m.ctx, "ssh_output", map[string]interface{}{
-					"sessionId": conn.SessionID,
-					"data":      data,
-				})
-
-			}
-			if err != nil {
-				break
-			}
-		}
-		close(exitChan)
-	}()
-
-	go func() {
-		buf := make([]byte, 1024)
-		for {
-			n, err := stderr.Read(buf)
+			n, err := r.Read(buf)
 			if n > 0 {
 				wruntime.EventsEmit(m.ctx, "ssh_output", map[string]interface{}{
 					"sessionId": conn.SessionID,
@@ -166,10 +148,16 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 				})
 			}
 			if err != nil {
+				if canClose {
+					close(exitChan)
+				}
 				break
 			}
 		}
-	}()
+	}
+
+	go stream(stdout, true)
+	go stream(stderr, false)
 
 	select {
 	case <-conn.Context.Done():
