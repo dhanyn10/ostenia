@@ -88,47 +88,60 @@ const SSHTab = ({ addToast }) => {
         {/* Tab Header for Active Sessions */}
         {activeSessionIds.length > 0 && (
             <div className={clsx(
-                "flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0",
-                currentSessionId ? "bg-mui-dark-bg p-2" : "border-b border-mui-grey-200 dark:border-white/5 mb-4 pb-1"
+                "flex items-center gap-[2px] overflow-x-auto no-scrollbar shrink-0 pt-2 px-2",
+                currentSessionId ? "bg-mui-dark-bg" : "border-b border-mui-grey-200 dark:border-white/5 mb-4"
             )}>
-                <button
+                <div
                   onClick={() => setCurrentSessionId(null)}
                   className={clsx(
-                      "px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-2 whitespace-nowrap",
+                      "relative px-6 py-2 text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer rounded-t-xl group min-w-[120px] max-w-[200px]",
                       currentSessionId === null
-                        ? "bg-mui-blue-600 text-white shadow-lg shadow-mui-blue-500/20"
-                        : "text-mui-grey-500 hover:text-mui-grey-200 hover:bg-white/5"
+                        ? "bg-mui-blue-600 text-white z-10"
+                        : "text-mui-grey-500 hover:bg-mui-grey-200/50 dark:hover:bg-white/5"
                   )}
                 >
-                    Dashboard
-                </button>
+                    <span className="truncate">Dashboard</span>
+                </div>
                 {activeSessionIds.map(id => {
                     const session = sessions.find(s => s.id === id);
                     if (!session) return null;
                     const isActive = currentSessionId === id;
+                    const displayName = session.name || session.host;
                     return (
                         <div
                           key={id}
                           onClick={() => setCurrentSessionId(id)}
                           className={clsx(
-                              "flex items-center rounded-full transition-all group cursor-pointer h-8",
+                              "relative pl-6 pr-2 py-2 text-xs transition-all group cursor-pointer rounded-t-xl flex items-center justify-between min-w-[140px] max-w-[220px]",
                               isActive
-                                ? "bg-mui-dark-paper text-mui-blue-400 shadow-lg border border-white/5"
-                                : "text-mui-grey-500 hover:text-mui-grey-300 hover:bg-white/5"
+                                ? "bg-mui-dark-paper text-mui-blue-400 z-10 border-t border-x border-white/5"
+                                : "text-mui-grey-500 hover:bg-mui-grey-200/50 dark:hover:bg-white/5"
                           )}
                         >
-                            <span className="pl-4 pr-2 text-xs font-bold whitespace-nowrap">
-                                {session.name}
+                            <span className={clsx(
+                                "truncate font-bold",
+                                isActive ? "text-mui-blue-400" : "text-mui-grey-400"
+                            )}>
+                                {displayName}
                             </span>
                             <button
                               onClick={(e) => {
                                   e.stopPropagation();
                                   handleCloseSession(id);
                               }}
-                              className="mr-2 p-1 hover:bg-red-500/10 hover:text-red-500 rounded-full transition-all"
+                              className={clsx(
+                                  "p-1 rounded-md transition-all ml-2",
+                                  isActive ? "hover:bg-mui-blue-500/10" : "hover:bg-mui-grey-500/10",
+                                  "opacity-0 group-hover:opacity-100"
+                              )}
                             >
-                                <X size={10} />
+                                <X size={12} className={isActive ? "text-mui-blue-400" : "text-mui-grey-500"} />
                             </button>
+
+                            {/* Visual indicator for modern chrome style */}
+                            {isActive && (
+                                <div className="absolute -bottom-[1px] left-0 right-0 h-[2px] bg-mui-blue-400" />
+                            )}
                         </div>
                     );
                 })}
