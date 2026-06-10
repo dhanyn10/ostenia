@@ -58,46 +58,78 @@ const SSHTab = ({ addToast }) => {
     }
   };
 
+  const [contextMenu, setContextMenu] = useState(null);
+
+  useEffect(() => {
+    const handleClick = () => setContextMenu(null);
+    window.addEventListener('click', handleClick);
+    return () => window.removeEventListener('click', handleClick);
+  }, []);
+
+  const handleContextMenu = (e, session) => {
+    e.preventDefault();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      sessionId: session.id
+    });
+  };
+
   return (
-    <div className="flex h-full overflow-hidden bg-white dark:bg-[#0f172a]">
+    <div className={clsx(
+        "flex h-full overflow-hidden transition-colors duration-300",
+        currentSessionId ? "bg-[#0f172a]" : "bg-white dark:bg-[#0f172a]"
+    )}>
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 h-full p-6 overflow-hidden">
+      <div className={clsx(
+          "flex-1 flex flex-col min-w-0 h-full overflow-hidden",
+          currentSessionId ? "p-0" : "px-6 pb-6 pt-0"
+      )}>
         {/* Tab Header for Active Sessions */}
         {activeSessionIds.length > 0 && (
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar border-b border-slate-200 dark:border-white/5 mb-4 shrink-0">
+            <div className={clsx(
+                "flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0",
+                currentSessionId ? "bg-[#0f172a] p-2" : "border-b border-slate-200 dark:border-white/5 mb-4 pb-1"
+            )}>
                 <button
                   onClick={() => setCurrentSessionId(null)}
                   className={clsx(
-                      "px-4 py-2 text-sm font-medium rounded-t-lg transition-all flex items-center gap-2 whitespace-nowrap",
-                      currentSessionId === null ? "bg-slate-100 dark:bg-[#1e293b] text-blue-500 border-x border-t border-slate-200 dark:border-white/5" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                      "px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-2 whitespace-nowrap",
+                      currentSessionId === null
+                        ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                        : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
                   )}
                 >
-                    <Server size={14} />
                     Dashboard
                 </button>
                 {activeSessionIds.map(id => {
                     const session = sessions.find(s => s.id === id);
                     if (!session) return null;
+                    const isActive = currentSessionId === id;
                     return (
                         <div
                           key={id}
                           className={clsx(
-                              "flex items-center rounded-t-lg transition-all border-t border-x overflow-hidden",
-                              currentSessionId === id ? "bg-slate-100 dark:bg-[#0f172a] text-blue-500 border-slate-200 dark:border-white/5" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 border-transparent"
+                              "flex items-center rounded-full transition-all group",
+                              isActive
+                                ? "bg-slate-800 text-blue-400 shadow-lg border border-white/5"
+                                : "text-slate-500 hover:text-slate-300 hover:bg-white/5"
                           )}
                         >
                             <button
                               onClick={() => setCurrentSessionId(id)}
-                              className="px-4 py-2 text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                              className="pl-4 pr-2 py-1.5 text-xs font-semibold flex items-center gap-2 whitespace-nowrap"
                             >
-                                <Terminal size={14} />
                                 {session.name}
                             </button>
                             <button
-                              onClick={() => handleCloseSession(id)}
-                              className="pr-2 pl-1 hover:text-red-500 transition-colors"
+                              onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCloseSession(id);
+                              }}
+                              className="pr-3 pl-1 hover:text-red-500 transition-colors"
                             >
-                                <X size={14} />
+                                <X size={12} />
                             </button>
                         </div>
                     );
@@ -124,7 +156,6 @@ const SSHTab = ({ addToast }) => {
                     <div className="flex justify-between items-center shrink-0">
                         <div>
                         <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <Terminal className="text-blue-500" />
                             SSH Connections
                         </h2>
                         <p className="text-slate-500 dark:text-slate-400">Manage and connect to your remote servers.</p>
@@ -169,7 +200,9 @@ const SSHTab = ({ addToast }) => {
                                 {sessions.map((session) => (
                                     <div
                                         key={session.id}
-                                        className="group bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-white/5 rounded-lg p-3 hover:border-blue-500/50 hover:shadow-sm transition-all relative overflow-hidden flex items-center gap-3"
+                                        onDoubleClick={() => handleConnect(session)}
+                                        onContextMenu={(e) => handleContextMenu(e, session)}
+                                        className="group bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-white/5 rounded-lg p-3 hover:border-blue-500/50 hover:shadow-md transition-all relative overflow-hidden flex items-center gap-3 cursor-pointer select-none"
                                     >
                                         <div className="bg-blue-600 text-white p-2 rounded-md shrink-0">
                                             <Server size={18} />
@@ -186,14 +219,8 @@ const SSHTab = ({ addToast }) => {
 
                                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
-                                                onClick={() => handleConnect(session)}
-                                                className="p-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-sm"
-                                                title="Connect"
-                                            >
-                                                <Play size={12} fill="currentColor" />
-                                            </button>
-                                            <button
-                                                onClick={() => {
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
                                                     setEditingSession(session);
                                                     setShowForm(true);
                                                 }}
@@ -201,13 +228,6 @@ const SSHTab = ({ addToast }) => {
                                                 title="Edit"
                                             >
                                                 <Edit2 size={12} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(session.id)}
-                                                className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md text-slate-400 hover:text-red-500"
-                                                title="Delete"
-                                            >
-                                                <Trash2 size={12} />
                                             </button>
                                         </div>
                                     </div>
@@ -231,6 +251,25 @@ const SSHTab = ({ addToast }) => {
           }}
           addToast={addToast}
         />
+      )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+          <div
+            className="fixed z-50 bg-white dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-white/10 rounded-lg py-1 min-w-[120px]"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+          >
+              <button
+                onClick={() => {
+                    handleDelete(contextMenu.sessionId);
+                    setContextMenu(null);
+                }}
+                className="w-full px-4 py-2 text-left text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2"
+              >
+                  <Trash2 size={14} />
+                  Delete Session
+              </button>
+          </div>
       )}
     </div>
   );

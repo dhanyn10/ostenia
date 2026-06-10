@@ -290,12 +290,8 @@ const SSHSessionView = ({ session, onClose, addToast, isActive }) => {
   return (
     <div className="flex flex-col h-full bg-[#0f172a] rounded-lg overflow-hidden border border-slate-200 dark:border-white/5 shadow-lg">
       {/* Header / Toolbar */}
-      <div className="h-10 flex items-center justify-between px-3 bg-slate-900 border-b border-white/5 shrink-0">
+      <div className="h-10 flex items-center justify-between px-3 bg-[#0f172a] border-b border-white/5 shrink-0">
         <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-2 py-0.5 bg-white/5 rounded text-blue-400 font-bold text-[11px] uppercase tracking-wider">
-                <Terminal size={12} />
-                <span>{session.name}</span>
-            </div>
             <button
                 onClick={() => setExplorerVisible(!explorerVisible)}
                 className={cn(
