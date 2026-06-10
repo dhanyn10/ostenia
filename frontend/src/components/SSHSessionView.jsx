@@ -40,7 +40,15 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
 
     xterm.current.loadAddon(fitAddon.current);
     xterm.current.open(terminalRef.current);
-    fitAddon.current.fit();
+
+    // Initial fit
+    setTimeout(() => {
+        fitAddon.current.fit();
+        const dims = fitAddon.current.proposeDimensions();
+        if (dims && dims.cols > 0 && dims.rows > 0) {
+            AppBackend.ResizeSSHTerminal(session.id, dims.cols, dims.rows);
+        }
+    }, 100);
 
     xterm.current.onData(data => {
       AppBackend.SendSSHInput(session.id, data);
@@ -53,9 +61,13 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
 
     // Detect terminal title changes (many shells update title with CWD)
     xterm.current.onTitleChange(title => {
-        // If title looks like a path, try to sync
-        if (title.includes('/') || title.includes('~')) {
-            syncExplorer();
+        // Extract path from title if it follows common patterns like "user@host: /path"
+        if (title.includes(':')) {
+            const parts = title.split(':');
+            const potentialPath = parts[parts.length - 1].trim();
+            if (potentialPath.startsWith('/') || potentialPath.startsWith('~')) {
+                syncExplorer(potentialPath);
+            }
         }
     });
 
@@ -114,6 +126,13 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
       await AppBackend.ConnectSSH(session);
       setConnecting(false);
       xterm.current.write('\x1b[32mConnected successfully.\x1b[0m\r\n\r\n');
+
+      // Send initial resize again after connection
+      const dims = fitAddon.current.proposeDimensions();
+      if (dims && dims.cols > 0 && dims.rows > 0) {
+          AppBackend.ResizeSSHTerminal(session.id, dims.cols, dims.rows);
+      }
+
       loadRemoteFiles('');
     } catch (err) {
       setConnecting(false);
@@ -136,9 +155,17 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
     }
   };
 
-  const syncExplorer = async () => {
+  const syncExplorer = async (forcedPath = null) => {
       try {
-          const current = await AppBackend.GetRemoteCurrentPath(session.id);
+          // If we have a forced path (e.g. from title), use it.
+          // But resolve ~ to home if necessary (logic can be added to backend)
+          let current = forcedPath;
+
+          if (!current) {
+              // Fallback to SFTP wd (might be out of sync with shell, but better than nothing)
+              current = await AppBackend.GetRemoteCurrentPath(session.id);
+          }
+
           if (current && current !== remotePath) {
               loadRemoteFiles(current);
           }
