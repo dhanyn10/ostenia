@@ -114,6 +114,7 @@ const SSHTab = ({ addToast }) => {
                                 session={sessions.find(s => s.id === id)}
                                 onClose={() => handleCloseSession(id)}
                                 addToast={addToast}
+                                isActive={currentSessionId === id}
                             />
                         </div>
                     ))}

@@ -44,6 +44,10 @@ func NewSSHManager(ctx context.Context) *SSHManager {
 }
 
 func (m *SSHManager) Connect(session config.SSHSession) error {
+	// Set UTF-8 environment for the session
+	os.Setenv("LANG", "en_US.UTF-8")
+	os.Setenv("LC_ALL", "en_US.UTF-8")
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -120,9 +124,13 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 		ssh.ECHO:          1,
 		ssh.TTY_OP_ISPEED: 14400,
 		ssh.TTY_OP_OSPEED: 14400,
+		ssh.ICANON:        0,
 	}
 
-	if err := sshSession.RequestPty("xterm-256color", 120, 40, modes); err != nil {
+	// RequestPty(term, height, width, modes)
+	// Hardcoded wide dimensions to prevent wrapping during initialization.
+	// We set rows: 50, cols: 200.
+	if err := sshSession.RequestPty("xterm-256color", 50, 200, modes); err != nil {
 		fmt.Printf("request for pseudo terminal failed: %v\n", err)
 		return
 	}
@@ -178,15 +186,18 @@ func (m *SSHManager) ResizeTerminal(sessionID string, cols int, rows int) error 
 		return fmt.Errorf("session not found")
 	}
 
-	// Safety floor for terminal dimensions to prevent wrapping/ghosting
-	if cols < 80 {
-		cols = 80
+	// Logging to debug dimension issues in the sandbox
+	fmt.Printf("[SSH] Resizing session %s to Cols: %d, Rows: %d\n", sessionID, cols, rows)
+
+	// HARD GUARD: Never allow width to go below 100 to prevent erratic wrapping.
+	if cols < 100 {
+		cols = 100
 	}
-	if rows < 24 {
-		rows = 24
+	if rows < 10 {
+		rows = 10
 	}
 
-	fmt.Printf("[SSH] Resizing session %s to %dx%d\n", sessionID, cols, rows)
+	// WindowChange(rows, cols) - SSH standard order is h, w
 	return conn.PTY.WindowChange(rows, cols)
 }
 
@@ -257,7 +268,7 @@ func (m *SSHManager) ListFiles(sessionID string, pathStr string) ([]RemoteFile, 
 	return files, nil
 }
 
-func (m *SSHManager) ExecuteSFTPAction(sessionID string, action string, pathStr string, target string) error {
+func (m *SSHManager) ExecuteSFTPAction(sessionID string, action string, remotePath string, target string) error {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()
@@ -266,7 +277,7 @@ func (m *SSHManager) ExecuteSFTPAction(sessionID string, action string, pathStr 
 		return fmt.Errorf("session not found or SFTP not connected")
 	}
 
-	pathStr = path.Clean(pathStr)
+	remotePath = path.Clean(remotePath)
 	if target != "" {
 		target = path.Clean(target)
 	}
@@ -274,18 +285,18 @@ func (m *SSHManager) ExecuteSFTPAction(sessionID string, action string, pathStr 
 	switch action {
 	case "delete":
 		// Check if it's a directory
-		info, err := conn.SFTP.Stat(pathStr)
+		info, err := conn.SFTP.Stat(remotePath)
 		if err != nil {
 			return err
 		}
 		if info.IsDir() {
-			return conn.SFTP.RemoveAll(pathStr)
+			return conn.SFTP.RemoveAll(remotePath)
 		}
-		return conn.SFTP.Remove(pathStr)
+		return conn.SFTP.Remove(remotePath)
 	case "rename":
-		return conn.SFTP.Rename(pathStr, target)
+		return conn.SFTP.Rename(remotePath, target)
 	case "mkdir":
-		return conn.SFTP.Mkdir(pathStr)
+		return conn.SFTP.Mkdir(remotePath)
 	default:
 		return fmt.Errorf("unknown action: %s", action)
 	}

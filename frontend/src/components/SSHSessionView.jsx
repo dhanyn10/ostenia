@@ -13,7 +13,7 @@ function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
-const SSHSessionView = ({ session, onClose, addToast }) => {
+const SSHSessionView = ({ session, onClose, addToast, isActive }) => {
   const terminalRef = useRef(null);
   const xterm = useRef(null);
   const fitAddon = useRef(new FitAddon());
@@ -25,12 +25,49 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
   const [explorerVisible, setExplorerVisible] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Manual Fit function defined outside useEffect so it can be called by multiple effects
+  const performFit = () => {
+    if (!terminalRef.current || !xterm.current || !isActive) return;
+
+    // Check visibility
+    if (terminalRef.current.offsetParent === null) return;
+
+    try {
+        fitAddon.current.fit();
+        const dims = fitAddon.current.proposeDimensions();
+
+        // Ensure dimensions are sane before notifying backend.
+        // We force a minimum width of 100 columns to prevent the "5 character wrap" issue.
+        if (dims && dims.cols >= 20 && dims.rows >= 2) {
+            const safeCols = Math.max(dims.cols, 120);
+            const safeRows = Math.max(dims.rows, 24);
+
+            console.log(`[SSH] Resizing ${session.name} to ${safeCols}x${safeRows}`);
+            AppBackend.ResizeSSHTerminal(session.id, safeCols, safeRows);
+            setTimeout(() => xterm.current?.focus(), 50);
+        }
+    } catch (e) {
+        console.error("Fit error:", e);
+    }
+  };
+
+  // Re-fit when tab becomes active (unhidden) or isActive changes
+  useEffect(() => {
+    if (isActive) {
+        // Multiple attempts to ensure the layout has settled
+        setTimeout(performFit, 100);
+        setTimeout(performFit, 600);
+        setTimeout(performFit, 1500);
+    }
+  }, [isActive]);
+
   useEffect(() => {
     // Initialize XTerm
     xterm.current = new XTerm({
       cursorBlink: true,
-      convertEol: true, // Handle \n vs \r\n correctly
-      fontSize: 13,
+      convertEol: true,
+      fontSize: 14,
+      lineHeight: 1.2,
       fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, "Courier New", monospace',
       theme: {
         background: '#0f172a',
@@ -46,38 +83,28 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
     xterm.current.loadAddon(fitAddon.current);
     xterm.current.open(terminalRef.current);
 
-    // Monitor container size changes with a debounce to prevent PTY flood
     let resizeTimeout;
-    const resizeObserver = new ResizeObserver((entries) => {
-        const entry = entries[0];
-        if (!entry) return;
+    const handleWindowResize = () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(performFit, 200);
+    };
 
-        // Check if the element is actually visible and has valid dimensions
-        // offsetParent is null when the element or its parent is hidden (display: none)
-        const isVisible = terminalRef.current && terminalRef.current.offsetParent !== null;
-        const { width, height } = entry.contentRect;
+    window.addEventListener('resize', handleWindowResize);
 
-        if (isVisible && width > 100 && height > 100 && xterm.current) {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(() => {
-                try {
-                    // Refit only when visible to prevent collapsing to 0x0
-                    fitAddon.current.fit();
-                    const dims = fitAddon.current.proposeDimensions();
-
-                    // Safety floor to prevent wrapping issues
-                    if (dims && dims.cols >= 40 && dims.rows >= 5) {
-                        AppBackend.ResizeSSHTerminal(session.id, dims.cols, dims.rows);
-                        xterm.current.focus();
-                    }
-                } catch (e) {}
-            }, 150);
-        }
+    // Use ResizeObserver with debounce
+    const ro = new ResizeObserver(() => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(performFit, 250);
     });
 
     if (terminalRef.current) {
-        resizeObserver.observe(terminalRef.current);
+        ro.observe(terminalRef.current);
     }
+
+    // Multiple fit attempts during initialization
+    setTimeout(performFit, 500);
+    setTimeout(performFit, 1500);
+    setTimeout(performFit, 3000);
 
     xterm.current.onData(data => {
       AppBackend.SendSSHInput(session.id, data);
@@ -130,7 +157,8 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
       EventsOff('ssh_output', handleOutput);
       EventsOff('ssh_path_changed', handlePathChange);
       EventsOff('ssh_disconnected', handleDisconnect);
-      resizeObserver.disconnect();
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', handleWindowResize);
       clearTimeout(resizeTimeout);
       if (xterm.current) xterm.current.dispose();
     };
