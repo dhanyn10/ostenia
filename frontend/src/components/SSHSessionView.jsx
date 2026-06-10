@@ -29,6 +29,7 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
     // Initialize XTerm
     xterm.current = new XTerm({
       cursorBlink: true,
+      convertEol: true, // Handle \n vs \r\n correctly
       fontSize: 13,
       fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, "Courier New", monospace',
       theme: {
@@ -43,18 +44,16 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
     xterm.current.loadAddon(fitAddon.current);
     xterm.current.open(terminalRef.current);
 
-    // Try to load WebGL addon for better performance
-    try {
-        const webglAddon = new WebglAddon();
-        xterm.current.loadAddon(webglAddon);
-    } catch (e) {
-        console.warn('WebGL addon could not be loaded, falling back to canvas renderer', e);
-    }
-
     // Monitor container size changes with a debounce to prevent PTY flood
     let resizeTimeout;
-    const resizeObserver = new ResizeObserver(() => {
-        if (terminalRef.current && xterm.current) {
+    const resizeObserver = new ResizeObserver((entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+
+        const { width, height } = entry.contentRect;
+
+        // Only fit if the container is visible and has dimensions
+        if (width > 0 && height > 0 && xterm.current) {
             clearTimeout(resizeTimeout);
             resizeTimeout = setTimeout(() => {
                 try {
@@ -62,11 +61,12 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
                     const dims = fitAddon.current.proposeDimensions();
                     if (dims && dims.cols > 0 && dims.rows > 0) {
                         AppBackend.ResizeSSHTerminal(session.id, dims.cols, dims.rows);
+                        xterm.current.focus();
                     }
                 } catch (e) {
                     console.error("Fit error:", e);
                 }
-            }, 150);
+            }, 50);
         }
     });
 
@@ -276,6 +276,17 @@ const SSHSessionView = ({ session, onClose, addToast }) => {
         </div>
 
         <div className="flex items-center gap-1">
+            <button
+                onClick={() => {
+                    fitAddon.current.fit();
+                    const dims = fitAddon.current.proposeDimensions();
+                    if (dims) AppBackend.ResizeSSHTerminal(session.id, dims.cols, dims.rows);
+                }}
+                className="p-1 text-slate-500 hover:text-white transition-colors"
+                title="Fit Terminal"
+            >
+                <Maximize2 size={14} />
+            </button>
             <button
                 onClick={() => connectSSH()}
                 disabled={connecting}

@@ -137,8 +137,10 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 	exitChan := make(chan struct{})
 
 	// Helper to stream terminal output
+	// For PTY sessions, stdout and stderr are usually directed to the same PTY device.
+	// We read them in parallel, but we use a small buffer and emit frequently.
 	stream := func(r io.Reader, canClose bool) {
-		buf := make([]byte, 4096)
+		buf := make([]byte, 1024) // Smaller buffer for more frequent updates (prevents ghosting)
 		for {
 			n, err := r.Read(buf)
 			if n > 0 {
@@ -149,7 +151,11 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 			}
 			if err != nil {
 				if canClose {
-					close(exitChan)
+					select {
+					case <-exitChan:
+					default:
+						close(exitChan)
+					}
 				}
 				break
 			}
@@ -179,6 +185,7 @@ func (m *SSHManager) ResizeTerminal(sessionID string, cols int, rows int) error 
 		return fmt.Errorf("session not found")
 	}
 
+	fmt.Printf("[SSH] Resizing session %s to %dx%d\n", sessionID, cols, rows)
 	return conn.PTY.WindowChange(rows, cols)
 }
 
