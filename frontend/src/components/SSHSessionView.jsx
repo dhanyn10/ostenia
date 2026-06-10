@@ -24,6 +24,22 @@ const SSHSessionView = ({ session, onClose, addToast, isActive, theme }) => {
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [explorerVisible, setExplorerVisible] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [fileContextMenu, setFileContextMenu] = useState(null);
+
+  useEffect(() => {
+    const handleClick = () => setFileContextMenu(null);
+    window.addEventListener('click', handleClick);
+    return () => window.removeEventListener('click', handleClick);
+  }, []);
+
+  const handleFileContextMenu = (e, file) => {
+      e.preventDefault();
+      setFileContextMenu({
+          x: e.clientX,
+          y: e.clientY,
+          file: file
+      });
+  };
 
   // Manual Fit function defined outside useEffect so it can be called by multiple effects
   const performFit = () => {
@@ -416,34 +432,19 @@ const SSHSessionView = ({ session, onClose, addToast, isActive, theme }) => {
                             {filteredFiles.sort((a, b) => (b.isDir ? 1 : 0) - (a.isDir ? 1 : 0)).map((file) => (
                                 <div
                                     key={file.name}
+                                    onContextMenu={(e) => handleFileContextMenu(e, file)}
                                     className="group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-mui-grey-100 dark:hover:bg-white/5 cursor-pointer border border-transparent hover:border-mui-grey-200 dark:hover:border-white/5 transition-all"
                                     onClick={() => handleFileClick(file)}
                                 >
                                     {file.isDir ? <Folder size={14} className="text-mui-blue-500 dark:text-mui-blue-400 shrink-0" /> : <File size={14} className="text-mui-grey-400 dark:text-mui-grey-500 shrink-0" />}
                                     <span className="flex-1 text-[11px] text-mui-grey-700 dark:text-mui-grey-400 group-hover:text-mui-grey-900 dark:group-hover:text-white truncate">{file.name}</span>
-                                    <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
+                                    <div className="flex items-center gap-1">
                                         <button
-                                            onClick={async (e) => {
-                                                e.stopPropagation();
-                                                const newName = prompt('Rename:', file.name);
-                                                if (newName && newName !== file.name) {
-                                                    try {
-                                                        await AppBackend.ExecuteSFTPAction(session.id, 'rename', `${remotePath}/${file.name}`, `${remotePath}/${newName}`);
-                                                        loadRemoteFiles(remotePath);
-                                                    } catch (err) { addToast('Error', err.toString(), 'error'); }
-                                                }
-                                            }}
-                                            className="p-1 text-mui-grey-400 hover:text-mui-blue-600"
+                                            onClick={(e) => { e.stopPropagation(); handleFileContextMenu(e, file); }}
+                                            className="p-1 text-mui-grey-400 hover:text-mui-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
                                         >
-                                            <Edit2 size={10} />
+                                            <MoreVertical size={12} />
                                         </button>
-                                        {!file.isDir && (
-                                            <>
-                                                <button onClick={(e) => { e.stopPropagation(); handleEdit(file); }} className="p-1 text-mui-grey-400 hover:text-mui-blue-600" title="Edit"><Edit3 size={10} /></button>
-                                                <button onClick={(e) => { e.stopPropagation(); handleDownload(file); }} className="p-1 text-mui-grey-400 hover:text-mui-green-600" title="Download"><Download size={10} /></button>
-                                            </>
-                                        )}
-                                        <button onClick={(e) => { e.stopPropagation(); handleDelete(file); }} className="p-1 text-mui-grey-400 hover:text-red-600" title="Delete"><Trash2 size={10} /></button>
                                     </div>
                                 </div>
                             ))}
@@ -466,6 +467,64 @@ const SSHSessionView = ({ session, onClose, addToast, isActive, theme }) => {
           )}
         </div>
       </div>
+
+      {/* File Explorer Context Menu */}
+      {fileContextMenu && (
+          <div
+            className="fixed z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg py-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-100"
+            style={{ top: fileContextMenu.y, left: fileContextMenu.x }}
+            onClick={(e) => e.stopPropagation()}
+          >
+              <button
+                onClick={async () => {
+                    const name = prompt('Rename:', fileContextMenu.file.name);
+                    if (name && name !== fileContextMenu.file.name) {
+                        try {
+                            await AppBackend.ExecuteSFTPAction(session.id, 'rename', `${remotePath}/${fileContextMenu.file.name}`, `${remotePath}/${name}`);
+                            loadRemoteFiles(remotePath);
+                        } catch (err) { addToast('Error', err.toString(), 'error'); }
+                    }
+                    setFileContextMenu(null);
+                }}
+                className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+              >
+                  <Edit2 size={14} />
+                  Rename
+              </button>
+
+              {!fileContextMenu.file.isDir && (
+                  <>
+                    <button
+                        onClick={() => { handleEdit(fileContextMenu.file); setFileContextMenu(null); }}
+                        className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+                    >
+                        <Edit3 size={14} />
+                        Edit File
+                    </button>
+                    <button
+                        onClick={() => { handleDownload(fileContextMenu.file); setFileContextMenu(null); }}
+                        className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+                    >
+                        <Download size={14} />
+                        Download
+                    </button>
+                  </>
+              )}
+
+              <div className="h-px bg-mui-grey-100 dark:bg-white/5 my-1" />
+
+              <button
+                onClick={() => {
+                    handleDelete(fileContextMenu.file);
+                    setFileContextMenu(null);
+                }}
+                className="w-full px-4 py-2 text-left text-[11px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2"
+              >
+                  <Trash2 size={14} />
+                  Delete
+              </button>
+          </div>
+      )}
     </div>
   );
 };
