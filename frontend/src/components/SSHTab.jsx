@@ -76,31 +76,47 @@ const SSHTab = ({ addToast }) => {
   };
 
   return (
-    <div className={clsx(
-        "flex h-full overflow-hidden transition-colors duration-300",
-        currentSessionId ? "bg-mui-dark-bg" : "bg-white dark:bg-mui-dark-bg"
-    )}>
+    <div className="flex h-full overflow-hidden bg-white dark:bg-mui-dark-bg transition-colors duration-300">
       {/* Main Content Area */}
-      <div className={clsx(
-          "flex-1 flex flex-col min-w-0 h-full overflow-hidden",
-          currentSessionId ? "p-0" : "px-6 pb-6 pt-0"
-      )}>
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        {/* Persistent Header */}
+        <div className="px-6 pt-2 pb-4 flex justify-between items-center shrink-0 border-b border-mui-grey-100 dark:border-white/5">
+            <div>
+            <h2 className="text-2xl font-bold text-mui-grey-900 dark:text-white">
+                SSH Connections
+            </h2>
+            <p className="text-mui-grey-600 dark:text-mui-grey-400 text-sm">Manage and connect to your remote servers.</p>
+            </div>
+            {!showForm && (
+                <button
+                onClick={() => {
+                    setEditingSession(null);
+                    setShowForm(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-mui-blue-600 hover:bg-mui-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                >
+                <Plus size={18} />
+                New Connection
+                </button>
+            )}
+        </div>
+
         {/* Tab Header for Active Sessions */}
         {activeSessionIds.length > 0 && (
-            <div className={clsx(
-                "flex items-center gap-[2px] overflow-x-auto no-scrollbar shrink-0 pt-2 px-2",
-                currentSessionId ? "bg-mui-dark-bg" : "border-b border-mui-grey-200 dark:border-white/5 mb-4"
-            )}>
+            <div className="flex items-center gap-[2px] overflow-x-auto no-scrollbar shrink-0 pt-2 px-6 bg-mui-grey-50 dark:bg-mui-dark-paper border-b border-mui-grey-200 dark:border-white/5">
                 <div
                   onClick={() => setCurrentSessionId(null)}
                   className={clsx(
                       "relative px-6 py-2 text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer rounded-t-xl group min-w-[120px] max-w-[200px]",
                       currentSessionId === null
-                        ? "bg-mui-blue-600 text-white z-10"
-                        : "text-mui-grey-500 hover:bg-mui-grey-200/50 dark:hover:bg-white/5"
+                        ? "bg-white dark:bg-mui-dark-bg text-mui-blue-600 z-10 border-t border-x border-mui-grey-200 dark:border-white/5"
+                        : "text-mui-grey-500 hover:bg-mui-grey-200 dark:hover:bg-white/5"
                   )}
                 >
                     <span className="truncate">Dashboard</span>
+                    {currentSessionId === null && (
+                        <div className="absolute -bottom-[1px] left-0 right-0 h-[1px] bg-white dark:bg-mui-dark-bg z-20" />
+                    )}
                 </div>
                 {activeSessionIds.map(id => {
                     const session = sessions.find(s => s.id === id);
@@ -114,13 +130,13 @@ const SSHTab = ({ addToast }) => {
                           className={clsx(
                               "relative pl-6 pr-2 py-2 text-xs transition-all group cursor-pointer rounded-t-xl flex items-center justify-between min-w-[140px] max-w-[220px]",
                               isActive
-                                ? "bg-mui-dark-paper text-mui-blue-400 z-10 border-t border-x border-white/5"
-                                : "text-mui-grey-500 hover:bg-mui-grey-200/50 dark:hover:bg-white/5"
+                                ? "bg-white dark:bg-mui-dark-bg text-mui-blue-600 z-10 border-t border-x border-mui-grey-200 dark:border-white/5"
+                                : "text-mui-grey-500 hover:bg-mui-grey-200 dark:hover:bg-white/5"
                           )}
                         >
                             <span className={clsx(
                                 "truncate font-bold",
-                                isActive ? "text-mui-blue-400" : "text-mui-grey-400"
+                                isActive ? "text-mui-blue-600" : "text-mui-grey-400"
                             )}>
                                 {displayName}
                             </span>
@@ -135,12 +151,11 @@ const SSHTab = ({ addToast }) => {
                                   "opacity-0 group-hover:opacity-100"
                               )}
                             >
-                                <X size={12} className={isActive ? "text-mui-blue-400" : "text-mui-grey-500"} />
+                                <X size={12} className={isActive ? "text-mui-blue-600" : "text-mui-grey-500"} />
                             </button>
 
-                            {/* Visual indicator for modern chrome style */}
                             {isActive && (
-                                <div className="absolute -bottom-[1px] left-0 right-0 h-[2px] bg-mui-blue-400" />
+                                <div className="absolute -bottom-[1px] left-0 right-0 h-[1px] bg-white dark:bg-mui-dark-bg z-20" />
                             )}
                         </div>
                     );
@@ -148,7 +163,10 @@ const SSHTab = ({ addToast }) => {
             </div>
         )}
 
-        <div className="flex-1 min-h-0 relative">
+        <div className={clsx(
+            "flex-1 min-h-0 relative",
+            currentSessionId === null && "p-6"
+        )}>
             {currentSessionId ? (
                 <div className="h-full">
                     {activeSessionIds.map(id => (
@@ -163,27 +181,7 @@ const SSHTab = ({ addToast }) => {
                     ))}
                 </div>
             ) : (
-                <div className="flex flex-col h-full space-y-6">
-                    <div className="flex justify-between items-center shrink-0">
-                        <div>
-                        <h2 className="text-2xl font-bold text-mui-grey-900 dark:text-white flex items-center gap-2">
-                            SSH Connections
-                        </h2>
-                        <p className="text-mui-grey-600 dark:text-mui-grey-400">Manage and connect to your remote servers.</p>
-                        </div>
-                        {!showForm && (
-                            <button
-                            onClick={() => {
-                                setEditingSession(null);
-                                setShowForm(true);
-                            }}
-                            className="flex items-center gap-2 px-4 py-2 bg-mui-blue-600 hover:bg-mui-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm"
-                            >
-                            <Plus size={18} />
-                            New Connection
-                            </button>
-                        )}
-                    </div>
+                <div className="flex flex-col h-full">
 
                     {loading ? (
                         <div className="flex-1 flex items-center justify-center">

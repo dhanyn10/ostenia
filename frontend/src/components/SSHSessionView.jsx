@@ -288,9 +288,9 @@ const SSHSessionView = ({ session, onClose, addToast, isActive }) => {
   const filteredFiles = files.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <div className="flex flex-col h-full bg-mui-dark-bg rounded-lg overflow-hidden border border-mui-grey-200 dark:border-white/5 shadow-lg">
+    <div className="flex flex-col h-full bg-mui-dark-bg overflow-hidden border-t border-mui-grey-200 dark:border-white/5">
       {/* Header / Toolbar */}
-      <div className="h-10 flex items-center justify-between px-3 bg-mui-dark-bg border-b border-white/5 shrink-0">
+      <div className="h-10 flex items-center justify-between px-3 bg-white dark:bg-mui-dark-bg border-b border-mui-grey-100 dark:border-white/5 shrink-0">
         <div className="flex items-center gap-2">
             <button
                 onClick={() => setExplorerVisible(!explorerVisible)}
