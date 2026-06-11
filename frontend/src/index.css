@@ -3,6 +3,48 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Material UI Blue Palette */
+    --mui-blue-50: #e3f2fd;
+    --mui-blue-100: #bbdefb;
+    --mui-blue-200: #90caf9;
+    --mui-blue-300: #64b5f6;
+    --mui-blue-400: #42a5f5;
+    --mui-blue-500: #2196f3;
+    --mui-blue-600: #1e88e5;
+    --mui-blue-700: #1976d2;
+    --mui-blue-800: #1565c0;
+    --mui-blue-900: #0d47a1;
+
+    /* Material UI Grey Palette */
+    --mui-grey-50: #fafafa;
+    --mui-grey-100: #f5f5f5;
+    --mui-grey-200: #eeeeee;
+    --mui-grey-300: #e0e0e0;
+    --mui-grey-400: #bdbdbd;
+    --mui-grey-500: #9e9e9e;
+    --mui-grey-600: #757575;
+    --mui-grey-700: #616161;
+    --mui-grey-800: #424242;
+    --mui-grey-900: #212121;
+
+    /* Material UI Blue Grey Palette (Slate) */
+    --mui-blue-grey-50: #eceff1;
+    --mui-blue-grey-100: #cfd8dc;
+    --mui-blue-grey-200: #b0bec5;
+    --mui-blue-grey-300: #90a4ae;
+    --mui-blue-grey-400: #78909c;
+    --mui-blue-grey-500: #607d8b;
+    --mui-blue-grey-600: #546e7a;
+    --mui-blue-grey-700: #455a64;
+    --mui-blue-grey-800: #37474f;
+    --mui-blue-grey-900: #263238;
+
+    /* Dark Mode Specialized Colors */
+    --mui-dark-bg: #121212;
+    --mui-dark-paper: #1e1e1e;
+  }
+
   html, body {
     @apply h-screen overflow-hidden;
     /* Prevent overscroll bounce effects on top and bottom */
