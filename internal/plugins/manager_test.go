@@ -39,6 +39,8 @@ func TestDownloadAndExtract(t *testing.T) {
 	defer os.RemoveAll(tmpBaseDir)
 
 	mgr := NewManager(context.Background())
+	// Mock the emitter to avoid Wails runtime errors during tests
+	mgr.emit = func(ctx context.Context, eventName string, optionalData ...interface{}) {}
 
 	t.Run("Unzip Logic", func(t *testing.T) {
 		zipFile := filepath.Join(tmpBaseDir, "test.zip")
