@@ -230,10 +230,17 @@ const SSHSessionView = ({ session, onClose, addToast, isActive, theme }) => {
     try {
       const result = await AppBackend.GetRemoteFiles(session.id, path);
       setFiles(result || []);
-      const current = await AppBackend.GetRemoteCurrentPath(session.id);
-      if (current) {
-          setRemotePath(current);
-          currentPathRef.current = current;
+
+      // Use the provided path if it exists, otherwise fallback to backend's current path
+      if (path !== '') {
+          setRemotePath(path);
+          currentPathRef.current = path;
+      } else {
+          const current = await AppBackend.GetRemoteCurrentPath(session.id);
+          if (current) {
+              setRemotePath(current);
+              currentPathRef.current = current;
+          }
       }
     } catch (err) {
       addToast('Explorer', 'Failed to list files: ' + err, 'error');
@@ -278,8 +285,12 @@ const SSHSessionView = ({ session, onClose, addToast, isActive, theme }) => {
 
   const navigateUp = () => {
     if (remotePath === '/' || remotePath === '') return;
-    const parts = remotePath.split('/');
+
+    // Robustly handle trailing slashes and splitting
+    const normalized = remotePath.endsWith('/') ? remotePath.slice(0, -1) : remotePath;
+    const parts = normalized.split('/');
     parts.pop();
+
     const newPath = parts.join('/') || '/';
     loadRemoteFiles(newPath);
     AppBackend.SendSSHInput(session.id, `cd "${newPath}"\r`);
