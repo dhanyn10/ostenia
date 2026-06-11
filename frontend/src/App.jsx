@@ -5,6 +5,8 @@ import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 // Components
+import MenuBar from './components/MenuBar';
+import StatusBar from './components/StatusBar';
 import VerticalNav from './components/VerticalNav';
 import AppHeader from './components/AppHeader';
 import Toast from './components/Toast';
@@ -209,30 +211,33 @@ function App() {
 
   return (
     <div className={cn(
-      "flex h-screen font-sans selection:bg-mui-blue-500/30 overflow-hidden transition-colors duration-300 fixed inset-0", // Added fixed inset-0
+      "flex flex-col h-screen font-sans selection:bg-mui-blue-500/30 overflow-hidden transition-colors duration-300 fixed inset-0", // Added fixed inset-0
       theme === 'dark' ? "bg-mui-dark-bg text-mui-grey-200" : "bg-mui-grey-50 text-mui-grey-900"
     )}>
-      <Toast toasts={toasts} removeToast={removeToast} />
+      <MenuBar theme={theme} setTheme={setTheme} />
 
-      <VerticalNav 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        toggleTheme={toggleTheme} 
-        theme={theme} 
-        renderIcon={renderIcon}
-      />
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
+        <Toast toasts={toasts} removeToast={removeToast} />
 
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-        <AppHeader 
+        <VerticalNav
           activeTab={activeTab} 
-          handleStartAll={() => AppBackend.StartAllServices()} 
-          handleStopAll={() => AppBackend.StopAllServices()} 
-          handleTerminal={(type) => { AppBackend.OpenTerminal(type); setIsTerminalOpen(false); }} 
-          isTerminalOpen={isTerminalOpen} 
-          setIsTerminalOpen={setIsTerminalOpen} 
+          setActiveTab={setActiveTab}
+          toggleTheme={toggleTheme}
+          theme={theme}
+          renderIcon={renderIcon}
         />
 
-        <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+          <AppHeader
+            activeTab={activeTab}
+            handleStartAll={() => AppBackend.StartAllServices()}
+            handleStopAll={() => AppBackend.StopAllServices()}
+            handleTerminal={(type) => { AppBackend.OpenTerminal(type); setIsTerminalOpen(false); }}
+            isTerminalOpen={isTerminalOpen}
+            setIsTerminalOpen={setIsTerminalOpen}
+          />
+
+          <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
           <div className={cn(
             "w-full mx-auto flex flex-col h-full",
             (activeTab === 'logs' || activeTab === 'ssh') ? "max-w-none" : "max-w-4xl px-8 pb-8"
@@ -359,8 +364,11 @@ function App() {
                 <LogViewer logs={logs} />
             </div>
           </div>
-        </main>
+          </main>
+        </div>
       </div>
+
+      <StatusBar services={services} />
 
       <ConfirmationModal
         isOpen={confirmModal.isOpen}

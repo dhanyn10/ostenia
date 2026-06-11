@@ -7,13 +7,14 @@ import (
 )
 
 type Config struct {
-	BaseDir     string         `json:"baseDir"` // New: Root directory for the whole Ostenia environment
-	WWWRoot     string         `json:"wwwRoot"`
-	PHPVersion  string         `json:"phpVersion"`
-	NodeVersion string         `json:"nodeVersion"`
-	ApacheHTTPS bool           `json:"apacheHttps"`
-	NginxHTTPS  bool           `json:"nginxHttps"`
-	Proxies     map[string]int `json:"proxies"` // folder_name -> target_port
+	BaseDir       string         `json:"baseDir"` // New: Root directory for the whole Ostenia environment
+	WWWRoot       string         `json:"wwwRoot"`
+	PHPVersion    string         `json:"phpVersion"`
+	NodeVersion   string         `json:"nodeVersion"`
+	ApacheHTTPS   bool           `json:"apacheHttps"`
+	NginxHTTPS    bool           `json:"nginxHttps"`
+	Proxies       map[string]int `json:"proxies"` // folder_name -> target_port
+	DefaultEditor string         `json:"defaultEditor"`
 }
 
 var globalConfig *Config
