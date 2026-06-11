@@ -432,6 +432,17 @@ const SSHSessionView = ({ session, onClose, addToast, isActive, theme }) => {
                         </div>
                     ) : (
                         <div className="space-y-px">
+                            {/* Go Up Directory */}
+                            {(remotePath && remotePath !== '/') && (
+                                <div
+                                    className="group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-mui-grey-100 dark:hover:bg-mui-grey-800 cursor-pointer border border-transparent transition-all select-none"
+                                    onDoubleClick={navigateUp}
+                                >
+                                    <Folder size={14} className="text-mui-grey-400 dark:text-mui-grey-500 shrink-0" />
+                                    <span className="flex-1 text-[11px] font-bold text-mui-grey-500 dark:text-mui-grey-400 truncate">...</span>
+                                </div>
+                            )}
+
                             {filteredFiles.sort((a, b) => (b.isDir ? 1 : 0) - (a.isDir ? 1 : 0)).map((file) => (
                                 <div
                                     key={file.name}
