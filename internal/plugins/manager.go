@@ -12,11 +12,11 @@ import (
 	"os"
 	"os/exec"
 	"ostenia/internal/config"
+	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -26,10 +26,15 @@ type Manager struct {
 	ctx       context.Context
 	cancels   map[string]context.CancelFunc
 	cancelsMu sync.Mutex
+	emit      func(ctx context.Context, eventName string, optionalData ...interface{})
 }
 
 func NewManager(ctx context.Context) *Manager {
-	return &Manager{ctx: ctx, cancels: make(map[string]context.CancelFunc)}
+	return &Manager{
+		ctx:     ctx,
+		cancels: make(map[string]context.CancelFunc),
+		emit:    wruntime.EventsEmit,
+	}
 }
 
 func (m *Manager) CancelDownload(name string) {
@@ -43,7 +48,7 @@ func (m *Manager) DeleteVersion(taskName, version string) error {
 		exeMap := map[string]string{"apache": "httpd.exe", "mysql": "mysqld.exe", "php": "php.exe", "heidisql": "heidisql.exe", "nginx": "nginx.exe", "openssl": "openssl.exe", "node.js": "node.exe", "python": "python.exe"}
 		if exe, ok := exeMap[strings.ToLower(taskName)]; ok {
 			c := exec.Command("taskkill", "/F", "/IM", exe, "/T")
-			c.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}; _ = c.Run()
+			utils.SetHideWindow(c); _ = c.Run()
 			time.Sleep(500 * time.Millisecond)
 		}
 	}
@@ -72,7 +77,7 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 	if _, err := os.Stat(checkFile); err == nil {
 		fmt.Printf("[Manager] %s v%s already exists. Linking only.\n", task.Name, task.Version)
 		_ = m.ensureCurrentLink(task)
-		wruntime.EventsEmit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Ready"})
+		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Ready"})
 		return nil
 	}
 
@@ -101,7 +106,7 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 
 	if err := m.downloadFile(ctx, task.URL, tmp, task.Name); err != nil {
 		fmt.Printf("[Manager] Download failed: %v\n", err)
-		wruntime.EventsEmit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: "Error: " + err.Error()})
+		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: "Error: " + err.Error()})
 		return err
 	}
 
@@ -113,24 +118,22 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 		_ = exec.Command("cmd", "/c", "copy", "/Y", tmp, dest).Run()
 
 		cmd := exec.Command("cmd", "/c", "start", "", dest)
-		if runtime.GOOS == "windows" {
-			cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-		}
+		utils.SetHideWindow(cmd)
 		_ = cmd.Run()
 
-		wruntime.EventsEmit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Completed"})
+		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Completed"})
 		return nil
 	}
 
 	fmt.Printf("[Manager] Extracting %s to %s\n", task.Name, targetDir)
-	wruntime.EventsEmit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 99, Status: "Extracting..."})
+	m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 99, Status: "Extracting..."})
 
 	extractTmp := targetDir + ".tmp"
 	_ = os.RemoveAll(extractTmp)
 
 	if err := m.unzipFile(ctx, tmp, extractTmp, task.Name); err != nil {
 		fmt.Printf("[Manager] Extraction failed: %v\n", err)
-		wruntime.EventsEmit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: "Error: " + err.Error()})
+		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: "Error: " + err.Error()})
 		return err
 	}
 
@@ -166,7 +169,7 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 	os.Remove(tmp)
 	_ = m.ensureCurrentLink(task)
 	fmt.Printf("[Manager] %s v%s installation complete.\n", task.Name, task.Version)
-	wruntime.EventsEmit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Completed"})
+	m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Completed"})
 	return nil
 }
 
@@ -181,7 +184,7 @@ func (m *Manager) downloadFile(ctx context.Context, url, path, name string) erro
 		StartTime: time.Now(),
 		OnProgress: func(p, t uint64, s string) {
 			pct := 0.0; if t > 0 { pct = (float64(p) / float64(t)) * 100 }
-			wruntime.EventsEmit(m.ctx, "download_progress", Progress{Name: name, Percentage: pct, Status: "Downloading...", Speed: s, Downloaded: formatBytes(p)})
+			m.emit(m.ctx, "download_progress", Progress{Name: name, Percentage: pct, Status: "Downloading...", Speed: s, Downloaded: formatBytes(p)})
 		},
 	}
 	_, err = io.Copy(out, io.TeeReader(resp.Body, wc)); return err
@@ -206,7 +209,7 @@ func (m *Manager) unzipFile(ctx context.Context, src, dest, name string) error {
 			_, err = io.Copy(outFile, rc); outFile.Close(); rc.Close()
 			if err != nil { return err }
 			if i%20 == 0 { // Reduce event noise
-				wruntime.EventsEmit(m.ctx, "download_progress", Progress{Name: name, Percentage: (float64(i+1)/float64(total))*100, Status: "Extracting..."})
+				m.emit(m.ctx, "download_progress", Progress{Name: name, Percentage: (float64(i+1)/float64(total))*100, Status: "Extracting..."})
 			}
 		}
 	}
@@ -219,7 +222,7 @@ func (m *Manager) ensureCurrentLink(task DownloadTask) error {
 	link := filepath.Join(baseDir, "bin", parts[0], "current"); target := filepath.Join(baseDir, "bin", task.Target)
 	_ = os.Remove(link) // Remove old junction
 	c := exec.Command("cmd", "/c", "mklink", "/J", link, target)
-	c.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}; return c.Run()
+	utils.SetHideWindow(c); return c.Run()
 }
 
 type WriteCounter struct {

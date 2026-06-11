@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"syscall"
 )
 
 //go:embed python.svg
@@ -83,7 +82,7 @@ func GetInfo(pythonPath string) string {
 		return ""
 	}
 	cmd := exec.Command(pythonExe, "-m", "pip", "--version")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	utils.SetHideWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		return ""

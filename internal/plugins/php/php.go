@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"syscall"
 )
 
 //go:embed php.svg
@@ -88,7 +87,7 @@ func GetModuleVersion(moduleName string, phpPath string) string {
 		if _, err := os.Stat(composerPhar); err != nil { return "" }
 		phpExe := filepath.Join(phpPath, "php.exe")
 		cmd := exec.Command(phpExe, composerPhar, "--version")
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		utils.SetHideWindow(cmd)
 		out, err := cmd.Output()
 		if err != nil { return "" }
 		re := regexp.MustCompile(`Composer version (\d+\.\d+\.\d+)`)

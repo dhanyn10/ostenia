@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 )
 
 //go:embed openssl.svg
@@ -67,7 +66,7 @@ func findExecutables() []string {
 		exec.Command("cmd", "/d", "/c", "where openssl"),
 		exec.Command("where.exe", "openssl"),
 	} {
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		utils.SetHideWindow(cmd)
 		if out, err := cmd.Output(); err == nil {
 			for _, line := range strings.Split(string(out), "\n") {
 				addPath(line)
@@ -90,7 +89,7 @@ func findExecutables() []string {
 
 func versionFromExecutable(exePath string) string {
 	cmd := exec.Command(exePath, "version")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	utils.SetHideWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		return ""
