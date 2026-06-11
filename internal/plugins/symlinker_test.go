@@ -33,8 +33,6 @@ func TestCreateSymlink(t *testing.T) {
 	// Test creation
 	err = CreateSymlink(targetDir, linkPath)
 	if err != nil {
-		// On some Windows environments, mklink /J might fail if not permitted
-		// but typically it works for junctions without admin.
 		t.Fatalf("CreateSymlink() error = %v", err)
 	}
 
@@ -44,19 +42,15 @@ func TestCreateSymlink(t *testing.T) {
 		t.Fatalf("ResolveSymlink() error = %v", err)
 	}
 
-	// filepath.EvalSymlinks returns the absolute path
 	absTarget, _ := filepath.Abs(targetDir)
 	absResolved, _ := filepath.Abs(resolved)
 
 	if absResolved != absTarget {
-		// On Windows, sometimes paths might have different casing or long/short names
-		// but for a junction it should match.
 		if runtime.GOOS == "windows" {
-			// Junctions might be evaluated slightly differently, let's check if the file exists through the link
 			if _, err := os.Stat(filepath.Join(linkPath, "test.txt")); err != nil {
 				t.Errorf("Resolved path mismatch: got %v, want %v", absResolved, absTarget)
 			}
-		} else if absResolved != absTarget {
+		} else {
 			t.Errorf("Resolved path mismatch: got %v, want %v", absResolved, absTarget)
 		}
 	}
@@ -75,7 +69,6 @@ func TestCreateSymlink(t *testing.T) {
 
 	if absResolved != absNewTarget {
 		if runtime.GOOS == "windows" {
-			// Similar check for Windows
 			if _, err := os.Stat(filepath.Join(linkPath, "test.txt")); err == nil {
 				t.Errorf("Overwrite failed: still points to old target")
 			}

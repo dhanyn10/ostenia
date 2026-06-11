@@ -12,11 +12,11 @@ import (
 	"os"
 	"os/exec"
 	"ostenia/internal/config"
+	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -43,7 +43,7 @@ func (m *Manager) DeleteVersion(taskName, version string) error {
 		exeMap := map[string]string{"apache": "httpd.exe", "mysql": "mysqld.exe", "php": "php.exe", "heidisql": "heidisql.exe", "nginx": "nginx.exe", "openssl": "openssl.exe", "node.js": "node.exe", "python": "python.exe"}
 		if exe, ok := exeMap[strings.ToLower(taskName)]; ok {
 			c := exec.Command("taskkill", "/F", "/IM", exe, "/T")
-			c.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}; _ = c.Run()
+			utils.SetHideWindow(c); _ = c.Run()
 			time.Sleep(500 * time.Millisecond)
 		}
 	}
@@ -113,9 +113,7 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 		_ = exec.Command("cmd", "/c", "copy", "/Y", tmp, dest).Run()
 
 		cmd := exec.Command("cmd", "/c", "start", "", dest)
-		if runtime.GOOS == "windows" {
-			cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-		}
+		utils.SetHideWindow(cmd)
 		_ = cmd.Run()
 
 		wruntime.EventsEmit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Completed"})
@@ -219,7 +217,7 @@ func (m *Manager) ensureCurrentLink(task DownloadTask) error {
 	link := filepath.Join(baseDir, "bin", parts[0], "current"); target := filepath.Join(baseDir, "bin", task.Target)
 	_ = os.Remove(link) // Remove old junction
 	c := exec.Command("cmd", "/c", "mklink", "/J", link, target)
-	c.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}; return c.Run()
+	utils.SetHideWindow(c); return c.Run()
 }
 
 type WriteCounter struct {
