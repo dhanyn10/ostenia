@@ -20,8 +20,13 @@ const SSHSessionView = ({ session, onClose, addToast, isActive, theme }) => {
   const currentPathRef = useRef('');
   const [connecting, setConnecting] = useState(true);
   const [remotePath, setRemotePath] = useState('');
+  const [editingPath, setEditingPath] = useState('');
   const [files, setFiles] = useState([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
+
+  useEffect(() => {
+    setEditingPath(remotePath);
+  }, [remotePath]);
   const [explorerVisible, setExplorerVisible] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [fileContextMenu, setFileContextMenu] = useState(null);
@@ -238,10 +243,13 @@ const SSHSessionView = ({ session, onClose, addToast, isActive, theme }) => {
     }
   };
 
-  const loadRemoteFiles = async (path) => {
+  const loadRemoteFiles = async (path, isManualEntry = false) => {
     setLoadingFiles(true);
     try {
       const result = await AppBackend.GetRemoteFiles(session.id, path);
+      if (result === null && isManualEntry) {
+          throw new Error("Directory not available");
+      }
       setFiles(result || []);
 
       // Use the provided path if it exists, otherwise fallback to backend's current path
@@ -256,7 +264,12 @@ const SSHSessionView = ({ session, onClose, addToast, isActive, theme }) => {
           }
       }
     } catch (err) {
-      addToast('Explorer', 'Failed to list files: ' + err, 'error');
+      if (isManualEntry) {
+          addToast('Navigation', 'Directory not available', 'error');
+          setEditingPath(remotePath); // Revert
+      } else {
+          addToast('Explorer', 'Failed to list files: ' + err, 'error');
+      }
     } finally {
       setLoadingFiles(false);
     }
@@ -427,13 +440,28 @@ const SSHSessionView = ({ session, onClose, addToast, isActive, theme }) => {
             <div className="w-72 flex flex-col border-r border-mui-grey-200 dark:border-mui-grey-800 bg-white dark:bg-mui-dark-bg shrink-0">
                 <div className="p-3 border-b border-mui-grey-100 dark:border-mui-grey-800 space-y-3 bg-mui-grey-50 dark:bg-mui-grey-900">
                     <div className="flex items-center gap-1 bg-white dark:bg-mui-dark-bg rounded px-1 py-0.5 border border-mui-grey-200 dark:border-mui-grey-800">
-                        <button onClick={navigateUp} className="p-1 text-mui-grey-500 dark:text-mui-grey-400 hover:text-mui-blue-600 dark:hover:text-white transition-colors" title="Back">
+                        <button onClick={navigateUp} className="p-1 text-mui-grey-500 dark:text-mui-grey-400 hover:text-mui-blue-600 dark:hover:text-white transition-colors shrink-0" title="Back">
                             <ChevronLeft size={16} />
                         </button>
-                        <div className="flex-1 px-1 text-[10px] text-mui-grey-600 dark:text-mui-grey-400 truncate font-mono">
-                            {remotePath || '/'}
-                        </div>
-                        <button onClick={() => syncExplorer()} className="p-1 text-mui-grey-500 dark:text-mui-grey-400 hover:text-mui-blue-500 transition-colors" title="Sync with terminal">
+                        <input
+                            type="text"
+                            className="flex-1 min-w-0 px-1 py-0.5 bg-transparent text-[10px] text-mui-grey-700 dark:text-mui-grey-300 font-mono outline-none focus:text-mui-blue-600 dark:focus:text-mui-blue-400 transition-colors"
+                            value={editingPath}
+                            onChange={(e) => setEditingPath(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    const path = editingPath.trim();
+                                    if (path && path !== remotePath) {
+                                        loadRemoteFiles(path, true).then(() => {
+                                            AppBackend.SendSSHInput(session.id, `cd "${path}"\r`);
+                                        });
+                                    }
+                                } else if (e.key === 'Escape') {
+                                    setEditingPath(remotePath);
+                                }
+                            }}
+                        />
+                        <button onClick={() => syncExplorer()} className="p-1 text-mui-grey-500 dark:text-mui-grey-400 hover:text-mui-blue-500 transition-colors shrink-0" title="Sync with terminal">
                             <RefreshCw size={12} />
                         </button>
                     </div>
