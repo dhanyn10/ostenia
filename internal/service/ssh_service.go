@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"ostenia/internal/config"
+	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"sync"
 	"time"
@@ -387,7 +388,7 @@ func (m *SSHManager) EditFile(sessionID string, remotePath string, defaultEditor
 	if defaultEditor != "" {
 		if runtime.GOOS == "windows" {
 			cmd = exec.Command("cmd", "/c", "start", "/wait", "", defaultEditor, localPath)
-			SetHideWindow(cmd)
+			utils.SetHideWindow(cmd)
 		} else {
 			cmd = exec.Command(defaultEditor, localPath)
 		}
