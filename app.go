@@ -87,7 +87,7 @@ func (a *App) ToggleDevTools() {
 func (a *App) Minimize() { wruntime.WindowMinimise(a.ctx) }
 func (a *App) Maximize() { wruntime.WindowMaximise(a.ctx) }
 func (a *App) Unmaximize() { wruntime.WindowUnmaximise(a.ctx) }
-func (a *App) Close() { wruntime.WindowClose(a.ctx) }
+func (a *App) Close() { wruntime.Quit(a.ctx) }
 
 type ProfileData struct {
 	Config      *config.Config      `json:"config,omitempty"`
