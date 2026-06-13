@@ -3,6 +3,7 @@ export function WindowMinimise() {}
 export function WindowMaximise() {}
 export function WindowUnmaximise() {}
 export function WindowClose() {}
+export function Quit() {}
 export function EventsOn() {}
 export function EventsOff() {}
 export function EventsEmit() {}

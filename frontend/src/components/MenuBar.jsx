@@ -13,7 +13,6 @@ import {
   Terminal as TerminalIcon,
   Copy,
   ExternalLink,
-  ChevronDown
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -23,7 +22,7 @@ function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
-const MenuItem = ({ label, children, isOpen, onOpen, onClose }) => {
+const MenuItem = ({ label, children, isOpen, onOpen, onHover, onClose, theme }) => {
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -39,19 +38,24 @@ const MenuItem = ({ label, children, isOpen, onOpen, onClose }) => {
   }, [isOpen, onClose]);
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className="relative h-full" ref={containerRef}>
       <button
         onClick={onOpen}
-        onMouseEnter={() => isOpen && onOpen()}
+        onMouseEnter={onHover}
         className={cn(
-          "px-3 h-full flex items-center text-[13px] hover:bg-white/10 transition-colors",
-          isOpen && "bg-white/10"
+          "px-3 h-full flex items-center text-[13px] transition-colors",
+          isOpen
+            ? "bg-mui-blue-500 text-white"
+            : "hover:bg-mui-grey-200 dark:hover:bg-white/10 text-mui-grey-700 dark:text-mui-grey-300"
         )}
       >
         {label}
       </button>
       {isOpen && (
-        <div className="absolute top-full left-0 w-64 bg-[#1e1e1e] border border-white/10 shadow-2xl z-[100] py-1 animate-in fade-in zoom-in-95 duration-100">
+        <div className={cn(
+          "absolute top-full left-0 w-64 border shadow-2xl z-[100] py-1 animate-in fade-in zoom-in-95 duration-100",
+          "bg-white dark:bg-mui-dark-paper border-mui-grey-200 dark:border-white/10"
+        )}>
           {children}
         </div>
       )}
@@ -59,10 +63,13 @@ const MenuItem = ({ label, children, isOpen, onOpen, onClose }) => {
   );
 };
 
-const SubMenuItem = ({ label, icon: Icon, onClick, shortcut, hasSubmenu }) => (
+const SubMenuItem = ({ label, icon: Icon, onClick, shortcut, hasSubmenu, theme }) => (
   <button
     onClick={onClick}
-    className="w-full flex items-center justify-between px-3 py-1.5 text-[12px] text-mui-grey-300 hover:bg-mui-blue-500 hover:text-white transition-colors group"
+    className={cn(
+      "w-full flex items-center justify-between px-3 py-1.5 text-[12px] transition-colors group",
+      "text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-blue-500 hover:text-white"
+    )}
   >
     <div className="flex items-center gap-2.5">
       <div className="w-4 flex justify-center">
@@ -71,13 +78,21 @@ const SubMenuItem = ({ label, icon: Icon, onClick, shortcut, hasSubmenu }) => (
       <span>{label}</span>
     </div>
     <div className="flex items-center gap-2">
-      {shortcut && <span className="text-[10px] text-mui-grey-500 group-hover:text-white/70">{shortcut}</span>}
-      {hasSubmenu && <ChevronRight size={12} className="text-mui-grey-500 group-hover:text-white/70" />}
+      {shortcut && (
+        <span className="text-[10px] text-mui-grey-500 group-hover:text-white/70">
+          {shortcut}
+        </span>
+      )}
+      {hasSubmenu && (
+        <ChevronRight size={12} className="text-mui-grey-500 group-hover:text-white/70" />
+      )}
     </div>
   </button>
 );
 
-const MenuDivider = () => <div className="my-1 border-t border-white/5" />;
+const MenuDivider = () => (
+  <div className="my-1 border-t border-mui-grey-200 dark:border-white/5" />
+);
 
 const MenuBar = ({ theme, setTheme }) => {
   const [openMenu, setOpenMenu] = useState(null);
@@ -126,8 +141,44 @@ const MenuBar = ({ theme, setTheme }) => {
     setOpenMenu(null);
   };
 
+  const menuItems = [
+    { id: 'file', label: 'File', content: (
+      <>
+        <SubMenuItem label="Import Profile..." icon={FileText} onClick={handleImport} />
+        <MenuDivider />
+        <SubMenuItem label="Export All" icon={Copy} onClick={() => handleExport('all')} />
+        <SubMenuItem label="Export Config Only" icon={Settings} onClick={() => handleExport('config')} />
+        <SubMenuItem label="Export SSH Sessions Only" icon={TerminalIcon} onClick={() => handleExport('ssh')} />
+        <MenuDivider />
+        <SubMenuItem label="Exit" onClick={handleClose} shortcut="Alt+F4" />
+      </>
+    )},
+    { id: 'view', label: 'View', content: (
+      <SubMenuItem label="Toggle Developer Tools" icon={Monitor} onClick={handleToggleDevTools} shortcut="F12" />
+    )},
+    { id: 'settings', label: 'Settings', content: (
+      <>
+        <SubMenuItem
+          label={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          icon={Eye}
+          onClick={() => { setTheme(theme === 'dark' ? 'light' : 'dark'); setOpenMenu(null); }}
+        />
+        <SubMenuItem label="Default Editor Path..." icon={Settings} onClick={handleSetEditor} />
+      </>
+    )},
+    { id: 'help', label: 'Help', content: (
+      <>
+        <SubMenuItem label="About Ostenia" icon={HelpCircle} onClick={() => { alert("Ostenia v1.0.0\nPortable Development Environment"); setOpenMenu(null); }} />
+        <SubMenuItem label="Documentation" icon={ExternalLink} onClick={() => { window.open('https://github.com/dhanyn/ostenia', '_blank'); setOpenMenu(null); }} />
+      </>
+    )}
+  ];
+
   return (
-    <div className="h-9 flex items-center justify-between bg-[#1e1e1e] text-mui-grey-300 select-none border-b border-white/5" style={{ "--wails-draggable": "drag" } }>
+    <div className={cn(
+      "h-9 flex items-center justify-between select-none border-b transition-colors duration-300",
+      "bg-white dark:bg-mui-dark-paper border-mui-grey-200 dark:border-white/5 text-mui-grey-700 dark:text-mui-grey-300"
+    )} style={{ "--wails-draggable": "drag" } }>
       <div className="flex items-center h-full no-drag" style={{ "--wails-draggable": "no-drag" } }>
         <div className="px-3 flex items-center gap-2">
           <div className="w-5 h-5 bg-mui-blue-500 rounded-sm flex items-center justify-center">
@@ -135,69 +186,35 @@ const MenuBar = ({ theme, setTheme }) => {
           </div>
         </div>
 
-        <MenuItem
-          label="File"
-          isOpen={openMenu === 'file'}
-          onOpen={() => setOpenMenu('file')}
-          onClose={() => setOpenMenu(null)}
-        >
-          <SubMenuItem label="Import Profile..." icon={FileText} onClick={handleImport} />
-          <MenuDivider />
-          <SubMenuItem label="Export All" icon={Copy} onClick={() => handleExport('all')} />
-          <SubMenuItem label="Export Config Only" icon={Settings} onClick={() => handleExport('config')} />
-          <SubMenuItem label="Export SSH Sessions Only" icon={TerminalIcon} onClick={() => handleExport('ssh')} />
-          <MenuDivider />
-          <SubMenuItem label="Exit" onClick={handleClose} shortcut="Alt+F4" />
-        </MenuItem>
-
-        <MenuItem
-          label="View"
-          isOpen={openMenu === 'view'}
-          onOpen={() => setOpenMenu('view')}
-          onClose={() => setOpenMenu(null)}
-        >
-          <SubMenuItem label="Toggle Developer Tools" icon={Monitor} onClick={handleToggleDevTools} shortcut="F12" />
-        </MenuItem>
-
-        <MenuItem
-          label="Settings"
-          isOpen={openMenu === 'settings'}
-          onOpen={() => setOpenMenu('settings')}
-          onClose={() => setOpenMenu(null)}
-        >
-          <SubMenuItem
-            label={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            icon={Eye}
-            onClick={() => { setTheme(theme === 'dark' ? 'light' : 'dark'); setOpenMenu(null); }}
-          />
-          <SubMenuItem label="Default Editor Path..." icon={Settings} onClick={handleSetEditor} />
-        </MenuItem>
-
-        <MenuItem
-          label="Help"
-          isOpen={openMenu === 'help'}
-          onOpen={() => setOpenMenu('help')}
-          onClose={() => setOpenMenu(null)}
-        >
-          <SubMenuItem label="About Ostenia" icon={HelpCircle} onClick={() => { alert("Ostenia v1.0.0\nPortable Development Environment"); setOpenMenu(null); }} />
-          <SubMenuItem label="Documentation" icon={ExternalLink} onClick={() => { window.open('https://github.com/dhanyn/ostenia', '_blank'); setOpenMenu(null); }} />
-        </MenuItem>
+        {menuItems.map(item => (
+          <MenuItem
+            key={item.id}
+            label={item.label}
+            isOpen={openMenu === item.id}
+            onOpen={() => setOpenMenu(openMenu === item.id ? null : item.id)}
+            onHover={() => openMenu && setOpenMenu(item.id)}
+            onClose={() => setOpenMenu(null)}
+            theme={theme}
+          >
+            {item.content}
+          </MenuItem>
+        ))}
       </div>
 
-      <div className="text-[11px] font-bold tracking-widest text-white/30 uppercase italic absolute left-1/2 -translate-x-1/2 pointer-events-none">
+      <div className="text-[11px] font-bold tracking-widest opacity-30 uppercase italic absolute left-1/2 -translate-x-1/2 pointer-events-none">
         Ostenia
       </div>
 
       <div className="flex h-full no-drag" style={{ "--wails-draggable": "no-drag" } }>
         <button
           onClick={handleMinimize}
-          className="w-12 h-full flex items-center justify-center hover:bg-white/10 transition-colors"
+          className="w-12 h-full flex items-center justify-center hover:bg-mui-grey-200 dark:hover:bg-white/10 transition-colors"
         >
           <Minus size={14} />
         </button>
         <button
           onClick={handleMaximize}
-          className="w-12 h-full flex items-center justify-center hover:bg-white/10 transition-colors"
+          className="w-12 h-full flex items-center justify-center hover:bg-mui-grey-200 dark:hover:bg-white/10 transition-colors"
         >
           <Square size={12} />
         </button>
