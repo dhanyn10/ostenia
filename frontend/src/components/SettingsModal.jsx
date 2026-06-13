@@ -272,8 +272,12 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', appConfig
  };
 
  return (
- <div className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-black/40 animate-in fade-in duration-300">
  <div
+ onClick={onClose}
+ className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-transparent animate-in fade-in duration-300"
+ >
+ <div
+ onClick={(e) => e.stopPropagation()}
  className={cn(
  "w-full max-w-5xl h-[80vh] flex flex-col rounded-xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] border overflow-hidden",
  "bg-white dark:bg-mui-dark-bg border-mui-grey-200 dark:border-white/10"
