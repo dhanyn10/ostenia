@@ -15,9 +15,7 @@ import (
 	"ostenia/internal/service"
 	"ostenia/internal/ssl"
 	"path/filepath"
-	"runtime"
 	"strings"
-	"syscall"
 	"time"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -197,7 +195,7 @@ func (a *App) OpenHeidiSQL() error {
 		return fmt.Errorf("HeidiSQL is not installed")
 	}
 	cmd := exec.Command("cmd", "/c", "start", "", exePath)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	service.SetHideWindow(cmd)
 	return cmd.Run()
 }
 
@@ -635,9 +633,7 @@ func (a *App) SwitchServiceVersion(serviceName string, version string) error {
 	os.Remove(currentPath)
 	if _, err := os.Stat(targetDir); err == nil {
 		cmd := exec.Command("cmd", "/c", "mklink", "/J", currentPath, targetDir)
-		if runtime.GOOS == "windows" {
-			cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-		}
+		service.SetHideWindow(cmd)
 		_ = cmd.Run()
 	}
 	if category == "php" {

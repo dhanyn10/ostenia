@@ -382,7 +382,7 @@ function App() {
         isOpen={settingsModal.isOpen}
         onClose={() => setSettingsModal(prev => ({ ...prev, isOpen: false }))}
         initialCategory={settingsModal.category}
-        config={{
+        appConfig={{
           baseDir: appsLocation,
           wwwRoot: serverRootState,
           apacheHttps,

@@ -7,8 +7,7 @@ import (
 	"syscall"
 )
 
-// SetHideWindow sets the HideWindow attribute on Windows.
-func SetHideWindow(cmd *exec.Cmd) {
+func setHideWindow(cmd *exec.Cmd) {
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}

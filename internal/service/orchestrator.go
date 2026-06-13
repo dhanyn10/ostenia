@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -218,7 +217,7 @@ func findOsteniaPIDs(exeName string) []int {
 	if runtime.GOOS != "windows" { return pids }
 	baseDir := config.GetBaseDir(); binPath := filepath.Join(baseDir, "bin")
 	cmd := exec.Command("wmic", "process", "where", fmt.Sprintf("name='%s'", exeName), "get", "ExecutablePath,ProcessId", "/format:csv")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	utils.SetHideWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil { return pids }
 	lines := strings.Split(string(out), "\n")
@@ -241,7 +240,7 @@ func findPortsByPIDExact(pid int) []int {
 	if pid <= 0 { return ports }
 	pidStr := strconv.Itoa(pid)
 	command := fmt.Sprintf("netstat -ano | findstr %s | findstr LISTENING", pidStr)
-	cmd := exec.Command("cmd", "/c", command); cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	cmd := exec.Command("cmd", "/c", command); utils.SetHideWindow(cmd)
 	out, _ := cmd.Output(); lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -273,7 +272,7 @@ func (o *Orchestrator) StartServiceWithPort(name string, binaryPath string, args
 	o.mu.Unlock()
 	absPath, _ := filepath.Abs(binaryPath); cmd := exec.Command(absPath, args...)
 	if workingDir != "" { cmd.Dir = workingDir }
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	utils.SetHideWindow(cmd)
 	stdout, _ := cmd.StdoutPipe(); stderr, _ := cmd.StderrPipe()
 	go o.captureLogs(name, stdout); go o.captureLogs(name, stderr)
 	if err := cmd.Start(); err != nil { return err }
@@ -297,14 +296,14 @@ func (o *Orchestrator) StopService(name string) error {
 			_, uninstaller := utils.DetectHeidiSQLInstallation()
 			if uninstaller != "" {
 				cmd := exec.Command("cmd", "/c", "start", "", uninstaller)
-				cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+				utils.SetHideWindow(cmd)
 				_ = cmd.Run()
 			} else {
 				// Fallback to taskkill if uninstaller not found
 				pids := findOsteniaPIDs("heidisql.exe")
 				for _, pid := range pids {
 					killCmd := exec.Command("taskkill", "/F", "/PID", strconv.Itoa(pid), "/T")
-					killCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+				utils.SetHideWindow(killCmd)
 					killCmd.Run()
 				}
 			}
@@ -337,7 +336,7 @@ func (o *Orchestrator) StopService(name string) error {
 			pids := findOsteniaPIDs(exe)
 			for _, pid := range pids {
 				killCmd := exec.Command("taskkill", "/F", "/PID", strconv.Itoa(pid), "/T")
-				killCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}; killCmd.Run()
+				utils.SetHideWindow(killCmd); killCmd.Run()
 			}
 		}
 		time.Sleep(600 * time.Millisecond)

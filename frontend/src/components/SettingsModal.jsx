@@ -14,7 +14,8 @@ import {
   Upload,
   Plus,
   Trash2,
-  Edit2
+  Edit2,
+  Settings
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -24,7 +25,7 @@ function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
-const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', config, setConfig, theme, initApp }) => {
+const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', appConfig = {}, setConfig, theme, initApp }) => {
   const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [searchQuery, setSearchQuery] = useState('');
   const [sshSessions, setSshSessions] = useState([]);
@@ -62,7 +63,7 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', config, s
   const handleImport = async () => {
     try {
       await AppBackend.ImportProfile();
-      initApp();
+      if (initApp) initApp();
     } catch (err) { console.error(err); }
   };
 
@@ -72,7 +73,7 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', config, s
         return (
           <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
-              <h3 className="text-xl font-bold mb-1 tracking-tight">User Profile</h3>
+              <h3 className="text-xl font-bold mb-1 tracking-tight text-mui-grey-900 dark:text-white">User Profile</h3>
               <p className="text-sm text-mui-grey-500 dark:text-mui-grey-400">Manage your application profile and portable data.</p>
             </div>
 
@@ -85,7 +86,7 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', config, s
                   <Upload size={24} />
                 </div>
                 <div className="text-left">
-                  <div className="font-bold">Import Profile</div>
+                  <div className="font-bold text-mui-grey-900 dark:text-white">Import Profile</div>
                   <p className="text-[11px] text-mui-grey-500 mt-1 uppercase tracking-wider font-bold">Restore settings from JSON</p>
                 </div>
               </button>
@@ -98,7 +99,7 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', config, s
                   <Download size={24} />
                 </div>
                 <div className="text-left">
-                  <div className="font-bold">Export All</div>
+                  <div className="font-bold text-mui-grey-900 dark:text-white">Export All</div>
                   <p className="text-[11px] text-mui-grey-500 mt-1 uppercase tracking-wider font-bold">Backup config and SSH sessions</p>
                 </div>
               </button>
@@ -107,8 +108,8 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', config, s
             <div className="pt-4 border-t border-mui-grey-100 dark:border-white/5">
               <h4 className="text-xs font-black text-mui-grey-400 uppercase tracking-[0.2em] mb-4">Granular Export</h4>
               <div className="flex gap-3">
-                <button onClick={() => handleExport('config')} className="px-4 py-2 rounded border border-mui-grey-200 dark:border-white/10 text-xs font-bold hover:bg-mui-grey-50 dark:hover:bg-white/5 transition-colors">Config Only</button>
-                <button onClick={() => handleExport('ssh')} className="px-4 py-2 rounded border border-mui-grey-200 dark:border-white/10 text-xs font-bold hover:bg-mui-grey-50 dark:hover:bg-white/5 transition-colors">SSH Sessions Only</button>
+                <button onClick={() => handleExport('config')} className="px-4 py-2 rounded border border-mui-grey-200 dark:border-white/10 text-xs font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-50 dark:hover:bg-white/5 transition-colors">Config Only</button>
+                <button onClick={() => handleExport('ssh')} className="px-4 py-2 rounded border border-mui-grey-200 dark:border-white/10 text-xs font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-50 dark:hover:bg-white/5 transition-colors">SSH Sessions Only</button>
               </div>
             </div>
           </div>
@@ -117,7 +118,7 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', config, s
         return (
           <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
              <div>
-              <h3 className="text-xl font-bold mb-1 tracking-tight">Global Configuration</h3>
+              <h3 className="text-xl font-bold mb-1 tracking-tight text-mui-grey-900 dark:text-white">Global Configuration</h3>
               <p className="text-sm text-mui-grey-500 dark:text-mui-grey-400">Environment paths and core application behavior.</p>
             </div>
 
@@ -130,13 +131,13 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', config, s
                   <input
                     type="text"
                     readOnly
-                    value={config.baseDir || ''}
-                    className="flex-1 bg-mui-grey-50 dark:bg-white/5 border border-mui-grey-200 dark:border-white/10 rounded px-3 py-2 text-sm outline-none"
+                    value={appConfig?.baseDir || ''}
+                    className="flex-1 bg-mui-grey-50 dark:bg-white/5 border border-mui-grey-200 dark:border-white/10 rounded px-3 py-2 text-sm outline-none text-mui-grey-700 dark:text-mui-grey-200"
                   />
                   <button
                     onClick={async () => {
                       const selected = await AppBackend.SelectServerRoot();
-                      if (selected) initApp();
+                      if (selected && initApp) initApp();
                     }}
                     className="px-4 py-2 bg-mui-blue-500 text-white rounded text-xs font-bold hover:bg-mui-blue-600 transition-colors"
                   >
@@ -153,13 +154,13 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', config, s
                   <input
                     type="text"
                     readOnly
-                    value={config.wwwRoot || ''}
-                    className="flex-1 bg-mui-grey-50 dark:bg-white/5 border border-mui-grey-200 dark:border-white/10 rounded px-3 py-2 text-sm outline-none"
+                    value={appConfig?.wwwRoot || ''}
+                    className="flex-1 bg-mui-grey-50 dark:bg-white/5 border border-mui-grey-200 dark:border-white/10 rounded px-3 py-2 text-sm outline-none text-mui-grey-700 dark:text-mui-grey-200"
                   />
                   <button
                     onClick={async () => {
                       const selected = await AppBackend.SelectWWWRoot();
-                      if (selected) initApp();
+                      if (selected && initApp) initApp();
                     }}
                     className="px-4 py-2 bg-mui-blue-500 text-white rounded text-xs font-bold hover:bg-mui-blue-600 transition-colors"
                   >
@@ -175,27 +176,27 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', config, s
                   </label>
                   <div className="space-y-3">
                     <label className="flex items-center justify-between group cursor-pointer">
-                      <span className="text-sm">Apache HTTPS</span>
+                      <span className="text-sm text-mui-grey-700 dark:text-mui-grey-200">Apache HTTPS</span>
                       <input
                         type="checkbox"
-                        checked={config.apacheHttps}
+                        checked={!!appConfig?.apacheHttps}
                         onChange={async (e) => {
                           const next = e.target.checked;
                           await AppBackend.SetApacheHTTPS(next);
-                          initApp();
+                          if (initApp) initApp();
                         }}
                         className="w-4 h-4 accent-mui-blue-500"
                       />
                     </label>
                     <label className="flex items-center justify-between group cursor-pointer">
-                      <span className="text-sm">Nginx HTTPS</span>
+                      <span className="text-sm text-mui-grey-700 dark:text-mui-grey-200">Nginx HTTPS</span>
                       <input
                         type="checkbox"
-                        checked={config.nginxHttps}
+                        checked={!!appConfig?.nginxHttps}
                         onChange={async (e) => {
                           const next = e.target.checked;
                           await AppBackend.SetNginxHTTPS(next);
-                          initApp();
+                          if (initApp) initApp();
                         }}
                         className="w-4 h-4 accent-mui-blue-500"
                       />
@@ -213,13 +214,13 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', config, s
                           type="text"
                           readOnly
                           placeholder="Using system default..."
-                          value={config.defaultEditor || ''}
-                          className="flex-1 bg-mui-grey-50 dark:bg-white/5 border border-mui-grey-200 dark:border-white/10 rounded px-3 py-2 text-sm outline-none"
+                          value={appConfig?.defaultEditor || ''}
+                          className="flex-1 bg-mui-grey-50 dark:bg-white/5 border border-mui-grey-200 dark:border-white/10 rounded px-3 py-2 text-sm outline-none text-mui-grey-700 dark:text-mui-grey-200"
                         />
                         <button
                           onClick={async () => {
                             await AppBackend.SelectDefaultEditor();
-                            initApp();
+                            if (initApp) initApp();
                           }}
                           className="px-4 py-2 bg-mui-blue-500 text-white rounded text-xs font-bold hover:bg-mui-blue-600 transition-colors"
                         >
@@ -237,7 +238,7 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', config, s
         return (
           <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col h-full">
              <div className="shrink-0">
-              <h3 className="text-xl font-bold mb-1 tracking-tight">SSH Management</h3>
+              <h3 className="text-xl font-bold mb-1 tracking-tight text-mui-grey-900 dark:text-white">SSH Management</h3>
               <p className="text-sm text-mui-grey-500 dark:text-mui-grey-400">Manage saved connections and credentials.</p>
             </div>
 
@@ -260,7 +261,7 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', config, s
                         <TerminalIcon size={16} />
                       </div>
                       <div>
-                        <div className="font-bold text-sm">{session.name}</div>
+                        <div className="font-bold text-sm text-mui-grey-900 dark:text-white">{session.name}</div>
                         <div className="text-[11px] text-mui-grey-400">{session.user}@{session.host}:{session.port}</div>
                       </div>
                     </div>
@@ -293,7 +294,11 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', config, s
           </div>
         );
       default:
-        return null;
+        return (
+          <div className="flex items-center justify-center h-full text-mui-grey-400">
+            Select a category from the sidebar
+          </div>
+        );
     }
   };
 
@@ -312,13 +317,13 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', config, s
                <Settings size={18} />
              </div>
              <div>
-               <h2 className="text-base font-black uppercase tracking-wider">Settings</h2>
+               <h2 className="text-base font-black uppercase tracking-wider text-mui-grey-900 dark:text-white">Settings</h2>
                <div className="text-[10px] text-mui-grey-400 font-bold uppercase tracking-[0.2em] -mt-1">Ostenia Management</div>
              </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-mui-grey-200 dark:hover:bg-white/10 rounded-full transition-colors"
+            className="p-2 hover:bg-mui-grey-200 dark:hover:bg-white/10 rounded-full transition-colors text-mui-grey-500 dark:text-mui-grey-400"
           >
             <X size={20} />
           </button>
@@ -335,7 +340,7 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', config, s
                   placeholder="Search settings..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-white dark:bg-white/5 border border-mui-grey-200 dark:border-white/10 rounded-lg pl-9 pr-3 py-2 text-xs outline-none focus:border-mui-blue-500 transition-all shadow-sm"
+                  className="w-full bg-white dark:bg-white/5 border border-mui-grey-200 dark:border-white/10 rounded-lg pl-9 pr-3 py-2 text-xs outline-none focus:border-mui-blue-500 transition-all shadow-sm text-mui-grey-700 dark:text-mui-grey-200"
                 />
               </div>
             </div>
@@ -382,7 +387,7 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', config, s
         <div className="h-12 shrink-0 border-t border-mui-grey-200 dark:border-white/10 flex items-center justify-end px-6 gap-3 bg-mui-grey-50 dark:bg-mui-dark-paper">
            <button
              onClick={onClose}
-             className="px-6 py-2 bg-mui-blue-500 hover:bg-mui-blue-600 text-white rounded text-xs font-black uppercase tracking-widest transition-all"
+             className="px-6 py-2 bg-mui-blue-500 hover:bg-mui-blue-600 text-white rounded text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-mui-blue-500/20"
            >
              Close
            </button>
