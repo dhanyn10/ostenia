@@ -29,13 +29,22 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', appConfig
  const [activeCategory, setActiveCategory] = useState(initialCategory);
  const [searchQuery, setSearchQuery] = useState('');
  const [sshSessions, setSshSessions] = useState([]);
+ const [installedApps, setInstalledApps] = useState([]);
 
  useEffect(() => {
  if (isOpen) {
  setActiveCategory(initialCategory);
  loadSSHSessions();
+ loadInstalledApps();
  }
  }, [isOpen, initialCategory]);
+
+ const loadInstalledApps = async () => {
+ try {
+ const apps = await AppBackend.GetInstalledApps();
+ setInstalledApps(apps || []);
+ } catch (err) { console.error(err); }
+ };
 
  const loadSSHSessions = async () => {
  try {
@@ -169,65 +178,61 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', appConfig
  </div>
  </div>
 
- <div className="grid grid-cols-2 gap-6 pt-4 border-t border-mui-grey-100 dark:border-white/5">
- <div className="space-y-4">
- <label className="text-[11px] font-black uppercase tracking-widest text-mui-grey-400 flex items-center gap-2">
- <ShieldCheck size={12} /> HTTPS Support
- </label>
- <div className="space-y-3">
- <label className="flex items-center justify-between group cursor-pointer">
- <span className="text-sm text-mui-grey-700 dark:text-mui-grey-200">Apache HTTPS</span>
- <input
- type="checkbox"
- checked={!!appConfig?.apacheHttps}
- onChange={async (e) => {
- const next = e.target.checked;
- await AppBackend.SetApacheHTTPS(next);
- if (initApp) initApp();
- }}
- className="w-4 h-4 accent-mui-blue-500"
- />
- </label>
- <label className="flex items-center justify-between group cursor-pointer">
- <span className="text-sm text-mui-grey-700 dark:text-mui-grey-200">Nginx HTTPS</span>
- <input
- type="checkbox"
- checked={!!appConfig?.nginxHttps}
- onChange={async (e) => {
- const next = e.target.checked;
- await AppBackend.SetNginxHTTPS(next);
- if (initApp) initApp();
- }}
- className="w-4 h-4 accent-mui-blue-500"
- />
- </label>
- </div>
- </div>
-
+ <div className="pt-4 border-t border-mui-grey-100 dark:border-white/5">
  <div className="space-y-4">
  <label className="text-[11px] font-black uppercase tracking-widest text-mui-grey-400 flex items-center gap-2">
  <Monitor size={12} /> External Editor
  </label>
- <div className="space-y-2">
+ <div className="space-y-3">
  <div className="flex gap-2">
- <input
- type="text"
- readOnly
- placeholder="Using system default..."
- value={appConfig?.defaultEditor || ''}
- className="flex-1 bg-mui-grey-50 dark:bg-white/5 border border-mui-grey-200 dark:border-white/10 rounded px-3 py-2 text-sm outline-none text-mui-grey-700 dark:text-mui-grey-200"
- />
+ <select
+ value={installedApps.find(a => a.path === appConfig?.defaultEditor)?.path || ""}
+ onChange={async (e) => {
+ if (e.target.value) {
+ await AppBackend.SetDefaultEditor(e.target.value);
+ if (initApp) initApp();
+ }
+ }}
+ className="flex-1 bg-mui-grey-50 dark:bg-white/5 border border-mui-grey-200 dark:border-white/10 rounded px-3 py-2 text-sm outline-none text-mui-grey-700 dark:text-mui-grey-200 appearance-none cursor-pointer"
+ >
+ <option value="">Select from installed apps...</option>
+ {installedApps.sort((a,b) => a.name.localeCompare(b.name)).map((app, idx) => (
+ <option key={idx} value={app.path}>{app.name}</option>
+ ))}
+ </select>
+ <div className="flex items-center px-3 border border-mui-grey-200 dark:border-white/10 rounded bg-mui-grey-50 dark:bg-white/5 text-xs font-bold text-mui-grey-400">
+ OR
+ </div>
  <button
  onClick={async () => {
  await AppBackend.SelectDefaultEditor();
  if (initApp) initApp();
  }}
- className="px-4 py-2 bg-mui-blue-500 text-white rounded text-xs font-bold hover:bg-mui-blue-600 transition-colors"
+ className="px-4 py-2 bg-mui-blue-500 text-white rounded text-xs font-bold hover:bg-mui-blue-600 transition-colors whitespace-nowrap"
  >
- Set
+ Custom Browse
  </button>
  </div>
- <p className="text-[10px] text-mui-grey-400 italic">Used for "Edit Remote File" in SSH explorer.</p>
+
+ {appConfig?.defaultEditor && (
+ <div className="p-3 rounded border border-mui-blue-500/20 bg-mui-blue-500/5 flex items-center justify-between group">
+ <div className="flex flex-col">
+ <span className="text-[10px] font-black uppercase tracking-widest text-mui-blue-500">Current Editor</span>
+ <span className="text-xs text-mui-grey-700 dark:text-mui-grey-200 truncate max-w-md">{appConfig.defaultEditor}</span>
+ </div>
+ <button
+ onClick={async () => {
+ await AppBackend.SetDefaultEditor("");
+ if (initApp) initApp();
+ }}
+ className="p-1.5 hover:bg-rose-500/10 rounded text-mui-grey-400 hover:text-rose-500 transition-colors"
+ >
+ <Trash2 size={14} />
+ </button>
+ </div>
+ )}
+
+ <p className="text-[10px] text-mui-grey-400 italic">Used for "Edit Remote File" in SSH explorer. If unset, Ostenia uses system default.</p>
  </div>
  </div>
  </div>
