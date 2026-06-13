@@ -13,3 +13,7 @@ func setHideWindow(cmd *exec.Cmd) {
 	}
 	cmd.SysProcAttr.HideWindow = true
 }
+
+func SetHideWindow(cmd *exec.Cmd) {
+	setHideWindow(cmd)
+}
