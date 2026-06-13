@@ -6,13 +6,13 @@ import {
   X,
   Settings,
   Eye,
-  FileText,
   HelpCircle,
   ChevronRight,
   Monitor,
   Terminal as TerminalIcon,
-  Copy,
   ExternalLink,
+  User,
+  Sliders
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -22,7 +22,7 @@ function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
-const MenuItem = ({ label, children, isOpen, onOpen, onHover, onClose, theme }) => {
+const MenuItem = ({ label, children, isOpen, onOpen, onHover, onClose }) => {
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -54,7 +54,7 @@ const MenuItem = ({ label, children, isOpen, onOpen, onHover, onClose, theme }) 
       {isOpen && (
         <div className={cn(
           "absolute top-full left-0 w-64 border shadow-2xl z-[100] py-1 animate-in fade-in zoom-in-95 duration-100",
-          "bg-white dark:bg-mui-dark-paper border-mui-grey-200 dark:border-white/10"
+          "bg-white dark:bg-mui-dark-paper border-mui-grey-200 dark:border-white/10 rounded-b-sm"
         )}>
           {children}
         </div>
@@ -63,7 +63,7 @@ const MenuItem = ({ label, children, isOpen, onOpen, onHover, onClose, theme }) 
   );
 };
 
-const SubMenuItem = ({ label, icon: Icon, onClick, shortcut, hasSubmenu, theme }) => (
+const SubMenuItem = ({ label, icon: Icon, onClick, shortcut, hasSubmenu }) => (
   <button
     onClick={onClick}
     className={cn(
@@ -94,7 +94,7 @@ const MenuDivider = () => (
   <div className="my-1 border-t border-mui-grey-200 dark:border-white/5" />
 );
 
-const MenuBar = ({ theme, setTheme }) => {
+const MenuBar = ({ theme, setTheme, onOpenSettings }) => {
   const [openMenu, setOpenMenu] = useState(null);
   const [isMaximized, setIsMaximized] = useState(false);
 
@@ -109,61 +109,29 @@ const MenuBar = ({ theme, setTheme }) => {
   };
   const handleClose = () => AppBackend.Close();
 
-  const handleExport = async (type) => {
-    try {
-      await AppBackend.ExportProfile(type === 'all' || type === 'config', type === 'all' || type === 'ssh');
-    } catch (err) {
-      console.error(err);
-    }
-    setOpenMenu(null);
-  };
-
-  const handleImport = async () => {
-    try {
-      await AppBackend.ImportProfile();
-    } catch (err) {
-      console.error(err);
-    }
-    setOpenMenu(null);
-  };
-
-  const handleToggleDevTools = () => {
-    AppBackend.ToggleDevTools();
-    setOpenMenu(null);
-  };
-
-  const handleSetEditor = async () => {
-    try {
-      await AppBackend.SelectDefaultEditor();
-    } catch (err) {
-      console.error(err);
-    }
+  const handleOpenCategory = (category) => {
+    onOpenSettings(category);
     setOpenMenu(null);
   };
 
   const menuItems = [
     { id: 'file', label: 'File', content: (
-      <>
-        <SubMenuItem label="Import Profile..." icon={FileText} onClick={handleImport} />
-        <MenuDivider />
-        <SubMenuItem label="Export All" icon={Copy} onClick={() => handleExport('all')} />
-        <SubMenuItem label="Export Config Only" icon={Settings} onClick={() => handleExport('config')} />
-        <SubMenuItem label="Export SSH Sessions Only" icon={TerminalIcon} onClick={() => handleExport('ssh')} />
-        <MenuDivider />
-        <SubMenuItem label="Exit" onClick={handleClose} shortcut="Alt+F4" />
-      </>
+      <SubMenuItem label="Exit" onClick={handleClose} shortcut="Alt+F4" />
     )},
     { id: 'view', label: 'View', content: (
-      <SubMenuItem label="Toggle Developer Tools" icon={Monitor} onClick={handleToggleDevTools} shortcut="F12" />
+      <SubMenuItem label="Toggle Developer Tools" icon={Monitor} onClick={() => { AppBackend.ToggleDevTools(); setOpenMenu(null); }} shortcut="F12" />
     )},
     { id: 'settings', label: 'Settings', content: (
       <>
+        <SubMenuItem label="Profile" icon={User} onClick={() => handleOpenCategory('profile')} />
+        <SubMenuItem label="Config" icon={Sliders} onClick={() => handleOpenCategory('config')} />
+        <SubMenuItem label="SSH" icon={TerminalIcon} onClick={() => handleOpenCategory('ssh')} />
+        <MenuDivider />
         <SubMenuItem
           label={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
           icon={Eye}
           onClick={() => { setTheme(theme === 'dark' ? 'light' : 'dark'); setOpenMenu(null); }}
         />
-        <SubMenuItem label="Default Editor Path..." icon={Settings} onClick={handleSetEditor} />
       </>
     )},
     { id: 'help', label: 'Help', content: (
@@ -194,7 +162,6 @@ const MenuBar = ({ theme, setTheme }) => {
             onOpen={() => setOpenMenu(openMenu === item.id ? null : item.id)}
             onHover={() => openMenu && setOpenMenu(item.id)}
             onClose={() => setOpenMenu(null)}
-            theme={theme}
           >
             {item.content}
           </MenuItem>

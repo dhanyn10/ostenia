@@ -9,6 +9,7 @@ import MenuBar from './components/MenuBar';
 import StatusBar from './components/StatusBar';
 import VerticalNav from './components/VerticalNav';
 import AppHeader from './components/AppHeader';
+import SettingsModal from './components/SettingsModal';
 import Toast from './components/Toast';
 import LogViewer from './components/LogViewer';
 import ActivityTab from './components/ActivityTab';
@@ -49,11 +50,13 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [selectedVersions, setSelectedVersions] = useState({});
   const [isAddingPlugin, setIsAddingPlugin] = useState(false);
+  const [settingsModal, setSettingsModal] = useState({ isOpen: false, category: 'profile' });
   
   const [serverRootState, setServerRootState] = useState('');
   const [appsLocation, setAppsLocation] = useState('');
   const [apacheHttps, setApacheHttps] = useState(false);
   const [nginxHttps, setNginxHttps] = useState(false);
+  const [defaultEditor, setDefaultEditor] = useState('');
 
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
@@ -130,6 +133,7 @@ function App() {
         setAppsLocation(cfg.baseDir || '');
         setApacheHttps(cfg.apacheHttps || false);
         setNginxHttps(cfg.nginxHttps || false);
+        setDefaultEditor(cfg.defaultEditor || '');
       }
       if (AppBackend.GetServiceStatus) {
         const updatedServices = await Promise.all(
@@ -214,7 +218,11 @@ function App() {
       "flex flex-col h-screen font-sans selection:bg-mui-blue-500/30 overflow-hidden transition-colors duration-300 fixed inset-0", // Added fixed inset-0
       theme === 'dark' ? "bg-mui-dark-bg text-mui-grey-200" : "bg-mui-grey-50 text-mui-grey-900"
     )}>
-      <MenuBar theme={theme} setTheme={setTheme} />
+      <MenuBar
+        theme={theme}
+        setTheme={setTheme}
+        onOpenSettings={(category) => setSettingsModal({ isOpen: true, category })}
+      />
 
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
         <Toast toasts={toasts} removeToast={removeToast} />
@@ -369,6 +377,21 @@ function App() {
       </div>
 
       <StatusBar services={services} />
+
+      <SettingsModal
+        isOpen={settingsModal.isOpen}
+        onClose={() => setSettingsModal(prev => ({ ...prev, isOpen: false }))}
+        initialCategory={settingsModal.category}
+        config={{
+          baseDir: appsLocation,
+          wwwRoot: serverRootState,
+          apacheHttps,
+          nginxHttps,
+          defaultEditor: defaultEditor
+        }}
+        initApp={initApp}
+        theme={theme}
+      />
 
       <ConfirmationModal
         isOpen={confirmModal.isOpen}
