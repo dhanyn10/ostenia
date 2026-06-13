@@ -15,6 +15,12 @@ type InstalledApp struct {
 func (a *App) GetInstalledApps() ([]InstalledApp, error) {
 	apps := make(map[string]string)
 
+	keywords := []string{
+		"code", "editor", "notepad", "sublime", "studio", "vim",
+		"text", "edit", "writer", "atom", "jetbrains", "intellij",
+		"pycharm", "webstorm", "phpstorm", "zed", "cursor", "vscodium",
+	}
+
 	paths := []string{
 		`SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall`,
 		`SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall`,
@@ -45,6 +51,20 @@ func (a *App) GetInstalledApps() ([]InstalledApp, error) {
 			sk.Close()
 
 			if name != "" {
+				lowerName := strings.ToLower(name)
+				isEditor := false
+				for _, kw := range keywords {
+					if strings.Contains(lowerName, kw) {
+						isEditor = true
+						break
+					}
+				}
+
+				if !isEditor {
+					sk.Close()
+					continue
+				}
+
 				appPath := location
 				if appPath == "" && exe != "" {
 					// Clean up DisplayIcon which might have ",0" at the end
