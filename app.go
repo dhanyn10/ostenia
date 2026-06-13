@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"ostenia/internal/config"
 	"ostenia/internal/plugins"
+	plugins_utils "ostenia/internal/plugins/utils"
 	"ostenia/internal/plugins/php"
 	"ostenia/internal/plugins/python"
 	"ostenia/internal/network"
@@ -195,7 +196,7 @@ func (a *App) OpenHeidiSQL() error {
 		return fmt.Errorf("HeidiSQL is not installed")
 	}
 	cmd := exec.Command("cmd", "/c", "start", "", exePath)
-	service.SetHideWindow(cmd)
+	plugins_utils.SetHideWindow(cmd)
 	return cmd.Run()
 }
 
@@ -633,7 +634,7 @@ func (a *App) SwitchServiceVersion(serviceName string, version string) error {
 	os.Remove(currentPath)
 	if _, err := os.Stat(targetDir); err == nil {
 		cmd := exec.Command("cmd", "/c", "mklink", "/J", currentPath, targetDir)
-		service.SetHideWindow(cmd)
+		plugins_utils.SetHideWindow(cmd)
 		_ = cmd.Run()
 	}
 	if category == "php" {

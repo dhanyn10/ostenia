@@ -8,13 +8,6 @@ import (
 	"unsafe"
 )
 
-func SetHideWindow(cmd *exec.Cmd) {
-	if cmd.SysProcAttr == nil {
-		cmd.SysProcAttr = &syscall.SysProcAttr{}
-	}
-	cmd.SysProcAttr.HideWindow = true
-}
-
 func notifyEnvironmentUpdate() {
 	user32 := syscall.NewLazyDLL("user32.dll")
 	sendMessage := user32.NewProc("SendMessageTimeoutW")
