@@ -10,8 +10,8 @@ test('basic navigation', async ({ page }) => {
 
   // Switch to Plugin Management
   await page.getByTitle('Plugin Management').click();
-  // Check if some plugin-related content is visible
-  await expect(page.getByText(/Environment Services/i)).toBeVisible();
+  // Check if the header title changed
+  await expect(page.getByRole('heading', { name: /Plugin Management/i })).toBeVisible();
 });
 
 test('theme toggle', async ({ page }) => {
