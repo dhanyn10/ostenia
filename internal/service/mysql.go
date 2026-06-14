@@ -13,8 +13,8 @@ func UpdateMySQLConfig(mysqlBaseDir string, dataDir string, tmpDir string, port 
 	iniPath := filepath.Join(mysqlBaseDir, "my.ini")
 
 	// Ensure data and tmp directories exist
-	os.MkdirAll(dataDir, 0755)
-	os.MkdirAll(tmpDir, 0755)
+	_ = os.MkdirAll(dataDir, 0755)
+	_ = os.MkdirAll(tmpDir, 0755)
 
 	content := fmt.Sprintf(`
 [mysqld]
