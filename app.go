@@ -134,6 +134,7 @@ func (a *App) OpenHeidiSQL() error {
 		return fmt.Errorf("HeidiSQL is not installed")
 	}
 	cmd := exec.Command("cmd", "/c", "start", "", exePath)
+	cmd.Env = plugins_utils.SafeEnv()
 	plugins_utils.SetHideWindow(cmd)
 	return cmd.Run()
 }
@@ -606,6 +607,7 @@ func (a *App) SwitchServiceVersion(serviceName string, version string) error {
 	_ = os.Remove(currentPath)
 	if _, err := os.Stat(targetDir); err == nil {
 		cmd := exec.Command("cmd", "/c", "mklink", "/J", currentPath, targetDir)
+		cmd.Env = plugins_utils.SafeEnv()
 		plugins_utils.SetHideWindow(cmd)
 		_ = cmd.Run()
 	}

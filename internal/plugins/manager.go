@@ -59,6 +59,7 @@ func (m *Manager) DeleteVersion(taskName, version string) error {
 		}
 		if exe, ok := exeMap[strings.ToLower(taskName)]; ok {
 			c := exec.Command("taskkill", "/F", "/IM", exe, "/T")
+			c.Env = utils.SafeEnv()
 			utils.SetHideWindow(c)
 			_ = c.Run()
 			time.Sleep(500 * time.Millisecond)
@@ -139,11 +140,14 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 		}
 		dest := filepath.Join(targetDir, "installer.exe")
 		// Correct copy for Windows (replace old installer if it exists)
-		if err := exec.Command("cmd", "/c", "copy", "/Y", tmp, dest).Run(); err != nil {
+		copyCmd := exec.Command("cmd", "/c", "copy", "/Y", tmp, dest)
+		copyCmd.Env = utils.SafeEnv()
+		if err := copyCmd.Run(); err != nil {
 			return fmt.Errorf("failed to copy installer: %w", err)
 		}
 
 		cmd := exec.Command("cmd", "/c", "start", "", dest)
+		cmd.Env = utils.SafeEnv()
 		utils.SetHideWindow(cmd)
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to launch installer: %w", err)
@@ -297,6 +301,7 @@ func (m *Manager) ensureCurrentLink(task DownloadTask) error {
 	target := filepath.Join(baseDir, "bin", task.Target)
 	_ = os.Remove(link) // Remove old junction
 	c := exec.Command("cmd", "/c", "mklink", "/J", link, target)
+	c.Env = utils.SafeEnv()
 	utils.SetHideWindow(c)
 	return c.Run()
 }

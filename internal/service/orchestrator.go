@@ -285,6 +285,7 @@ func findOsteniaPIDs(exeName string) []int {
 	baseDir := config.GetBaseDir()
 	binPath := filepath.Join(baseDir, "bin")
 	cmd := exec.Command("wmic", "process", "where", fmt.Sprintf("name='%s'", exeName), "get", "ExecutablePath,ProcessId", "/format:csv")
+	cmd.Env = utils.SafeEnv()
 	utils.SetHideWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {
@@ -319,6 +320,7 @@ func findPortsByPIDExact(pid int) []int {
 	pidStr := strconv.Itoa(pid)
 	command := fmt.Sprintf("netstat -ano | findstr %s | findstr LISTENING", pidStr)
 	cmd := exec.Command("cmd", "/c", command)
+	cmd.Env = utils.SafeEnv()
 	utils.SetHideWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {
@@ -421,6 +423,7 @@ func (o *Orchestrator) StopService(name string) error {
 			_, uninstaller := utils.DetectHeidiSQLInstallation()
 			if uninstaller != "" {
 				cmd := exec.Command("cmd", "/c", "start", "", uninstaller)
+				cmd.Env = utils.SafeEnv()
 				utils.SetHideWindow(cmd)
 				_ = cmd.Run()
 			} else {
@@ -428,6 +431,7 @@ func (o *Orchestrator) StopService(name string) error {
 				pids := findOsteniaPIDs("heidisql.exe")
 				for _, pid := range pids {
 					killCmd := exec.Command("taskkill", "/F", "/PID", strconv.Itoa(pid), "/T")
+					killCmd.Env = utils.SafeEnv()
 					utils.SetHideWindow(killCmd)
 					_ = killCmd.Run()
 				}
@@ -461,6 +465,7 @@ func (o *Orchestrator) StopService(name string) error {
 			pids := findOsteniaPIDs(exe)
 			for _, pid := range pids {
 				killCmd := exec.Command("taskkill", "/F", "/PID", strconv.Itoa(pid), "/T")
+				killCmd.Env = utils.SafeEnv()
 				utils.SetHideWindow(killCmd)
 				_ = killCmd.Run()
 			}
