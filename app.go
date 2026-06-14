@@ -367,212 +367,194 @@ func (a *App) UninstallPluginModule(parentName string, moduleName string) error 
 }
 
 func (a *App) StartService(serviceName string) error {
-	baseDir := config.GetBaseDir()
 	_, binDir, currentPath := a.getPluginPaths(serviceName)
 	fmt.Printf("[App] Starting service: %s\n", serviceName)
 
 	switch serviceName {
 	case "Node.js":
-		if _, err := os.Stat(currentPath); os.IsNotExist(err) {
-			return fmt.Errorf("node.js not installed")
-		}
-		err := service.UpdateNodePath(currentPath, true)
-		if err != nil {
-			return err
-		}
-		a.orchestrator.RequestRefresh()
-		return nil
-
+		return a.startNodeService(currentPath)
 	case "Python":
-		if _, err := os.Stat(currentPath); os.IsNotExist(err) {
-			return fmt.Errorf("python not installed")
-		}
-		err := service.UpdatePythonPath(currentPath, true)
-		if err != nil {
-			return err
-		}
-		a.orchestrator.RequestRefresh()
-		return nil
-
+		return a.startPythonService(currentPath)
 	case "OpenSSL":
-		caDir := filepath.Join(baseDir, "ssl")
-		err := ssl.GenerateRootCA(caDir)
-		if err != nil {
-			return err
-		}
-		a.orchestrator.RequestRefresh()
-		return nil
-
+		return a.startOpenSSLService()
 	case "MySQL":
-		var mysqlBin string
-		var mysqlBase string
-		filepath.Walk(binDir, func(path string, info os.FileInfo, err error) error {
-			if info == nil {
-				return nil
-			}
-			if !info.IsDir() && info.Name() == "mysqld.exe" {
-				mysqlBin = path
-				mysqlBase = filepath.Dir(filepath.Dir(path))
-				return filepath.SkipDir
-			}
-			return nil
-		})
-		if mysqlBin == "" {
-			return fmt.Errorf("mysqld.exe not found")
-		}
-		currentInfo := a.orchestrator.GetDetailedInfo("MySQL")
-		port := currentInfo.Port
-		if port <= 0 {
-			p, err := network.GetAvailablePort([]int{3306, 3307, 3308})
-			if err != nil {
-				return err
-			}
-			port = p
-		}
-		os.Setenv("PATH", filepath.Dir(mysqlBin)+";"+os.Getenv("PATH"))
-		err := a.updateMySQLConfig(mysqlBase, port)
-		if err != nil {
-			return err
-		}
-		iniPath := filepath.Join(mysqlBase, "my.ini")
-		return a.orchestrator.StartServiceWithPort("MySQL", mysqlBin, []string{"--defaults-file=" + iniPath, "--console"}, filepath.Dir(mysqlBin), port)
-
+		return a.startMySQLService(binDir)
 	case "Apache":
-		if a.orchestrator.IsRunning("Nginx") {
-			a.StopService("Nginx")
-			time.Sleep(600 * time.Millisecond)
-		}
-		var apacheBase string
-		var apacheBin string
-		filepath.Walk(binDir, func(path string, info os.FileInfo, err error) error {
-			if info == nil {
-				return nil
-			}
-			if !info.IsDir() && info.Name() == "httpd.exe" {
-				apacheBin = path
-				apacheBase = filepath.Dir(filepath.Dir(path))
-				return filepath.SkipDir
-			}
-			return nil
-		})
-		if apacheBase == "" {
-			return fmt.Errorf("apache installation not found")
-		}
-		currentInfo := a.orchestrator.GetDetailedInfo("Apache")
-		port := currentInfo.Port
-		if port <= 0 {
-			p, err := network.GetAvailablePort([]int{80, 8080, 8081, 9000})
-			if err != nil {
-				return err
-			}
-			port = p
-		}
-		_, _, phpPath := a.getPluginPaths("PHP")
-		_, _, nodePath := a.getPluginPaths("Node.js")
-		os.Setenv("PATH", phpPath+";"+os.Getenv("PATH")+";"+nodePath)
-		err := a.updateApacheConfig(apacheBase, port)
-		if err != nil {
-			return err
-		}
-		return a.orchestrator.StartServiceWithPort("Apache", apacheBin, []string{}, apacheBase, port)
-
+		return a.startApacheService(binDir)
 	case "Nginx":
-		if a.orchestrator.IsRunning("Apache") {
-			a.StopService("Apache")
-			time.Sleep(600 * time.Millisecond)
-		}
-		var nginxBase string
-		var nginxBin string
-		filepath.Walk(binDir, func(path string, info os.FileInfo, err error) error {
-			if info == nil {
-				return nil
-			}
-			if !info.IsDir() && info.Name() == "nginx.exe" {
-				nginxBin = path
-				nginxBase = filepath.Dir(path)
-				return filepath.SkipDir
-			}
-			return nil
-		})
-		if nginxBase == "" {
-			return fmt.Errorf("nginx installation not found")
-		}
-		currentInfo := a.orchestrator.GetDetailedInfo("Nginx")
-		port := currentInfo.Port
-		if port <= 0 {
-			p, err := network.GetAvailablePort([]int{80, 8080, 8081, 9000})
-			if err != nil {
-				return err
-			}
-			port = p
-		}
-		err := a.updateNginxConfig(nginxBase, port)
-		if err != nil {
-			return err
-		}
-		return a.orchestrator.StartServiceWithPort("Nginx", nginxBin, []string{"-p", nginxBase}, nginxBase, port)
-
+		return a.startNginxService(binDir)
 	case "HeidiSQL":
-		exePath, _ := plugins.DetectHeidiSQLInstallation()
-		if exePath != "" {
-			// If already installed, the button might mean "Start" but the user wants "ON" status to mean "Installed"
-			// Actually, StartService is called when the toggle is clicked from OFF to ON.
-			// Since it's already installed, we just refresh.
-			a.orchestrator.RequestRefresh()
-			return nil
-		}
-
-		// Not installed, we need to run the installer
-		tasks := plugins.GetLatestKnownVersions()
-		var heidiTask *plugins.DownloadTask
-		for _, t := range tasks {
-			if t.Name == "HeidiSQL" {
-				heidiTask = &t
-				break
-			}
-		}
-		if heidiTask == nil {
-			return fmt.Errorf("HeidiSQL task not found")
-		}
-		return a.downloader.DownloadAndExtract(*heidiTask)
-
+		return a.startHeidiSQLService()
 	case "PHP":
-		phpCgi := filepath.Join(currentPath, "php-cgi.exe")
-		if _, err := os.Stat(phpCgi); os.IsNotExist(err) {
-			return fmt.Errorf("php-cgi.exe not found")
-		}
-		err := service.UpdatePHPConfig(currentPath)
-		if err != nil {
-			fmt.Printf("[PHP] Warning: %v\n", err)
-		}
-		currentInfo := a.orchestrator.GetDetailedInfo("PHP")
-		port := currentInfo.Port
-		if port <= 0 {
-			p, err := network.GetAvailablePort([]int{9000, 9001, 9002})
-			if err != nil {
-				return err
-			}
-			port = p
-		}
-		os.Setenv("PATH", currentPath+";"+os.Getenv("PATH"))
-		_ = service.UpdatePHPPath(currentPath, true)
-		os.Setenv("PHP_FCGI_MAX_REQUESTS", "1000")
-		err = a.orchestrator.StartServiceWithPort("PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, currentPath, port)
-		if err == nil {
-			if a.orchestrator.IsRunning("Apache") {
-				a.StopService("Apache")
-				time.Sleep(600 * time.Millisecond)
-				a.StartService("Apache")
-			}
-			if a.orchestrator.IsRunning("Nginx") {
-				a.StopService("Nginx")
-				time.Sleep(600 * time.Millisecond)
-				a.StartService("Nginx")
-			}
-		}
-		return err
+		return a.startPHPService(currentPath)
 	default:
 		return fmt.Errorf("unknown service: %s", serviceName)
+	}
+}
+
+func (a *App) startNodeService(currentPath string) error {
+	if _, err := os.Stat(currentPath); os.IsNotExist(err) {
+		return fmt.Errorf("node.js not installed")
+	}
+	if err := service.UpdateNodePath(currentPath, true); err != nil {
+		return err
+	}
+	a.orchestrator.RequestRefresh()
+	return nil
+}
+
+func (a *App) startPythonService(currentPath string) error {
+	if _, err := os.Stat(currentPath); os.IsNotExist(err) {
+		return fmt.Errorf("python not installed")
+	}
+	if err := service.UpdatePythonPath(currentPath, true); err != nil {
+		return err
+	}
+	a.orchestrator.RequestRefresh()
+	return nil
+}
+
+func (a *App) startOpenSSLService() error {
+	caDir := filepath.Join(config.GetBaseDir(), "ssl")
+	if err := ssl.GenerateRootCA(caDir); err != nil {
+		return err
+	}
+	a.orchestrator.RequestRefresh()
+	return nil
+}
+
+func (a *App) findExecutable(binDir string, exeName string) (string, string) {
+	var binPath, basePath string
+	filepath.Walk(binDir, func(path string, info os.FileInfo, err error) error {
+		if info != nil && !info.IsDir() && info.Name() == exeName {
+			binPath = path
+			basePath = filepath.Dir(filepath.Dir(path))
+			if exeName == "nginx.exe" {
+				basePath = filepath.Dir(path)
+			}
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	return binPath, basePath
+}
+
+func (a *App) startMySQLService(binDir string) error {
+	mysqlBin, mysqlBase := a.findExecutable(binDir, "mysqld.exe")
+	if mysqlBin == "" {
+		return fmt.Errorf("mysqld.exe not found")
+	}
+	port := a.orchestrator.GetDetailedInfo("MySQL").Port
+	if port <= 0 {
+		p, err := network.GetAvailablePort([]int{3306, 3307, 3308})
+		if err != nil {
+			return err
+		}
+		port = p
+	}
+	os.Setenv("PATH", filepath.Dir(mysqlBin)+";"+os.Getenv("PATH"))
+	if err := a.updateMySQLConfig(mysqlBase, port); err != nil {
+		return err
+	}
+	iniPath := filepath.Join(mysqlBase, "my.ini")
+	return a.orchestrator.StartServiceWithPort("MySQL", mysqlBin, []string{"--defaults-file=" + iniPath, "--console"}, filepath.Dir(mysqlBin), port)
+}
+
+func (a *App) startApacheService(binDir string) error {
+	if a.orchestrator.IsRunning("Nginx") {
+		a.StopService("Nginx")
+		time.Sleep(600 * time.Millisecond)
+	}
+	apacheBin, apacheBase := a.findExecutable(binDir, "httpd.exe")
+	if apacheBase == "" {
+		return fmt.Errorf("apache installation not found")
+	}
+	port := a.orchestrator.GetDetailedInfo("Apache").Port
+	if port <= 0 {
+		p, err := network.GetAvailablePort([]int{80, 8080, 8081, 9000})
+		if err != nil {
+			return err
+		}
+		port = p
+	}
+	_, _, phpPath := a.getPluginPaths("PHP")
+	_, _, nodePath := a.getPluginPaths("Node.js")
+	os.Setenv("PATH", phpPath+";"+os.Getenv("PATH")+";"+nodePath)
+	if err := a.updateApacheConfig(apacheBase, port); err != nil {
+		return err
+	}
+	return a.orchestrator.StartServiceWithPort("Apache", apacheBin, []string{}, apacheBase, port)
+}
+
+func (a *App) startNginxService(binDir string) error {
+	if a.orchestrator.IsRunning("Apache") {
+		a.StopService("Apache")
+		time.Sleep(600 * time.Millisecond)
+	}
+	nginxBin, nginxBase := a.findExecutable(binDir, "nginx.exe")
+	if nginxBase == "" {
+		return fmt.Errorf("nginx installation not found")
+	}
+	port := a.orchestrator.GetDetailedInfo("Nginx").Port
+	if port <= 0 {
+		p, err := network.GetAvailablePort([]int{80, 8080, 8081, 9000})
+		if err != nil {
+			return err
+		}
+		port = p
+	}
+	if err := a.updateNginxConfig(nginxBase, port); err != nil {
+		return err
+	}
+	return a.orchestrator.StartServiceWithPort("Nginx", nginxBin, []string{"-p", nginxBase}, nginxBase, port)
+}
+
+func (a *App) startHeidiSQLService() error {
+	exePath, _ := plugins.DetectHeidiSQLInstallation()
+	if exePath != "" {
+		a.orchestrator.RequestRefresh()
+		return nil
+	}
+	tasks := plugins.GetLatestKnownVersions()
+	for _, t := range tasks {
+		if t.Name == "HeidiSQL" {
+			return a.downloader.DownloadAndExtract(t)
+		}
+	}
+	return fmt.Errorf("HeidiSQL task not found")
+}
+
+func (a *App) startPHPService(currentPath string) error {
+	phpCgi := filepath.Join(currentPath, "php-cgi.exe")
+	if _, err := os.Stat(phpCgi); os.IsNotExist(err) {
+		return fmt.Errorf("php-cgi.exe not found")
+	}
+	_ = service.UpdatePHPConfig(currentPath)
+	port := a.orchestrator.GetDetailedInfo("PHP").Port
+	if port <= 0 {
+		p, err := network.GetAvailablePort([]int{9000, 9001, 9002})
+		if err != nil {
+			return err
+		}
+		port = p
+	}
+	os.Setenv("PATH", currentPath+";"+os.Getenv("PATH"))
+	_ = service.UpdatePHPPath(currentPath, true)
+	os.Setenv("PHP_FCGI_MAX_REQUESTS", "1000")
+	err := a.orchestrator.StartServiceWithPort("PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, currentPath, port)
+	if err == nil {
+		a.restartDependentWebServers()
+	}
+	return err
+}
+
+func (a *App) restartDependentWebServers() {
+	for _, srv := range []string{"Apache", "Nginx"} {
+		if a.orchestrator.IsRunning(srv) {
+			a.StopService(srv)
+			time.Sleep(600 * time.Millisecond)
+			a.StartService(srv)
+		}
 	}
 }
 
@@ -758,58 +740,38 @@ func (a *App) SetNginxHTTPS(enabled bool) error {
 }
 func (a *App) OpenServiceTerminal(serviceName string, terminalType string) error {
 	category, binDir, _ := a.getPluginPaths(serviceName)
-	var targetDir string
-
-	switch category {
-	case "nginx":
-		filepath.Walk(binDir, func(path string, info os.FileInfo, err error) error {
-			if info != nil && !info.IsDir() && info.Name() == "nginx.exe" {
-				targetDir = filepath.Dir(path)
-				return filepath.SkipDir
-			}
-			return nil
-		})
-	case "apache":
-		filepath.Walk(binDir, func(path string, info os.FileInfo, err error) error {
-			if info != nil && !info.IsDir() && info.Name() == "httpd.exe" {
-				targetDir = filepath.Dir(path)
-				return filepath.SkipDir
-			}
-			return nil
-		})
-	case "mysql":
-		filepath.Walk(binDir, func(path string, info os.FileInfo, err error) error {
-			if info != nil && !info.IsDir() && info.Name() == "mysqld.exe" {
-				targetDir = filepath.Dir(path)
-				return filepath.SkipDir
-			}
-			return nil
-		})
-	case "nodejs":
-		filepath.Walk(binDir, func(path string, info os.FileInfo, err error) error {
-			if info != nil && !info.IsDir() && info.Name() == "node.exe" {
-				targetDir = filepath.Dir(path)
-				return filepath.SkipDir
-			}
-			return nil
-		})
-	case "python":
-		filepath.Walk(binDir, func(path string, info os.FileInfo, err error) error {
-			if info != nil && !info.IsDir() && info.Name() == "python.exe" {
-				targetDir = filepath.Dir(path)
-				return filepath.SkipDir
-			}
-			return nil
-		})
-	default:
-		targetDir = binDir
-	}
+	targetDir := a.getServiceTargetDir(category, binDir)
 
 	if targetDir == "" {
 		targetDir = binDir
 	}
 	a.OpenTerminalAtPath(terminalType, targetDir)
 	return nil
+}
+
+func (a *App) getServiceTargetDir(category string, binDir string) string {
+	exeMap := map[string]string{
+		"nginx":  "nginx.exe",
+		"apache": "httpd.exe",
+		"mysql":  "mysqld.exe",
+		"nodejs": "node.exe",
+		"python": "python.exe",
+	}
+
+	exeName, ok := exeMap[category]
+	if !ok {
+		return binDir
+	}
+
+	var targetDir string
+	filepath.Walk(binDir, func(path string, info os.FileInfo, err error) error {
+		if info != nil && !info.IsDir() && info.Name() == exeName {
+			targetDir = filepath.Dir(path)
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	return targetDir
 }
 func (a *App) GetPHPExtensions() ([]service.PHPExtensionInfo, error) { baseDir := config.GetBaseDir(); phpPath := filepath.Join(baseDir, "bin", "php", "current"); return service.GetPHPExtensions(phpPath) }
 func (a *App) TogglePHPExtension(extName string, enable bool) error {

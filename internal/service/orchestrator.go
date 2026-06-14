@@ -123,89 +123,128 @@ func (o *Orchestrator) GetDetailedInfo(name string) ServiceDetailedInfo {
 }
 
 func (o *Orchestrator) updateServiceInfo(name string) ServiceDetailedInfo {
-	o.mu.Lock(); s, tracked := o.services[name]; o.mu.Unlock()
+	o.mu.Lock()
+	s, tracked := o.services[name]
+	o.mu.Unlock()
+
 	info := ServiceDetailedInfo{Name: name, Status: "Stopped", Ports: []int{}}
 	baseDir := config.GetBaseDir()
 
-	if name == "Node.js" {
-		currentPath := filepath.Join(baseDir, "bin", "nodejs", "current")
-		if IsPathInSystemPath(currentPath) { info.Status = "Running" }
-		ver, err := GetNodeVersion(currentPath)
-		if err == nil { info.ActiveVersion = ver }
-		o.updateCache(name, info); return info
-	}
-	if name == "Python" {
-		currentPath := filepath.Join(baseDir, "bin", "python", "current")
-		if IsPathInSystemPath(currentPath) { info.Status = "Running" }
-		ver, err := GetPythonVersion(currentPath)
-		if err == nil { info.ActiveVersion = ver }
-		o.updateCache(name, info); return info
-	}
-
-	if name == "PHP" || name == "Apache" || name == "MySQL" || name == "Nginx" {
-		currentPath := filepath.Join(baseDir, "bin", strings.ToLower(name), "current")
-		if name == "PHP" {
-			if IsPathInUserPath(currentPath) { info.Status = "Running" }
-			ver, err := GetPHPVersion(currentPath)
-			if err == nil { info.ActiveVersion = ver }
-		} else if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
-			info.ActiveVersion = filepath.Base(resolved)
-		}
-	}
-
-	if name == "OpenSSL" {
-		caPath := filepath.Join(baseDir, "ssl", "ca.crt")
-		if _, err := os.Stat(caPath); err == nil {
-			info.Status = "Running"; days, _ := ssl.GetRemainingDays(caPath); info.RemainingDays = days
-		}
-		o.updateCache(name, info); return info
-	}
-
-	if name == "HeidiSQL" {
-		exePath, _ := utils.DetectHeidiSQLInstallation()
-		if exePath != "" {
-			info.Status = "Running"
-			info.ActiveVersion = "System"
-		}
-		o.updateCache(name, info); return info
-	}
-
-	var exeName string
 	switch name {
-	case "Apache": exeName = "httpd.exe"
-	case "MySQL":  exeName = "mysqld.exe"
-	case "HeidiSQL": exeName = "heidisql.exe"
-	case "Nginx":  exeName = "nginx.exe"
-	case "PHP":    exeName = "php-cgi.exe"
+	case "Node.js":
+		o.updateNodeInfo(&info, baseDir)
+	case "Python":
+		o.updatePythonInfo(&info, baseDir)
+	case "OpenSSL":
+		o.updateOpenSSLInfo(&info, baseDir)
+	case "HeidiSQL":
+		o.updateHeidiSQLInfo(&info)
+	case "PHP", "Apache", "MySQL", "Nginx":
+		o.updateGenericServiceInfo(&info, name, baseDir, s, tracked)
 	}
-	if exeName == "" { o.updateCache(name, info); return info }
 
+	o.updateCache(name, info)
+	return info
+}
+
+func (o *Orchestrator) updateNodeInfo(info *ServiceDetailedInfo, baseDir string) {
+	currentPath := filepath.Join(baseDir, "bin", "nodejs", "current")
+	if IsPathInSystemPath(currentPath) {
+		info.Status = "Running"
+	}
+	ver, err := GetNodeVersion(currentPath)
+	if err == nil {
+		info.ActiveVersion = ver
+	}
+}
+
+func (o *Orchestrator) updatePythonInfo(info *ServiceDetailedInfo, baseDir string) {
+	currentPath := filepath.Join(baseDir, "bin", "python", "current")
+	if IsPathInSystemPath(currentPath) {
+		info.Status = "Running"
+	}
+	ver, err := GetPythonVersion(currentPath)
+	if err == nil {
+		info.ActiveVersion = ver
+	}
+}
+
+func (o *Orchestrator) updateOpenSSLInfo(info *ServiceDetailedInfo, baseDir string) {
+	caPath := filepath.Join(baseDir, "ssl", "ca.crt")
+	if _, err := os.Stat(caPath); err == nil {
+		info.Status = "Running"
+		days, _ := ssl.GetRemainingDays(caPath)
+		info.RemainingDays = days
+	}
+}
+
+func (o *Orchestrator) updateHeidiSQLInfo(info *ServiceDetailedInfo) {
+	exePath, _ := utils.DetectHeidiSQLInstallation()
+	if exePath != "" {
+		info.Status = "Running"
+		info.ActiveVersion = "System"
+	}
+}
+
+func (o *Orchestrator) updateGenericServiceInfo(info *ServiceDetailedInfo, name string, baseDir string, s *runningService, tracked bool) {
+	currentPath := filepath.Join(baseDir, "bin", strings.ToLower(name), "current")
+	if name == "PHP" {
+		if IsPathInUserPath(currentPath) {
+			info.Status = "Running"
+		}
+		ver, err := GetPHPVersion(currentPath)
+		if err == nil {
+			info.ActiveVersion = ver
+		}
+	} else if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
+		info.ActiveVersion = filepath.Base(resolved)
+	}
+
+	exeMap := map[string]string{
+		"Apache": "httpd.exe",
+		"MySQL":  "mysqld.exe",
+		"Nginx":  "nginx.exe",
+		"PHP":    "php-cgi.exe",
+	}
+
+	exeName := exeMap[name]
 	pids := findOsteniaPIDs(exeName)
 	if len(pids) > 0 {
-		info.Status = "Running"; info.PID = pids[0]
-		if name == "Apache" || name == "Nginx" || name == "MySQL" || name == "PHP" {
-			foundPorts := make(map[int]bool)
-			for _, pid := range pids {
-				ports := findPortsByPIDExact(pid)
-				for _, p := range ports { foundPorts[p] = true }
-			}
-			for p := range foundPorts { info.Ports = append(info.Ports, p) }
-			sort.Ints(info.Ports)
-			if len(info.Ports) > 0 { info.Port = info.Ports[0] } else if tracked {
-				info.Port = s.port; if info.Port > 0 { info.Ports = append(info.Ports, info.Port) }
-			}
-		}
+		info.Status = "Running"
+		info.PID = pids[0]
+		o.updateServicePorts(info, pids, s, tracked)
 		if !tracked || (info.Port > 0 && s.port != info.Port) {
-			o.mu.Lock(); o.services[name] = &runningService{cmd: nil, port: info.Port}; o.mu.Unlock()
+			o.mu.Lock()
+			o.services[name] = &runningService{cmd: nil, port: info.Port}
+			o.mu.Unlock()
 		}
-	} else {
-		if tracked {
-			if name == "PHP" && IsPathInUserPath(filepath.Join(baseDir, "bin", "php", "current")) { } else {
-				o.mu.Lock(); delete(o.services, name); o.mu.Unlock()
-			}
+	} else if tracked {
+		if name != "PHP" || !IsPathInUserPath(filepath.Join(baseDir, "bin", "php", "current")) {
+			o.mu.Lock()
+			delete(o.services, name)
+			o.mu.Unlock()
 		}
 	}
-	o.updateCache(name, info); return info
+}
+
+func (o *Orchestrator) updateServicePorts(info *ServiceDetailedInfo, pids []int, s *runningService, tracked bool) {
+	foundPorts := make(map[int]bool)
+	for _, pid := range pids {
+		ports := findPortsByPIDExact(pid)
+		for _, p := range ports {
+			foundPorts[p] = true
+		}
+	}
+	for p := range foundPorts {
+		info.Ports = append(info.Ports, p)
+	}
+	sort.Ints(info.Ports)
+	if len(info.Ports) > 0 {
+		info.Port = info.Ports[0]
+	} else if tracked && s.port > 0 {
+		info.Port = s.port
+		info.Ports = append(info.Ports, info.Port)
+	}
 }
 
 func (o *Orchestrator) updateCache(name string, info ServiceDetailedInfo) {
