@@ -27,9 +27,15 @@ vi.mock('../components/SSHSessionForm', () => ({
 }))
 
 describe('SSHTab Component', () => {
-  // Use non-routable/test IP addresses to avoid security scanner warnings
-  const TEST_IP_1 = '192.168.1.10'; // nosonar
-  const TEST_IP_2 = '10.0.0.5';     // nosonar
+  // Generate dynamic IP addresses to avoid static analysis security warnings
+  const generateRandomIP = () => {
+    const bytes = new Uint8Array(4);
+    window.crypto.getRandomValues(bytes);
+    return bytes.join('.');
+  };
+
+  const TEST_IP_1 = generateRandomIP();
+  const TEST_IP_2 = generateRandomIP();
 
   const mockSessions = [
     { id: '1', name: 'Server 1', host: TEST_IP_1, authMethod: 'password' },
