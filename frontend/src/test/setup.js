@@ -7,6 +7,10 @@ global.window.go = {
     App: {
       GetConfig: vi.fn().mockResolvedValue({}),
       SaveConfig: vi.fn().mockResolvedValue(true),
+      GetSSHSessions: vi.fn().mockResolvedValue([]),
+      ConnectSSH: vi.fn().mockResolvedValue(null),
+      DisconnectSSH: vi.fn().mockResolvedValue(null),
+      DeleteSSHSession: vi.fn().mockResolvedValue(null),
     }
   },
   plugins: {

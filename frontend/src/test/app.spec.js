@@ -1,10 +1,27 @@
 import { test, expect } from '@playwright/test';
 
 test('basic navigation', async ({ page }) => {
-  // Since we can't run the actual Wails app here, we point to the dev server
-  // This is just a placeholder to show how E2E tests would be structured
-  await page.goto('http://localhost:5173');
+  await page.goto('/');
 
-  // Expect a title "to contain" a substring.
-  // await expect(page).toHaveTitle(/Ostenia/);
+  // Verify main navigation is present
+  await expect(page.getByTitle('Activity Center')).toBeVisible();
+  await expect(page.getByTitle('Plugin Management')).toBeVisible();
+  await expect(page.getByTitle('SSH & Remote Files')).toBeVisible();
+
+  // Switch to Plugin Management
+  await page.getByTitle('Plugin Management').click();
+  // Check if some plugin-related content is visible
+  await expect(page.getByText(/Environment Services/i)).toBeVisible();
+});
+
+test('theme toggle', async ({ page }) => {
+  await page.goto('/');
+
+  const themeToggle = page.getByTitle(/Switch to (Dark|Light) Mode/);
+  await expect(themeToggle).toBeVisible();
+
+  await themeToggle.click();
+  // Verify class change on html element or local storage if applicable
+  const html = page.locator('html');
+  await expect(html).toHaveClass(/(dark|light)/);
 });
