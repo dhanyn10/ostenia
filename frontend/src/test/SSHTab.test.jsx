@@ -27,9 +27,13 @@ vi.mock('../components/SSHSessionForm', () => ({
 }))
 
 describe('SSHTab Component', () => {
+  // Use non-routable/test IP addresses to avoid security scanner warnings
+  const TEST_IP_1 = '192.168.1.10'; // nosonar
+  const TEST_IP_2 = '10.0.0.5';     // nosonar
+
   const mockSessions = [
-    { id: '1', name: 'Server 1', host: '1.2.3.4', authMethod: 'password' },
-    { id: '2', name: 'Server 2', host: '5.6.7.8', authMethod: 'key' },
+    { id: '1', name: 'Server 1', host: TEST_IP_1, authMethod: 'password' },
+    { id: '2', name: 'Server 2', host: TEST_IP_2, authMethod: 'key' },
   ]
 
   it('renders loading state initially', async () => {
@@ -46,8 +50,8 @@ describe('SSHTab Component', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('1.2.3.4')).toBeInTheDocument()
-      expect(screen.getByText('5.6.7.8')).toBeInTheDocument()
+      expect(screen.getByText(TEST_IP_1)).toBeInTheDocument()
+      expect(screen.getByText(TEST_IP_2)).toBeInTheDocument()
     })
   })
 
@@ -69,9 +73,9 @@ describe('SSHTab Component', () => {
       render(<SSHTab addToast={vi.fn()} theme="light" />)
     })
 
-    await waitFor(() => screen.getByText('1.2.3.4'))
+    await waitFor(() => screen.getByText(TEST_IP_1))
 
-    const card = screen.getByText('1.2.3.4').closest('div').parentElement
+    const card = screen.getByText(TEST_IP_1).closest('div').parentElement
     fireEvent.doubleClick(card)
 
     expect(screen.getByTestId('ssh-session-view')).toBeInTheDocument()
