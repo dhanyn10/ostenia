@@ -32,6 +32,15 @@ type App struct {
 	cfg          *config.Config
 }
 
+const (
+	exeNginx  = "nginx.exe"
+	exeApache = "httpd.exe"
+	exeMySQL  = "mysqld.exe"
+	exePHP    = "php-cgi.exe"
+	exeNode   = "node.exe"
+	exePython = "python.exe"
+)
+
 // NewApp creates a new App struct
 func NewApp() *App {
 	return &App{}
@@ -429,7 +438,7 @@ func (a *App) findExecutable(binDir string, exeName string) (string, string) {
 		if info != nil && !info.IsDir() && info.Name() == exeName {
 			binPath = path
 			basePath = filepath.Dir(filepath.Dir(path))
-			if exeName == "nginx.exe" {
+			if exeName == exeNginx {
 				basePath = filepath.Dir(path)
 			}
 			return filepath.SkipDir
@@ -440,9 +449,9 @@ func (a *App) findExecutable(binDir string, exeName string) (string, string) {
 }
 
 func (a *App) startMySQLService(binDir string) error {
-	mysqlBin, mysqlBase := a.findExecutable(binDir, "mysqld.exe")
+	mysqlBin, mysqlBase := a.findExecutable(binDir, exeMySQL)
 	if mysqlBin == "" {
-		return fmt.Errorf("mysqld.exe not found")
+		return fmt.Errorf("%s not found", exeMySQL)
 	}
 	port := a.orchestrator.GetDetailedInfo("MySQL").Port
 	if port <= 0 {
@@ -465,7 +474,7 @@ func (a *App) startApacheService(binDir string) error {
 		a.StopService("Nginx")
 		time.Sleep(600 * time.Millisecond)
 	}
-	apacheBin, apacheBase := a.findExecutable(binDir, "httpd.exe")
+	apacheBin, apacheBase := a.findExecutable(binDir, exeApache)
 	if apacheBase == "" {
 		return fmt.Errorf("apache installation not found")
 	}
@@ -491,7 +500,7 @@ func (a *App) startNginxService(binDir string) error {
 		a.StopService("Apache")
 		time.Sleep(600 * time.Millisecond)
 	}
-	nginxBin, nginxBase := a.findExecutable(binDir, "nginx.exe")
+	nginxBin, nginxBase := a.findExecutable(binDir, exeNginx)
 	if nginxBase == "" {
 		return fmt.Errorf("nginx installation not found")
 	}
@@ -525,9 +534,9 @@ func (a *App) startHeidiSQLService() error {
 }
 
 func (a *App) startPHPService(currentPath string) error {
-	phpCgi := filepath.Join(currentPath, "php-cgi.exe")
+	phpCgi := filepath.Join(currentPath, exePHP)
 	if _, err := os.Stat(phpCgi); os.IsNotExist(err) {
-		return fmt.Errorf("php-cgi.exe not found")
+		return fmt.Errorf("%s not found", exePHP)
 	}
 	_ = service.UpdatePHPConfig(currentPath)
 	port := a.orchestrator.GetDetailedInfo("PHP").Port
@@ -703,7 +712,7 @@ func (a *App) OpenTerminalAtPath(terminalType string, path string) {
 	// Fallback if current doesn't exist
 	if _, err := os.Stat(mysqlPath); os.IsNotExist(err) {
 		filepath.Walk(mysqlBinDir, func(p string, info os.FileInfo, err error) error {
-			if info != nil && !info.IsDir() && info.Name() == "mysqld.exe" {
+			if info != nil && !info.IsDir() && info.Name() == exeMySQL {
 				mysqlPath = filepath.Dir(p)
 				return filepath.SkipDir
 			}
@@ -751,11 +760,11 @@ func (a *App) OpenServiceTerminal(serviceName string, terminalType string) error
 
 func (a *App) getServiceTargetDir(category string, binDir string) string {
 	exeMap := map[string]string{
-		"nginx":  "nginx.exe",
-		"apache": "httpd.exe",
-		"mysql":  "mysqld.exe",
-		"nodejs": "node.exe",
-		"python": "python.exe",
+		"nginx":  exeNginx,
+		"apache": exeApache,
+		"mysql":  exeMySQL,
+		"nodejs": exeNode,
+		"python": exePython,
 	}
 
 	exeName, ok := exeMap[category]
