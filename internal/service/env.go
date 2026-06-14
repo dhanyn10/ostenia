@@ -24,14 +24,25 @@ func GetPath(target string) (string, error) {
 func SetPath(path string, target string) error {
 	if target == "Machine" && !IsAdmin() {
 		scriptContent := fmt.Sprintf("[Environment]::SetEnvironmentVariable('Path', '%s', [EnvironmentVariableTarget]::Machine)", path)
-		tmpScript := filepath.Join(os.TempDir(), "ostenia_set_path.ps1")
-		os.WriteFile(tmpScript, []byte(scriptContent), 0644)
+		f, err := os.CreateTemp("", "ostenia_set_path_*.ps1")
+		if err != nil {
+			return fmt.Errorf("failed to create temp script: %w", err)
+		}
+		tmpScript := f.Name()
+		if _, err := f.Write([]byte(scriptContent)); err != nil {
+			f.Close()
+			os.Remove(tmpScript)
+			return fmt.Errorf("failed to write temp script: %w", err)
+		}
+		f.Close()
 		defer os.Remove(tmpScript)
+
 		args := fmt.Sprintf("-NoProfile -ExecutionPolicy Bypass -File \"%s\"", tmpScript)
 		elevatedCmd := fmt.Sprintf("Start-Process powershell -ArgumentList '%s' -Verb RunAs -Wait", args)
 		cmd := exec.Command("powershell", "-NoProfile", "-Command", elevatedCmd)
-		err := cmd.Run()
-		if err != nil { return fmt.Errorf("UAC prompt denied: %w", err) }
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("UAC prompt denied: %w", err)
+		}
 	} else {
 		script := fmt.Sprintf("[Environment]::SetEnvironmentVariable('Path', '%s', [EnvironmentVariableTarget]::%s)", path, target)
 		cmd := exec.Command("powershell", "-NoProfile", "-Command", script)
