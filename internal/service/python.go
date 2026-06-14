@@ -3,9 +3,8 @@ package service
 import (
 	"os"
 	"os/exec"
+	"ostenia/internal/plugins/utils"
 	"path/filepath"
-	"runtime"
-	"syscall"
 )
 
 func GetPythonVersion(currentPath string) (string, error) {
@@ -14,9 +13,7 @@ func GetPythonVersion(currentPath string) (string, error) {
 		return "", err
 	}
 	cmd := exec.Command(exePath, "--version")
-	if runtime.GOOS == "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	}
+	utils.SetHideWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		return "", err

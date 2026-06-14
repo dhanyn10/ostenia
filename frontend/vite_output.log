@@ -1,0 +1,13 @@
+
+> frontend@0.0.0 dev /app/frontend
+> vite
+
+
+  VITE v5.4.21  ready in 739 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+9:46:17 AM [vite] hmr update /src/components/SettingsModal.jsx, /src/index.css
+11:03:30 AM [vite] hmr update /src/components/SettingsModal.jsx, /src/index.css
+11:03:39 AM [vite] hmr update /src/components/SettingsModal.jsx, /src/index.css
+12:37:44 PM [vite] hmr update /src/components/SettingsModal.jsx, /src/index.css

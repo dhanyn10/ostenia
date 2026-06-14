@@ -4,16 +4,15 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"strings"
-	"syscall"
-	"unsafe"
 )
 
 // GetPath retrieves the current PATH environment variable from specific target (User or Machine).
 func GetPath(target string) (string, error) {
 	getCmd := exec.Command("powershell", "-NoProfile", "-Command", fmt.Sprintf("[Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::%s)", target))
-	getCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	utils.SetHideWindow(getCmd)
 	out, err := getCmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to get %s path: %w", target, err)
@@ -36,7 +35,7 @@ func SetPath(path string, target string) error {
 	} else {
 		script := fmt.Sprintf("[Environment]::SetEnvironmentVariable('Path', '%s', [EnvironmentVariableTarget]::%s)", path, target)
 		cmd := exec.Command("powershell", "-NoProfile", "-Command", script)
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		utils.SetHideWindow(cmd)
 		err := cmd.Run()
 		if err != nil { return fmt.Errorf("failed to set %s path: %w", target, err) }
 	}
@@ -120,13 +119,5 @@ func pathExistsInString(pathString, targetPath string) bool {
 
 // NotifyEnvironmentUpdate broadcasts WM_SETTINGCHANGE to all windows to refresh environment variables.
 func NotifyEnvironmentUpdate() {
-	user32 := syscall.NewLazyDLL("user32.dll")
-	sendMessage := user32.NewProc("SendMessageTimeoutW")
-	const (
-		HWND_BROADCAST   = 0xFFFF
-		WM_SETTINGCHANGE = 0x001A
-		SMTO_ABORTIFHUNG = 0x0002
-	)
-	envStr, _ := syscall.UTF16PtrFromString("Environment")
-	sendMessage.Call(uintptr(HWND_BROADCAST), uintptr(WM_SETTINGCHANGE), 0, uintptr(unsafe.Pointer(envStr)), uintptr(SMTO_ABORTIFHUNG), uintptr(5000), 0)
+	notifyEnvironmentUpdate()
 }

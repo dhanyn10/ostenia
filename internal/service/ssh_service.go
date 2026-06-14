@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"ostenia/internal/config"
+	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"sync"
 	"time"
@@ -357,7 +358,7 @@ func (m *SSHManager) UploadFile(sessionID string, localPath string, remotePath s
 	return err
 }
 
-func (m *SSHManager) EditFile(sessionID string, remotePath string) error {
+func (m *SSHManager) EditFile(sessionID string, remotePath string, defaultEditor string) error {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()
@@ -384,7 +385,14 @@ func (m *SSHManager) EditFile(sessionID string, remotePath string) error {
 
 	// Open with default editor
 	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
+	if defaultEditor != "" {
+		if runtime.GOOS == "windows" {
+			cmd = exec.Command("cmd", "/c", "start", "/wait", "", defaultEditor, localPath)
+			utils.SetHideWindow(cmd)
+		} else {
+			cmd = exec.Command(defaultEditor, localPath)
+		}
+	} else if runtime.GOOS == "windows" {
 		cmd = exec.Command("notepad.exe", localPath)
 	} else if runtime.GOOS == "darwin" {
 		cmd = exec.Command("open", "-t", localPath)
