@@ -140,9 +140,7 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 		}
 		dest := filepath.Join(targetDir, "installer.exe")
 		// Correct copy for Windows (replace old installer if it exists)
-		copyCmd := exec.Command("cmd", "/c", "copy", "/Y", tmp, dest)
-		copyCmd.Env = utils.SafeEnv()
-		if err := copyCmd.Run(); err != nil {
+		if err := utils.CopyFile(tmp, dest); err != nil {
 			return fmt.Errorf("failed to copy installer: %w", err)
 		}
 
