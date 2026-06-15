@@ -41,8 +41,20 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', appConfig
   };
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-transparent animate-in fade-in duration-300">
-      <div onClick={(e) => e.stopPropagation()} className={cn("w-full max-w-5xl h-[80vh] flex flex-col rounded-xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] border overflow-hidden bg-white dark:bg-mui-dark-bg border-mui-grey-200 dark:border-white/10")}>
+    <div
+      onClick={onClose}
+      onKeyDown={(e) => e.key === 'Escape' && onClose()}
+      tabIndex={-1}
+      role="button"
+      aria-label="Close Settings"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-transparent animate-in fade-in duration-300"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        role="presentation"
+        className={cn("w-full max-w-5xl h-[80vh] flex flex-col rounded-xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] border overflow-hidden bg-white dark:bg-mui-dark-bg border-mui-grey-200 dark:border-white/10")}
+      >
         <div className="h-14 shrink-0 flex items-center justify-between px-6 border-b border-mui-grey-200 dark:border-white/10 bg-mui-grey-50/50 dark:bg-white/5">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-mui-blue-500 rounded flex items-center justify-center text-white shadow-lg shadow-mui-blue-500/30"><Settings size={18} /></div>

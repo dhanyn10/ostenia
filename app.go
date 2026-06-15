@@ -289,8 +289,6 @@ func (a *App) StopService(serviceName string) error {
 
 // SwitchServiceVersion changes the active version of a service using directory junctions
 func (a *App) SwitchServiceVersion(serviceName string, version string) error {
-	// Keep junction logic here for now or move to serviceMgr if needed
-	// For brevity, let's keep it here for this iteration
 	return a.serviceMgr.SwitchServiceVersion(serviceName, version)
 }
 
