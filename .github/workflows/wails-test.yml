@@ -19,7 +19,7 @@ jobs:
           cache: true
 
       - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
+        uses: pnpm/action-setup@v4
         with:
           version: 10
 
@@ -50,7 +50,7 @@ jobs:
           while ($elapsed -lt $timeout) {
             if (Test-Path "wails_dev.log") {
               $content = Get-Content "wails_dev.log" -Raw
-              if ($content -match "Wails Dev Server is at|Frontend Dev Server is at") {
+              if ($content -match "DevServer URL|Frontend DevServer URL") {
                 Write-Host "Wails Dev Server is ready!"
                 $found = $true
                 break
