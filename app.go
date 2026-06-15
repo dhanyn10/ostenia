@@ -133,7 +133,8 @@ func (a *App) OpenHeidiSQL() error {
 	if exePath == "" {
 		return fmt.Errorf("HeidiSQL is not installed")
 	}
-	cmd := exec.Command("cmd", "/c", "start", "", exePath)
+	cmdPath := filepath.Join(plugins_utils.GetSystemDirectory(), "cmd.exe")
+	cmd := exec.Command(cmdPath, "/c", "start", "", exePath)
 	cmd.Env = plugins_utils.SafeEnv()
 	plugins_utils.SetHideWindow(cmd)
 	return cmd.Run()
@@ -397,11 +398,7 @@ func (a *App) findExecutable(binDir string, exeName string) (string, string) {
 			path = filepath.Join(resolved, exeName)
 		}
 		if _, err := os.Stat(path); err == nil {
-			base := resolved
-			if exeName != exeNginx {
-				// Most services have bin/exe, so base is parent of bin
-			}
-			return path, base
+			return path, resolved
 		}
 		// Apache fallback
 		if exeName == exeApache {
@@ -606,7 +603,8 @@ func (a *App) SwitchServiceVersion(serviceName string, version string) error {
 	}
 	_ = os.Remove(currentPath)
 	if _, err := os.Stat(targetDir); err == nil {
-		cmd := exec.Command("cmd", "/c", "mklink", "/J", currentPath, targetDir)
+		cmdPath := filepath.Join(plugins_utils.GetSystemDirectory(), "cmd.exe")
+		cmd := exec.Command(cmdPath, "/c", "mklink", "/J", currentPath, targetDir)
 		cmd.Env = plugins_utils.SafeEnv()
 		plugins_utils.SetHideWindow(cmd)
 		_ = cmd.Run()

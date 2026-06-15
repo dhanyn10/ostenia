@@ -284,7 +284,8 @@ func findOsteniaPIDs(exeName string) []int {
 	}
 	baseDir := config.GetBaseDir()
 	binPath := filepath.Join(baseDir, "bin")
-	cmd := exec.Command("wmic", "process", "where", fmt.Sprintf("name='%s'", exeName), "get", "ExecutablePath,ProcessId", "/format:csv")
+	wmicPath := filepath.Join(utils.GetSystemDirectory(), "wbem", "wmic.exe")
+	cmd := exec.Command(wmicPath, "process", "where", fmt.Sprintf("name='%s'", exeName), "get", "ExecutablePath,ProcessId", "/format:csv")
 	cmd.Env = utils.SafeEnv()
 	utils.SetHideWindow(cmd)
 	out, err := cmd.Output()
@@ -318,22 +319,25 @@ func findPortsByPIDExact(pid int) []int {
 		return ports
 	}
 	pidStr := strconv.Itoa(pid)
-	command := fmt.Sprintf("netstat -ano | findstr %s | findstr LISTENING", pidStr)
-	cmd := exec.Command("cmd", "/c", command)
+
+	netstatPath := filepath.Join(utils.GetSystemDirectory(), "netstat.exe")
+	cmd := exec.Command(netstatPath, "-ano")
 	cmd.Env = utils.SafeEnv()
 	utils.SetHideWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		return ports
 	}
+
 	lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if line == "" {
+		if line == "" || !strings.Contains(line, "LISTENING") || !strings.Contains(line, pidStr) {
 			continue
 		}
 		fields := strings.Fields(line)
-		if len(fields) >= 5 && fields[len(fields)-1] == pidStr {
+		// netstat -ano output: [Proto] [Local Address] [Foreign Address] [State] [PID]
+		if len(fields) >= 5 && fields[len(fields)-1] == pidStr && fields[3] == "LISTENING" {
 			localAddr := fields[1]
 			lastColon := strings.LastIndex(localAddr, ":")
 			if lastColon != -1 {
@@ -422,15 +426,17 @@ func (o *Orchestrator) StopService(name string) error {
 		if name == "HeidiSQL" {
 			_, uninstaller := utils.DetectHeidiSQLInstallation()
 			if uninstaller != "" {
-				cmd := exec.Command("cmd", "/c", "start", "", uninstaller)
+				cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
+				cmd := exec.Command(cmdPath, "/c", "start", "", uninstaller)
 				cmd.Env = utils.SafeEnv()
 				utils.SetHideWindow(cmd)
 				_ = cmd.Run()
 			} else {
 				// Fallback to taskkill if uninstaller not found
 				pids := findOsteniaPIDs("heidisql.exe")
+				taskkillPath := filepath.Join(utils.GetSystemDirectory(), "taskkill.exe")
 				for _, pid := range pids {
-					killCmd := exec.Command("taskkill", "/F", "/PID", strconv.Itoa(pid), "/T")
+					killCmd := exec.Command(taskkillPath, "/F", "/PID", strconv.Itoa(pid), "/T")
 					killCmd.Env = utils.SafeEnv()
 					utils.SetHideWindow(killCmd)
 					_ = killCmd.Run()
@@ -461,10 +467,11 @@ func (o *Orchestrator) StopService(name string) error {
 		case "Python":
 			exeNames = []string{"python.exe"}
 		}
+		taskkillPath := filepath.Join(utils.GetSystemDirectory(), "taskkill.exe")
 		for _, exe := range exeNames {
 			pids := findOsteniaPIDs(exe)
 			for _, pid := range pids {
-				killCmd := exec.Command("taskkill", "/F", "/PID", strconv.Itoa(pid), "/T")
+				killCmd := exec.Command(taskkillPath, "/F", "/PID", strconv.Itoa(pid), "/T")
 				killCmd.Env = utils.SafeEnv()
 				utils.SetHideWindow(killCmd)
 				_ = killCmd.Run()

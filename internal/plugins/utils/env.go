@@ -7,6 +7,18 @@ import (
 	"strings"
 )
 
+// GetSystemDirectory returns the Windows System32 directory or /usr/bin on Unix.
+func GetSystemDirectory() string {
+	if runtime.GOOS == "windows" {
+		systemRoot := os.Getenv("SystemRoot")
+		if systemRoot == "" {
+			systemRoot = `C:\Windows`
+		}
+		return filepath.Join(systemRoot, "System32")
+	}
+	return "/usr/bin"
+}
+
 // SafeEnv returns a clean environment with a restricted PATH containing only system directories.
 func SafeEnv() []string {
 	env := os.Environ()

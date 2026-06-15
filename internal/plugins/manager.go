@@ -58,7 +58,8 @@ func (m *Manager) DeleteVersion(taskName, version string) error {
 			"node.js": "node.exe", "python": "python.exe",
 		}
 		if exe, ok := exeMap[strings.ToLower(taskName)]; ok {
-			c := exec.Command("taskkill", "/F", "/IM", exe, "/T")
+			taskkillPath := filepath.Join(utils.GetSystemDirectory(), "taskkill.exe")
+			c := exec.Command(taskkillPath, "/F", "/IM", exe, "/T")
 			c.Env = utils.SafeEnv()
 			utils.SetHideWindow(c)
 			_ = c.Run()
@@ -144,7 +145,8 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 			return fmt.Errorf("failed to copy installer: %w", err)
 		}
 
-		cmd := exec.Command("cmd", "/c", "start", "", dest)
+		cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
+		cmd := exec.Command(cmdPath, "/c", "start", "", dest)
 		cmd.Env = utils.SafeEnv()
 		utils.SetHideWindow(cmd)
 		if err := cmd.Run(); err != nil {
@@ -298,7 +300,8 @@ func (m *Manager) ensureCurrentLink(task DownloadTask) error {
 	link := filepath.Join(baseDir, "bin", parts[0], "current")
 	target := filepath.Join(baseDir, "bin", task.Target)
 	_ = os.Remove(link) // Remove old junction
-	c := exec.Command("cmd", "/c", "mklink", "/J", link, target)
+	cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
+	c := exec.Command(cmdPath, "/c", "mklink", "/J", link, target)
 	c.Env = utils.SafeEnv()
 	utils.SetHideWindow(c)
 	return c.Run()
