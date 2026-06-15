@@ -1,0 +1,74 @@
+name: Wails Build & Dev Test
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  wails-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+          cache: true
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Install Frontend Dependencies
+        run: cd frontend && pnpm install
+
+      - name: Wails Build Test
+        run: wails build
+
+      - name: Wails Dev Smoke Test
+        shell: pwsh
+        run: |
+          $process = Start-Process wails dev -PassThru -NoNewWindow -RedirectStandardOutput "wails_dev.log"
+          $timeout = 300 # 5 minutes timeout
+          $elapsed = 0
+          $found = $false
+
+          while ($elapsed -lt $timeout) {
+            if (Test-Path "wails_dev.log") {
+              $content = Get-Content "wails_dev.log" -Raw
+              if ($content -match "Wails Dev Server is at|Frontend Dev Server is at") {
+                Write-Host "Wails Dev Server is ready!"
+                $found = $true
+                break
+              }
+            }
+            Start-Sleep -Seconds 5
+            $elapsed += 5
+            Write-Host "Waiting for Wails Dev Server... ($elapsed seconds)"
+          }
+
+          if ($process -and -not $process.HasExited) {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+          }
+
+          if (-not $found) {
+            Write-Error "Wails Dev Server failed to start within timeout"
+            if (Test-Path "wails_dev.log") {
+              Get-Content "wails_dev.log"
+            }
+            exit 1
+          }

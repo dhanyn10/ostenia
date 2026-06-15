@@ -1,8 +1,6 @@
 module ostenia
 
-go 1.24.0
-
-toolchain go1.24.3
+go 1.25.0
 
 require (
 	github.com/melbahja/goph v1.5.1
