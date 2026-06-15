@@ -3,7 +3,6 @@
 package service
 
 import (
-	"os/exec"
 	"syscall"
 	"unsafe"
 )
