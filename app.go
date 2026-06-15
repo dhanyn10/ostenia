@@ -6,16 +6,12 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"ostenia/internal/backend"
 	"ostenia/internal/config"
 	"ostenia/internal/plugins"
 	plugins_utils "ostenia/internal/plugins/utils"
-	"ostenia/internal/plugins/php"
-	"ostenia/internal/plugins/python"
-	"ostenia/internal/network"
 	"ostenia/internal/service"
-	"ostenia/internal/ssl"
 	"path/filepath"
-	"strings"
 	"time"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -23,22 +19,18 @@ import (
 
 // App struct manages the main application state and coordinates between backend services and the frontend
 type App struct {
-	ctx          context.Context
-	downloader   *plugins.Manager
-	orchestrator *service.Orchestrator
-	symlinkMgr   *service.SymlinkManager
-	sshManager   *service.SSHManager
-	cfg          *config.Config
+	ctx            context.Context
+	downloader     *plugins.Manager
+	orchestrator   *service.Orchestrator
+	symlinkMgr     *service.SymlinkManager
+	sshManager     *service.SSHManager
+	cfg            *config.Config
+	serviceMgr     *backend.ServiceManager
+	terminalMgr    *backend.TerminalManager
+	sshMgr         *backend.SSHManagerDelegate
+	configMgr      *backend.ConfigManager
+	profileMgr     *backend.ProfileManager
 }
-
-const (
-	exeNginx  = "nginx.exe"
-	exeApache = "httpd.exe"
-	exeMySQL  = "mysqld.exe"
-	exePHP    = "php-cgi.exe"
-	exeNode   = "node.exe"
-	exePython = "python.exe"
-)
 
 // NewApp creates a new App instance
 func NewApp() *App {
@@ -56,10 +48,38 @@ func (a *App) startup(ctx context.Context) {
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		// Log error if config fails to load
 		fmt.Printf("[App] Error loading config: %v\n", err)
 	}
 	a.cfg = cfg
+
+	a.serviceMgr = &backend.ServiceManager{
+		Ctx:          ctx,
+		Downloader:   a.downloader,
+		Orchestrator: a.orchestrator,
+		SymlinkMgr:   a.symlinkMgr,
+		Cfg:          a.cfg,
+	}
+
+	a.terminalMgr = &backend.TerminalManager{
+		Ctx:            ctx,
+		ServiceManager: a.serviceMgr,
+		Cfg:            a.cfg,
+	}
+
+	a.sshMgr = &backend.SSHManagerDelegate{
+		SSHManager: a.sshManager,
+		Config:     a.cfg,
+	}
+
+	a.configMgr = &backend.ConfigManager{
+		Ctx:    ctx,
+		Config: a.cfg,
+	}
+
+	a.profileMgr = &backend.ProfileManager{
+		Ctx:    ctx,
+		Config: a.cfg,
+	}
 
 	// Initial setup of directories in current base dir
 	a.ensureEnvironmentStructure()
@@ -119,6 +139,11 @@ func (a *App) ensureEnvironmentStructure() {
 // IsAdmin checks if the application is running with administrative privileges
 func (a *App) IsAdmin() bool { return service.IsAdmin() }
 
+// GetInstalledApps returns the list of installed editors/apps for external editing
+func (a *App) GetInstalledApps() ([]backend.InstalledApp, error) {
+	return backend.GetInstalledApps()
+}
+
 // GetPrerequisites returns the list of latest known plugin versions for installation
 func (a *App) GetPrerequisites() []plugins.DownloadTask { return plugins.GetLatestKnownVersions() }
 
@@ -142,7 +167,6 @@ func (a *App) OpenHeidiSQL() error {
 
 // SetWWWRoot sets the server root directory (www)
 func (a *App) SetWWWRoot(path string) error {
-	fmt.Printf("[App] Setting Server Root (www) to: %s\n", path)
 	a.cfg.WWWRoot = path
 	err := config.SaveConfig(a.cfg)
 	if err != nil { return err }
@@ -187,17 +211,11 @@ func (a *App) CheckProxyPorts() []ProxyStatusInfo {
 
 // OpenProxyTerminal opens a terminal at the directory of a proxy app
 func (a *App) OpenProxyTerminal(name string, terminalType string) error {
-	path := filepath.Join(a.cfg.WWWRoot, name)
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return fmt.Errorf("folder %s not found", name)
-	}
-	a.OpenTerminalAtPath(terminalType, path)
-	return nil
+	return a.terminalMgr.OpenProxyTerminal(name, terminalType)
 }
 
 // SetServerRoot changes the base directory for all Ostenia apps and binaries
 func (a *App) SetServerRoot(rootPath string) error {
-	fmt.Printf("[App] Switching Apps Location to: %s\n", rootPath)
 	a.orchestrator.StopAll()
 	time.Sleep(1 * time.Second)
 	a.cfg.BaseDir = rootPath
@@ -232,19 +250,9 @@ func (a *App) OpenServerRootFolder() error { return service.OpenExplorer(a.cfg.W
 // OpenAppsLocationFolder opens the Ostenia base directory in File Explorer
 func (a *App) OpenAppsLocationFolder() error { return service.OpenExplorer(config.GetBaseDir()) }
 
-func (a *App) getPluginPaths(serviceName string) (category string, binDir string, currentPath string) {
-	category = strings.ToLower(serviceName)
-	if category == "node.js" {
-		category = "nodejs"
-	}
-	binDir = filepath.Join(config.GetBaseDir(), "bin", category)
-	currentPath = filepath.Join(binDir, "current")
-	return
-}
-
 // OpenPluginFolder opens the binary directory for a specific service in File Explorer
 func (a *App) OpenPluginFolder(serviceName string) error {
-	_, binDir, _ := a.getPluginPaths(serviceName)
+	_, binDir, _ := a.serviceMgr.GetPluginPaths(serviceName)
 	if _, err := os.Stat(binDir); os.IsNotExist(err) {
 		_ = os.MkdirAll(binDir, 0755)
 	}
@@ -253,18 +261,7 @@ func (a *App) OpenPluginFolder(serviceName string) error {
 
 // InstallPrerequisite downloads and installs a plugin prerequisite
 func (a *App) InstallPrerequisite(task plugins.DownloadTask) error {
-	err := a.downloader.DownloadAndExtract(task)
-	if err == nil {
-		_, _, currentPath := a.getPluginPaths(task.Name)
-
-		if task.Name == "PHP" {
-			_ = service.UpdatePHPPath(currentPath, true)
-		} else if task.Name == "Python" {
-			_ = service.UpdatePythonPath(currentPath, true)
-		}
-		a.orchestrator.RequestRefresh()
-	}
-	return err
+	return a.serviceMgr.InstallPrerequisite(task)
 }
 
 // CancelDownload cancels an ongoing plugin download
@@ -272,359 +269,29 @@ func (a *App) CancelDownload(taskName string) { a.downloader.CancelDownload(task
 
 // InstallPluginModule installs a sub-module for a parent plugin (e.g., Composer for PHP)
 func (a *App) InstallPluginModule(parentName string, moduleName string) error {
-	_, _, currentPath := a.getPluginPaths(parentName)
-
-	if _, err := os.Stat(currentPath); os.IsNotExist(err) {
-		return fmt.Errorf("%s is not installed or active", parentName)
-	}
-
-	emitProgress := func(name string, pct float64, status string) {
-		wruntime.EventsEmit(a.ctx, "download_progress", plugins.Progress{Name: name, Percentage: pct, Status: status})
-	}
-
-	var err error
-	switch parentName {
-	case "PHP":
-		err = php.InstallModule(a.ctx, a.downloader, moduleName, currentPath, emitProgress)
-		if err == nil {
-			_ = service.UpdatePHPPath(currentPath, true)
-		}
-	case "Python":
-		err = python.InstallModule(a.ctx, a.downloader, moduleName, currentPath, emitProgress)
-		if err == nil {
-			_ = service.UpdatePythonPath(currentPath, true)
-		}
-	default:
-		err = fmt.Errorf("unsupported parent plugin: %s", parentName)
-	}
-
-	if err == nil {
-		a.orchestrator.RequestRefresh()
-	}
-	return err
+	return a.serviceMgr.InstallPluginModule(parentName, moduleName)
 }
 
 // UninstallPluginModule removes a sub-module from a parent plugin
 func (a *App) UninstallPluginModule(parentName string, moduleName string) error {
-	_, _, currentPath := a.getPluginPaths(parentName)
-
-	var err error
-	switch parentName {
-	case "PHP":
-		err = php.UninstallModule(moduleName, currentPath)
-		if err == nil {
-			_ = service.UpdatePHPPath(currentPath, true)
-		}
-	case "Python":
-		err = python.UninstallModule(moduleName, currentPath)
-		if err == nil {
-			_ = service.UpdatePythonPath(currentPath, true)
-		}
-	default:
-		err = fmt.Errorf("unsupported parent plugin: %s", parentName)
-	}
-
-	if err == nil {
-		a.orchestrator.RequestRefresh()
-	}
-	return err
+	return a.serviceMgr.UninstallPluginModule(parentName, moduleName)
 }
 
 // StartService starts a background service by name
 func (a *App) StartService(serviceName string) error {
-	_, binDir, currentPath := a.getPluginPaths(serviceName)
-	fmt.Printf("[App] Starting service: %s\n", serviceName)
-
-	switch serviceName {
-	case "Node.js":
-		return a.startNodeService(currentPath)
-	case "Python":
-		return a.startPythonService(currentPath)
-	case "OpenSSL":
-		return a.startOpenSSLService()
-	case "MySQL":
-		return a.startMySQLService(binDir)
-	case "Apache":
-		return a.startApacheService(binDir)
-	case "Nginx":
-		return a.startNginxService(binDir)
-	case "HeidiSQL":
-		return a.startHeidiSQLService()
-	case "PHP":
-		return a.startPHPService(currentPath)
-	default:
-		return fmt.Errorf("unknown service: %s", serviceName)
-	}
-}
-
-func (a *App) startNodeService(currentPath string) error {
-	if _, err := os.Stat(currentPath); os.IsNotExist(err) {
-		return fmt.Errorf("node.js not installed")
-	}
-	if err := service.UpdateNodePath(currentPath, true); err != nil {
-		return err
-	}
-	a.orchestrator.RequestRefresh()
-	return nil
-}
-
-func (a *App) startPythonService(currentPath string) error {
-	if _, err := os.Stat(currentPath); os.IsNotExist(err) {
-		return fmt.Errorf("python not installed")
-	}
-	if err := service.UpdatePythonPath(currentPath, true); err != nil {
-		return err
-	}
-	a.orchestrator.RequestRefresh()
-	return nil
-}
-
-func (a *App) startOpenSSLService() error {
-	caDir := filepath.Join(config.GetBaseDir(), "ssl")
-	if err := ssl.GenerateRootCA(caDir); err != nil {
-		return err
-	}
-	a.orchestrator.RequestRefresh()
-	return nil
-}
-
-func (a *App) findExecutable(binDir string, exeName string) (string, string) {
-	currentPath := filepath.Join(binDir, "current")
-
-	// 1. Try "current" link first for efficiency
-	if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
-		path := filepath.Join(resolved, "bin", exeName)
-		if exeName == exeNginx {
-			path = filepath.Join(resolved, exeName)
-		}
-		if _, err := os.Stat(path); err == nil {
-			return path, resolved
-		}
-		// Apache fallback
-		if exeName == exeApache {
-			path = filepath.Join(resolved, "Apache24", "bin", exeName)
-			if _, err := os.Stat(path); err == nil {
-				return path, filepath.Join(resolved, "Apache24")
-			}
-		}
-	}
-
-	// 2. Fallback to Walk if "current" is not valid or doesn't match
-	var binPath, basePath string
-	_ = filepath.Walk(binDir, func(path string, info os.FileInfo, err error) error {
-		if info != nil && !info.IsDir() && info.Name() == exeName {
-			binPath = path
-			basePath = filepath.Dir(filepath.Dir(path))
-			if exeName == exeNginx {
-				basePath = filepath.Dir(path)
-			}
-			return filepath.SkipDir
-		}
-		return nil
-	})
-	return binPath, basePath
-}
-
-func (a *App) startMySQLService(binDir string) error {
-	mysqlBin, mysqlBase := a.findExecutable(binDir, exeMySQL)
-	if mysqlBin == "" {
-		return fmt.Errorf("%s not found", exeMySQL)
-	}
-	port := a.orchestrator.GetDetailedInfo("MySQL").Port
-	if port <= 0 {
-		p, err := network.GetAvailablePort([]int{3306, 3307, 3308})
-		if err != nil {
-			return err
-		}
-		port = p
-	}
-	_ = os.Setenv("PATH", filepath.Dir(mysqlBin)+";"+os.Getenv("PATH"))
-	if err := a.updateMySQLConfig(mysqlBase, port); err != nil {
-		return err
-	}
-	iniPath := filepath.Join(mysqlBase, "my.ini")
-	return a.orchestrator.StartServiceWithPort("MySQL", mysqlBin, []string{"--defaults-file=" + iniPath, "--console"}, filepath.Dir(mysqlBin), port)
-}
-
-func (a *App) startApacheService(binDir string) error {
-	if a.orchestrator.IsRunning("Nginx") {
-		_ = a.StopService("Nginx")
-		time.Sleep(600 * time.Millisecond)
-	}
-	apacheBin, apacheBase := a.findExecutable(binDir, exeApache)
-	if apacheBase == "" {
-		return fmt.Errorf("apache installation not found")
-	}
-	port := a.orchestrator.GetDetailedInfo("Apache").Port
-	if port <= 0 {
-		p, err := network.GetAvailablePort([]int{80, 8080, 8081, 9000})
-		if err != nil {
-			return err
-		}
-		port = p
-	}
-	_, _, phpPath := a.getPluginPaths("PHP")
-	_, _, nodePath := a.getPluginPaths("Node.js")
-	_ = os.Setenv("PATH", phpPath+";"+os.Getenv("PATH")+";"+nodePath)
-	if err := a.updateApacheConfig(apacheBase, port); err != nil {
-		return err
-	}
-	return a.orchestrator.StartServiceWithPort("Apache", apacheBin, []string{}, apacheBase, port)
-}
-
-func (a *App) startNginxService(binDir string) error {
-	if a.orchestrator.IsRunning("Apache") {
-		_ = a.StopService("Apache")
-		time.Sleep(600 * time.Millisecond)
-	}
-	nginxBin, nginxBase := a.findExecutable(binDir, exeNginx)
-	if nginxBase == "" {
-		return fmt.Errorf("nginx installation not found")
-	}
-	port := a.orchestrator.GetDetailedInfo("Nginx").Port
-	if port <= 0 {
-		p, err := network.GetAvailablePort([]int{80, 8080, 8081, 9000})
-		if err != nil {
-			return err
-		}
-		port = p
-	}
-	if err := a.updateNginxConfig(nginxBase, port); err != nil {
-		return err
-	}
-	return a.orchestrator.StartServiceWithPort("Nginx", nginxBin, []string{"-p", nginxBase}, nginxBase, port)
-}
-
-func (a *App) startHeidiSQLService() error {
-	exePath, _ := plugins.DetectHeidiSQLInstallation()
-	if exePath != "" {
-		a.orchestrator.RequestRefresh()
-		return nil
-	}
-	tasks := plugins.GetLatestKnownVersions()
-	for _, t := range tasks {
-		if t.Name == "HeidiSQL" {
-			return a.downloader.DownloadAndExtract(t)
-		}
-	}
-	return fmt.Errorf("HeidiSQL task not found")
-}
-
-func (a *App) startPHPService(currentPath string) error {
-	phpCgi := filepath.Join(currentPath, exePHP)
-	if _, err := os.Stat(phpCgi); os.IsNotExist(err) {
-		return fmt.Errorf("%s not found", exePHP)
-	}
-	_ = service.UpdatePHPConfig(currentPath)
-	port := a.orchestrator.GetDetailedInfo("PHP").Port
-	if port <= 0 {
-		p, err := network.GetAvailablePort([]int{9000, 9001, 9002})
-		if err != nil {
-			return err
-		}
-		port = p
-	}
-	_ = os.Setenv("PATH", currentPath+";"+os.Getenv("PATH"))
-	_ = service.UpdatePHPPath(currentPath, true)
-	_ = os.Setenv("PHP_FCGI_MAX_REQUESTS", "1000")
-	err := a.orchestrator.StartServiceWithPort("PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, currentPath, port)
-	if err == nil {
-		a.restartDependentWebServers()
-	}
-	return err
-}
-
-func (a *App) restartDependentWebServers() {
-	for _, srv := range []string{"Apache", "Nginx"} {
-		if a.orchestrator.IsRunning(srv) {
-			_ = a.StopService(srv)
-			time.Sleep(600 * time.Millisecond)
-			_ = a.StartService(srv)
-		}
-	}
+	return a.serviceMgr.StartService(serviceName)
 }
 
 // StopService stops a running service by name
 func (a *App) StopService(serviceName string) error {
-	_, _, currentPath := a.getPluginPaths(serviceName)
-
-	if serviceName == "OpenSSL" {
-		baseDir := config.GetBaseDir()
-		caDir := filepath.Join(baseDir, "ssl")
-		_ = os.RemoveAll(caDir)
-		_ = os.MkdirAll(caDir, 0755)
-		_ = a.SetApacheHTTPS(false)
-		_ = a.SetNginxHTTPS(false)
-		a.orchestrator.RequestRefresh()
-		return nil
-	}
-	if serviceName == "PHP" {
-		_ = service.UpdatePHPPath(currentPath, false)
-	}
-	if serviceName == "Node.js" {
-		_ = service.UpdateNodePath(currentPath, false)
-		a.orchestrator.RequestRefresh()
-		return nil
-	}
-	if serviceName == "Python" {
-		_ = service.UpdatePythonPath(currentPath, false)
-		a.orchestrator.RequestRefresh()
-		return nil
-	}
-	return a.orchestrator.StopService(serviceName)
+	return a.serviceMgr.StopService(serviceName)
 }
 
 // SwitchServiceVersion changes the active version of a service using directory junctions
 func (a *App) SwitchServiceVersion(serviceName string, version string) error {
-	category, binDir, currentPath := a.getPluginPaths(serviceName)
-	prefix := ""
-	switch category {
-	case "php":
-		prefix = "php-"
-	case "apache":
-		prefix = "httpd-"
-	case "mysql":
-		prefix = "mysql-"
-	case "nginx":
-		prefix = "nginx-"
-	case "nodejs":
-		prefix = "node-v"
-	case "python":
-		prefix = "python-"
-	}
-	targetDir := filepath.Join(binDir, prefix+version)
-	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
-		targetDir = filepath.Join(binDir, version)
-	}
-	wasRunning := a.orchestrator.IsRunning(serviceName)
-	if wasRunning {
-		_ = a.StopService(serviceName)
-		time.Sleep(600 * time.Millisecond)
-	}
-	_ = os.Remove(currentPath)
-	if _, err := os.Stat(targetDir); err == nil {
-		cmdPath := filepath.Join(plugins_utils.GetSystemDirectory(), "cmd.exe")
-		cmd := exec.Command(cmdPath, "/c", "mklink", "/J", currentPath, targetDir)
-		cmd.Env = plugins_utils.SafeEnv()
-		plugins_utils.SetHideWindow(cmd)
-		_ = cmd.Run()
-	}
-	if category == "php" {
-		_ = os.Setenv("PATH", currentPath+";"+os.Getenv("PATH"))
-		_ = service.UpdatePHPConfig(currentPath)
-		_ = service.UpdatePHPPath(currentPath, true)
-	}
-	if category == "nodejs" {
-		_ = service.UpdateNodePath(currentPath, true)
-	}
-	if category == "python" {
-		_ = service.UpdatePythonPath(currentPath, true)
-	}
-	if wasRunning {
-		return a.StartService(serviceName)
-	}
-	a.orchestrator.RequestRefresh()
-	return nil
+	// Keep junction logic here for now or move to serviceMgr if needed
+	// For brevity, let's keep it here for this iteration
+	return a.serviceMgr.SwitchServiceVersion(serviceName, version)
 }
 
 // StartAllServices starts the default stack (MySQL, PHP, Apache)
@@ -634,99 +301,17 @@ func (a *App) StartAllServices() error {
 	return a.StartService("Apache")
 }
 
-func (a *App) updateMySQLConfig(mysqlPath string, port int) error {
-	dataDir := filepath.Join(mysqlPath, "data"); tmpDir := filepath.Join(mysqlPath, "tmp"); binDir := filepath.Join(mysqlPath, "bin"); iniPath := filepath.Join(mysqlPath, "my.ini")
-	err := service.UpdateMySQLConfig(mysqlPath, dataDir, tmpDir, port); if err != nil { return err }
-	return service.InitializeMySQLDataDir(binDir, mysqlPath, dataDir, iniPath)
-}
-func (a *App) updateApacheConfig(apachePath string, port int) error {
-	if port <= 0 {
-		port = 80
-	}
-	wwwDir := a.cfg.WWWRoot
-	_ = os.MkdirAll(wwwDir, 0755)
-	phpInfo := a.orchestrator.GetDetailedInfo("PHP")
-	phpPort := 0
-	if phpInfo.Status == "Running" {
-		phpPort = phpInfo.Port
-	}
-
-	vhostsContent := ""
-	sslDir := filepath.Join(config.GetBaseDir(), "ssl")
-	for name, targetPort := range a.cfg.Proxies {
-		vhostsContent += service.GenerateProxyVHost(name, targetPort, port, a.cfg.ApacheHTTPS, sslDir)
-		_ = service.AddHostWithElevation("127.0.0.1", name+".test")
-		if a.cfg.ApacheHTTPS {
-			_ = ssl.SignCertificate(sslDir, name+".test", sslDir)
-		}
-	}
-
-	return service.UpdateApacheConfig(apachePath, "", "", vhostsContent, port, wwwDir, phpPort, a.cfg.ApacheHTTPS)
-}
-func (a *App) updateNginxConfig(nginxPath string, port int) error {
-	if port <= 0 {
-		port = 80
-	}
-	wwwDir := a.cfg.WWWRoot
-	_ = os.MkdirAll(wwwDir, 0755)
-	phpInfo := a.orchestrator.GetDetailedInfo("PHP")
-	phpPort := 0
-	if phpInfo.Status == "Running" {
-		phpPort = phpInfo.Port
-	}
-
-	var proxies []service.ProxyConfig
-	sslDir := filepath.Join(config.GetBaseDir(), "ssl")
-	for name, targetPort := range a.cfg.Proxies {
-		proxies = append(proxies, service.ProxyConfig{Name: name, TargetPort: targetPort})
-		_ = service.AddHostWithElevation("127.0.0.1", name+".test")
-		if a.cfg.NginxHTTPS {
-			_ = ssl.SignCertificate(sslDir, name+".test", sslDir)
-		}
-	}
-
-	return service.UpdateNginxConfig(nginxPath, wwwDir, phpPort, port, a.cfg.NginxHTTPS, proxies)
-}
-
 // StopAllServices stops all currently running background services
 func (a *App) StopAllServices() { a.orchestrator.StopAll() }
 
 // OpenTerminal opens a terminal at the current server root directory
 func (a *App) OpenTerminal(terminalType string) {
-	a.OpenTerminalAtPath(terminalType, a.cfg.WWWRoot)
+	a.terminalMgr.OpenTerminal(terminalType)
 }
 
 // OpenTerminalAtPath opens a terminal at a specific local path with the Ostenia environment variables set
 func (a *App) OpenTerminalAtPath(terminalType string, path string) {
-	_, _, phpPath := a.getPluginPaths("PHP")
-	_, mysqlBinDir, mysqlCurrentPath := a.getPluginPaths("MySQL")
-	mysqlPath := filepath.Join(mysqlCurrentPath, "bin")
-	// Fallback if current doesn't exist
-	if _, err := os.Stat(mysqlPath); os.IsNotExist(err) {
-		_ = filepath.Walk(mysqlBinDir, func(p string, info os.FileInfo, err error) error {
-			if info != nil && !info.IsDir() && info.Name() == exeMySQL {
-				mysqlPath = filepath.Dir(p)
-				return filepath.SkipDir
-			}
-			return nil
-		})
-	}
-	_, _, nodePath := a.getPluginPaths("Node.js")
-
-	env := os.Environ()
-	pathFound := false
-	for i, e := range env {
-		if strings.HasPrefix(strings.ToUpper(e), "PATH=") {
-			env[i] = "PATH=" + phpPath + ";" + mysqlPath + ";" + nodePath + ";" + e[5:]
-			pathFound = true
-			break
-		}
-	}
-	if !pathFound {
-		env = append(env, "PATH="+phpPath+";"+mysqlPath+";"+nodePath)
-	}
-	cmd := service.NewTerminal(path, env)
-	cmd.Open(terminalType)
+	a.terminalMgr.OpenTerminalAtPath(terminalType, path)
 }
 
 // DeleteVersion deletes a specific version folder of a plugin
@@ -736,61 +321,17 @@ func (a *App) DeleteVersion(serviceName string, version string) error {
 
 // SetApacheHTTPS enables or disables HTTPS support for Apache
 func (a *App) SetApacheHTTPS(enabled bool) error {
-	a.cfg.ApacheHTTPS = enabled; err := config.SaveConfig(a.cfg); if err != nil { return err }
-	if a.orchestrator.IsRunning("Apache") {
-		_ = a.StopService("Apache")
-		time.Sleep(600 * time.Millisecond)
-		return a.StartService("Apache")
-	}
-	return nil
+	return a.serviceMgr.SetApacheHTTPS(enabled)
 }
 
 // SetNginxHTTPS enables or disables HTTPS support for Nginx
 func (a *App) SetNginxHTTPS(enabled bool) error {
-	a.cfg.NginxHTTPS = enabled; err := config.SaveConfig(a.cfg); if err != nil { return err }
-	if a.orchestrator.IsRunning("Nginx") {
-		_ = a.StopService("Nginx")
-		time.Sleep(600 * time.Millisecond)
-		return a.StartService("Nginx")
-	}
-	return nil
+	return a.serviceMgr.SetNginxHTTPS(enabled)
 }
 
 // OpenServiceTerminal opens a terminal at the binary directory of a specific service
 func (a *App) OpenServiceTerminal(serviceName string, terminalType string) error {
-	category, binDir, _ := a.getPluginPaths(serviceName)
-	targetDir := a.getServiceTargetDir(category, binDir)
-
-	if targetDir == "" {
-		targetDir = binDir
-	}
-	a.OpenTerminalAtPath(terminalType, targetDir)
-	return nil
-}
-
-func (a *App) getServiceTargetDir(category string, binDir string) string {
-	exeMap := map[string]string{
-		"nginx":  exeNginx,
-		"apache": exeApache,
-		"mysql":  exeMySQL,
-		"nodejs": exeNode,
-		"python": exePython,
-	}
-
-	exeName, ok := exeMap[category]
-	if !ok {
-		return binDir
-	}
-
-	var targetDir string
-	_ = filepath.Walk(binDir, func(path string, info os.FileInfo, err error) error {
-		if info != nil && !info.IsDir() && info.Name() == exeName {
-			targetDir = filepath.Dir(path)
-			return filepath.SkipDir
-		}
-		return nil
-	})
-	return targetDir
+	return a.terminalMgr.OpenServiceTerminal(serviceName, terminalType)
 }
 
 // GetPHPExtensions returns the list of PHP extensions and their status from php.ini
@@ -819,51 +360,121 @@ type ProxyAppInfo struct {
 func (a *App) GetProxyApps() []ProxyAppInfo {
 	var apps []ProxyAppInfo
 	entries, err := os.ReadDir(a.cfg.WWWRoot)
-	if err != nil {
-		return apps
-	}
-
+	if err != nil { return apps }
 	for _, entry := range entries {
 		if entry.IsDir() {
 			name := entry.Name()
 			port := 0
-			if p, ok := a.cfg.Proxies[name]; ok {
-				port = p
-			}
+			if p, ok := a.cfg.Proxies[name]; ok { port = p }
 			apps = append(apps, ProxyAppInfo{Name: name, Port: port})
 		}
 	}
 	return apps
 }
 
+// GetConfig returns the current application configuration
+func (a *App) GetConfig() (*config.Config, error) { return a.configMgr.GetConfig() }
+
+// SetDefaultEditor sets the path to the default external text editor
+func (a *App) SetDefaultEditor(editorPath string) error { return a.configMgr.SetDefaultEditor(editorPath) }
+
+// SelectDefaultEditor opens a file dialog to select the default text editor
+func (a *App) SelectDefaultEditor() (string, error) { return a.configMgr.SelectDefaultEditor() }
+
+// ExportProfile exports the application configuration and/or SSH sessions to a JSON file
+func (a *App) ExportProfile(includeConfig bool, includeSSH bool) error {
+	return a.profileMgr.ExportProfile(includeConfig, includeSSH)
+}
+
+// ImportProfile imports an Ostenia profile from a JSON file
+func (a *App) ImportProfile() error { return a.profileMgr.ImportProfile() }
+
+// GetSSHSessions returns the list of saved SSH sessions
+func (a *App) GetSSHSessions() ([]config.SSHSession, error) { return config.LoadSSHSessions() }
+
+// SaveSSHSessions saves the entire list of SSH sessions
+func (a *App) SaveSSHSessions(sessions []config.SSHSession) error { return config.SaveSSHSessions(sessions) }
+
+// AddSSHSession adds a new SSH session
+func (a *App) AddSSHSession(session config.SSHSession) error { return config.AddSSHSession(session) }
+
+// UpdateSSHSession updates an existing SSH session
+func (a *App) UpdateSSHSession(session config.SSHSession) error { return config.UpdateSSHSession(session) }
+
+// DeleteSSHSession removes an SSH session by ID
+func (a *App) DeleteSSHSession(id string) error { return config.DeleteSSHSession(id) }
+
+// ConnectSSH initiates an SSH connection
+func (a *App) ConnectSSH(session config.SSHSession) error { return a.sshMgr.Connect(session) }
+
+// DisconnectSSH closes an SSH connection
+func (a *App) DisconnectSSH(sessionID string) { a.sshMgr.Disconnect(sessionID) }
+
+// SendSSHInput sends terminal input to an active SSH session
+func (a *App) SendSSHInput(sessionID string, data string) error { return a.sshMgr.SendInput(sessionID, data) }
+
+// ResizeSSHTerminal updates the PTY size for an SSH session
+func (a *App) ResizeSSHTerminal(sessionID string, cols int, rows int) error {
+	return a.sshMgr.ResizeTerminal(sessionID, cols, rows)
+}
+
+// GetRemoteFiles lists files in a remote directory via SFTP
+func (a *App) GetRemoteFiles(sessionID string, path string) ([]service.RemoteFile, error) {
+	return a.sshMgr.ListFiles(sessionID, path)
+}
+
+// ExecuteSFTPAction performs file operations (rename, delete, mkdir) on a remote host
+func (a *App) ExecuteSFTPAction(sessionID string, action string, path string, target string) error {
+	return a.sshMgr.ExecuteSFTPAction(sessionID, action, path, target)
+}
+
+// EditRemoteFile downloads a remote file to a temporary location and opens it in the default editor
+func (a *App) EditRemoteFile(sessionID string, remotePath string) error {
+	return a.sshMgr.EditFile(sessionID, remotePath)
+}
+
+// GetRemoteCurrentPath returns the current working directory of an SSH session
+func (a *App) GetRemoteCurrentPath(sessionID string) (string, error) {
+	return a.sshMgr.GetCurrentPath(sessionID)
+}
+
+// DownloadRemoteFile downloads a file from a remote host to the local machine
+func (a *App) DownloadRemoteFile(sessionID string, remotePath string) error {
+	fileName := filepath.Base(remotePath)
+	localPath, err := wruntime.SaveFileDialog(a.ctx, wruntime.SaveDialogOptions{
+		Title:           "Download File",
+		DefaultFilename: fileName,
+	})
+	if err != nil || localPath == "" { return err }
+	return a.sshMgr.DownloadFile(sessionID, remotePath, localPath)
+}
+
+// UploadRemoteFile uploads a file from the local machine to a remote host
+func (a *App) UploadRemoteFile(sessionID string, remoteDir string) error {
+	localPath, err := wruntime.OpenFileDialog(a.ctx, wruntime.OpenDialogOptions{Title: "Upload File"})
+	if err != nil || localPath == "" { return err }
+	remotePath := filepath.ToSlash(filepath.Join(remoteDir, filepath.Base(localPath)))
+	return a.sshMgr.UploadFile(sessionID, localPath, remotePath)
+}
+
 // SaveProxyPort saves the proxy port for a specific folder and reconfigures web servers
 func (a *App) SaveProxyPort(name string, port int) error {
-	if a.cfg.Proxies == nil {
-		a.cfg.Proxies = make(map[string]int)
-	}
-	if port <= 0 {
-		delete(a.cfg.Proxies, name)
-	} else {
-		a.cfg.Proxies[name] = port
-	}
+	if a.cfg.Proxies == nil { a.cfg.Proxies = make(map[string]int) }
+	if port <= 0 { delete(a.cfg.Proxies, name) } else { a.cfg.Proxies[name] = port }
 	err := config.SaveConfig(a.cfg)
-	if err != nil {
-		return err
-	}
+	if err != nil { return err }
 
-	// Trigger web server re-config
 	if a.orchestrator.IsRunning("Apache") {
-		_ = a.updateApacheConfig(filepath.Join(config.GetBaseDir(), "bin", "apache", "current"), a.orchestrator.GetDetailedInfo("Apache").Port)
+		_ = a.serviceMgr.UpdateApacheConfig(filepath.Join(config.GetBaseDir(), "bin", "apache", "current"), a.orchestrator.GetDetailedInfo("Apache").Port)
 		_ = a.StopService("Apache")
 		time.Sleep(500 * time.Millisecond)
 		_ = a.StartService("Apache")
 	}
 	if a.orchestrator.IsRunning("Nginx") {
-		_ = a.updateNginxConfig(filepath.Join(config.GetBaseDir(), "bin", "nginx", "current"), a.orchestrator.GetDetailedInfo("Nginx").Port)
+		_ = a.serviceMgr.UpdateNginxConfig(filepath.Join(config.GetBaseDir(), "bin", "nginx", "current"), a.orchestrator.GetDetailedInfo("Nginx").Port)
 		_ = a.StopService("Nginx")
 		time.Sleep(500 * time.Millisecond)
 		_ = a.StartService("Nginx")
 	}
-
 	return nil
 }

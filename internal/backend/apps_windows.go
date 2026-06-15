@@ -1,18 +1,13 @@
 //go:build windows
 
-package main
+package backend
 
 import (
 	"golang.org/x/sys/windows/registry"
 	"strings"
 )
 
-type InstalledApp struct {
-	Name string `json:"name"`
-	Path string `json:"path"`
-}
-
-func (a *App) GetInstalledApps() ([]InstalledApp, error) {
+func GetInstalledApps() ([]InstalledApp, error) {
 	apps := make(map[string]string)
 
 	keywords := []string{
@@ -61,7 +56,6 @@ func (a *App) GetInstalledApps() ([]InstalledApp, error) {
 				}
 
 				if !isEditor {
-					sk.Close()
 					continue
 				}
 
