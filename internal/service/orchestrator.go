@@ -21,6 +21,7 @@ import (
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
+// ServiceDetailedInfo contains comprehensive status and metadata for a service
 type ServiceDetailedInfo struct {
 	Name          string `json:"name"`
 	Status        string `json:"status"`
@@ -36,17 +37,19 @@ type runningService struct {
 	port int
 }
 
+// Orchestrator manages the lifecycle, monitoring, and state of background services
 type Orchestrator struct {
-	ctx           context.Context
-	services      map[string]*runningService
-	serviceCache  map[string]ServiceDetailedInfo
-	mu            sync.Mutex
-	activeTab     string
-	tabMu         sync.RWMutex
-	needsRefresh  bool
-	refreshMu     sync.Mutex
+	ctx          context.Context
+	services     map[string]*runningService
+	serviceCache map[string]ServiceDetailedInfo
+	mu           sync.Mutex
+	activeTab    string
+	tabMu        sync.RWMutex
+	needsRefresh bool
+	refreshMu    sync.Mutex
 }
 
+// NewOrchestrator creates a new Orchestrator instance
 func NewOrchestrator(ctx context.Context) *Orchestrator {
 	return &Orchestrator{
 		ctx:          ctx,
@@ -57,20 +60,25 @@ func NewOrchestrator(ctx context.Context) *Orchestrator {
 	}
 }
 
+// SetActiveTab updates the current view state and requests a refresh if navigating to activity
 func (o *Orchestrator) SetActiveTab(tab string) {
 	o.tabMu.Lock()
 	oldTab := o.activeTab
 	o.activeTab = tab
 	o.tabMu.Unlock()
-	if oldTab == "plugins" && tab == "activity" { o.RequestRefresh() }
+	if oldTab == "plugins" && tab == "activity" {
+		o.RequestRefresh()
+	}
 }
 
+// RequestRefresh marks the orchestrator state as needing a UI update
 func (o *Orchestrator) RequestRefresh() {
 	o.refreshMu.Lock()
 	o.needsRefresh = true
 	o.refreshMu.Unlock()
 }
 
+// StartWatcher begins a background ticker that periodically updates service statuses
 func (o *Orchestrator) StartWatcher() {
 	go func() {
 		ticker := time.NewTicker(3 * time.Second)
@@ -78,7 +86,8 @@ func (o *Orchestrator) StartWatcher() {
 		servicesToWatch := []string{"Apache", "Nginx", "MySQL", "PHP", "Node.js", "Python", "HeidiSQL", "OpenSSL"}
 		for {
 			select {
-			case <-o.ctx.Done(): return
+			case <-o.ctx.Done():
+				return
 			case <-ticker.C:
 				o.tabMu.RLock()
 				currentTab := o.activeTab
@@ -86,14 +95,20 @@ func (o *Orchestrator) StartWatcher() {
 				if currentTab == "activity" {
 					shouldRun := false
 					o.refreshMu.Lock()
-					if o.needsRefresh { shouldRun = true; o.needsRefresh = false }
+					if o.needsRefresh {
+						shouldRun = true
+						o.needsRefresh = false
+					}
 					o.refreshMu.Unlock()
 					if !shouldRun {
 						o.mu.Lock()
 						for _, name := range servicesToWatch {
 							cached := o.serviceCache[name]
 							if cached.Status == "Running" && name != "OpenSSL" && name != "Node.js" && name != "Python" {
-								if cached.PID == 0 || len(cached.Ports) == 0 { shouldRun = true; break }
+								if cached.PID == 0 || len(cached.Ports) == 0 {
+									shouldRun = true
+									break
+								}
 							}
 						}
 						o.mu.Unlock()
@@ -110,15 +125,24 @@ func (o *Orchestrator) StartWatcher() {
 	}()
 }
 
+// IsRunning returns true if a service is marked as Running in the cache
 func (o *Orchestrator) IsRunning(name string) bool {
-	o.mu.Lock(); info, ok := o.serviceCache[name]; o.mu.Unlock()
-	if ok { return info.Status == "Running" }
+	o.mu.Lock()
+	info, ok := o.serviceCache[name]
+	o.mu.Unlock()
+	if ok {
+		return info.Status == "Running"
+	}
 	return false
 }
 
+// GetDetailedInfo retrieves the cached status for a service
 func (o *Orchestrator) GetDetailedInfo(name string) ServiceDetailedInfo {
-	o.mu.Lock(); defer o.mu.Unlock()
-	if info, ok := o.serviceCache[name]; ok { return info }
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if info, ok := o.serviceCache[name]; ok {
+		return info
+	}
 	return ServiceDetailedInfo{Name: name, Status: "Stopped", Ports: []int{}}
 }
 
@@ -248,26 +272,41 @@ func (o *Orchestrator) updateServicePorts(info *ServiceDetailedInfo, pids []int,
 }
 
 func (o *Orchestrator) updateCache(name string, info ServiceDetailedInfo) {
-	o.mu.Lock(); o.serviceCache[name] = info; o.mu.Unlock()
+	o.mu.Lock()
+	o.serviceCache[name] = info
+	o.mu.Unlock()
 }
 
 func findOsteniaPIDs(exeName string) []int {
 	pids := []int{}
-	if runtime.GOOS != "windows" { return pids }
-	baseDir := config.GetBaseDir(); binPath := filepath.Join(baseDir, "bin")
-	cmd := exec.Command("wmic", "process", "where", fmt.Sprintf("name='%s'", exeName), "get", "ExecutablePath,ProcessId", "/format:csv")
+	if runtime.GOOS != "windows" {
+		return pids
+	}
+	baseDir := config.GetBaseDir()
+	binPath := filepath.Join(baseDir, "bin")
+	wmicPath := filepath.Join(utils.GetSystemDirectory(), "wbem", "wmic.exe")
+	cmd := exec.Command(wmicPath, "process", "where", fmt.Sprintf("name='%s'", exeName), "get", "ExecutablePath,ProcessId", "/format:csv")
+	cmd.Env = utils.SafeEnv()
 	utils.SetHideWindow(cmd)
 	out, err := cmd.Output()
-	if err != nil { return pids }
+	if err != nil {
+		return pids
+	}
 	lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(strings.ToLower(line), "node") { continue }
+		if line == "" || strings.HasPrefix(strings.ToLower(line), "node") {
+			continue
+		}
 		parts := strings.Split(line, ",")
 		if len(parts) >= 3 {
-			execPath := strings.TrimSpace(parts[1]); pidStr := strings.TrimSpace(parts[2])
+			execPath := strings.TrimSpace(parts[1])
+			pidStr := strings.TrimSpace(parts[2])
 			if strings.HasPrefix(strings.ToLower(execPath), strings.ToLower(binPath)) {
-				pid, err := strconv.Atoi(pidStr); if err == nil && pid > 0 { pids = append(pids, pid) }
+				pid, err := strconv.Atoi(pidStr)
+				if err == nil && pid > 0 {
+					pids = append(pids, pid)
+				}
 			}
 		}
 	}
@@ -276,21 +315,44 @@ func findOsteniaPIDs(exeName string) []int {
 
 func findPortsByPIDExact(pid int) []int {
 	ports := []int{}
-	if pid <= 0 { return ports }
+	if pid <= 0 {
+		return ports
+	}
 	pidStr := strconv.Itoa(pid)
-	command := fmt.Sprintf("netstat -ano | findstr %s | findstr LISTENING", pidStr)
-	cmd := exec.Command("cmd", "/c", command); utils.SetHideWindow(cmd)
-	out, _ := cmd.Output(); lines := strings.Split(string(out), "\n")
+
+	netstatPath := filepath.Join(utils.GetSystemDirectory(), "netstat.exe")
+	cmd := exec.Command(netstatPath, "-ano")
+	cmd.Env = utils.SafeEnv()
+	utils.SetHideWindow(cmd)
+	out, err := cmd.Output()
+	if err != nil {
+		return ports
+	}
+
+	lines := strings.Split(string(out), "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if line == "" { continue }
+		if line == "" || !strings.Contains(line, "LISTENING") || !strings.Contains(line, pidStr) {
+			continue
+		}
 		fields := strings.Fields(line)
-		if len(fields) >= 5 && fields[len(fields)-1] == pidStr {
-			localAddr := fields[1]; lastColon := strings.LastIndex(localAddr, ":")
+		// netstat -ano output: [Proto] [Local Address] [Foreign Address] [State] [PID]
+		if len(fields) >= 5 && fields[len(fields)-1] == pidStr && fields[3] == "LISTENING" {
+			localAddr := fields[1]
+			lastColon := strings.LastIndex(localAddr, ":")
 			if lastColon != -1 {
-				p, _ := strconv.Atoi(localAddr[lastColon+1:]); if p > 0 {
-					exists := false; for _, existing := range ports { if existing == p { exists = true; break } }
-					if !exists { ports = append(ports, p) }
+				p, err := strconv.Atoi(localAddr[lastColon+1:])
+				if err == nil && p > 0 {
+					exists := false
+					for _, existing := range ports {
+						if existing == p {
+							exists = true
+							break
+						}
+					}
+					if !exists {
+						ports = append(ports, p)
+					}
 				}
 			}
 		}
@@ -298,52 +360,86 @@ func findPortsByPIDExact(pid int) []int {
 	return ports
 }
 
+// StartServiceWithPort launches a service and tracks it by its known port
 func (o *Orchestrator) StartServiceWithPort(name string, binaryPath string, args []string, workingDir string, port int) error {
 	o.mu.Lock()
 	if _, exists := o.services[name]; exists {
 		s := o.services[name]
 		if s.cmd != nil && s.cmd.Process != nil {
 			pids := findOsteniaPIDs(filepath.Base(binaryPath))
-			running := false; for _, p := range pids { if p == s.cmd.Process.Pid { running = true; break } }
-			if running { o.mu.Unlock(); return fmt.Errorf("service %s is already running", name) }
+			running := false
+			for _, p := range pids {
+				if p == s.cmd.Process.Pid {
+					running = true
+					break
+				}
+			}
+			if running {
+				o.mu.Unlock()
+				return fmt.Errorf("service %s is already running", name)
+			}
 		}
 	}
 	o.mu.Unlock()
-	absPath, _ := filepath.Abs(binaryPath); cmd := exec.Command(absPath, args...)
-	if workingDir != "" { cmd.Dir = workingDir }
+	absPath, _ := filepath.Abs(binaryPath)
+	cmd := exec.Command(absPath, args...)
+	if workingDir != "" {
+		cmd.Dir = workingDir
+	}
 	utils.SetHideWindow(cmd)
-	stdout, _ := cmd.StdoutPipe(); stderr, _ := cmd.StderrPipe()
-	go o.captureLogs(name, stdout); go o.captureLogs(name, stderr)
-	if err := cmd.Start(); err != nil { return err }
-	o.mu.Lock(); o.services[name] = &runningService{cmd: cmd, port: port}; o.mu.Unlock()
-	o.RequestRefresh(); o.emitStatus(name, "Running")
+	stdout, err := cmd.StdoutPipe()
+	if err == nil {
+		go o.captureLogs(name, stdout)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err == nil {
+		go o.captureLogs(name, stderr)
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	o.mu.Lock()
+	o.services[name] = &runningService{cmd: cmd, port: port}
+	o.mu.Unlock()
+	o.RequestRefresh()
+	o.emitStatus(name, "Running")
 	go func() {
-		cmd.Wait(); time.Sleep(500 * time.Millisecond)
-		o.mu.Lock(); delete(o.services, name); o.mu.Unlock()
-		o.RequestRefresh(); o.emitStatus(name, "Stopped")
+		_ = cmd.Wait()
+		time.Sleep(500 * time.Millisecond)
+		o.mu.Lock()
+		delete(o.services, name)
+		o.mu.Unlock()
+		o.RequestRefresh()
+		o.emitStatus(name, "Stopped")
 	}()
 	return nil
 }
 
+// StartService launches a service without a specific port requirement
 func (o *Orchestrator) StartService(name string, binaryPath string, args []string, workingDir string) error {
 	return o.StartServiceWithPort(name, binaryPath, args, workingDir, 0)
 }
 
+// StopService gracefully or forcefully shuts down a running service
 func (o *Orchestrator) StopService(name string) error {
 	if runtime.GOOS == "windows" {
 		if name == "HeidiSQL" {
 			_, uninstaller := utils.DetectHeidiSQLInstallation()
 			if uninstaller != "" {
-				cmd := exec.Command("cmd", "/c", "start", "", uninstaller)
+				cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
+				cmd := exec.Command(cmdPath, "/c", "start", "", uninstaller)
+				cmd.Env = utils.SafeEnv()
 				utils.SetHideWindow(cmd)
 				_ = cmd.Run()
 			} else {
 				// Fallback to taskkill if uninstaller not found
 				pids := findOsteniaPIDs("heidisql.exe")
+				taskkillPath := filepath.Join(utils.GetSystemDirectory(), "taskkill.exe")
 				for _, pid := range pids {
-					killCmd := exec.Command("taskkill", "/F", "/PID", strconv.Itoa(pid), "/T")
-				utils.SetHideWindow(killCmd)
-					killCmd.Run()
+					killCmd := exec.Command(taskkillPath, "/F", "/PID", strconv.Itoa(pid), "/T")
+					killCmd.Env = utils.SafeEnv()
+					utils.SetHideWindow(killCmd)
+					_ = killCmd.Run()
 				}
 			}
 			o.mu.Lock()
@@ -371,31 +467,48 @@ func (o *Orchestrator) StopService(name string) error {
 		case "Python":
 			exeNames = []string{"python.exe"}
 		}
+		taskkillPath := filepath.Join(utils.GetSystemDirectory(), "taskkill.exe")
 		for _, exe := range exeNames {
 			pids := findOsteniaPIDs(exe)
 			for _, pid := range pids {
-				killCmd := exec.Command("taskkill", "/F", "/PID", strconv.Itoa(pid), "/T")
-				utils.SetHideWindow(killCmd); killCmd.Run()
+				killCmd := exec.Command(taskkillPath, "/F", "/PID", strconv.Itoa(pid), "/T")
+				killCmd.Env = utils.SafeEnv()
+				utils.SetHideWindow(killCmd)
+				_ = killCmd.Run()
 			}
 		}
 		time.Sleep(600 * time.Millisecond)
 	}
-	o.mu.Lock(); delete(o.services, name); o.mu.Unlock()
-	o.RequestRefresh(); o.emitStatus(name, "Stopped")
+	o.mu.Lock()
+	delete(o.services, name)
+	o.mu.Unlock()
+	o.RequestRefresh()
+	o.emitStatus(name, "Stopped")
 	return nil
 }
 
 func (o *Orchestrator) captureLogs(name string, reader io.ReadCloser) {
-	scanner := bufio.NewScanner(reader); for scanner.Scan() {
+	defer reader.Close()
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
 		wruntime.EventsEmit(o.ctx, "service_log", map[string]string{"service": name, "message": scanner.Text()})
 	}
 }
 
 func (o *Orchestrator) emitStatus(name string, status string) {
-	info := o.updateServiceInfo(name); wruntime.EventsEmit(o.ctx, "service_status", info)
+	info := o.updateServiceInfo(name)
+	wruntime.EventsEmit(o.ctx, "service_status", info)
 }
 
+// StopAll terminates all services currently being tracked by the orchestrator
 func (o *Orchestrator) StopAll() {
-	o.mu.Lock(); names := make([]string, 0, len(o.services)); for name := range o.services { names = append(names, name) }
-	o.mu.Unlock(); for _, name := range names { o.StopService(name) }
+	o.mu.Lock()
+	names := make([]string, 0, len(o.services))
+	for name := range o.services {
+		names = append(names, name)
+	}
+	o.mu.Unlock()
+	for _, name := range names {
+		_ = o.StopService(name)
+	}
 }

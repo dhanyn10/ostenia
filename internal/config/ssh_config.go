@@ -7,18 +7,19 @@ import (
 	"sync"
 )
 
+// SSHSession defines the metadata and credentials required to connect to a remote host
 type SSHSession struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Host         string `json:"host"`
-	Port         int    `json:"port"`
-	User         string `json:"user"`
-	AuthMethod   string `json:"authMethod"` // "password" or "key"
-	Password     string `json:"password,omitempty"`
-	KeyPath      string `json:"keyPath,omitempty"`
-	Passphrase   string `json:"passphrase,omitempty"`
-	LastPath     string `json:"lastPath,omitempty"`
-	CreatedAt    int64  `json:"createdAt"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Host       string `json:"host"`
+	Port       int    `json:"port"`
+	User       string `json:"user"`
+	AuthMethod string `json:"authMethod"` // "password" or "key"
+	Password   string `json:"password,omitempty"`
+	KeyPath    string `json:"keyPath,omitempty"`
+	Passphrase string `json:"passphrase,omitempty"`
+	LastPath   string `json:"lastPath,omitempty"`
+	CreatedAt  int64  `json:"createdAt"`
 }
 
 var (
@@ -29,6 +30,7 @@ func getSSHSessionsPath() string {
 	return filepath.Join(GetBaseDir(), "ssh_sessions.json")
 }
 
+// LoadSSHSessions reads all saved SSH sessions from the persistent storage and decrypts sensitive fields
 func LoadSSHSessions() ([]SSHSession, error) {
 	sshSessionsMu.Lock()
 	defer sshSessionsMu.Unlock()
@@ -58,6 +60,7 @@ func LoadSSHSessions() ([]SSHSession, error) {
 	return sessions, nil
 }
 
+// SaveSSHSessions encrypts sensitive fields and persists the list of SSH sessions to storage
 func SaveSSHSessions(sessions []SSHSession) error {
 	sshSessionsMu.Lock()
 	defer sshSessionsMu.Unlock()
@@ -79,6 +82,7 @@ func SaveSSHSessions(sessions []SSHSession) error {
 	return os.WriteFile(path, data, 0644)
 }
 
+// AddSSHSession appends a new session to the persistent list
 func AddSSHSession(session SSHSession) error {
 	sessions, err := LoadSSHSessions()
 	if err != nil {
@@ -88,6 +92,7 @@ func AddSSHSession(session SSHSession) error {
 	return SaveSSHSessions(sessions)
 }
 
+// UpdateSSHSession modifies an existing session in the persistent list matching the provided session ID
 func UpdateSSHSession(session SSHSession) error {
 	sessions, err := LoadSSHSessions()
 	if err != nil {
@@ -102,6 +107,7 @@ func UpdateSSHSession(session SSHSession) error {
 	return SaveSSHSessions(sessions)
 }
 
+// DeleteSSHSession removes a session from the persistent list by its unique ID
 func DeleteSSHSession(id string) error {
 	sessions, err := LoadSSHSessions()
 	if err != nil {

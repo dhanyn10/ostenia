@@ -22,6 +22,7 @@ import (
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
+// Manager coordinates the download, extraction, and management of plugin versions
 type Manager struct {
 	ctx       context.Context
 	cancels   map[string]context.CancelFunc
@@ -29,6 +30,7 @@ type Manager struct {
 	emit      func(ctx context.Context, eventName string, optionalData ...interface{})
 }
 
+// NewManager creates a new plugin Manager instance
 func NewManager(ctx context.Context) *Manager {
 	return &Manager{
 		ctx:     ctx,
@@ -37,29 +39,51 @@ func NewManager(ctx context.Context) *Manager {
 	}
 }
 
+// CancelDownload aborts an ongoing download task
 func (m *Manager) CancelDownload(name string) {
 	m.cancelsMu.Lock()
 	defer m.cancelsMu.Unlock()
-	if c, ok := m.cancels[name]; ok { c(); delete(m.cancels, name) }
+	if c, ok := m.cancels[name]; ok {
+		c()
+		delete(m.cancels, name)
+	}
 }
 
+// DeleteVersion removes a specific version directory and kills any related processes on Windows
 func (m *Manager) DeleteVersion(taskName, version string) error {
 	if runtime.GOOS == "windows" {
-		exeMap := map[string]string{"apache": "httpd.exe", "mysql": "mysqld.exe", "php": "php.exe", "heidisql": "heidisql.exe", "nginx": "nginx.exe", "openssl": "openssl.exe", "node.js": "node.exe", "python": "python.exe"}
+		exeMap := map[string]string{
+			"apache": "httpd.exe", "mysql": "mysqld.exe", "php": "php.exe",
+			"heidisql": "heidisql.exe", "nginx": "nginx.exe", "openssl": "openssl.exe",
+			"node.js": "node.exe", "python": "python.exe",
+		}
 		if exe, ok := exeMap[strings.ToLower(taskName)]; ok {
-			c := exec.Command("taskkill", "/F", "/IM", exe, "/T")
-			utils.SetHideWindow(c); _ = c.Run()
+			taskkillPath := filepath.Join(utils.GetSystemDirectory(), "taskkill.exe")
+			c := exec.Command(taskkillPath, "/F", "/IM", exe, "/T")
+			c.Env = utils.SafeEnv()
+			utils.SetHideWindow(c)
+			_ = c.Run()
 			time.Sleep(500 * time.Millisecond)
 		}
 	}
-	baseDir := config.GetBaseDir(); cat := strings.ToLower(taskName)
-	if cat == "node.js" { cat = "nodejs" }
-	pMap := map[string]string{"php": "php-", "apache": "httpd-", "mysql": "mysql-", "nginx": "nginx-", "openssl": "openssl-", "nodejs": "node-v", "python": "python-"}
+	baseDir := config.GetBaseDir()
+	cat := strings.ToLower(taskName)
+	if cat == "node.js" {
+		cat = "nodejs"
+	}
+	pMap := map[string]string{
+		"php": "php-", "apache": "httpd-", "mysql": "mysql-",
+		"nginx": "nginx-", "openssl": "openssl-", "nodejs": "node-v",
+		"python": "python-",
+	}
 	dir := filepath.Join(baseDir, "bin", cat, pMap[cat]+version)
-	if _, err := os.Stat(dir); os.IsNotExist(err) { dir = filepath.Join(baseDir, "bin", cat, version) }
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		dir = filepath.Join(baseDir, "bin", cat, version)
+	}
 	return os.RemoveAll(dir)
 }
 
+// DownloadAndExtract handles the full lifecycle of installing a plugin task
 func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 	baseDir := config.GetBaseDir()
 	targetDir := filepath.Join(baseDir, "bin", task.Target)
@@ -112,14 +136,22 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 
 	// 3. Extraction or execution
 	if !isZip && !isNupkg {
-		os.MkdirAll(targetDir, 0755)
+		if err := os.MkdirAll(targetDir, 0755); err != nil {
+			return err
+		}
 		dest := filepath.Join(targetDir, "installer.exe")
-		// Correct move for Windows (replace old installer if it exists)
-		_ = exec.Command("cmd", "/c", "copy", "/Y", tmp, dest).Run()
+		// Correct copy for Windows (replace old installer if it exists)
+		if err := utils.CopyFile(tmp, dest); err != nil {
+			return fmt.Errorf("failed to copy installer: %w", err)
+		}
 
-		cmd := exec.Command("cmd", "/c", "start", "", dest)
+		cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
+		cmd := exec.Command(cmdPath, "/c", "start", "", dest)
+		cmd.Env = utils.SafeEnv()
 		utils.SetHideWindow(cmd)
-		_ = cmd.Run()
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to launch installer: %w", err)
+		}
 
 		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Completed"})
 		return nil
@@ -166,7 +198,7 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 		return err
 	}
 
-	os.Remove(tmp)
+	_ = os.Remove(tmp)
 	_ = m.ensureCurrentLink(task)
 	fmt.Printf("[Manager] %s v%s installation complete.\n", task.Name, task.Version)
 	m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Completed"})
@@ -174,42 +206,85 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 }
 
 func (m *Manager) downloadFile(ctx context.Context, url, path, name string) error {
-	out, err := os.Create(path); if err != nil { return err }; defer out.Close()
-	req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
-	resp, err := http.DefaultClient.Do(req); if err != nil { return err }; defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK { return fmt.Errorf("HTTP %d", resp.StatusCode) }
+	out, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
 
 	wc := &WriteCounter{
-		Total: uint64(resp.ContentLength),
+		Total:     uint64(resp.ContentLength),
 		StartTime: time.Now(),
 		OnProgress: func(p, t uint64, s string) {
-			pct := 0.0; if t > 0 { pct = (float64(p) / float64(t)) * 100 }
+			pct := 0.0
+			if t > 0 {
+				pct = (float64(p) / float64(t)) * 100
+			}
 			m.emit(m.ctx, "download_progress", Progress{Name: name, Percentage: pct, Status: "Downloading...", Speed: s, Downloaded: formatBytes(p)})
 		},
 	}
-	_, err = io.Copy(out, io.TeeReader(resp.Body, wc)); return err
+	_, err = io.Copy(out, io.TeeReader(resp.Body, wc))
+	return err
 }
 
+// DownloadFileManual downloads a file without context-based cancellation
 func (m *Manager) DownloadFileManual(url, path, name string) error {
 	return m.downloadFile(m.ctx, url, path, name)
 }
 
 func (m *Manager) unzipFile(ctx context.Context, src, dest, name string) error {
-	r, err := zip.OpenReader(src); if err != nil { return err }; defer r.Close()
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
 	total := len(r.File)
 	for i, f := range r.File {
 		select {
-		case <-ctx.Done(): return ctx.Err()
+		case <-ctx.Done():
+			return ctx.Err()
 		default:
 			fpath := filepath.Join(dest, f.Name)
-			if f.FileInfo().IsDir() { _ = os.MkdirAll(fpath, os.ModePerm); continue }
-			_ = os.MkdirAll(filepath.Dir(fpath), os.ModePerm)
-			outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode()); if err != nil { return err }
-			rc, err := f.Open(); if err != nil { outFile.Close(); return err }
-			_, err = io.Copy(outFile, rc); outFile.Close(); rc.Close()
-			if err != nil { return err }
+			if f.FileInfo().IsDir() {
+				_ = os.MkdirAll(fpath, os.ModePerm)
+				continue
+			}
+			if err := os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+				return err
+			}
+			outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			if err != nil {
+				return err
+			}
+			rc, err := f.Open()
+			if err != nil {
+				outFile.Close()
+				return err
+			}
+			_, err = io.Copy(outFile, rc)
+			outFile.Close()
+			rc.Close()
+			if err != nil {
+				return err
+			}
 			if i%20 == 0 { // Reduce event noise
-				m.emit(m.ctx, "download_progress", Progress{Name: name, Percentage: (float64(i+1)/float64(total))*100, Status: "Extracting..."})
+				m.emit(m.ctx, "download_progress", Progress{Name: name, Percentage: (float64(i+1) / float64(total)) * 100, Status: "Extracting..."})
 			}
 		}
 	}
@@ -217,33 +292,53 @@ func (m *Manager) unzipFile(ctx context.Context, src, dest, name string) error {
 }
 
 func (m *Manager) ensureCurrentLink(task DownloadTask) error {
-	baseDir := config.GetBaseDir(); parts := strings.Split(filepath.ToSlash(task.Target), "/")
-	if len(parts) < 2 { return nil }
-	link := filepath.Join(baseDir, "bin", parts[0], "current"); target := filepath.Join(baseDir, "bin", task.Target)
+	baseDir := config.GetBaseDir()
+	parts := strings.Split(filepath.ToSlash(task.Target), "/")
+	if len(parts) < 2 {
+		return nil
+	}
+	link := filepath.Join(baseDir, "bin", parts[0], "current")
+	target := filepath.Join(baseDir, "bin", task.Target)
 	_ = os.Remove(link) // Remove old junction
-	c := exec.Command("cmd", "/c", "mklink", "/J", link, target)
-	utils.SetHideWindow(c); return c.Run()
+	cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
+	c := exec.Command(cmdPath, "/c", "mklink", "/J", link, target)
+	c.Env = utils.SafeEnv()
+	utils.SetHideWindow(c)
+	return c.Run()
 }
 
+// WriteCounter tracks the progress of a write operation
 type WriteCounter struct {
 	Total, Downloaded uint64
-	StartTime time.Time
-	OnProgress func(uint64, uint64, string)
+	StartTime         time.Time
+	OnProgress        func(uint64, uint64, string)
 }
 
 func (wc *WriteCounter) Write(p []byte) (int, error) {
-	n := len(p); wc.Downloaded += uint64(n)
+	n := len(p)
+	wc.Downloaded += uint64(n)
 	el := time.Since(wc.StartTime).Seconds()
-	sp := "0 KB/s"; if el > 0 {
+	sp := "0 KB/s"
+	if el > 0 {
 		s := float64(wc.Downloaded) / el
-		if s > 1024*1024 { sp = fmt.Sprintf("%.2f MB/s", s/(1024*1024)) } else { sp = fmt.Sprintf("%.2f KB/s", s/1024) }
+		if s > 1024*1024 {
+			sp = fmt.Sprintf("%.2f MB/s", s/(1024*1024))
+		} else {
+			sp = fmt.Sprintf("%.2f KB/s", s/1024)
+		}
 	}
-	wc.OnProgress(wc.Downloaded, wc.Total, sp); return n, nil
+	wc.OnProgress(wc.Downloaded, wc.Total, sp)
+	return n, nil
 }
 
 func formatBytes(b uint64) string {
-	if b < 1024 { return fmt.Sprintf("%d B", b) }
+	if b < 1024 {
+		return fmt.Sprintf("%d B", b)
+	}
 	div, exp := uint64(1024), 0
-	for n := b / 1024; n >= 1024; n /= 1024 { div *= 1024; exp++ }
+	for n := b / 1024; n >= 1024; n /= 1024 {
+		div *= 1024
+		exp++
+	}
 	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
 }

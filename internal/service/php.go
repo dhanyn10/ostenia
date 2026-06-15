@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// PHPExtensionInfo contains the name and enabled status of a PHP extension
 type PHPExtensionInfo struct {
 	Name    string `json:"name"`
 	Enabled bool   `json:"enabled"`
@@ -30,7 +31,8 @@ func GetPHPVersion(currentPath string) (string, error) {
 	return string(out), nil
 }
 
-// UpdatePHPConfig ensures required extensions and paths are set in php.ini
+// UpdatePHPConfig ensures required extensions and paths are set in php.ini.
+// It initializes php.ini from development/production templates if it doesn't exist.
 func UpdatePHPConfig(phpPath string) error {
 	iniPath := filepath.Join(phpPath, "php.ini")
 	iniDevelopment := filepath.Join(phpPath, "php.ini-development")
@@ -47,13 +49,15 @@ func UpdatePHPConfig(phpPath string) error {
 		if source != "" {
 			data, errRead := os.ReadFile(source)
 			if errRead == nil {
-				os.WriteFile(iniPath, data, 0644)
+				_ = os.WriteFile(iniPath, data, 0644)
 			}
 		}
 	}
 
 	input, err := os.ReadFile(iniPath)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	content := string(input)
 
 	absPath, _ := filepath.Abs(phpPath)
@@ -71,6 +75,7 @@ func UpdatePHPConfig(phpPath string) error {
 		}
 	}
 
+	// Enable standard required extensions
 	coreExts := []string{"openssl", "mbstring", "curl"}
 	for _, ext := range coreExts {
 		re := regexp.MustCompile(`(?m)^;\s*(extension\s*=\s*(?:php_)?` + ext + `(?:\.dll)?\s*)$`)
@@ -84,11 +89,13 @@ func UpdatePHPConfig(phpPath string) error {
 func GetPHPExtensions(phpPath string) ([]PHPExtensionInfo, error) {
 	iniPath := filepath.Join(phpPath, "php.ini")
 	if _, err := os.Stat(iniPath); os.IsNotExist(err) {
-		UpdatePHPConfig(phpPath)
+		_ = UpdatePHPConfig(phpPath)
 	}
 
 	data, err := os.ReadFile(iniPath)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	content := string(data)
 
 	re := regexp.MustCompile(`(?m)^;?\s*extension\s*=\s*["']?(?:php_)?([a-z0-9_]+)(?:\.dll)?["']?`)
@@ -100,8 +107,12 @@ func GetPHPExtensions(phpPath string) ([]PHPExtensionInfo, error) {
 
 	for _, m := range matches {
 		name := strings.TrimSpace(m[1])
-		if name == "" || name == "ext" { continue }
-		if _, exists := extMap[name]; exists { continue }
+		if name == "" || name == "ext" {
+			continue
+		}
+		if _, exists := extMap[name]; exists {
+			continue
+		}
 
 		enabled := false
 		for _, line := range lines {
@@ -122,7 +133,9 @@ func GetPHPExtensions(phpPath string) ([]PHPExtensionInfo, error) {
 func TogglePHPExtension(phpPath string, extName string, enable bool) error {
 	iniPath := filepath.Join(phpPath, "php.ini")
 	data, err := os.ReadFile(iniPath)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 
 	content := string(data)
 	lines := strings.Split(content, "\n")
@@ -135,7 +148,9 @@ func TogglePHPExtension(phpPath string, extName string, enable bool) error {
 				lines[i] = strings.TrimPrefix(trimmed, ";")
 				lines[i] = strings.TrimSpace(lines[i])
 			} else {
-				if !strings.HasPrefix(trimmed, ";") { lines[i] = ";" + trimmed }
+				if !strings.HasPrefix(trimmed, ";") {
+					lines[i] = ";" + trimmed
+				}
 			}
 			found = true
 			break
