@@ -77,8 +77,9 @@ func (a *App) startup(ctx context.Context) {
 	}
 
 	a.profileMgr = &backend.ProfileManager{
-		Ctx:    ctx,
-		Config: a.cfg,
+		Ctx:          ctx,
+		Config:       a.cfg,
+		Orchestrator: a.orchestrator,
 	}
 
 	// Initial setup of directories in current base dir
@@ -371,7 +372,7 @@ func (a *App) GetProxyApps() []ProxyAppInfo {
 }
 
 // GetConfig returns the current application configuration
-func (a *App) GetConfig() (*config.Config, error) { return a.configMgr.GetConfig() }
+func (a *App) GetConfig() *config.Config { return a.configMgr.GetConfig() }
 
 // SetDefaultEditor sets the path to the default external text editor
 func (a *App) SetDefaultEditor(editorPath string) error { return a.configMgr.SetDefaultEditor(editorPath) }
@@ -386,6 +387,9 @@ func (a *App) ExportProfile(includeConfig bool, includeSSH bool) error {
 
 // ImportProfile imports an Ostenia profile from a JSON file
 func (a *App) ImportProfile() error { return a.profileMgr.ImportProfile() }
+
+// UpdateActiveTab notifies the orchestrator about the current active tab in the UI
+func (a *App) UpdateActiveTab(tab string) { a.orchestrator.SetActiveTab(tab) }
 
 // GetSSHSessions returns the list of saved SSH sessions
 func (a *App) GetSSHSessions() ([]config.SSHSession, error) { return config.LoadSSHSessions() }

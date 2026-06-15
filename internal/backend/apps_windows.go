@@ -28,8 +28,8 @@ func GetInstalledApps() ([]InstalledApp, error) {
 		}
 
 		subkeys, err := k.ReadSubKeyNames(-1)
-		k.Close()
 		if err != nil {
+			k.Close()
 			continue
 		}
 
@@ -43,8 +43,6 @@ func GetInstalledApps() ([]InstalledApp, error) {
 			location, _, _ := sk.GetStringValue("InstallLocation")
 			exe, _, _ := sk.GetStringValue("DisplayIcon") // Often contains the main exe path
 
-			sk.Close()
-
 			if name != "" {
 				lowerName := strings.ToLower(name)
 				isEditor := false
@@ -56,6 +54,7 @@ func GetInstalledApps() ([]InstalledApp, error) {
 				}
 
 				if !isEditor {
+					sk.Close()
 					continue
 				}
 
@@ -70,7 +69,9 @@ func GetInstalledApps() ([]InstalledApp, error) {
 					apps[name] = appPath
 				}
 			}
+			sk.Close()
 		}
+		k.Close()
 	}
 
 	var result []InstalledApp

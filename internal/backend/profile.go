@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"ostenia/internal/config"
+	"ostenia/internal/service"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -15,8 +16,9 @@ type ProfileData struct {
 }
 
 type ProfileManager struct {
-	Ctx    context.Context
-	Config *config.Config
+	Ctx          context.Context
+	Config       *config.Config
+	Orchestrator *service.Orchestrator
 }
 
 func (p *ProfileManager) ExportProfile(includeConfig bool, includeSSH bool) error {
@@ -48,9 +50,13 @@ func (p *ProfileManager) ImportProfile() error {
 	var profile ProfileData
 	if err = json.Unmarshal(data, &profile); err != nil { return err }
 	if profile.Config != nil {
-		profile.Config.BaseDir = p.Config.BaseDir
-		profile.Config.WWWRoot = p.Config.WWWRoot
-		p.Config = profile.Config
+		// Update original config values instead of swapping references
+		p.Config.BaseDir = profile.Config.BaseDir
+		p.Config.WWWRoot = profile.Config.WWWRoot
+		p.Config.DefaultEditor = profile.Config.DefaultEditor
+		p.Config.ApacheHTTPS = profile.Config.ApacheHTTPS
+		p.Config.NginxHTTPS = profile.Config.NginxHTTPS
+		p.Config.Proxies = profile.Config.Proxies
 		_ = config.SaveConfig(p.Config)
 	}
 	if profile.SSHSessions != nil { _ = config.SaveSSHSessions(profile.SSHSessions) }

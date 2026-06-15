@@ -4,9 +4,15 @@ import { Edit2, Edit3, Download, Trash2 } from 'lucide-react';
 const FileContextMenu = ({ x, y, file, remotePath, session, loadRemoteFiles, handleEdit, handleDownload, handleDelete, setFileContextMenu, addToast, AppBackend }) => {
   return (
     <div
+      role="menu"
+      tabIndex={-1}
       className="fixed z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg py-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-100"
       style={{ top: y, left: x }}
       onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === 'Escape') setFileContextMenu(null);
+      }}
     >
       <button
         onClick={async () => {

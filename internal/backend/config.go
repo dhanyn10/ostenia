@@ -11,8 +11,8 @@ type ConfigManager struct {
 	Config *config.Config
 }
 
-func (c *ConfigManager) GetConfig() (*config.Config, error) {
-	return config.LoadConfig()
+func (c *ConfigManager) GetConfig() *config.Config {
+	return c.Config
 }
 
 func (c *ConfigManager) SaveConfig(cfg *config.Config) error {
