@@ -53,19 +53,26 @@ func findExecutables() []string {
 			return
 		}
 		key := strings.ToLower(path)
-		if seen[key] {
-			return
-		}
-		if _, err := os.Stat(path); err == nil {
-			seen[key] = true
-			paths = append(paths, path)
+		if !seen[key] {
+			if _, err := os.Stat(path); err == nil {
+				seen[key] = true
+				paths = append(paths, path)
+			}
 		}
 	}
 
-	for _, cmd := range []*exec.Cmd{
+	searchSystemPath(addPath)
+	searchBinDir(addPath)
+
+	return paths
+}
+
+func searchSystemPath(addPath func(string)) {
+	commands := []*exec.Cmd{
 		exec.Command("cmd", "/d", "/c", "where openssl"),
 		exec.Command("where.exe", "openssl"),
-	} {
+	}
+	for _, cmd := range commands {
 		utils.SetHideWindow(cmd)
 		if out, err := cmd.Output(); err == nil {
 			for _, line := range strings.Split(string(out), "\n") {
@@ -73,18 +80,15 @@ func findExecutables() []string {
 			}
 		}
 	}
+}
 
+func searchBinDir(addPath func(string)) {
 	filepath.Walk(filepath.Join(config.GetBaseDir(), "bin"), func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil || info.IsDir() {
-			return nil
-		}
-		if strings.EqualFold(info.Name(), "openssl.exe") {
+		if err == nil && info != nil && !info.IsDir() && strings.EqualFold(info.Name(), "openssl.exe") {
 			addPath(path)
 		}
 		return nil
 	})
-
-	return paths
 }
 
 func versionFromExecutable(exePath string) string {

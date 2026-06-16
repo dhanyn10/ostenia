@@ -57,20 +57,9 @@ func (m *SSHManager) Connect(session config.SSHSession) error {
 		return nil
 	}
 
-	var auth goph.Auth
-	var err error
-
-	if session.AuthMethod == "password" {
-		auth = goph.Password(session.Password)
-	} else {
-		if session.Passphrase != "" {
-			auth, err = goph.Key(session.KeyPath, session.Passphrase)
-		} else {
-			auth, err = goph.Key(session.KeyPath, "")
-		}
-		if err != nil {
-			return err
-		}
+	auth, err := m.getAuth(session)
+	if err != nil {
+		return err
 	}
 
 	client, err := goph.NewConn(&goph.Config{
@@ -109,6 +98,13 @@ func (m *SSHManager) Connect(session config.SSHSession) error {
 	return nil
 }
 
+func (m *SSHManager) getAuth(session config.SSHSession) (goph.Auth, error) {
+	if session.AuthMethod == "password" {
+		return goph.Password(session.Password), nil
+	}
+	return goph.Key(session.KeyPath, session.Passphrase)
+}
+
 func (m *SSHManager) startTerminal(conn *SSHConnection) {
 	sshSession, err := conn.Client.NewSession()
 	if err != nil {
@@ -121,51 +117,12 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 	stdin, _ := sshSession.StdinPipe()
 	conn.Shell = stdin
 
-	modes := ssh.TerminalModes{
-		ssh.ECHO:          1,
-		ssh.TTY_OP_ISPEED: 14400,
-		ssh.TTY_OP_OSPEED: 14400,
-		ssh.ICANON:        0,
-	}
-
-	// RequestPty(term, height, width, modes)
-	// Hardcoded wide dimensions to prevent wrapping during initialization.
-	// We set rows: 50, cols: 200.
-	if err := sshSession.RequestPty("xterm-256color", 50, 200, modes); err != nil {
-		fmt.Printf("request for pseudo terminal failed: %v\n", err)
+	if err := m.requestPtyAndShell(sshSession); err != nil {
 		return
 	}
 
-	if err := sshSession.Shell(); err != nil {
-		fmt.Printf("failed to start shell: %v\n", err)
-		return
-	}
-
-	// Channel to signal shell exit
 	exitChan := make(chan struct{})
-
-	// For PTY sessions, SSH combines Stdout and Stderr into a single stream.
-	// Reading them separately in parallel causes character interleaving and corrupted escape sequences.
-	go func() {
-		buf := make([]byte, 2048)
-		for {
-			n, err := stdout.Read(buf)
-			if n > 0 {
-				wruntime.EventsEmit(m.ctx, "ssh_output", map[string]interface{}{
-					"sessionId": conn.SessionID,
-					"data":      string(buf[:n]),
-				})
-			}
-			if err != nil {
-				select {
-				case <-exitChan:
-				default:
-					close(exitChan)
-				}
-				break
-			}
-		}
-	}()
+	go m.pipeOutput(conn.SessionID, stdout, exitChan)
 
 	select {
 	case <-conn.Context.Done():
@@ -178,6 +135,47 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 	}
 }
 
+func (m *SSHManager) requestPtyAndShell(sshSession *ssh.Session) error {
+	modes := ssh.TerminalModes{
+		ssh.ECHO:          1,
+		ssh.TTY_OP_ISPEED: 14400,
+		ssh.TTY_OP_OSPEED: 14400,
+		ssh.ICANON:        0,
+	}
+
+	if err := sshSession.RequestPty("xterm-256color", 50, 200, modes); err != nil {
+		fmt.Printf("request for pseudo terminal failed: %v\n", err)
+		return err
+	}
+
+	if err := sshSession.Shell(); err != nil {
+		fmt.Printf("failed to start shell: %v\n", err)
+		return err
+	}
+	return nil
+}
+
+func (m *SSHManager) pipeOutput(sessionID string, stdout io.Reader, exitChan chan struct{}) {
+	buf := make([]byte, 2048)
+	for {
+		n, err := stdout.Read(buf)
+		if n > 0 {
+			wruntime.EventsEmit(m.ctx, "ssh_output", map[string]interface{}{
+				"sessionId": sessionID,
+				"data":      string(buf[:n]),
+			})
+		}
+		if err != nil {
+			select {
+			case <-exitChan:
+			default:
+				close(exitChan)
+			}
+			break
+		}
+	}
+}
+
 func (m *SSHManager) ResizeTerminal(sessionID string, cols int, rows int) error {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
@@ -187,10 +185,6 @@ func (m *SSHManager) ResizeTerminal(sessionID string, cols int, rows int) error 
 		return fmt.Errorf("session not found")
 	}
 
-	// Logging to debug dimension issues in the sandbox
-	fmt.Printf("[SSH] Resizing session %s to Cols: %d, Rows: %d\n", sessionID, cols, rows)
-
-	// HARD GUARD: Never allow width to go below 100 to prevent erratic wrapping.
 	if cols < 100 {
 		cols = 100
 	}
@@ -198,7 +192,6 @@ func (m *SSHManager) ResizeTerminal(sessionID string, cols int, rows int) error 
 		rows = 10
 	}
 
-	// WindowChange(rows, cols) - SSH standard order is h, w
 	return conn.PTY.WindowChange(rows, cols)
 }
 
@@ -285,15 +278,7 @@ func (m *SSHManager) ExecuteSFTPAction(sessionID string, action string, remotePa
 
 	switch action {
 	case "delete":
-		// Check if it's a directory
-		info, err := conn.SFTP.Stat(remotePath)
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			return conn.SFTP.RemoveAll(remotePath)
-		}
-		return conn.SFTP.Remove(remotePath)
+		return m.sftpDelete(conn, remotePath)
 	case "rename":
 		return conn.SFTP.Rename(remotePath, target)
 	case "mkdir":
@@ -301,6 +286,17 @@ func (m *SSHManager) ExecuteSFTPAction(sessionID string, action string, remotePa
 	default:
 		return fmt.Errorf("unknown action: %s", action)
 	}
+}
+
+func (m *SSHManager) sftpDelete(conn *SSHConnection, remotePath string) error {
+	info, err := conn.SFTP.Stat(remotePath)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return conn.SFTP.RemoveAll(remotePath)
+	}
+	return conn.SFTP.Remove(remotePath)
 }
 
 func (m *SSHManager) DownloadFile(sessionID string, remotePath string, localPath string) error {
@@ -339,7 +335,6 @@ func (m *SSHManager) UploadFile(sessionID string, localPath string, remotePath s
 		return fmt.Errorf("session not found or SFTP not connected")
 	}
 
-	// Use path.Join for remote paths
 	remotePath = path.Clean(remotePath)
 
 	src, err := os.Open(localPath)
@@ -368,60 +363,69 @@ func (m *SSHManager) EditFile(sessionID string, remotePath string, defaultEditor
 	}
 
 	remotePath = path.Clean(remotePath)
+	localPath, err := m.prepareLocalFileForEdit(sessionID, remotePath)
+	if err != nil {
+		return err
+	}
 
+	initialInfo, _ := os.Stat(localPath)
+
+	if err := m.openEditor(localPath, defaultEditor); err != nil {
+		return err
+	}
+
+	finalInfo, err := os.Stat(localPath)
+	if err == nil && finalInfo.ModTime().After(initialInfo.ModTime()) {
+		return m.UploadFile(sessionID, localPath, remotePath)
+	}
+
+	return nil
+}
+
+func (m *SSHManager) prepareLocalFileForEdit(sessionID, remotePath string) (string, error) {
 	tempDir := filepath.Join(os.TempDir(), "ostenia-ssh-edit")
 	os.MkdirAll(tempDir, 0755)
 
 	fileName := path.Base(remotePath)
 	localPath := filepath.Join(tempDir, fmt.Sprintf("%d-%s", time.Now().Unix(), fileName))
 
-	err := m.DownloadFile(sessionID, remotePath, localPath)
-	if err != nil {
-		return err
+	if err := m.DownloadFile(sessionID, remotePath, localPath); err != nil {
+		return "", err
 	}
+	return localPath, nil
+}
 
-	// Get initial file info
-	initialInfo, _ := os.Stat(localPath)
-
-	// Open with default editor
-	var cmd *exec.Cmd
-	if defaultEditor != "" {
-		if runtime.GOOS == "windows" {
-			cmd = exec.Command("cmd", "/c", "start", "/wait", "", defaultEditor, localPath)
-			utils.SetHideWindow(cmd)
-		} else {
-			cmd = exec.Command(defaultEditor, localPath)
-		}
-	} else if runtime.GOOS == "windows" {
-		cmd = exec.Command("notepad.exe", localPath)
-	} else if runtime.GOOS == "darwin" {
-		cmd = exec.Command("open", "-t", localPath)
-	} else {
-		// Try to find a common editor on Linux
-		editors := []string{"xdg-open", "gnome-text-editor", "kwrite", "gedit", "nano"}
-		for _, e := range editors {
-			if _, err := exec.LookPath(e); err == nil {
-				cmd = exec.Command(e, localPath)
-				break
-			}
-		}
-	}
-
+func (m *SSHManager) openEditor(localPath, defaultEditor string) error {
+	cmd := m.getEditorCommand(localPath, defaultEditor)
 	if cmd == nil {
 		return fmt.Errorf("no suitable text editor found")
 	}
+	return cmd.Run()
+}
 
-	err = cmd.Run()
-	if err != nil {
-		return err
+func (m *SSHManager) getEditorCommand(localPath, defaultEditor string) *exec.Cmd {
+	if defaultEditor != "" {
+		if runtime.GOOS == "windows" {
+			cmd := exec.Command("cmd", "/c", "start", "/wait", "", defaultEditor, localPath)
+			utils.SetHideWindow(cmd)
+			return cmd
+		}
+		return exec.Command(defaultEditor, localPath)
 	}
 
-	// Check if file was modified
-	finalInfo, err := os.Stat(localPath)
-	if err == nil && finalInfo.ModTime().After(initialInfo.ModTime()) {
-		return m.UploadFile(sessionID, localPath, remotePath)
+	if runtime.GOOS == "windows" {
+		return exec.Command("notepad.exe", localPath)
+	}
+	if runtime.GOOS == "darwin" {
+		return exec.Command("open", "-t", localPath)
 	}
 
+	editors := []string{"xdg-open", "gnome-text-editor", "kwrite", "gedit", "nano"}
+	for _, e := range editors {
+		if _, err := exec.LookPath(e); err == nil {
+			return exec.Command(e, localPath)
+		}
+	}
 	return nil
 }
 
@@ -434,6 +438,5 @@ func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
 		return "", fmt.Errorf("session not found or SFTP not connected")
 	}
 
-	pathStr, err := conn.SFTP.Getwd()
-	return pathStr, err
+	return conn.SFTP.Getwd()
 }

@@ -14,34 +14,49 @@ import (
 
 // DetectHeidiSQLInstallation checks if HeidiSQL is installed in the system and returns its path and uninstaller.
 func DetectHeidiSQLInstallation() (exePath string, uninstaller string) {
-	// 1. Try Registry first (Standard Windows way)
+	if exe, uninst := detectByRegistry(); exe != "" {
+		return exe, uninst
+	}
+	if exe, uninst := detectByCommonPaths(); exe != "" {
+		return exe, uninst
+	}
+	return detectByPath()
+}
+
+func detectByRegistry() (string, string) {
 	keys := []string{
 		`SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\HeidiSQL_is1`,
 		`SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\HeidiSQL_is1`,
 	}
 
 	for _, k := range keys {
-		regKey, err := registry.OpenKey(registry.LOCAL_MACHINE, k, registry.QUERY_VALUE)
-		if err != nil {
-			regKey, err = registry.OpenKey(registry.CURRENT_USER, k, registry.QUERY_VALUE)
+		if exe, uninst := checkRegistryKey(registry.LOCAL_MACHINE, k); exe != "" {
+			return exe, uninst
 		}
-		if err == nil {
-			displayIcon, _, err := regKey.GetStringValue("DisplayIcon")
-			if err == nil {
-				exePath = strings.Trim(displayIcon, "\"")
-			}
-			uninstString, _, err := regKey.GetStringValue("UninstallString")
-			if err == nil {
-				uninstaller = strings.Trim(uninstString, "\"")
-			}
-			regKey.Close()
-			if exePath != "" {
-				return
-			}
+		if exe, uninst := checkRegistryKey(registry.CURRENT_USER, k); exe != "" {
+			return exe, uninst
 		}
 	}
+	return "", ""
+}
 
-	// 2. Check common installation paths
+func checkRegistryKey(root registry.Key, path string) (string, string) {
+	regKey, err := registry.OpenKey(root, path, registry.QUERY_VALUE)
+	if err != nil {
+		return "", ""
+	}
+	defer regKey.Close()
+
+	displayIcon, _, err := regKey.GetStringValue("DisplayIcon")
+	exePath := strings.Trim(displayIcon, "\"")
+
+	uninstString, _, err := regKey.GetStringValue("UninstallString")
+	uninstaller := strings.Trim(uninstString, "\"")
+
+	return exePath, uninstaller
+}
+
+func detectByCommonPaths() (string, string) {
 	commonPaths := []string{
 		filepath.Join(os.Getenv("ProgramFiles"), "HeidiSQL", "heidisql.exe"),
 		filepath.Join(os.Getenv("ProgramFiles(x86)"), "HeidiSQL", "heidisql.exe"),
@@ -49,38 +64,36 @@ func DetectHeidiSQLInstallation() (exePath string, uninstaller string) {
 
 	for _, p := range commonPaths {
 		if _, err := os.Stat(p); err == nil {
-			exePath = p
-			// Inno Setup (HeidiSQL) uses unins000.exe
-			uninstaller = filepath.Join(filepath.Dir(p), "unins000.exe")
-			if _, err := os.Stat(uninstaller); err != nil {
-				uninstaller = filepath.Join(filepath.Dir(p), "uninstall.exe")
-				if _, err := os.Stat(uninstaller); err != nil {
-					uninstaller = ""
-				}
-			}
-			return
+			return p, getUninstallerPath(p)
 		}
 	}
+	return "", ""
+}
 
-	// 2. Fallback to Registry check via WMIC or cmd
-	// We use "where heidisql" as a simple fallback if it's in the PATH
+func detectByPath() (string, string) {
 	cmd := exec.Command("cmd", "/c", "where heidisql.exe")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	out, err := cmd.Output()
-	if err == nil {
-		p := strings.TrimSpace(strings.Split(string(out), "\r\n")[0])
-		if p != "" {
-			exePath = p
-			uninstaller = filepath.Join(filepath.Dir(p), "unins000.exe")
-			if _, err := os.Stat(uninstaller); err != nil {
-				uninstaller = filepath.Join(filepath.Dir(p), "uninstall.exe")
-				if _, err := os.Stat(uninstaller); err != nil {
-					uninstaller = ""
-				}
-			}
-			return
-		}
+	if err != nil {
+		return "", ""
 	}
 
+	p := strings.TrimSpace(strings.Split(string(out), "\r\n")[0])
+	if p != "" {
+		return p, getUninstallerPath(p)
+	}
 	return "", ""
+}
+
+func getUninstallerPath(exePath string) string {
+	dir := filepath.Dir(exePath)
+	uninst000 := filepath.Join(dir, "unins000.exe")
+	if _, err := os.Stat(uninst000); err == nil {
+		return uninst000
+	}
+	uninst := filepath.Join(dir, "uninstall.exe")
+	if _, err := os.Stat(uninst); err == nil {
+		return uninst
+	}
+	return ""
 }
