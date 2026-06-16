@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 
 const SSHManagementSettings = ({ sshSessions }) => {
     return (
@@ -23,6 +24,17 @@ const SSHManagementSettings = ({ sshSessions }) => {
             <p className="text-[10px] text-mui-grey-400 italic">Sensitive fields like password and passphrase are masked for security. Manage sessions via the main SSH Tab.</p>
         </div>
     );
+};
+
+SSHManagementSettings.propTypes = {
+    sshSessions: PropTypes.arrayOf(PropTypes.shape({
+        id: PropTypes.string.isRequired,
+        name: PropTypes.string,
+        host: PropTypes.string,
+        port: PropTypes.number,
+        user: PropTypes.string,
+        authMethod: PropTypes.string,
+    })).isRequired,
 };
 
 export default SSHManagementSettings;

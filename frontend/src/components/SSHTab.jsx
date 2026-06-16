@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import * as AppBackend from '../../wailsjs/go/backend/App';
 import { Plus, Trash2, Server, ChevronRight, RefreshCw } from 'lucide-react';
 import SSHSessionView from './SSHSessionView';
@@ -179,6 +180,11 @@ const SSHTab = ({ addToast, theme }) => {
             )}
         </div>
     );
+};
+
+SSHTab.propTypes = {
+    addToast: PropTypes.func.isRequired,
+    theme: PropTypes.string.isRequired,
 };
 
 export default SSHTab;

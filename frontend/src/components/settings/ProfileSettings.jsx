@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Upload, Download } from 'lucide-react';
 
 const ProfileSettings = ({ handleImport, handleExport }) => {
@@ -46,6 +47,11 @@ const ProfileSettings = ({ handleImport, handleExport }) => {
             </div>
         </div>
     );
+};
+
+ProfileSettings.propTypes = {
+    handleImport: PropTypes.func.isRequired,
+    handleExport: PropTypes.func.isRequired,
 };
 
 export default ProfileSettings;

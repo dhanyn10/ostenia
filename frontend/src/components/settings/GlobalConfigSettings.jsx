@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { FolderOpen, Globe, Monitor, Trash2 } from 'lucide-react';
 import * as AppBackend from '../../../wailsjs/go/backend/App';
 
@@ -118,6 +119,19 @@ const GlobalConfigSettings = ({ appConfig, installedApps, initApp }) => {
             </div>
         </div>
     );
+};
+
+GlobalConfigSettings.propTypes = {
+    appConfig: PropTypes.shape({
+        baseDir: PropTypes.string,
+        wwwRoot: PropTypes.string,
+        defaultEditor: PropTypes.string,
+    }),
+    installedApps: PropTypes.arrayOf(PropTypes.shape({
+        name: PropTypes.string.isRequired,
+        path: PropTypes.string.isRequired,
+    })).isRequired,
+    initApp: PropTypes.func.isRequired,
 };
 
 export default GlobalConfigSettings;

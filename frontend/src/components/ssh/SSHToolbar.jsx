@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Folder, Maximize2, RefreshCw, X } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
 import { clsx } from 'clsx';
@@ -49,6 +50,15 @@ const SSHToolbar = ({ explorerVisible, setExplorerVisible, onFit, onReconnect, o
             </div>
         </div>
     );
+};
+
+SSHToolbar.propTypes = {
+    explorerVisible: PropTypes.bool.isRequired,
+    setExplorerVisible: PropTypes.func.isRequired,
+    onFit: PropTypes.func.isRequired,
+    onReconnect: PropTypes.func.isRequired,
+    onClose: PropTypes.func.isRequired,
+    connecting: PropTypes.bool.isRequired,
 };
 
 export default SSHToolbar;

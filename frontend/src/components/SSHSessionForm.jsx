@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, Save, Server, User, Globe, Lock, Key, Hash, RefreshCw } from 'lucide-react';
+import PropTypes from 'prop-types';
+import { X, Save, RefreshCw } from 'lucide-react';
 import { clsx } from 'clsx';
 import * as AppBackend from '../../wailsjs/go/backend/App';
 
@@ -185,6 +186,23 @@ const SSHSessionForm = ({ session, onClose, onSave, addToast }) => {
  </div>
  </div>
  );
+};
+
+SSHSessionForm.propTypes = {
+    session: PropTypes.shape({
+        id: PropTypes.string,
+        name: PropTypes.string,
+        host: PropTypes.string,
+        port: PropTypes.number,
+        user: PropTypes.string,
+        authMethod: PropTypes.string,
+        password: PropTypes.string,
+        keyPath: PropTypes.string,
+        passphrase: PropTypes.string,
+    }),
+    onClose: PropTypes.func.isRequired,
+    onSave: PropTypes.func.isRequired,
+    addToast: PropTypes.func.isRequired,
 };
 
 export default SSHSessionForm;

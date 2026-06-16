@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Server, Edit2 } from 'lucide-react';
 
 const SSHSessionCard = ({ session, handleConnect, handleContextMenu, setEditingSession, setShowForm }) => {
@@ -36,6 +37,18 @@ const SSHSessionCard = ({ session, handleConnect, handleContextMenu, setEditingS
             </div>
         </div>
     );
+};
+
+SSHSessionCard.propTypes = {
+    session: PropTypes.shape({
+        id: PropTypes.string.isRequired,
+        host: PropTypes.string.isRequired,
+        authMethod: PropTypes.string.isRequired,
+    }).isRequired,
+    handleConnect: PropTypes.func.isRequired,
+    handleContextMenu: PropTypes.func.isRequired,
+    setEditingSession: PropTypes.func.isRequired,
+    setShowForm: PropTypes.func.isRequired,
 };
 
 export default SSHSessionCard;

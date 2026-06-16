@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { X, User, Sliders, Terminal as TerminalIcon, Search, ChevronRight, Settings } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
 import { clsx } from 'clsx';
@@ -173,6 +174,20 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', appConfig
             </div>
         </div>
     );
+};
+
+SettingsModal.propTypes = {
+    isOpen: PropTypes.bool.isRequired,
+    onClose: PropTypes.func.isRequired,
+    initialCategory: PropTypes.string,
+    appConfig: PropTypes.shape({
+        baseDir: PropTypes.string,
+        wwwRoot: PropTypes.string,
+        defaultEditor: PropTypes.string,
+    }),
+    setConfig: PropTypes.func,
+    theme: PropTypes.string,
+    initApp: PropTypes.func.isRequired,
 };
 
 export default SettingsModal;

@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { RefreshCw } from 'lucide-react';
 
 const SSHTerminal = React.forwardRef(({ connecting }, ref) => {
@@ -18,5 +19,9 @@ const SSHTerminal = React.forwardRef(({ connecting }, ref) => {
 });
 
 SSHTerminal.displayName = 'SSHTerminal';
+
+SSHTerminal.propTypes = {
+    connecting: PropTypes.bool.isRequired,
+};
 
 export default SSHTerminal;

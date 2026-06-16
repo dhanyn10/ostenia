@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { X } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -73,6 +74,18 @@ const SSHTabHeader = ({ activeSessionIds, sessions, currentSessionId, setCurrent
             })}
         </div>
     );
+};
+
+SSHTabHeader.propTypes = {
+    activeSessionIds: PropTypes.arrayOf(PropTypes.string).isRequired,
+    sessions: PropTypes.arrayOf(PropTypes.shape({
+        id: PropTypes.string.isRequired,
+        host: PropTypes.string,
+        name: PropTypes.string,
+    })).isRequired,
+    currentSessionId: PropTypes.string,
+    setCurrentSessionId: PropTypes.func.isRequired,
+    handleCloseSession: PropTypes.func.isRequired,
 };
 
 export default SSHTabHeader;
