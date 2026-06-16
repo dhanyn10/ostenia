@@ -1,54 +1,5 @@
-export namespace backend {
-	
-	export class InstalledApp {
-	    name: string;
-	    path: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new InstalledApp(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.path = source["path"];
-	    }
-	}
-	export class ProxyAppInfo {
-	    name: string;
-	    port: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new ProxyAppInfo(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.port = source["port"];
-	    }
-	}
-	export class ProxyStatusInfo {
-	    name: string;
-	    isUp: boolean;
-	    port: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new ProxyStatusInfo(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.isUp = source["isUp"];
-	        this.port = source["port"];
-	    }
-	}
-
-}
-
 export namespace config {
-	
+
 	export class Config {
 	    baseDir: string;
 	    wwwRoot: string;
@@ -58,11 +9,11 @@ export namespace config {
 	    nginxHttps: boolean;
 	    proxies: Record<string, number>;
 	    defaultEditor: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.baseDir = source["baseDir"];
@@ -87,11 +38,11 @@ export namespace config {
 	    passphrase?: string;
 	    lastPath?: string;
 	    createdAt: number;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new SSHSession(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -110,18 +61,67 @@ export namespace config {
 
 }
 
+export namespace main {
+
+	export class InstalledApp {
+	    name: string;
+	    path: string;
+
+	    static createFrom(source: any = {}) {
+	        return new InstalledApp(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.path = source["path"];
+	    }
+	}
+	export class ProxyAppInfo {
+	    name: string;
+	    port: number;
+
+	    static createFrom(source: any = {}) {
+	        return new ProxyAppInfo(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.port = source["port"];
+	    }
+	}
+	export class ProxyStatusInfo {
+	    name: string;
+	    isUp: boolean;
+	    port: number;
+
+	    static createFrom(source: any = {}) {
+	        return new ProxyStatusInfo(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.isUp = source["isUp"];
+	        this.port = source["port"];
+	    }
+	}
+
+}
+
 export namespace plugins {
-	
+
 	export class PluginModule {
 	    name: string;
 	    isInstalled: boolean;
 	    status: string;
 	    version: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new PluginModule(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -143,11 +143,11 @@ export namespace plugins {
 	    iconSvg: string;
 	    info: string;
 	    modules: PluginModule[];
-	
+
 	    static createFrom(source: any = {}) {
 	        return new DownloadTask(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -163,7 +163,7 @@ export namespace plugins {
 	        this.info = source["info"];
 	        this.modules = this.convertValues(source["modules"], PluginModule);
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -186,15 +186,15 @@ export namespace plugins {
 }
 
 export namespace service {
-	
+
 	export class PHPExtensionInfo {
 	    name: string;
 	    enabled: boolean;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new PHPExtensionInfo(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -207,11 +207,11 @@ export namespace service {
 	    isDir: boolean;
 	    modTime: number;
 	    mode: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new RemoteFile(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -229,11 +229,11 @@ export namespace service {
 	    ports: number[];
 	    remainingDays?: number;
 	    activeVersion?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new ServiceDetailedInfo(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -247,4 +247,3 @@ export namespace service {
 	}
 
 }
-

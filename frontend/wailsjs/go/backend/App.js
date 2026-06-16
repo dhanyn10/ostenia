@@ -237,3 +237,7 @@ export function UpdateSSHSession(arg1) {
 export function UploadRemoteFile(arg1, arg2) {
   return window['go']['backend']['App']['UploadRemoteFile'](arg1, arg2);
 }
+
+export function Startup(arg1) {
+  return window['go']['backend']['App']['Startup'](arg1);
+}
