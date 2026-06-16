@@ -31,10 +31,14 @@ const SSHFileExplorer = ({
     const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
 
     useEffect(() => {
-        const handleClick = () => setFileContextMenu(null);
-        window.addEventListener('click', handleClick);
-        return () => window.removeEventListener('click', handleClick);
-    }, []);
+        const handleClick = (e) => {
+            if (fileContextMenu && !e.target.closest('.context-menu-container')) {
+                setFileContextMenu(null);
+            }
+        };
+        window.addEventListener('mousedown', handleClick);
+        return () => window.removeEventListener('mousedown', handleClick);
+    }, [fileContextMenu]);
 
     const handleFileContextMenu = (e, file) => {
         e.preventDefault();
@@ -168,35 +172,25 @@ const SSHFileExplorer = ({
                 ) : (
                     <div className="space-y-px">
                         {(remotePath && remotePath !== '/') && (
-                            <div
-                                role="button"
-                                tabIndex="0"
-                                className="group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-mui-grey-100 dark:hover:bg-mui-grey-800 cursor-pointer border border-transparent transition-all select-none outline-none focus:bg-mui-grey-100 dark:focus:bg-mui-grey-800"
-                                onDoubleClick={navigateUp}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') navigateUp();
-                                }}
+                            <button
+                                className="w-full group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-mui-grey-100 dark:hover:bg-mui-grey-800 cursor-pointer border border-transparent transition-all select-none outline-none focus:bg-mui-grey-100 dark:focus:bg-mui-grey-800"
+                                onClick={navigateUp}
                             >
                                 <Folder size={14} className="text-mui-grey-400 dark:text-mui-grey-500 shrink-0" />
-                                <span className="flex-1 text-[11px] font-bold text-mui-grey-500 dark:text-mui-grey-400 truncate">...</span>
+                                <span className="flex-1 text-left text-[11px] font-bold text-mui-grey-500 dark:text-mui-grey-400 truncate">...</span>
                                 <span className="w-16 text-[10px] text-right text-mui-grey-400 opacity-0 group-hover:opacity-100">UP</span>
-                            </div>
+                            </button>
                         )}
 
                         {sortedFiles.map((file) => (
-                            <div
+                            <button
                                 key={file.name}
-                                role="button"
-                                tabIndex="0"
                                 onContextMenu={(e) => handleFileContextMenu(e, file)}
-                                className="group flex items-center gap-2 px-2 py-1 rounded hover:bg-mui-grey-100 dark:hover:bg-mui-grey-800 cursor-pointer border border-transparent hover:border-mui-grey-200 dark:hover:border-mui-grey-700 transition-all select-none outline-none focus:bg-mui-grey-100 dark:focus:bg-mui-grey-800"
-                                onDoubleClick={() => handleFileDoubleClick(file)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleFileDoubleClick(file);
-                                }}
+                                className="w-full group flex items-center gap-2 px-2 py-1 rounded hover:bg-mui-grey-100 dark:hover:bg-mui-grey-800 cursor-pointer border border-transparent hover:border-mui-grey-200 dark:hover:border-mui-grey-700 transition-all select-none outline-none focus:bg-mui-grey-100 dark:focus:bg-mui-grey-800"
+                                onClick={() => handleFileDoubleClick(file)}
                             >
                                 {file.isDir ? <Folder size={14} className="text-mui-blue-500 dark:text-mui-blue-400 shrink-0" /> : <File size={14} className="text-mui-grey-400 dark:text-mui-grey-500 shrink-0" />}
-                                <span className="flex-1 text-[11px] text-mui-grey-700 dark:text-mui-grey-400 group-hover:text-mui-grey-900 dark:group-hover:text-white truncate">{file.name}</span>
+                                <span className="flex-1 text-left text-[11px] text-mui-grey-700 dark:text-mui-grey-400 group-hover:text-mui-grey-900 dark:group-hover:text-white truncate">{file.name}</span>
 
                                 {!file.isDir && (
                                     <span className="w-16 text-[10px] text-right text-mui-grey-400 group-hover:text-mui-grey-500 transition-colors">
@@ -205,14 +199,17 @@ const SSHFileExplorer = ({
                                 )}
 
                                 <div className="flex items-center gap-1">
-                                    <button
+                                    <div
                                         onClick={(e) => { e.stopPropagation(); handleFileContextMenu(e, file); }}
-                                        className="p-1 text-mui-grey-400 hover:text-mui-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); handleFileContextMenu(e, file); } }}
+                                        role="button"
+                                        tabIndex="0"
+                                        className="p-1 text-mui-grey-400 hover:text-mui-blue-600 opacity-0 group-hover:opacity-100 transition-opacity outline-none"
                                     >
                                         <MoreVertical size={12} />
-                                    </button>
+                                    </div>
                                 </div>
-                            </div>
+                            </button>
                         ))}
                     </div>
                 )}
@@ -220,9 +217,13 @@ const SSHFileExplorer = ({
 
             {fileContextMenu && (
                 <div
-                    className="fixed z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg py-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-100"
+                    className="context-menu-container fixed z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg py-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-100 outline-none"
                     style={{ top: fileContextMenu.y, left: fileContextMenu.x }}
-                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') setFileContextMenu(null);
+                    }}
+                    role="menu"
+                    aria-label="File context menu"
                 >
                     <button
                         onClick={async () => {
@@ -236,6 +237,7 @@ const SSHFileExplorer = ({
                             setFileContextMenu(null);
                         }}
                         className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+                        role="menuitem"
                     >
                         <Edit2 size={14} />
                         Rename
@@ -246,6 +248,7 @@ const SSHFileExplorer = ({
                             <button
                                 onClick={() => { handleEdit(fileContextMenu.file); setFileContextMenu(null); }}
                                 className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+                                role="menuitem"
                             >
                                 <Edit3 size={14} />
                                 Edit File
@@ -253,6 +256,7 @@ const SSHFileExplorer = ({
                             <button
                                 onClick={() => { handleDownload(fileContextMenu.file); setFileContextMenu(null); }}
                                 className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+                                role="menuitem"
                             >
                                 <Download size={14} />
                                 Download
@@ -260,7 +264,7 @@ const SSHFileExplorer = ({
                         </>
                     )}
 
-                    <div className="h-px bg-mui-grey-100 dark:bg-white/5 my-1" />
+                    <div className="h-px bg-mui-grey-100 dark:bg-white/5 my-1" role="separator" />
 
                     <button
                         onClick={() => {
@@ -268,6 +272,7 @@ const SSHFileExplorer = ({
                             setFileContextMenu(null);
                         }}
                         className="w-full px-4 py-2 text-left text-[11px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2"
+                        role="menuitem"
                     >
                         <Trash2 size={14} />
                         Delete
