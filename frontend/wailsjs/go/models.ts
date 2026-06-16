@@ -1,3 +1,52 @@
+export namespace backend {
+
+	export class InstalledApp {
+	    name: string;
+	    path: string;
+
+	    static createFrom(source: any = {}) {
+	        return new InstalledApp(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.path = source["path"];
+	    }
+	}
+	export class ProxyAppInfo {
+	    name: string;
+	    port: number;
+
+	    static createFrom(source: any = {}) {
+	        return new ProxyAppInfo(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.port = source["port"];
+	    }
+	}
+	export class ProxyStatusInfo {
+	    name: string;
+	    isUp: boolean;
+	    port: number;
+
+	    static createFrom(source: any = {}) {
+	        return new ProxyStatusInfo(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.isUp = source["isUp"];
+	        this.port = source["port"];
+	    }
+	}
+
+}
+
 export namespace config {
 
 	export class Config {
@@ -56,55 +105,6 @@ export namespace config {
 	        this.passphrase = source["passphrase"];
 	        this.lastPath = source["lastPath"];
 	        this.createdAt = source["createdAt"];
-	    }
-	}
-
-}
-
-export namespace main {
-
-	export class InstalledApp {
-	    name: string;
-	    path: string;
-
-	    static createFrom(source: any = {}) {
-	        return new InstalledApp(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.path = source["path"];
-	    }
-	}
-	export class ProxyAppInfo {
-	    name: string;
-	    port: number;
-
-	    static createFrom(source: any = {}) {
-	        return new ProxyAppInfo(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.port = source["port"];
-	    }
-	}
-	export class ProxyStatusInfo {
-	    name: string;
-	    isUp: boolean;
-	    port: number;
-
-	    static createFrom(source: any = {}) {
-	        return new ProxyStatusInfo(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.isUp = source["isUp"];
-	        this.port = source["port"];
 	    }
 	}
 

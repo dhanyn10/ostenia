@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Save, Server, User, Globe, Lock, Key, Hash, RefreshCw } from 'lucide-react';
 import { clsx } from 'clsx';
-import * as AppBackend from '../../wailsjs/go/main/App';
+import * as AppBackend from '../../wailsjs/go/backend/App';
 
 const SSHSessionForm = ({ session, onClose, onSave, addToast }) => {
  const [formData, setFormData] = useState(session || {

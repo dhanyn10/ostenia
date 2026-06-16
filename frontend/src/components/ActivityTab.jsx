@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FolderOpen, Globe, HardDrive, Loader2 } from 'lucide-react';
-import { OpenServiceTerminal, SwitchServiceVersion, GetPHPExtensions, TogglePHPExtension } from '../../wailsjs/go/main/App';
+import { OpenServiceTerminal, SwitchServiceVersion, GetPHPExtensions, TogglePHPExtension } from '../../wailsjs/go/backend/App';
 import ExtensionModal from './ExtensionModal';
 import ServiceItem from './ServiceItem';
 import AddPluginAction from './AddPluginAction';

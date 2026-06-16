@@ -1,4 +1,4 @@
-package main
+package backend
 
 import (
 	"context"
@@ -45,9 +45,9 @@ func NewApp() *App {
 	return &App{}
 }
 
-// startup is called when the app starts. The context is saved
+// Startup is called when the app starts. The context is saved
 // so we can call the runtime methods
-func (a *App) startup(ctx context.Context) {
+func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 	a.downloader = plugins.NewManager(ctx)
 	a.orchestrator = service.NewOrchestrator(ctx)
@@ -393,23 +393,34 @@ func (a *App) findExecutable(binDir string, exeName string) (string, string) {
 
 	// 1. Try "current" link first for efficiency
 	if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
-		path := filepath.Join(resolved, "bin", exeName)
-		if exeName == exeNginx {
-			path = filepath.Join(resolved, exeName)
-		}
-		if _, err := os.Stat(path); err == nil {
-			return path, resolved
-		}
-		// Apache fallback
-		if exeName == exeApache {
-			path = filepath.Join(resolved, "Apache24", "bin", exeName)
-			if _, err := os.Stat(path); err == nil {
-				return path, filepath.Join(resolved, "Apache24")
-			}
+		if path, base := a.checkExecutablePath(resolved, exeName); path != "" {
+			return path, base
 		}
 	}
 
 	// 2. Fallback to Walk if "current" is not valid or doesn't match
+	return a.walkForExecutable(binDir, exeName)
+}
+
+func (a *App) checkExecutablePath(resolved string, exeName string) (string, string) {
+	path := filepath.Join(resolved, "bin", exeName)
+	if exeName == exeNginx {
+		path = filepath.Join(resolved, exeName)
+	}
+	if _, err := os.Stat(path); err == nil {
+		return path, resolved
+	}
+	// Apache fallback
+	if exeName == exeApache {
+		path = filepath.Join(resolved, "Apache24", "bin", exeName)
+		if _, err := os.Stat(path); err == nil {
+			return path, filepath.Join(resolved, "Apache24")
+		}
+	}
+	return "", ""
+}
+
+func (a *App) walkForExecutable(binDir string, exeName string) (string, string) {
 	var binPath, basePath string
 	_ = filepath.Walk(binDir, func(path string, info os.FileInfo, err error) error {
 		if info != nil && !info.IsDir() && info.Name() == exeName {
