@@ -2,8 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { FolderOpen, Globe, Monitor, Trash2 } from 'lucide-react';
 import * as AppBackend from '../../../wailsjs/go/backend/App';
 
-const GlobalConfigCategory = ({ appConfig, initApp }) => {
-  const [installedApps, setInstalledApps] = useState([]);
+interface GlobalConfigCategoryProps {
+  appConfig: any;
+  initApp?: () => void;
+}
+
+const GlobalConfigCategory: React.FC<GlobalConfigCategoryProps> = ({ appConfig, initApp }) => {
+  const [installedApps, setInstalledApps] = useState<any[]>([]);
 
   useEffect(() => {
     loadInstalledApps();
@@ -110,7 +115,7 @@ const GlobalConfigCategory = ({ appConfig, initApp }) => {
                 <div className="p-3 rounded border border-mui-blue-500/20 bg-mui-blue-500/5 flex items-center justify-between group">
                   <div className="flex flex-col">
                     <span className="text-[10px] font-black uppercase tracking-widest text-mui-blue-500">Current Editor</span>
-                    <span className="text-xs text-mui-grey-700 dark:text-mui-grey-200 truncate max-w-md">{appConfig.defaultEditor}</span>
+                    <span className="text-xs text-mui-grey-700 dark:text-mui-grey-200 truncate max-md:max-w-xs">{appConfig.defaultEditor}</span>
                   </div>
                   <button
                     onClick={async () => {

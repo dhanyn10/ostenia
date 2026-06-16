@@ -12,22 +12,32 @@ import {
  Terminal as TerminalIcon,
  ExternalLink,
  User,
- Sliders
+ Sliders,
+ type LucideIcon
 } from 'lucide-react';
-import { clsx } from 'clsx';
+import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as AppBackend from '../../wailsjs/go/backend/App';
 
-function cn(...inputs) {
+function cn(...inputs: ClassValue[]) {
  return twMerge(clsx(inputs));
 }
 
-const MenuItem = ({ label, children, isOpen, onOpen, onHover, onClose }) => {
- const containerRef = useRef(null);
+interface MenuItemProps {
+  label: string;
+  children: React.ReactNode;
+  isOpen: boolean;
+  onOpen: () => void;
+  onHover: () => void;
+  onClose: () => void;
+}
+
+const MenuItem: React.FC<MenuItemProps> = ({ label, children, isOpen, onOpen, onHover, onClose }) => {
+ const containerRef = useRef<HTMLDivElement>(null);
 
  useEffect(() => {
- const handleClickOutside = (event) => {
- if (containerRef.current && !containerRef.current.contains(event.target)) {
+ const handleClickOutside = (event: MouseEvent) => {
+ if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
  onClose();
  }
  };
@@ -63,7 +73,15 @@ const MenuItem = ({ label, children, isOpen, onOpen, onHover, onClose }) => {
  );
 };
 
-const SubMenuItem = ({ label, icon: Icon, onClick, shortcut, hasSubmenu }) => (
+interface SubMenuItemProps {
+  label: string;
+  icon?: LucideIcon;
+  onClick: () => void;
+  shortcut?: string;
+  hasSubmenu?: boolean;
+}
+
+const SubMenuItem: React.FC<SubMenuItemProps> = ({ label, icon: Icon, onClick, shortcut, hasSubmenu }) => (
  <button
  onClick={onClick}
  className={cn(
@@ -94,8 +112,14 @@ const MenuDivider = () => (
  <div className="my-1 border-t border-mui-grey-200 dark:border-white/5" />
 );
 
-const MenuBar = ({ theme, setTheme, onOpenSettings }) => {
- const [openMenu, setOpenMenu] = useState(null);
+interface MenuBarProps {
+  theme: string;
+  setTheme: (theme: string) => void;
+  onOpenSettings: (category: string) => void;
+}
+
+const MenuBar: React.FC<MenuBarProps> = ({ theme, setTheme, onOpenSettings }) => {
+ const [openMenu, setOpenMenu] = useState<string | null>(null);
  const [isMaximized, setIsMaximized] = useState(false);
 
  const handleMinimize = () => AppBackend.Minimize();
@@ -109,7 +133,7 @@ const MenuBar = ({ theme, setTheme, onOpenSettings }) => {
  };
  const handleClose = () => AppBackend.Close();
 
- const handleOpenCategory = (category) => {
+ const handleOpenCategory = (category: string) => {
  onOpenSettings(category);
  setOpenMenu(null);
  };
@@ -146,8 +170,8 @@ const MenuBar = ({ theme, setTheme, onOpenSettings }) => {
  <div className={cn(
  "h-9 flex items-center justify-between select-none border-b transition-colors duration-300",
  "bg-white dark:bg-mui-dark-paper border-mui-grey-200 dark:border-white/5 text-mui-grey-700 dark:text-mui-grey-300"
- )} style={{ "--wails-draggable": "drag" } }>
- <div className="flex items-center h-full no-drag" style={{ "--wails-draggable": "no-drag" } }>
+ )} style={{ "--wails-draggable": "drag" } as React.CSSProperties}>
+ <div className="flex items-center h-full no-drag" style={{ "--wails-draggable": "no-drag" } as React.CSSProperties}>
  <div className="px-3 flex items-center gap-2">
  <div className="w-5 h-5 bg-mui-blue-500 rounded-sm flex items-center justify-center">
  <Vibrate size={14} className="text-white" />
@@ -172,7 +196,7 @@ const MenuBar = ({ theme, setTheme, onOpenSettings }) => {
  Ostenia
  </div>
 
- <div className="flex h-full no-drag" style={{ "--wails-draggable": "no-drag" } }>
+ <div className="flex h-full no-drag" style={{ "--wails-draggable": "no-drag" } as React.CSSProperties}>
  <button
  onClick={handleMinimize}
  className="w-12 h-full flex items-center justify-center hover:bg-mui-grey-200 dark:hover:bg-white/10 transition-colors"

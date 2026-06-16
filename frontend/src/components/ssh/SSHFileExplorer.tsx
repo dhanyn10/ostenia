@@ -1,13 +1,27 @@
 import React from 'react';
 import { ChevronLeft, RefreshCw, Search, Upload, Folder, File, MoreVertical } from 'lucide-react';
-import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 
-function cn(...inputs) {
-  return twMerge(clsx(inputs));
+interface SSHFileExplorerProps {
+  remotePath: string;
+  editingPath: string;
+  setEditingPath: (path: string) => void;
+  onNavigateUp: () => void;
+  onSync: () => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  onUpload: () => void;
+  onNewFolder: () => void;
+  loadingFiles: boolean;
+  sortedFiles: any[];
+  onFileDoubleClick: (file: any) => void;
+  onFileContextMenu: (e: React.MouseEvent, file: any) => void;
+  formatSize: (bytes: number) => string;
+  toggleSort: (key: string) => void;
+  sortConfig: { key: string; direction: 'asc' | 'desc' };
+  onManualNavigation: (path: string) => void;
 }
 
-const SSHFileExplorer = ({
+const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
   remotePath,
   editingPath,
   setEditingPath,

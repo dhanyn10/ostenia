@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
-import { X, Save, Server, User, Globe, Lock, Key, Hash, RefreshCw } from 'lucide-react';
+import { X, Save, RefreshCw } from 'lucide-react';
 import { clsx } from 'clsx';
 import * as AppBackend from '../../../wailsjs/go/backend/App';
 
-const SSHSessionForm = ({ session, onClose, onSave, addToast }) => {
+interface SSHSessionFormProps {
+  session: any;
+  onClose: () => void;
+  onSave: () => void;
+  addToast: (title: string, message: string, type?: 'info' | 'success' | 'warn' | 'error') => void;
+}
+
+const SSHSessionForm: React.FC<SSHSessionFormProps> = ({ session, onClose, onSave, addToast }) => {
  const [formData, setFormData] = useState(session || {
  id: Math.random().toString(36).substr(2, 9),
  name: '',
@@ -19,7 +26,7 @@ const SSHSessionForm = ({ session, onClose, onSave, addToast }) => {
 
  const [saving, setSaving] = useState(false);
 
- const handleSubmit = async (e) => {
+ const handleSubmit = async (e: React.FormEvent) => {
  e.preventDefault();
  setSaving(true);
  try {
@@ -28,9 +35,9 @@ const SSHSessionForm = ({ session, onClose, onSave, addToast }) => {
  } else {
  await AppBackend.AddSSHSession(formData);
  }
- addToast('Success', `Session ${session ? 'updated' : 'created'} successfully`);
+ addToast('Success', `Session ${session ? 'updated' : 'created'} successfully`, 'success');
  onSave();
- } catch (err) {
+ } catch (err: any) {
  addToast('Error', 'Failed to save session: ' + err, 'error');
  } finally {
  setSaving(false);

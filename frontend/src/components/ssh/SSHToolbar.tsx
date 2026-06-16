@@ -1,13 +1,22 @@
 import React from 'react';
 import { Maximize2, RefreshCw, X, Folder } from 'lucide-react';
-import { clsx } from 'clsx';
+import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-function cn(...inputs) {
+function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const SSHToolbar = ({
+interface SSHToolbarProps {
+  explorerVisible: boolean;
+  setExplorerVisible: (visible: boolean) => void;
+  onFit: () => void;
+  onReconnect: () => void;
+  onClose: () => void;
+  connecting: boolean;
+}
+
+const SSHToolbar: React.FC<SSHToolbarProps> = ({
   explorerVisible,
   setExplorerVisible,
   onFit,

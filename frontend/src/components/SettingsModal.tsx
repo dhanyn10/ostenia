@@ -8,17 +8,33 @@ import {
  ChevronRight,
  Settings
 } from 'lucide-react';
-import { clsx } from 'clsx';
+import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import ProfileCategory from './settings/ProfileCategory';
 import GlobalConfigCategory from './settings/GlobalConfigCategory';
 import SSHManagementCategory from './settings/SSHManagementCategory';
 
-function cn(...inputs) {
+function cn(...inputs: ClassValue[]) {
  return twMerge(clsx(inputs));
 }
 
-const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', appConfig = {}, setConfig, theme, initApp }) => {
+interface SettingsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  initialCategory?: string;
+  appConfig?: any;
+  setConfig?: (cfg: any) => void;
+  theme?: string;
+  initApp?: () => void;
+}
+
+const SettingsModal: React.FC<SettingsModalProps> = ({
+  isOpen,
+  onClose,
+  initialCategory = 'profile',
+  appConfig = {},
+  initApp
+}) => {
  const [activeCategory, setActiveCategory] = useState(initialCategory);
  const [searchQuery, setSearchQuery] = useState('');
 

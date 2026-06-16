@@ -1,13 +1,34 @@
 import React from 'react';
 import { Activity, Globe, Trash2, FolderOpen, Clock, Lock, Unlock, Terminal, ChevronDown, Monitor, CheckCircle2, Settings2 } from 'lucide-react';
-import { clsx } from 'clsx';
+import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-function cn(...inputs) {
+function cn(...inputs: ClassValue[]) {
  return twMerge(clsx(inputs));
 }
 
-function ServiceItem({ 
+interface ServiceItemProps {
+ service: any;
+ task: any;
+ isExpanded: boolean;
+ onToggleAccordion: (name: string, hasExtraActions: boolean) => void;
+ renderIcon: (name: string, size?: number, className?: string) => React.ReactNode;
+ handleToggleService: (name: string, status: string) => void;
+ handleRemoveFromHome: (name: string) => void;
+ handleSwitchVersion: (name: string, version: string) => void;
+ handleOpenLocalTerminal: (name: string, type: string) => void;
+ handleToggleHttps: (name: string) => void;
+ openTerminalDropdown: string | null;
+ setOpenTerminalDropdown: (name: string | null) => void;
+ setIsModalOpen: (open: boolean) => void;
+ apacheHttps: boolean;
+ nginxHttps: boolean;
+ isOpenSslEnabled: boolean;
+ setActiveTab: (tab: string) => void;
+ handleOpenPluginFolder: (name: string) => void;
+}
+
+const ServiceItem: React.FC<ServiceItemProps> = ({
  service,
  task,
  isExpanded,
@@ -26,7 +47,7 @@ function ServiceItem({
  isOpenSslEnabled,
  setActiveTab,
  handleOpenPluginFolder
-}) {
+}) => {
  const isInstalled = (task?.installedVers && task.installedVers.length > 0) || service.name === 'OpenSSL';
  const isWebServer = service.name === 'Apache' || service.name === 'Nginx';
  const isHttpsEnabled = service.name === 'Apache' ? apacheHttps : (service.name === 'Nginx' ? nginxHttps : false);
@@ -177,7 +198,7 @@ function ServiceItem({
 
  {hasHeidiOpen && (
  <button
- onClick={(e) => { e.stopPropagation(); window.go.main.App.OpenHeidiSQL(); }}
+ onClick={(e) => { e.stopPropagation(); (window as any).go.main.App.OpenHeidiSQL(); }}
  className="flex items-center gap-2 px-3 py-1.5 h-8 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20"
  >
  <Monitor size={14} /> Open HeidiSQL

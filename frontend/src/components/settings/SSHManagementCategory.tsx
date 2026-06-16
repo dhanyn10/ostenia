@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import * as AppBackend from '../../../wailsjs/go/backend/App';
 
-const SSHManagementCategory = () => {
-  const [sshSessions, setSshSessions] = useState([]);
+const SSHManagementCategory: React.FC = () => {
+  const [sshSessions, setSshSessions] = useState<any[]>([]);
   const [showPasswords, setShowPasswords] = useState(false);
 
   useEffect(() => {
@@ -43,7 +43,7 @@ const SSHManagementCategory = () => {
 
         <div className="flex-1 overflow-y-auto p-4 font-mono text-[12px] leading-relaxed">
           <pre className="text-mui-grey-700 dark:text-mui-blue-200">
-            {JSON.stringify(sshSessions.map(({ password, passphrase, ...s }) => ({
+            {JSON.stringify(sshSessions.map(({ password, passphrase, ...s }: any) => ({
               ...s,
               password: showPasswords ? password : "***",
               passphrase: showPasswords ? passphrase : "***"

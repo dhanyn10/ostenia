@@ -1,14 +1,21 @@
 import React from 'react';
 import { Home, List, Sun, Moon, Globe, Server, Wrench } from 'lucide-react';
-import Icons from './Icons';
-import { clsx } from 'clsx';
+import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-function cn(...inputs) {
+function cn(...inputs: ClassValue[]) {
  return twMerge(clsx(inputs));
 }
 
-function VerticalNav({ activeTab, setActiveTab, toggleTheme, theme }) {
+interface VerticalNavProps {
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+  toggleTheme: () => void;
+  theme: string;
+  renderIcon?: (name: string, size?: number, className?: string) => React.ReactNode;
+}
+
+const VerticalNav: React.FC<VerticalNavProps> = ({ activeTab, setActiveTab, toggleTheme, theme }) => {
  return (
  <aside className="w-16 flex flex-col items-center py-6 gap-5 bg-white dark:bg-[#1e293b] border-r border-slate-200 dark:border-white/5 z-20 shrink-0 shadow-sm">
  {/* Activity Center */}

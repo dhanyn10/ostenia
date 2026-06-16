@@ -2,8 +2,12 @@ import React from 'react';
 import { Upload, Download } from 'lucide-react';
 import * as AppBackend from '../../../wailsjs/go/backend/App';
 
-const ProfileCategory = ({ initApp }) => {
-  const handleExport = async (type) => {
+interface ProfileCategoryProps {
+  initApp?: () => void;
+}
+
+const ProfileCategory: React.FC<ProfileCategoryProps> = ({ initApp }) => {
+  const handleExport = async (type: 'all' | 'config' | 'ssh') => {
     try {
       await AppBackend.ExportProfile(type === 'all' || type === 'config', type === 'all' || type === 'ssh');
     } catch (err) { console.error(err); }
