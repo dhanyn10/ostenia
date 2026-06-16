@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import PropTypes from 'prop-types';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
@@ -329,6 +330,18 @@ const SSHSessionView = ({ session, onClose, addToast, isActive, theme }) => {
             </div>
         </div>
     );
+};
+
+SSHSessionView.propTypes = {
+    session: PropTypes.shape({
+        id: PropTypes.string.isRequired,
+        host: PropTypes.string.isRequired,
+        name: PropTypes.string,
+    }).isRequired,
+    onClose: PropTypes.func.isRequired,
+    addToast: PropTypes.func.isRequired,
+    isActive: PropTypes.bool.isRequired,
+    theme: PropTypes.string.isRequired,
 };
 
 export default SSHSessionView;
