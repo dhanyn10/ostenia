@@ -1,6 +1,6 @@
 import React from 'react';
 import PluginItem from './PluginItem';
-import { OpenPluginFolder } from '../../wailsjs/go/main/App';
+import { OpenPluginFolder } from '../../wailsjs/go/backend/App';
 
 function PluginsTab({ 
  prerequisites, downloadProgress, openDropdown, setOpenDropdown,

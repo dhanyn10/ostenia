@@ -122,3 +122,4 @@ export function UpdateActiveTab(arg1:string):Promise<void>;
 export function UpdateSSHSession(arg1:config.SSHSession):Promise<void>;
 
 export function UploadRemoteFile(arg1:string,arg2:string):Promise<void>;
+export function Startup(arg1:any):Promise<void>;
