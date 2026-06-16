@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import * as AppBackend from '../../wailsjs/go/backend/App';
+import * as AppBackend from '../../../wailsjs/go/backend/App';
 import { Plus, Terminal, Trash2, Edit2, Play, AlertCircle, X, Server, Key, Lock, ChevronRight, Folder, File, Download, Upload, RefreshCw, MoreVertical } from 'lucide-react';
-import SSHSessionView from './SSHSessionView';
+import SSHSessionView from '../SSHSessionView';
 import SSHSessionForm from './SSHSessionForm';
 import { clsx } from 'clsx';
 

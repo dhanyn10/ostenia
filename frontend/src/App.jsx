@@ -15,7 +15,7 @@ import LogViewer from './components/LogViewer';
 import ActivityTab from './components/ActivityTab';
 import PluginsTab from './components/PluginsTab';
 import ProxyTab from './components/ProxyTab';
-import SSHTab from './components/SSHTab';
+import SSHTab from './components/ssh/SSHTab';
 import Icons from './components/Icons';
 import ConfirmationModal from './components/ConfirmationModal';
 

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
-import SSHTab from '../components/SSHTab'
+import SSHTab from '../components/ssh/SSHTab'
 import React from 'react'
 
 // Mock AppBackend
@@ -18,7 +18,7 @@ vi.mock('../components/SSHSessionView', () => ({
   default: () => <div data-testid="ssh-session-view" />
 }))
 
-vi.mock('../components/SSHSessionForm', () => ({
+vi.mock('../components/ssh/SSHSessionForm', () => ({
   default: ({ onClose }) => (
     <div data-testid="ssh-session-form">
       <button onClick={onClose}>Close</button>
