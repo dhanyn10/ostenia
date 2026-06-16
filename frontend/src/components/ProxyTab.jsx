@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Save, ExternalLink, Search, Folder, Terminal, ChevronDown, Monitor, Activity } from 'lucide-react';
 import { EventsOn } from '../../wailsjs/runtime/runtime';
-import * as AppBackend from '../../wailsjs/go/main/App';
+import * as AppBackend from '../../wailsjs/go/backend/App';
 
 function ProxyTab({ addToast }) {
  const [apps, setApps] = useState([]);

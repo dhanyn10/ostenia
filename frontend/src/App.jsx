@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
-import * as AppBackend from '../wailsjs/go/main/App';
+import * as AppBackend from '../wailsjs/go/backend/App';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 

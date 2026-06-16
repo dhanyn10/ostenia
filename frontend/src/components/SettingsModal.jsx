@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import * as AppBackend from '../../wailsjs/go/main/App';
+import * as AppBackend from '../../wailsjs/go/backend/App';
 
 function cn(...inputs) {
  return twMerge(clsx(inputs));
