@@ -15,7 +15,9 @@ import {
  Plus,
  Trash2,
  Edit2,
- Settings
+ Settings,
+ Eye,
+ EyeOff
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -29,6 +31,7 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', appConfig
  const [activeCategory, setActiveCategory] = useState(initialCategory);
  const [searchQuery, setSearchQuery] = useState('');
  const [sshSessions, setSshSessions] = useState([]);
+ const [showPasswords, setShowPasswords] = useState(false);
  const [installedApps, setInstalledApps] = useState([]);
 
  useEffect(() => {
@@ -250,12 +253,25 @@ const SettingsModal = ({ isOpen, onClose, initialCategory = 'profile', appConfig
  <div className="flex-1 min-h-0 border border-mui-grey-200 dark:border-white/10 rounded-lg overflow-hidden flex flex-col bg-mui-grey-50 dark:bg-white/5">
  <div className="px-4 py-3 border-b border-mui-grey-200 dark:border-white/10 flex justify-between items-center bg-white dark:bg-mui-dark-paper">
  <span className="text-xs font-black uppercase tracking-widest text-mui-grey-400">ssh_sessions.json</span>
+ <div className="flex items-center gap-2">
+ <button
+ onClick={() => setShowPasswords(!showPasswords)}
+ className="flex items-center gap-1.5 px-2 py-1 rounded bg-mui-blue-500/10 text-mui-blue-500 hover:bg-mui-blue-500/20 transition-colors text-[10px] font-bold uppercase tracking-tight"
+ >
+ {showPasswords ? <EyeOff size={12} /> : <Eye size={12} />}
+ {showPasswords ? 'Mask Passwords' : 'Show Passwords'}
+ </button>
  <div className="px-2 py-1 rounded bg-mui-grey-100 dark:bg-white/5 text-[10px] font-bold text-mui-grey-500 dark:text-mui-grey-400 uppercase tracking-tighter">Read Only</div>
+ </div>
  </div>
 
  <div className="flex-1 overflow-y-auto p-4 font-mono text-[12px] leading-relaxed">
  <pre className="text-mui-grey-700 dark:text-mui-blue-200">
- {JSON.stringify(sshSessions.map(({ password, passphrase, ...s }) => ({ ...s, password: "***", passphrase: "***" })), null, 2)}
+ {JSON.stringify(sshSessions.map(({ password, passphrase, ...s }) => ({
+ ...s,
+ password: showPasswords ? password : "***",
+ passphrase: showPasswords ? passphrase : "***"
+ })), null, 2)}
  </pre>
  </div>
  </div>
