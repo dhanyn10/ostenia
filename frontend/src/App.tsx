@@ -97,7 +97,7 @@ function App() {
  };
 
  const addToast = (title: string, message: string, type: 'info' | 'success' | 'warn' | 'error' = 'info') => {
- const id = Math.random().toString(36).substr(2, 9);
+ const id = crypto.randomUUID();
  setToasts(prev => [...prev, { id, title, message, type }]);
  setTimeout(() => setToasts(curr => curr.filter(t => t.id !== id)), 5000);
  };

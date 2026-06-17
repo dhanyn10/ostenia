@@ -167,9 +167,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
  connectSSH();
 
  return () => {
- EventsOff('ssh_output');
- EventsOff('ssh_path_changed');
- EventsOff('ssh_disconnected');
+  (EventsOff as any)('ssh_output', handleOutput);
+  (EventsOff as any)('ssh_path_changed', handlePathChange);
+  (EventsOff as any)('ssh_disconnected', handleDisconnect);
  if (ro) ro.disconnect();
  window.removeEventListener('resize', handleWindowResize);
  if (xterm.current) xterm.current.dispose();
@@ -341,7 +341,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
      loadingFiles={loadingFiles}
      sortedFiles={sortedFiles}
      onFileDoubleClick={handleFileDoubleClick}
-     onFileContextMenu={handleFileDoubleClick}
+     onFileContextMenu={handleFileContextMenu}
      formatSize={formatSize}
      toggleSort={toggleSort}
      sortConfig={sortConfig}

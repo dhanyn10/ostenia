@@ -1,9 +1,10 @@
 import React from 'react';
 import { AlertTriangle, X } from 'lucide-react';
-import { clsx } from 'clsx';
+import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { handleActionKey } from '../utils/a11y';
 
-function cn(...inputs) {
+function cn(...inputs: ClassValue[]) {
  return twMerge(clsx(inputs));
 }
 
@@ -15,7 +16,7 @@ function ConfirmationModal({ isOpen, title, message, onConfirm, onCancel, confir
  {/* Backdrop */}
  <div
  className="absolute inset-0 bg-slate-900/60 animate-in fade-in duration-300"
- onClick={onCancel}
+ role="button" tabIndex={0} onKeyDown={handleActionKey(onCancel)} onClick={onCancel}
  />
 
  {/* Modal */}

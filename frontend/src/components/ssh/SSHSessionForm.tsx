@@ -12,7 +12,7 @@ interface SSHSessionFormProps {
 
 const SSHSessionForm: React.FC<SSHSessionFormProps> = ({ session, onClose, onSave, addToast }) => {
  const [formData, setFormData] = useState(session || {
- id: Math.random().toString(36).substr(2, 9),
+ id: crypto.randomUUID(),
  name: '',
  host: '',
  port: 22,

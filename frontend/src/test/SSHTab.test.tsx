@@ -11,7 +11,8 @@ vi.mock('../../wailsjs/go/backend/App', () => ({
   DeleteSSHSession: vi.fn(),
 }))
 
-import * as AppBackend from '../../wailsjs/go/backend/App'
+import * as AppBackendRaw from '../../wailsjs/go/backend/App'
+const AppBackend = AppBackendRaw as any;
 
 // Mock sub-components to focus on SSHTab logic
 vi.mock('../components/SSHSessionView', () => ({
@@ -43,14 +44,14 @@ describe('SSHTab Component', () => {
   ]
 
   it('renders loading state initially', async () => {
-    AppBackend.GetSSHSessions.mockResolvedValue([])
+    AppBackend.GetSSHSessions.mockImplementation(() => Promise.resolve([]))
     await act(async () => {
       render(<SSHTab addToast={vi.fn()} theme="light" />)
     })
   })
 
   it('renders sessions after loading', async () => {
-    AppBackend.GetSSHSessions.mockResolvedValue(mockSessions)
+    AppBackend.GetSSHSessions.mockImplementation(() => Promise.resolve(mockSessions))
     await act(async () => {
       render(<SSHTab addToast={vi.fn()} theme="light" />)
     })
@@ -62,7 +63,7 @@ describe('SSHTab Component', () => {
   })
 
   it('opens new connection form', async () => {
-    AppBackend.GetSSHSessions.mockResolvedValue([])
+    AppBackend.GetSSHSessions.mockImplementation(() => Promise.resolve([]))
     await act(async () => {
       render(<SSHTab addToast={vi.fn()} theme="light" />)
     })
@@ -74,7 +75,7 @@ describe('SSHTab Component', () => {
   })
 
   it('connects on double click', async () => {
-    AppBackend.GetSSHSessions.mockResolvedValue(mockSessions)
+    AppBackend.GetSSHSessions.mockImplementation(() => Promise.resolve(mockSessions))
     await act(async () => {
       render(<SSHTab addToast={vi.fn()} theme="light" />)
     })

@@ -2,8 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Save, ExternalLink, Search, Folder, Terminal, ChevronDown, Monitor, Activity } from 'lucide-react';
 import { EventsOn } from '../../wailsjs/runtime/runtime';
 import * as AppBackend from '../../wailsjs/go/backend/App';
+import { handleActionKey } from '../utils/a11y';
 
-function ProxyTab({ addToast }) {
+interface ProxyTabProps {
+  addToast: (title: string, message: string, type?: 'info' | 'success' | 'warn' | 'error') => void;
+}
+
+const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
  const [apps, setApps] = useState([]);
  const [loading, setLoading] = useState(true);
  const [searchTerm, setSearchTerm] = useState('');
@@ -125,7 +130,7 @@ function ProxyTab({ addToast }) {
 
  {openTerminalDropdown === app.name && (
  <>
- <div className="fixed inset-0 z-10" onClick={() => setOpenTerminalDropdown(null)} />
+ <div className="fixed inset-0 z-10" role="button" tabIndex={0} onKeyDown={handleActionKey(() => setOpenTerminalDropdown(null))} onClick={() => setOpenTerminalDropdown(null)} />
  <div className="absolute top-full right-0 mt-1 w-40 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg shadow-xl z-20 animate-in fade-in slide-in-from-top-1 duration-200 overflow-hidden">
  <div className="p-1">
  <button

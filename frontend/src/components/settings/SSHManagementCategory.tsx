@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
+import { handleActionKey } from "../../utils/a11y";
 import * as AppBackend from '../../../wailsjs/go/backend/App';
 
 const SSHManagementCategory: React.FC = () => {
@@ -31,7 +32,7 @@ const SSHManagementCategory: React.FC = () => {
           <span className="text-xs font-black uppercase tracking-widest text-mui-grey-400">ssh_sessions.json</span>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowPasswords(!showPasswords)}
+              role="button" tabIndex={0} onKeyDown={handleActionKey(() => setShowPasswords(!showPasswords))} onClick={() => setShowPasswords(!showPasswords)}
               className="flex items-center gap-1.5 px-2 py-1 rounded bg-mui-blue-500/10 text-mui-blue-500 hover:bg-mui-blue-500/20 transition-colors text-[10px] font-bold uppercase tracking-tight"
             >
               {showPasswords ? <EyeOff size={12} /> : <Eye size={12} />}
