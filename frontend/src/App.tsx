@@ -168,57 +168,144 @@ function App() {
  }
  };
 
+ // Extracted event handlers to reduce nesting
+ const handleServiceLog = (data: any) => {
+   addLog(`[${data.service}] ${data.message}`, 'info');
+ };
+
+ const handleServiceStatus = (data: any) => {
+   setServices(prev => prev.map(s => s.name === data.name ? { ...s, ...data } : s));
+ };
+
+ const handleDownloadProgress = (data: any) => {
+   setDownloadProgress(prev => ({ ...prev, [data.name]: data }));
+   if (data.status?.startsWith('Error')) {
+     addToast('Installation Failed', `${data.name}: ${data.status}`, 'error');
+     addLog(`Installation Failed: ${data.name} - ${data.status}`, 'error');
+   }
+   if (data.percentage === 100 && (data.status === 'Completed' || data.status === 'Ready')) {
+     refreshPrerequisites();
+   }
+ };
+
  useEffect(() => {
  const originalLog = console.log;
  const originalWarn = console.warn;
  const originalError = console.error;
 
  console.log = (...args: any[]) => {
- addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'info');
- originalLog.apply(console, args);
+   addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'info');
+   originalLog.apply(console, args);
  };
  console.warn = (...args: any[]) => {
- addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'warn');
- originalWarn.apply(console, args);
+   addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'warn');
+   originalWarn.apply(console, args);
  };
  console.error = (...args: any[]) => {
- addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'error');
- originalError.apply(console, args);
+   addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'error');
+   originalError.apply(console, args);
  };
 
  initApp();
 
  if (window.runtime) {
- EventsOn('service_log', (data: any) => {
- addLog(`[${data.service}] ${data.message}`, 'info');
- });
-
- EventsOn('service_status', (data: any) => {
- setServices(prev => prev.map(s => s.name === data.name ? { ...s, ...data } : s));
- });
-
- EventsOn('download_progress', (data: any) => {
- setDownloadProgress(prev => ({ ...prev, [data.name]: data }));
- if (data.status?.startsWith('Error')) {
- addToast('Installation Failed', `${data.name}: ${data.status}`, 'error');
- addLog(`Installation Failed: ${data.name} - ${data.status}`, 'error');
- }
- if (data.percentage === 100 && (data.status === 'Completed' || data.status === 'Ready')) {
- refreshPrerequisites();
- }
- });
-
- EventsOn('environment_changed', () => {
- initApp();
- });
+   EventsOn('service_log', handleServiceLog);
+   EventsOn('service_status', handleServiceStatus);
+   EventsOn('download_progress', handleDownloadProgress);
+   EventsOn('environment_changed', initApp);
  }
 
  return () => {
- console.log = originalLog;
- console.warn = originalWarn;
- console.error = originalError;
+   console.log = originalLog;
+   console.warn = originalWarn;
+   console.error = originalError;
  };
  }, [addLog]);
+
+ // Main action handlers
+ const handleBrowseAppsLocation = async () => {
+   const selected = await AppBackend.SelectServerRoot();
+   if (selected) { setAppsLocation(selected); initApp(); }
+ };
+
+ const handleBrowseServerRoot = async () => {
+   const selected = await AppBackend.SelectWWWRoot();
+   if (selected) { setServerRootState(selected); initApp(); }
+ };
+
+ const handleAddToHome = (task: any) => {
+   setServices(prev => {
+     if (prev.find(s => s.name === task.name)) return prev;
+     return [...prev, { name: task.name, status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '', remainingDays: 0 }];
+   });
+   setIsAddingPlugin(false);
+ };
+
+ const handleToggleService = (name: string, status: string) => {
+   if (status === 'Running') {
+     if (name === 'HeidiSQL') {
+       setConfirmModal({
+         isOpen: true,
+         title: 'Uninstall HeidiSQL',
+         message: 'Are you sure you want to uninstall HeidiSQL from your system? This will remove the application but your database data should remain intact.',
+         type: 'danger',
+         onConfirm: () => {
+           AppBackend.StopService(name);
+           setConfirmModal((prev: any) => ({ ...prev, isOpen: false }));
+         }
+       });
+       return;
+     }
+     AppBackend.StopService(name);
+   } else {
+     AppBackend.StartService(name);
+   }
+ };
+
+ const handleToggleHttps = async (name: string) => {
+   if (name === 'Apache') {
+     const next = !apacheHttps; setApacheHttps(next); await AppBackend.SetApacheHTTPS(next);
+   } else {
+     const next = !nginxHttps; setNginxHttps(next); await AppBackend.SetNginxHTTPS(next);
+   }
+ };
+
+ const handleInstallSingle = async (task: any) => {
+   const selectedVer = selectedVersions[task.name] || task.version;
+   setDownloadProgress(prev => ({ ...prev, [task.name]: { name: task.name, percentage: 0, status: 'Starting...' } }));
+   const modifiedTask = { ...task, version: selectedVer };
+   const prefixMap: Record<string, string> = {
+     'PHP': 'php-', 'Apache': 'httpd-', 'MySQL': 'mysql-',
+     'Nginx': 'nginx-', 'OpenSSL': 'openssl-', 'Node.js': 'node-v', 'Python': 'python-'
+   };
+   const categoryMap: Record<string, string> = { 'Node.js': 'nodejs', 'HeidiSQL': 'heidisql' };
+   const category = categoryMap[task.name] || task.name.toLowerCase();
+   const prefix = prefixMap[task.name] || '';
+   modifiedTask.target = `${category}/${prefix}${selectedVer}`;
+   if (task.versionUrls && task.versionUrls[selectedVer]) {
+     modifiedTask.url = task.versionUrls[selectedVer];
+   }
+   try { await AppBackend.InstallPrerequisite(modifiedTask); } catch (e: any) { addToast('Error', e.toString(), 'error'); }
+ };
+
+ const handleInstallModule = async (parentName: string, modName: string) => {
+   setDownloadProgress(prev => ({ ...prev, [modName]: { name: modName, percentage: 0, status: 'Starting...' } }));
+   try {
+     await AppBackend.InstallPluginModule(parentName, modName);
+   } catch (e: any) {
+     addToast('Error', e.toString(), 'error');
+     setDownloadProgress(prev => ({ ...prev, [modName]: { name: modName, percentage: 0, status: 'Error: ' + e.toString() } }));
+   }
+ };
+
+ const handleUninstallModule = async (parentName: string, modName: string) => {
+   try {
+     await AppBackend.UninstallPluginModule(parentName, modName);
+     refreshPrerequisites();
+   } catch (e: any) {
+     addToast('Error', e.toString(), 'error');
+   }
+ };
 
  return (
  <div className={cn(
@@ -261,46 +348,15 @@ function App() {
  <ActivityTab
  serverRoot={serverRootState}
  appsLocation={appsLocation}
- handleBrowseAppsLocation={async () => {
- const selected = await AppBackend.SelectServerRoot();
- if (selected) { setAppsLocation(selected); initApp(); }
- }}
- handleBrowseServerRoot={async () => {
- const selected = await AppBackend.SelectWWWRoot();
- if (selected) { setServerRootState(selected); initApp(); }
- }}
+ handleBrowseAppsLocation={handleBrowseAppsLocation}
+ handleBrowseServerRoot={handleBrowseServerRoot}
  isAddingPlugin={isAddingPlugin}
  setIsAddingPlugin={setIsAddingPlugin}
  prerequisites={prerequisites}
  services={services}
- handleAddToHome={(task: any) => {
- setServices(prev => {
- if (prev.find(s => s.name === task.name)) return prev;
- return [...prev, { name: task.name, status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '', remainingDays: 0 }];
- });
- setIsAddingPlugin(false);
- }}
+ handleAddToHome={handleAddToHome}
  renderIcon={renderIcon}
- handleToggleService={(name: string, status: string) => {
- if (status === 'Running') {
- if (name === 'HeidiSQL') {
- setConfirmModal({
- isOpen: true,
- title: 'Uninstall HeidiSQL',
- message: 'Are you sure you want to uninstall HeidiSQL from your system? This will remove the application but your database data should remain intact.',
- type: 'danger',
- onConfirm: () => {
- AppBackend.StopService(name);
- setConfirmModal((prev: any) => ({ ...prev, isOpen: false }));
- }
- });
- return;
- }
- AppBackend.StopService(name);
- } else {
- AppBackend.StartService(name);
- }
- }}
+ handleToggleService={handleToggleService}
  handleRemoveFromHome={(name: string) => setServices(prev => prev.filter(s => s.name !== name))}
  setActiveTab={setActiveTab}
  handleOpenPluginFolder={(name: string) => AppBackend.OpenPluginFolder(name)}
@@ -308,13 +364,7 @@ function App() {
  handleOpenAppsLocationFolder={() => AppBackend.OpenAppsLocationFolder()}
  apacheHttps={apacheHttps}
  nginxHttps={nginxHttps}
- handleToggleHttps={async (name: string) => {
- if (name === 'Apache') {
- const next = !apacheHttps; setApacheHttps(next); await AppBackend.SetApacheHTTPS(next);
- } else {
- const next = !nginxHttps; setNginxHttps(next); await AppBackend.SetNginxHTTPS(next);
- }
- }}
+ handleToggleHttps={handleToggleHttps}
  isLoading={loading}
  />
  </div>
@@ -328,42 +378,11 @@ function App() {
  selectedVersions={selectedVersions}
  setSelectedVersions={setSelectedVersions}
  handleDeleteVersion={(name: string, ver: string) => AppBackend.DeleteVersion(name, ver).then(refreshPrerequisites)}
- handleInstallSingle={async (task: any) => {
- const selectedVer = selectedVersions[task.name] || task.version;
- setDownloadProgress(prev => ({ ...prev, [task.name]: { name: task.name, percentage: 0, status: 'Starting...' } }));
- const modifiedTask = { ...task, version: selectedVer };
- const prefixMap: Record<string, string> = {
- 'PHP': 'php-', 'Apache': 'httpd-', 'MySQL': 'mysql-',
- 'Nginx': 'nginx-', 'OpenSSL': 'openssl-', 'Node.js': 'node-v', 'Python': 'python-'
- };
- const categoryMap: Record<string, string> = { 'Node.js': 'nodejs', 'HeidiSQL': 'heidisql' };
- const category = categoryMap[task.name] || task.name.toLowerCase();
- const prefix = prefixMap[task.name] || '';
- modifiedTask.target = `${category}/${prefix}${selectedVer}`;
- if (task.versionUrls && task.versionUrls[selectedVer]) {
- modifiedTask.url = task.versionUrls[selectedVer];
- }
- try { await AppBackend.InstallPrerequisite(modifiedTask); } catch (e: any) { addToast('Error', e.toString(), 'error'); }
- }}
+ handleInstallSingle={handleInstallSingle}
  handleCancel={(name: string) => AppBackend.CancelDownload(name)}
  renderIcon={renderIcon}
- handleInstallModule={async (parentName: string, modName: string) => {
- setDownloadProgress(prev => ({ ...prev, [modName]: { name: modName, percentage: 0, status: 'Starting...' } }));
- try {
- await AppBackend.InstallPluginModule(parentName, modName);
- } catch (e: any) {
- addToast('Error', e.toString(), 'error');
- setDownloadProgress(prev => ({ ...prev, [modName]: { name: modName, percentage: 0, status: 'Error: ' + e.toString() } }));
- }
- }}
- handleUninstallModule={async (parentName: string, modName: string) => {
- try {
- await AppBackend.UninstallPluginModule(parentName, modName);
- refreshPrerequisites();
- } catch (e: any) {
- addToast('Error', e.toString(), 'error');
- }
- }}
+ handleInstallModule={handleInstallModule}
+ handleUninstallModule={handleUninstallModule}
  />
  </div>
 
