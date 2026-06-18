@@ -274,11 +274,11 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme }) => {
  )}
 
  {contextMenu && (
- <div
+ <div role="button" tabIndex={0}
  className="fixed z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg py-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-100"
  style={{ top: contextMenu.y, left: contextMenu.x }}
  onClick={(e) => e.stopPropagation()}
- >
+  onKeyDown={handleActionKey((e) => e.stopPropagation())}>
  <button
  onClick={() => {
  handleDelete(contextMenu.sessionId);

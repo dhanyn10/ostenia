@@ -18,6 +18,7 @@ import {
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as AppBackend from '../../wailsjs/go/backend/App';
+import { handleActionKey } from '../utils/a11y';
 
 function cn(...inputs: ClassValue[]) {
  return twMerge(clsx(inputs));
@@ -84,6 +85,7 @@ interface SubMenuItemProps {
 const SubMenuItem: React.FC<SubMenuItemProps> = ({ label, icon: Icon, onClick, shortcut, hasSubmenu }) => (
  <button
  onClick={onClick}
+ onKeyDown={handleActionKey(onClick)}
  className={cn(
  "w-full flex items-center justify-between px-3 py-1.5 text-[12px] transition-colors group",
  "text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-blue-500 hover:text-white"
@@ -140,19 +142,19 @@ const MenuBar: React.FC<MenuBarProps> = ({ theme, setTheme, onOpenSettings }) =>
 
  const menuItems = [
  { id: 'file', label: 'File', content: (
- <SubMenuItem label="Exit" onClick={handleClose} shortcut="Alt+F4" />
+ <SubMenuItem label="Exit" onClick={handleClose} onKeyDown={handleActionKey(handleClose)} />
  )},
  { id: 'view', label: 'View', content: (
- <SubMenuItem label="Toggle Developer Tools" icon={Monitor} onClick={() => { AppBackend.ToggleDevTools(); setOpenMenu(null); }} shortcut="F12" />
+ <SubMenuItem label="Toggle Developer Tools" icon={Monitor} onClick={() => { AppBackend.ToggleDevTools(); setOpenMenu(null); }} onKeyDown={handleActionKey(() => { AppBackend.ToggleDevTools(); setOpenMenu(null); })} shortcut="F12" />
  )},
  { id: 'settings', label: 'Settings', content: (
  <>
- <SubMenuItem label="Profile" icon={User} onClick={() => handleOpenCategory('profile')} />
- <SubMenuItem label="Config" icon={Sliders} onClick={() => handleOpenCategory('config')} />
- <SubMenuItem label="SSH" icon={TerminalIcon} onClick={() => handleOpenCategory('ssh')} />
+ <SubMenuItem label="Profile" icon={User} onClick={() => handleOpenCategory('profile')} onKeyDown={handleActionKey(() => handleOpenCategory('profile'))} />
+ <SubMenuItem label="Config" icon={Sliders} onClick={() => handleOpenCategory('config')} onKeyDown={handleActionKey(() => handleOpenCategory('config'))} />
+ <SubMenuItem label="SSH" icon={TerminalIcon} onClick={() => handleOpenCategory('ssh')} onKeyDown={handleActionKey(() => handleOpenCategory('ssh'))} />
  <MenuDivider />
  <SubMenuItem
- label={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+ label={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"} onKeyDown={handleActionKey(() => { setTheme(theme === 'dark' ? 'light' : 'dark'); setOpenMenu(null); })}
  icon={Eye}
  onClick={() => { setTheme(theme === 'dark' ? 'light' : 'dark'); setOpenMenu(null); }}
  />
@@ -160,8 +162,8 @@ const MenuBar: React.FC<MenuBarProps> = ({ theme, setTheme, onOpenSettings }) =>
  )},
  { id: 'help', label: 'Help', content: (
  <>
- <SubMenuItem label="About Ostenia" icon={HelpCircle} onClick={() => { alert("Ostenia v1.0.0\nPortable Development Environment"); setOpenMenu(null); }} />
- <SubMenuItem label="Documentation" icon={ExternalLink} onClick={() => { window.open('https://github.com/dhanyn/ostenia', '_blank'); setOpenMenu(null); }} />
+ <SubMenuItem label="About Ostenia" icon={HelpCircle} onClick={() => { alert("Ostenia v1.0.0\nPortable Development Environment"); setOpenMenu(null); }} onKeyDown={handleActionKey(() => { alert("Ostenia v1.0.0\nPortable Development Environment"); setOpenMenu(null); })} />
+ <SubMenuItem label="Documentation" icon={ExternalLink} onClick={() => { window.open('https://github.com/dhanyn/ostenia', '_blank'); setOpenMenu(null); }} onKeyDown={handleActionKey(() => { window.open('https://github.com/dhanyn/ostenia', '_blank'); setOpenMenu(null); })} />
  </>
  )}
  ];

@@ -79,13 +79,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
  role="button" tabIndex={0} onKeyDown={handleActionKey(onClose)} onClick={onClose}
  className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-transparent animate-in fade-in duration-300"
  >
- <div
+ <div role="button" tabIndex={0}
  onClick={(e) => e.stopPropagation()}
  className={cn(
  "w-full max-w-5xl h-[80vh] flex flex-col rounded-xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] border overflow-hidden",
  "bg-white dark:bg-mui-dark-bg border-mui-grey-200 dark:border-white/10"
  )}
- >
+  onKeyDown={handleActionKey((e) => e.stopPropagation())}>
  {/* Header */}
  <div className="h-14 shrink-0 flex items-center justify-between px-6 border-b border-mui-grey-200 dark:border-white/10 bg-mui-grey-50/50 dark:bg-white/5">
  <div className="flex items-center gap-3">
