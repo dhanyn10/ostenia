@@ -365,7 +365,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
  </div>
 
  {fileContextMenu && (
- <div role="button" tabIndex={0} // NOSONAR
+ <div
  className="fixed z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg py-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-100 cursor-default p-0"
  style={{ top: fileContextMenu.y, left: fileContextMenu.x }}
  onClick={(e) => e.stopPropagation()}

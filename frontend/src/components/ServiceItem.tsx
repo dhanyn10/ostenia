@@ -280,21 +280,25 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
 
   return (
     <div
-      role="button" tabIndex={0} // NOSONAR
       className={cn(
-        "w-full text-left bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all flex flex-col relative shadow-sm dark:shadow-lg outline-none focus:ring-1 focus:ring-blue-500/40",
-        isExpanded ? "z-[100] ring-1 ring-blue-500/20" : "z-10",
-        hasExtraActions ? "cursor-pointer" : "cursor-default"
+        "w-full text-left bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all flex flex-col relative shadow-sm dark:shadow-lg",
+        isExpanded ? "z-[100] ring-1 ring-blue-500/20" : "z-10"
       )}
-      onKeyDown={handleActionKey(() => onToggleAccordion(service.name, hasExtraActions))} onClick={() => onToggleAccordion(service.name, hasExtraActions)}
     >
       <div className="flex items-center gap-5">
-        <div className="flex-1 min-w-0 px-2">
+        <button
+          className={cn(
+            "flex-1 min-w-0 px-2 outline-none focus:ring-1 focus:ring-blue-500/40 rounded-sm py-1 transition-all",
+            hasExtraActions ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5" : "cursor-default"
+          )}
+          onClick={() => onToggleAccordion(service.name, hasExtraActions)}
+          onKeyDown={handleActionKey(() => onToggleAccordion(service.name, hasExtraActions))}
+        >
           <div className="flex items-center gap-3 flex-wrap">
             <ServiceHeader service={service} task={task} renderIcon={renderIcon} handleSwitchVersion={handleSwitchVersion} />
             <ServiceStatus service={service} />
           </div>
-        </div>
+        </button>
 
         <MainActions isInstalled={isInstalled} service={service} handleToggleService={handleToggleService} handleRemoveFromHome={handleRemoveFromHome} setActiveTab={setActiveTab} />
       </div>

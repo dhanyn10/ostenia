@@ -121,8 +121,7 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
           <div className="space-y-px">
             {/* Go Up Directory */}
             {(remotePath && remotePath !== '/') && (
-              <div
-                role="button" tabIndex={0} // NOSONAR
+              <button
                 className="w-full group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-mui-grey-100 dark:hover:bg-mui-grey-800 cursor-pointer border border-transparent transition-all select-none outline-none focus:bg-mui-grey-100 dark:focus:bg-mui-grey-800 bg-transparent p-0 text-left"
                 onDoubleClick={onNavigateUp}
                 onKeyDown={handleActionKey(onNavigateUp)}
@@ -136,20 +135,23 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
             {sortedFiles.map((file) => (
               <div
                 key={file.name}
-                role="button" tabIndex={0} // NOSONAR
+                className="w-full group flex items-center gap-2 px-2 py-1 rounded hover:bg-mui-grey-100 dark:hover:bg-mui-grey-800 border border-transparent hover:border-mui-grey-200 dark:hover:border-mui-grey-700 transition-all select-none relative"
                 onContextMenu={(e) => onFileContextMenu(e, file)}
-                className="w-full group flex items-center gap-2 px-2 py-1 rounded hover:bg-mui-grey-100 dark:hover:bg-mui-grey-800 cursor-pointer border border-transparent hover:border-mui-grey-200 dark:hover:border-mui-grey-700 transition-all select-none outline-none focus:bg-mui-grey-100 dark:focus:bg-mui-grey-800 bg-transparent p-0 text-left"
-                onDoubleClick={() => onFileDoubleClick(file)}
-                onKeyDown={handleActionKey(() => onFileDoubleClick(file))}
               >
-                {file.isDir ? <Folder size={14} className="text-mui-blue-500 dark:text-mui-blue-400 shrink-0" /> : <File size={14} className="text-mui-grey-400 dark:text-mui-grey-500 shrink-0" />}
-                <span className="flex-1 text-[11px] text-mui-grey-700 dark:text-mui-grey-400 group-hover:text-mui-grey-900 dark:group-hover:text-white truncate">{file.name}</span>
+                <button
+                  className="flex-1 flex items-center gap-2 outline-none text-left min-w-0"
+                  onDoubleClick={() => onFileDoubleClick(file)}
+                  onKeyDown={handleActionKey(() => onFileDoubleClick(file))}
+                >
+                  {file.isDir ? <Folder size={14} className="text-mui-blue-500 dark:text-mui-blue-400 shrink-0" /> : <File size={14} className="text-mui-grey-400 dark:text-mui-grey-500 shrink-0" />}
+                  <span className="flex-1 text-[11px] text-mui-grey-700 dark:text-mui-grey-400 group-hover:text-mui-grey-900 dark:group-hover:text-white truncate">{file.name}</span>
 
-                {!file.isDir && (
-                  <span className="w-16 text-[10px] text-right text-mui-grey-400 group-hover:text-mui-grey-500 transition-colors">
-                    {formatSize(file.size)}
-                  </span>
-                )}
+                  {!file.isDir && (
+                    <span className="w-16 text-[10px] text-right text-mui-grey-400 group-hover:text-mui-grey-500 transition-colors">
+                      {formatSize(file.size)}
+                    </span>
+                  )}
+                </button>
 
                 <div className="flex items-center gap-1">
                   <button
