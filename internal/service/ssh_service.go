@@ -402,29 +402,39 @@ func (m *SSHManager) runEditor(localPath, defaultEditor string) error {
 
 func (m *SSHManager) getCustomEditorCmd(editor, localPath string) *exec.Cmd {
 	if runtime.GOOS == "windows" {
-		cmd := exec.Command("cmd", "/c", "start", "/wait", "", editor, localPath)
+		cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
+		cmd := exec.Command(cmdPath, "/c", "start", "/wait", "", editor, localPath)
+		cmd.Env = utils.SafeEnv()
 		utils.SetHideWindow(cmd)
 		return cmd
 	}
-	return exec.Command(editor, localPath)
+	cmd := exec.Command(editor, localPath)
+	cmd.Env = utils.SafeEnv()
+	return cmd
 }
 
 func (m *SSHManager) getDefaultEditorCmd(localPath string) *exec.Cmd {
+	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
-		return exec.Command("notepad.exe", localPath)
+		cmdPath := filepath.Join(utils.GetSystemDirectory(), "notepad.exe")
+		cmd = exec.Command(cmdPath, localPath)
 	case "darwin":
-		return exec.Command("open", "-t", localPath)
+		cmd = exec.Command("/usr/bin/open", "-t", localPath)
 	default:
 		return m.findLinuxEditor(localPath)
 	}
+	cmd.Env = utils.SafeEnv()
+	return cmd
 }
 
 func (m *SSHManager) findLinuxEditor(localPath string) *exec.Cmd {
 	editors := []string{"xdg-open", "gnome-text-editor", "kwrite", "gedit", "nano"}
 	for _, e := range editors {
-		if _, err := exec.LookPath(e); err == nil {
-			return exec.Command(e, localPath)
+		if path, err := exec.LookPath(e); err == nil {
+			cmd := exec.Command(path, localPath)
+			cmd.Env = utils.SafeEnv()
+			return cmd
 		}
 	}
 	return nil
