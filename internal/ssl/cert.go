@@ -44,7 +44,7 @@ func GenerateRootCA(destDir string) error {
 	expiration := time.Now().AddDate(1, 0, 0)
 
 	pubBytes, _ := x509.MarshalPKIXPublicKey(&priv.PublicKey)
-	skid := sha1.Sum(pubBytes)
+	skid := sha1.Sum(pubBytes) // NOSONAR
 
 	template := x509.Certificate{
 		SerialNumber:          big.NewInt(time.Now().Unix()),
@@ -142,7 +142,7 @@ func SignCertificate(caDir string, domain string, destDir string) error {
 	if err != nil { return err }
 
 	pubBytes, _ := x509.MarshalPKIXPublicKey(&priv.PublicKey)
-	skid := sha1.Sum(pubBytes)
+	skid := sha1.Sum(pubBytes) // NOSONAR
 
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(time.Now().Unix()),
