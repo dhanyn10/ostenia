@@ -7,6 +7,7 @@ import * as AppBackend from '../../wailsjs/go/backend/App';
 import { Edit2, Edit3, Download, Trash2, RefreshCw } from 'lucide-react';
 import SSHToolbar from './ssh/SSHToolbar';
 import SSHFileExplorer from './ssh/SSHFileExplorer';
+import { handleActionKey } from '../utils/a11y';
 
 interface SSHSessionViewProps {
   session: any;
