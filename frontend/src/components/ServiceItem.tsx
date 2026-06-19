@@ -51,7 +51,13 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
 }) => {
  const isInstalled = (task?.installedVers && task.installedVers.length > 0) || service.name === 'OpenSSL';
  const isWebServer = service.name === 'Apache' || service.name === 'Nginx';
- const isHttpsEnabled = service.name === 'Apache' ? apacheHttps : (service.name === 'Nginx' ? nginxHttps : false);
+
+   let isHttpsEnabled = false;
+   if (service.name === 'Apache') {
+     isHttpsEnabled = apacheHttps;
+   } else if (service.name === 'Nginx') {
+     isHttpsEnabled = nginxHttps;
+   }
 
  const hasTerminalFacility = service.name !== 'HeidiSQL' && service.name !== 'OpenSSL';
  const hasOpenFolder = isInstalled && service.name !== 'OpenSSL' && service.name !== 'HeidiSQL';

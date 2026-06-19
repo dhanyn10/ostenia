@@ -8,7 +8,20 @@ function cn(...inputs) {
 }
 
 function LogViewer({ logs }) {
- return (
+  const getLogColorClass = (msg) => {
+    if (msg.includes('ERR') || msg.includes('Error') || msg.includes('failed')) {
+      return "text-rose-500 dark:text-rose-400 font-bold";
+    }
+    if (msg.includes('success') || msg.includes('Ready') || msg.includes('Completed')) {
+      return "text-emerald-500 dark:text-emerald-400 font-bold";
+    }
+    if (msg.includes('[WRN]')) {
+      return "text-amber-500 dark:text-amber-400";
+    }
+    return "text-slate-600 dark:text-slate-400";
+  };
+
+  return (
  <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500 bg-white dark:bg-[#0f172a]">
  {/* Header Area */}
  <div className="shrink-0 p-6 flex items-center justify-between border-b border-slate-200 dark:border-white/5 bg-white/50 dark:bg-slate-900/40 ">
@@ -35,10 +48,7 @@ function LogViewer({ logs }) {
  <span className="text-slate-400 dark:text-slate-600 select-none shrink-0 w-20">[{log.time}]</span>
  <span className={cn(
  "flex-1 break-all leading-relaxed",
- log.msg.includes('ERR') || log.msg.includes('Error') || log.msg.includes('failed') ? "text-rose-500 dark:text-rose-400 font-bold" :
- log.msg.includes('success') || log.msg.includes('Ready') || log.msg.includes('Completed') ? "text-emerald-500 dark:text-emerald-400 font-bold" :
- log.msg.includes('[WRN]') ? "text-amber-500 dark:text-amber-400" :
- "text-slate-600 dark:text-slate-400"
+                   getLogColorClass(log.msg)
  )}>{log.msg}</span>
  </div>
  ))}

@@ -59,36 +59,27 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
 
  const filteredApps = apps.filter(app => app.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
- return (
- <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
- <div className="mb-6 flex justify-between items-center">
- <div>
- <p className="text-slate-500 dark:text-slate-400 text-sm">Configure local proxy pass for folders in your WWW directory.</p>
- </div>
- <div className="relative">
- <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
- <input
- type="text"
- placeholder="Search folders..."
- className="pl-10 pr-4 py-2 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all w-64"
- value={searchTerm}
- onChange={(e) => setSearchTerm(e.target.value)}
- />
- </div>
- </div>
-
- {loading ? (
+   const renderContent = () => {
+     if (loading) {
+       return (
  <div className="flex-1 flex items-center justify-center">
  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
  </div>
- ) : filteredApps.length === 0 ? (
+       );
+     }
+
+     if (filteredApps.length === 0) {
+       return (
  <div className="flex-1 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 dark:border-white/5 rounded-xl">
  <Folder size={48} className="mb-4 opacity-20" />
  <p>No folders found in WWW directory.</p>
  </div>
- ) : (
- <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-8 overflow-y-auto">
- {filteredApps.map((app) => (
+       );
+     }
+
+     return (
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-8 overflow-y-auto">
+         {filteredApps.map((app) => (
  <div
  key={app.name}
  className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 p-5 rounded-xl hover:border-blue-500/50 transition-all group"
@@ -183,8 +174,29 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
  </div>
  </div>
  ))}
+       </div>
+     );
+   };
+
+   return (
+     <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+       <div className="mb-6 flex justify-between items-center">
+         <div>
+           <p className="text-slate-500 dark:text-slate-400 text-sm">Configure local proxy pass for folders in your WWW directory.</p>
  </div>
- )}
+         <div className="relative">
+           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+           <input
+             type="text"
+             placeholder="Search folders..."
+             className="pl-10 pr-4 py-2 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all w-64"
+             value={searchTerm}
+             onChange={(e) => setSearchTerm(e.target.value)}
+           />
+         </div>
+       </div>
+
+       {renderContent()}
  </div>
  );
 }

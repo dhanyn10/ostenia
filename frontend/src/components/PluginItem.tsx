@@ -190,21 +190,29 @@ function PluginItem({
  </button>
  )}
 
- <button
- disabled={isModInstalled || !task.isInstalled}
- onClick={() => onInstallModule(task.name, mod.name)}
- className={cn(
- "p-2 rounded-sm transition-all",
- isModInstalled
- ? "text-emerald-500 cursor-not-allowed"
- : !task.isInstalled
- ? "text-slate-300 cursor-not-allowed"
- : "text-blue-500 hover:bg-blue-500/10 hover:scale-110"
- )}
- title={!task.isInstalled ? `Install ${task.name} first` : isModInstalled ? "Installed" : `Install ${mod.name}`}
- >
- {isModInstalled ? <CheckCircle2 size={16} /> : <Download size={16} />}
- </button>
+                 {(() => {
+                   let buttonClass = "text-blue-500 hover:bg-blue-500/10 hover:scale-110";
+                   let buttonTitle = `Install ${mod.name}`;
+
+                   if (isModInstalled) {
+                     buttonClass = "text-emerald-500 cursor-not-allowed";
+                     buttonTitle = "Installed";
+                   } else if (!task.isInstalled) {
+                     buttonClass = "text-slate-300 cursor-not-allowed";
+                     buttonTitle = `Install ${task.name} first`;
+                   }
+
+                   return (
+                     <button
+                       disabled={isModInstalled || !task.isInstalled}
+                       onClick={() => onInstallModule(task.name, mod.name)}
+                       className={cn("p-2 rounded-sm transition-all", buttonClass)}
+                       title={buttonTitle}
+                     >
+                       {isModInstalled ? <CheckCircle2 size={16} /> : <Download size={16} />}
+                     </button>
+                   );
+                 })()}
  </div>
  )}
  </div>
