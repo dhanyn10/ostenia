@@ -86,8 +86,9 @@ function App() {
 
  const addLog = useCallback((msg: string, type = 'info') => {
  const time = new Date().toLocaleTimeString();
+ const id = crypto.randomUUID();
  const prefix = type === 'error' ? 'ERR' : type === 'warn' ? 'WRN' : 'SYS';
- setLogs(prev => [{ time, msg: `[${prefix}] ${msg}` }, ...prev].slice(0, 1000));
+ setLogs(prev => [{ id, time, msg: `[${prefix}] ${msg}` }, ...prev].slice(0, 1000));
  }, []);
 
  const renderIcon = (name: string, size = 20, className = "") => {
