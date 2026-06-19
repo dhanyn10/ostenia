@@ -176,25 +176,25 @@ func detectModules(t *DownloadTask, def pluginDefinition, currentPath string) {
 
 func checkCurrentFunctionality(t *DownloadTask, currentPath string, baseDir string) bool {
 	if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
-		cf := filepath.Join(resolved, t.CheckFile)
-		if t.Name == "Apache" {
-			if _, err := os.Stat(cf); os.IsNotExist(err) {
-				cf = filepath.Join(resolved, "Apache24", "bin", "httpd.exe")
-			}
-		}
-		if _, err := os.Stat(cf); err == nil {
-			return true
-		}
-	} else if t.Target != "" {
-		cf := filepath.Join(baseDir, "bin", t.Target, t.CheckFile)
-		if t.Name == "Apache" {
-			if _, err := os.Stat(cf); os.IsNotExist(err) {
-				cf = filepath.Join(baseDir, "bin", t.Target, "Apache24", "bin", "httpd.exe")
-			}
-		}
-		if _, err := os.Stat(cf); err == nil {
-			return true
+		return checkFileExists(t.Name, resolved, t.CheckFile)
+	}
+
+	if t.Target != "" {
+		targetPath := filepath.Join(baseDir, "bin", t.Target)
+		return checkFileExists(t.Name, targetPath, t.CheckFile)
+	}
+
+	return false
+}
+
+func checkFileExists(pluginName, basePath, checkFile string) bool {
+	cf := filepath.Join(basePath, checkFile)
+	if pluginName == "Apache" {
+		if _, err := os.Stat(cf); os.IsNotExist(err) {
+			cf = filepath.Join(basePath, "Apache24", "bin", "httpd.exe")
 		}
 	}
-	return false
+
+	_, err := os.Stat(cf)
+	return err == nil
 }
