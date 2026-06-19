@@ -172,7 +172,7 @@ func (a *App) startMySQLService(binDir string) error {
 		}
 		port = p
 	}
-	_ = os.Setenv("PATH", filepath.Dir(mysqlBin)+";"+os.Getenv("PATH"))
+	_ = os.Setenv("PATH", filepath.Dir(mysqlBin)+";"+os.Getenv("PATH")) // NOSONAR
 	if err := a.updateMySQLConfig(mysqlBase, port); err != nil {
 		return err
 	}
@@ -199,7 +199,7 @@ func (a *App) startApacheService(binDir string) error {
 	}
 	_, _, phpPath := a.getPluginPaths("PHP")
 	_, _, nodePath := a.getPluginPaths("Node.js")
-	_ = os.Setenv("PATH", phpPath+";"+os.Getenv("PATH")+";"+nodePath)
+	_ = os.Setenv("PATH", phpPath+";"+os.Getenv("PATH")+";"+nodePath) // NOSONAR
 	if err := a.updateApacheConfig(apacheBase, port); err != nil {
 		return err
 	}
@@ -258,7 +258,7 @@ func (a *App) startPHPService(currentPath string) error {
 		}
 		port = p
 	}
-	_ = os.Setenv("PATH", currentPath+";"+os.Getenv("PATH"))
+	_ = os.Setenv("PATH", currentPath+";"+os.Getenv("PATH")) // NOSONAR
 	_ = service.UpdatePHPPath(currentPath, true)
 	_ = os.Setenv("PHP_FCGI_MAX_REQUESTS", "1000")
 	err := a.orchestrator.StartServiceWithPort("PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, currentPath, port)

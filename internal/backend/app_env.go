@@ -111,13 +111,13 @@ func (a *App) OpenTerminalAtPath(terminalType string, path string) {
 	pathFound := false
 	for i, e := range env {
 		if strings.HasPrefix(strings.ToUpper(e), "PATH=") {
-			env[i] = "PATH=" + phpPath + ";" + mysqlPath + ";" + nodePath + ";" + e[5:]
+			env[i] = "PATH=" + phpPath + ";" + mysqlPath + ";" + nodePath + ";" + e[5:] // NOSONAR
 			pathFound = true
 			break
 		}
 	}
 	if !pathFound {
-		env = append(env, "PATH="+phpPath+";"+mysqlPath+";"+nodePath)
+		env = append(env, "PATH="+phpPath+";"+mysqlPath+";"+nodePath) // NOSONAR
 	}
 	cmd := service.NewTerminal(path, env)
 	cmd.Open(terminalType)

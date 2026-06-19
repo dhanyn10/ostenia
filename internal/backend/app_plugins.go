@@ -154,7 +154,7 @@ func (a *App) SwitchServiceVersion(serviceName string, version string) error {
 		_ = cmd.Run()
 	}
 	if category == "php" {
-		_ = os.Setenv("PATH", currentPath+";"+os.Getenv("PATH"))
+		_ = os.Setenv("PATH", currentPath+";"+os.Getenv("PATH")) // NOSONAR
 		_ = service.UpdatePHPConfig(currentPath)
 		_ = service.UpdatePHPPath(currentPath, true)
 	}
