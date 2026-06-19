@@ -60,8 +60,24 @@ func (m *SSHManager) Connect(session config.SSHSession) error {
 	var auth goph.Auth
 	var err error
 
-	if session.AuthMethod == "password" {
-		auth = goph.Password(session.Password)
+	if session.AuthMethod == "agent" {
+		auth, err = goph.UseAgent()
+		if err != nil {
+			return fmt.Errorf("ssh agent not available: %w", err)
+		}
+	} else if session.AuthMethod == "password" {
+		// Use both password and keyboard-interactive authentication methods.
+		// Some servers (like default Ubuntu) might require keyboard-interactive.
+		auth = goph.Auth{
+			ssh.Password(session.Password),
+			ssh.KeyboardInteractive(func(user, instruction string, questions []string, echos []bool) ([]string, error) {
+				answers := make([]string, len(questions))
+				for i := range questions {
+					answers[i] = session.Password
+				}
+				return answers, nil
+			}),
+		}
 	} else {
 		if session.Passphrase != "" {
 			auth, err = goph.Key(session.KeyPath, session.Passphrase)
@@ -73,13 +89,26 @@ func (m *SSHManager) Connect(session config.SSHSession) error {
 		}
 	}
 
+	knownHostsPath := filepath.Join(config.GetBaseDir(), "known_hosts")
+	// Ensure the known_hosts file exists so goph can use it
+	if _, err := os.Stat(knownHostsPath); os.IsNotExist(err) {
+		os.WriteFile(knownHostsPath, []byte(""), 0600)
+	}
+
+	callback, err := goph.DefaultKnownHosts()
+	if err != nil {
+		// Fallback to insecure if known_hosts cannot be loaded, but log it
+		fmt.Printf("Warning: failed to load known_hosts: %v. Falling back to insecure.\n", err)
+		callback = ssh.InsecureIgnoreHostKey()
+	}
+
 	client, err := goph.NewConn(&goph.Config{
 		User:     session.User,
 		Addr:     session.Host,
 		Port:     uint(session.Port),
 		Auth:     auth,
 		Timeout:  10 * time.Second,
-		Callback: ssh.InsecureIgnoreHostKey(), // For simplicity, in production you'd want host key verification
+		Callback: callback,
 	})
 
 	if err != nil {
