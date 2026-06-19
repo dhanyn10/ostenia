@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"ostenia/internal/config"
@@ -52,25 +53,13 @@ func (m *SSHManager) Connect(session config.SSHSession) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// If already connected, do nothing
 	if _, ok := m.connections[session.ID]; ok {
 		return nil
 	}
 
-	var auth goph.Auth
-	var err error
-
-	if session.AuthMethod == "password" {
-		auth = goph.Password(session.Password)
-	} else {
-		if session.Passphrase != "" {
-			auth, err = goph.Key(session.KeyPath, session.Passphrase)
-		} else {
-			auth, err = goph.Key(session.KeyPath, "")
-		}
-		if err != nil {
-			return err
-		}
+	auth, err := m.getAuth(session)
+	if err != nil {
+		return err
 	}
 
 	client, err := goph.NewConn(&goph.Config{
@@ -79,7 +68,7 @@ func (m *SSHManager) Connect(session config.SSHSession) error {
 		Port:     uint(session.Port),
 		Auth:     auth,
 		Timeout:  10 * time.Second,
-		Callback: ssh.InsecureIgnoreHostKey(), // For simplicity, in production you'd want host key verification
+		Callback: m.getHostKeyCallback(),
 	})
 
 	if err != nil {
@@ -436,4 +425,49 @@ func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
 
 	pathStr, err := conn.SFTP.Getwd()
 	return pathStr, err
+}
+
+func (m *SSHManager) getAuth(session config.SSHSession) (goph.Auth, error) {
+	if session.AuthMethod == "agent" {
+		return goph.UseAgent()
+	}
+
+	if session.AuthMethod == "password" {
+		return goph.Auth{
+			ssh.Password(session.Password),
+			ssh.KeyboardInteractive(func(user, instruction string, questions []string, echos []bool) ([]string, error) {
+				answers := make([]string, len(questions))
+				for i := range questions {
+					answers[i] = session.Password
+				}
+				return answers, nil
+			}),
+		}, nil
+	}
+
+	passphrase := ""
+	if session.Passphrase != "" {
+		passphrase = session.Passphrase
+	}
+	return goph.Key(session.KeyPath, passphrase)
+}
+
+func (m *SSHManager) getHostKeyCallback() ssh.HostKeyCallback {
+	knownHostsPath := filepath.Join(config.GetBaseDir(), "known_hosts")
+	if _, err := os.Stat(knownHostsPath); os.IsNotExist(err) {
+		_ = os.WriteFile(knownHostsPath, []byte(""), 0600)
+	}
+
+	return func(host string, remote net.Addr, key ssh.PublicKey) error {
+		found, err := goph.CheckKnownHost(host, remote, key, knownHostsPath)
+		if err != nil {
+			fmt.Printf("Warning: failed to check known_hosts: %v\n", err)
+			return nil // Continue anyway but log it
+		}
+		if found {
+			return nil
+		}
+		// If not found, add it (remembering it for next time)
+		return goph.AddKnownHost(host, remote, key, knownHostsPath)
+	}
 }

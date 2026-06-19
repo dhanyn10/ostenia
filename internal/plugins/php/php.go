@@ -1,10 +1,9 @@
 package php
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"ostenia/internal/plugins/utils"
@@ -18,7 +17,7 @@ var iconSVG string
 
 func DetectVersions() ([]string, map[string]string) {
 	baseURL := "https://windows.php.net/downloads/releases/archives/"
-	content := fetchContent(baseURL)
+	content := utils.FetchContent(baseURL)
 	arch := utils.GetSystemArch()
 	re := regexp.MustCompile(`php-(\d+\.\d+\.\d+)-Win32-vs16-` + arch + `\.zip`)
 	matches := re.FindAllStringSubmatch(content, -1)
@@ -52,23 +51,13 @@ func DetectVersions() ([]string, map[string]string) {
 		urlMap[fullVer] = fmt.Sprintf("%sphp-%s-Win32-vs16-%s.zip", baseURL, fullVer, arch)
 	}
 
-	sort.Slice(versions, func(i, j int) bool { return compareVersions(versions[i], versions[j]) > 0 })
+	sort.Slice(versions, func(i, j int) bool { return utils.CompareVersions(versions[i], versions[j]) > 0 })
 
 	if len(versions) == 0 {
 		v := "8.2.12"
 		return []string{v}, map[string]string{v: fmt.Sprintf("%sphp-%s-Win32-vs16-%s.zip", baseURL, v, arch)}
 	}
 	return versions, urlMap
-}
-
-func compareVersions(v1, v2 string) int {
-	var a1, b1, c1 int
-	var a2, b2, c2 int
-	fmt.Sscanf(v1, "%d.%d.%d", &a1, &b1, &c1)
-	fmt.Sscanf(v2, "%d.%d.%d", &a2, &b2, &c2)
-	if a1 != a2 { return a1 - a2 }
-	if b1 != b2 { return b1 - b2 }
-	return c1 - c2
 }
 
 func GetIcon() string {
@@ -113,7 +102,9 @@ func InstallModule(ctx interface{}, m interface{}, moduleName string, phpPath st
 
 		// We need a way to download. Let's assume manager provides it or we do it here.
 		// To keep it clean, let's use a helper.
-		err := utils.DownloadFile(composerPhar, "https://getcomposer.org/composer.phar")
+		err := utils.DownloadFile(context.Background(), "https://getcomposer.org/composer.phar", composerPhar, "Composer", func(pct float64, status, speed, downloaded string) {
+			emitProgress("Composer", pct, status)
+		})
 		if err != nil { return err }
 
 		batContent := "@php \"%~dp0composer.phar\" %*"
@@ -125,10 +116,3 @@ func InstallModule(ctx interface{}, m interface{}, moduleName string, phpPath st
 	return fmt.Errorf("unknown module: %s", moduleName)
 }
 
-func fetchContent(url string) string {
-	resp, err := http.Get(url)
-	if err != nil { return "" }
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	return string(body)
-}

@@ -2,8 +2,7 @@ package apache
 
 import (
 	_ "embed"
-	"io"
-	"net/http"
+	"ostenia/internal/plugins/utils"
 	"regexp"
 	"runtime"
 )
@@ -13,10 +12,12 @@ var iconSVG string
 
 func DetectVersions() ([]string, map[string]string) {
 	arch := "x64"
-	if runtime.GOARCH == "386" { arch = "x86" }
+	if runtime.GOARCH == "386" {
+		arch = "x86"
+	}
 
 	binBase := "https://www.apachelounge.com/download/VS18/binaries/"
-	content := fetchContent("https://www.apachelounge.com/download/")
+	content := utils.FetchContent("https://www.apachelounge.com/download/")
 
 	rePattern := `httpd-(2\.4\.\d+-\d+)-Win64-VS\d+\.zip`
 	if arch == "x86" { rePattern = `httpd-(2\.4\.\d+-\d+)-win32-vs\d+\.zip` }
@@ -48,12 +49,4 @@ func DetectVersions() ([]string, map[string]string) {
 
 func GetIcon() string {
 	return iconSVG
-}
-
-func fetchContent(url string) string {
-	resp, err := http.Get(url)
-	if err != nil { return "" }
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	return string(body)
 }

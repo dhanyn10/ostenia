@@ -4,11 +4,8 @@
 package plugins
 
 import (
-	"archive/zip"
 	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"ostenia/internal/config"
@@ -128,7 +125,9 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 	}
 	tmp := filepath.Join(os.TempDir(), "ostenia_"+task.Name+ext)
 
-	if err := m.downloadFile(ctx, task.URL, tmp, task.Name); err != nil {
+	if err := utils.DownloadFile(ctx, task.URL, tmp, task.Name, func(pct float64, status, speed, downloaded string) {
+		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: pct, Status: status, Speed: speed, Downloaded: downloaded})
+	}); err != nil {
 		fmt.Printf("[Manager] Download failed: %v\n", err)
 		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: "Error: " + err.Error()})
 		return err
@@ -163,7 +162,7 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 	extractTmp := targetDir + ".tmp"
 	_ = os.RemoveAll(extractTmp)
 
-	if err := m.unzipFile(ctx, tmp, extractTmp, task.Name); err != nil {
+	if err := Unzip(ctx, tmp, extractTmp, task.Name, m.emit); err != nil {
 		fmt.Printf("[Manager] Extraction failed: %v\n", err)
 		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: "Error: " + err.Error()})
 		return err
@@ -205,91 +204,13 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 	return nil
 }
 
-func (m *Manager) downloadFile(ctx context.Context, url, path, name string) error {
-	out, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return err
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("HTTP %d", resp.StatusCode)
-	}
-
-	wc := &WriteCounter{
-		Total:     uint64(resp.ContentLength),
-		StartTime: time.Now(),
-		OnProgress: func(p, t uint64, s string) {
-			pct := 0.0
-			if t > 0 {
-				pct = (float64(p) / float64(t)) * 100
-			}
-			m.emit(m.ctx, "download_progress", Progress{Name: name, Percentage: pct, Status: "Downloading...", Speed: s, Downloaded: formatBytes(p)})
-		},
-	}
-	_, err = io.Copy(out, io.TeeReader(resp.Body, wc))
-	return err
-}
-
 // DownloadFileManual downloads a file without context-based cancellation
 func (m *Manager) DownloadFileManual(url, path, name string) error {
-	return m.downloadFile(m.ctx, url, path, name)
+	return utils.DownloadFile(m.ctx, url, path, name, func(pct float64, status, speed, downloaded string) {
+		m.emit(m.ctx, "download_progress", Progress{Name: name, Percentage: pct, Status: status, Speed: speed, Downloaded: downloaded})
+	})
 }
 
-func (m *Manager) unzipFile(ctx context.Context, src, dest, name string) error {
-	r, err := zip.OpenReader(src)
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-
-	total := len(r.File)
-	for i, f := range r.File {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			fpath := filepath.Join(dest, f.Name)
-			if f.FileInfo().IsDir() {
-				_ = os.MkdirAll(fpath, os.ModePerm)
-				continue
-			}
-			if err := os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
-				return err
-			}
-			outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-			if err != nil {
-				return err
-			}
-			rc, err := f.Open()
-			if err != nil {
-				outFile.Close()
-				return err
-			}
-			_, err = io.Copy(outFile, rc)
-			outFile.Close()
-			rc.Close()
-			if err != nil {
-				return err
-			}
-			if i%20 == 0 { // Reduce event noise
-				m.emit(m.ctx, "download_progress", Progress{Name: name, Percentage: (float64(i+1) / float64(total)) * 100, Status: "Extracting..."})
-			}
-		}
-	}
-	return nil
-}
 
 func (m *Manager) ensureCurrentLink(task DownloadTask) error {
 	baseDir := config.GetBaseDir()
@@ -307,38 +228,3 @@ func (m *Manager) ensureCurrentLink(task DownloadTask) error {
 	return c.Run()
 }
 
-// WriteCounter tracks the progress of a write operation
-type WriteCounter struct {
-	Total, Downloaded uint64
-	StartTime         time.Time
-	OnProgress        func(uint64, uint64, string)
-}
-
-func (wc *WriteCounter) Write(p []byte) (int, error) {
-	n := len(p)
-	wc.Downloaded += uint64(n)
-	el := time.Since(wc.StartTime).Seconds()
-	sp := "0 KB/s"
-	if el > 0 {
-		s := float64(wc.Downloaded) / el
-		if s > 1024*1024 {
-			sp = fmt.Sprintf("%.2f MB/s", s/(1024*1024))
-		} else {
-			sp = fmt.Sprintf("%.2f KB/s", s/1024)
-		}
-	}
-	wc.OnProgress(wc.Downloaded, wc.Total, sp)
-	return n, nil
-}
-
-func formatBytes(b uint64) string {
-	if b < 1024 {
-		return fmt.Sprintf("%d B", b)
-	}
-	div, exp := uint64(1024), 0
-	for n := b / 1024; n >= 1024; n /= 1024 {
-		div *= 1024
-		exp++
-	}
-	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
-}

@@ -2,8 +2,6 @@ package mysql
 
 import (
 	_ "embed"
-	"io"
-	"net/http"
 	"strings"
 )
 
@@ -25,12 +23,4 @@ func DetectVersions() ([]string, map[string]string) {
 
 func GetIcon() string {
 	return iconSVG
-}
-
-func fetchContent(url string) string {
-	resp, err := http.Get(url)
-	if err != nil { return "" }
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	return string(body)
 }

@@ -46,14 +46,14 @@ describe('SSHTab Component', () => {
   it('renders loading state initially', async () => {
     AppBackend.GetSSHSessions.mockImplementation(() => Promise.resolve([]))
     await act(async () => {
-      render(<SSHTab addToast={vi.fn()} theme="light" />)
+      render(<SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />)
     })
   })
 
   it('renders sessions after loading', async () => {
     AppBackend.GetSSHSessions.mockImplementation(() => Promise.resolve(mockSessions))
     await act(async () => {
-      render(<SSHTab addToast={vi.fn()} theme="light" />)
+      render(<SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />)
     })
 
     await waitFor(() => {
@@ -65,7 +65,7 @@ describe('SSHTab Component', () => {
   it('opens new connection form', async () => {
     AppBackend.GetSSHSessions.mockImplementation(() => Promise.resolve([]))
     await act(async () => {
-      render(<SSHTab addToast={vi.fn()} theme="light" />)
+      render(<SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />)
     })
 
     const newBtn = screen.getByText('New Connection')
@@ -77,7 +77,7 @@ describe('SSHTab Component', () => {
   it('connects on double click', async () => {
     AppBackend.GetSSHSessions.mockImplementation(() => Promise.resolve(mockSessions))
     await act(async () => {
-      render(<SSHTab addToast={vi.fn()} theme="light" />)
+      render(<SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />)
     })
 
     await waitFor(() => screen.getByText(TEST_IP_1))
