@@ -9,146 +9,163 @@ function cn(...inputs: ClassValue[]) {
 }
 
 interface ServiceItemProps {
- service: any;
- task: any;
- isExpanded: boolean;
- onToggleAccordion: (name: string, hasExtraActions: boolean) => void;
- renderIcon: (name: string, size?: number, className?: string) => React.ReactNode;
- handleToggleService: (name: string, status: string) => void;
- handleRemoveFromHome: (name: string) => void;
- handleSwitchVersion: (name: string, version: string) => void;
- handleOpenLocalTerminal: (name: string, type: string) => void;
- handleToggleHttps: (name: string) => void;
- openTerminalDropdown: string | null;
- setOpenTerminalDropdown: (name: string | null) => void;
- setIsModalOpen: (open: boolean) => void;
- apacheHttps: boolean;
- nginxHttps: boolean;
- isOpenSslEnabled: boolean;
- setActiveTab: (tab: string) => void;
- handleOpenPluginFolder: (name: string) => void;
+  service: any;
+  task: any;
+  isExpanded: boolean;
+  onToggleAccordion: (name: string, hasExtraActions: boolean) => void;
+  renderIcon: (name: string, size?: number, className?: string) => React.ReactNode;
+  handleToggleService: (name: string, status: string) => void;
+  handleRemoveFromHome: (name: string) => void;
+  handleSwitchVersion: (name: string, version: string) => void;
+  handleOpenLocalTerminal: (name: string, type: string) => void;
+  handleToggleHttps: (name: string) => void;
+  openTerminalDropdown: string | null;
+  setOpenTerminalDropdown: (name: string | null) => void;
+  setIsModalOpen: (open: boolean) => void;
+  apacheHttps: boolean;
+  nginxHttps: boolean;
+  isOpenSslEnabled: boolean;
+  setActiveTab: (tab: string) => void;
+  handleOpenPluginFolder: (name: string) => void;
 }
 
+const ServiceHeader: React.FC<any> = ({ service, task, renderIcon, handleSwitchVersion }) => {
+  const installedVersions = task?.installedVers || [];
+  const showVersionSwitcher = (service.name === 'PHP' || service.name === 'Node.js' || service.name === 'Python') && installedVersions.length > 0;
+
+  return (
+    <div className="flex items-center gap-3">
+      {renderIcon(service.name, 18, "text-slate-900 dark:text-white")}
+      <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{service.name}</h3>
+
+      {showVersionSwitcher && (
+        <div className="flex items-center gap-1 ml-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+          {installedVersions.map((ver: string) => {
+            const systemString = (service.activeVersion || "").toString().toLowerCase().trim();
+            const cleanVer = ver.toString().replace(/^v/, "").replace(/^[a-z. ]+-/, "").trim();
+            const isActive = systemString.includes(cleanVer.toLowerCase());
+
+            return (
+              <button
+                key={ver}
+                role="button" tabIndex={0}
+                onKeyDown={handleActionKey(() => handleSwitchVersion(service.name, ver))}
+                onClick={() => handleSwitchVersion(service.name, ver)}
+                className={cn(
+                  "px-1.5 py-0.5 rounded-sm text-[8px] font-black uppercase tracking-widest border transition-all",
+                  isActive
+                    ? "bg-blue-600 border-blue-500 text-white shadow-lg"
+                    : "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-500 hover:border-blue-500/50 hover:text-blue-500"
+                )}
+              >
+                {isActive && <CheckCircle2 size={8} className="inline mr-1" />}
+                {cleanVer}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ServiceStatus: React.FC<any> = ({ service }) => {
+  const isRunning = service.status === 'Running';
+  const showStats = isRunning && service.name !== 'OpenSSL';
+
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      {service.remainingDays > 0 && (
+        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-sm text-[8px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">
+          <Clock size={10} />
+          {service.remainingDays} Days Left
+        </div>
+      )}
+
+      <div className={cn(
+        "text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-sm border flex items-center gap-1.5",
+        isRunning
+          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+          : "bg-slate-100 dark:bg-slate-900/80 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-white/5"
+      )}>
+        {isRunning && <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />}
+        {service.status}
+      </div>
+
+      {showStats && (
+        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
+          {service.pid > 0 && (
+            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded-sm text-[8px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">
+              <Activity size={10} />
+              PID: {service.pid}
+            </div>
+          )}
+          {((service.ports && service.ports.length > 0) || service.port > 0) && (
+            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-sm text-[8px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
+              <Globe size={10} />
+              Port: {service.ports && service.ports.length > 0 ? service.ports.join(', ') : service.port}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ServiceItem: React.FC<ServiceItemProps> = ({
- service,
- task,
- isExpanded,
- onToggleAccordion,
- renderIcon,
- handleToggleService,
- handleRemoveFromHome,
- handleSwitchVersion,
- handleOpenLocalTerminal,
- handleToggleHttps,
- openTerminalDropdown,
- setOpenTerminalDropdown,
- setIsModalOpen,
- apacheHttps,
- nginxHttps,
- isOpenSslEnabled,
- setActiveTab,
- handleOpenPluginFolder
+  service,
+  task,
+  isExpanded,
+  onToggleAccordion,
+  renderIcon,
+  handleToggleService,
+  handleRemoveFromHome,
+  handleSwitchVersion,
+  handleOpenLocalTerminal,
+  handleToggleHttps,
+  openTerminalDropdown,
+  setOpenTerminalDropdown,
+  setIsModalOpen,
+  apacheHttps,
+  nginxHttps,
+  isOpenSslEnabled,
+  setActiveTab,
+  handleOpenPluginFolder
 }) => {
- const isInstalled = (task?.installedVers && task.installedVers.length > 0) || service.name === 'OpenSSL';
- const isWebServer = service.name === 'Apache' || service.name === 'Nginx';
+  const isInstalled = (task?.installedVers && task.installedVers.length > 0) || service.name === 'OpenSSL';
+  const isWebServer = service.name === 'Apache' || service.name === 'Nginx';
 
-   let isHttpsEnabled = false;
-   if (service.name === 'Apache') {
-     isHttpsEnabled = apacheHttps;
-   } else if (service.name === 'Nginx') {
-     isHttpsEnabled = nginxHttps;
-   }
+  let isHttpsEnabled = false;
+  if (service.name === 'Apache') {
+    isHttpsEnabled = apacheHttps;
+  } else if (service.name === 'Nginx') {
+    isHttpsEnabled = nginxHttps;
+  }
 
- const hasTerminalFacility = service.name !== 'HeidiSQL' && service.name !== 'OpenSSL';
- const hasOpenFolder = isInstalled && service.name !== 'OpenSSL' && service.name !== 'HeidiSQL';
- const hasTerminal = isInstalled && hasTerminalFacility;
- const hasHttpsToggle = isWebServer && isOpenSslEnabled;
- const hasPhpExtManager = service.name === 'PHP';
- const hasHeidiOpen = service.name === 'HeidiSQL' && isInstalled;
- const hasExtraActions = hasOpenFolder || hasTerminal || hasHttpsToggle || hasPhpExtManager || hasHeidiOpen;
+  const hasTerminalFacility = service.name !== 'HeidiSQL' && service.name !== 'OpenSSL';
+  const hasOpenFolder = isInstalled && service.name !== 'OpenSSL' && service.name !== 'HeidiSQL';
+  const hasTerminal = isInstalled && hasTerminalFacility;
+  const hasHttpsToggle = isWebServer && isOpenSslEnabled;
+  const hasPhpExtManager = service.name === 'PHP';
+  const hasHeidiOpen = service.name === 'HeidiSQL' && isInstalled;
+  const hasExtraActions = hasOpenFolder || hasTerminal || hasHttpsToggle || hasPhpExtManager || hasHeidiOpen;
 
- const installedVersions = task?.installedVers || [];
-
- return (
- <div
- className={cn(
- "bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all flex flex-col relative shadow-sm dark:shadow-lg outline-none focus:ring-1 focus:ring-blue-500/40",
- isExpanded ? "z-[100] ring-1 ring-blue-500/20" : "z-10",
- hasExtraActions ? "cursor-pointer" : "cursor-default"
- )}
- role="button" tabIndex={0} onKeyDown={handleActionKey(() => onToggleAccordion(service.name, hasExtraActions))} onClick={() => onToggleAccordion(service.name, hasExtraActions)}
- >
- <div className="flex items-center gap-5">
- <div className="flex-1 min-w-0 px-2">
- <div className="flex items-center gap-3 flex-wrap">
- <div className="flex items-center gap-3">
- {renderIcon(service.name, 18, "text-slate-900 dark:text-white")}
-
- <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{service.name}</h3>
-
- {/* Added Python to the version switcher list */}
- {(service.name === 'PHP' || service.name === 'Node.js' || service.name === 'Python') && installedVersions.length > 0 && (
- <div className="flex items-center gap-1 ml-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
- {installedVersions.map(ver => {
- const systemString = (service.activeVersion || "").toString().toLowerCase().trim();
- const cleanVer = ver.toString().replace(/^v/, "").replace(/^[a-z. ]+-/, "").trim();
- const isActive = systemString.includes(cleanVer.toLowerCase());
-
- return (
- <button
- key={ver}
- role="button" tabIndex={0} onKeyDown={handleActionKey(() => handleSwitchVersion(service.name, ver))} onClick={() => handleSwitchVersion(service.name, ver)}
- className={cn(
- "px-1.5 py-0.5 rounded-sm text-[8px] font-black uppercase tracking-widest border transition-all",
- isActive
- ? "bg-blue-600 border-blue-500 text-white shadow-lg"
- : "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-500 hover:border-blue-500/50 hover:text-blue-500"
- )}
- >
- {isActive && <CheckCircle2 size={8} className="inline mr-1" />}
- {cleanVer}
- </button>
- );
- })}
- </div>
- )}
- </div>
-
- {service.remainingDays > 0 && (
- <div className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded-sm text-[8px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">
- <Clock size={10} />
- {service.remainingDays} Days Left
- </div>
- )}
-
- <div className={cn(
- "text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded-sm border flex items-center gap-1.5",
- service.status === 'Running'
- ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
- : "bg-slate-100 dark:bg-slate-900/80 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-white/5"
- )}>
- {service.status === 'Running' && <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />}
- {service.status}
- </div>
-
- {service.status === 'Running' && service.name !== 'OpenSSL' && (
- <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
- {service.pid > 0 && (
- <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded-sm text-[8px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">
- <Activity size={10} />
- PID: {service.pid}
- </div>
- )}
- {(service.ports && service.ports.length > 0) || service.port > 0 ? (
- <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-sm text-[8px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
- <Globe size={10} />
- Port: {service.ports && service.ports.length > 0 ? service.ports.join(', ') : service.port}
- </div>
- ) : null}
- </div>
- )}
- </div>
- </div>
+  return (
+    <div
+      className={cn(
+        "bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all flex flex-col relative shadow-sm dark:shadow-lg outline-none focus:ring-1 focus:ring-blue-500/40",
+        isExpanded ? "z-[100] ring-1 ring-blue-500/20" : "z-10",
+        hasExtraActions ? "cursor-pointer" : "cursor-default"
+      )}
+      role="button" tabIndex={0} onKeyDown={handleActionKey(() => onToggleAccordion(service.name, hasExtraActions))} onClick={() => onToggleAccordion(service.name, hasExtraActions)}
+    >
+      <div className="flex items-center gap-5">
+        <div className="flex-1 min-w-0 px-2">
+          <div className="flex items-center gap-3 flex-wrap">
+            <ServiceHeader service={service} task={task} renderIcon={renderIcon} handleSwitchVersion={handleSwitchVersion} />
+            <ServiceStatus service={service} />
+          </div>
+        </div>
 
  <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
  {!isInstalled && service.name !== 'OpenSSL' ? (
