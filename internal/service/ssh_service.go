@@ -358,13 +358,16 @@ func (m *SSHManager) EditFile(sessionID string, remotePath string, defaultEditor
 
 	remotePath = path.Clean(remotePath)
 
-	tempDir := filepath.Join(os.TempDir(), "ostenia-ssh-edit")
-	os.MkdirAll(tempDir, 0755)
+	tempDir, err := os.MkdirTemp("", "ostenia-ssh-edit-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
 
 	fileName := path.Base(remotePath)
 	localPath := filepath.Join(tempDir, fmt.Sprintf("%d-%s", time.Now().Unix(), fileName))
 
-	err := m.DownloadFile(sessionID, remotePath, localPath)
+	err = m.DownloadFile(sessionID, remotePath, localPath)
 	if err != nil {
 		return err
 	}
