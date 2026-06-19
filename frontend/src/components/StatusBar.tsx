@@ -33,9 +33,9 @@ const StatusBar = ({ services }) => {
  className="relative h-full"
  >
  <button
- role="button" tabIndex={0} onKeyDown={handleActionKey(() => setIsDropdownOpen(!isDropdownOpen))} onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+ onKeyDown={handleActionKey(() => setIsDropdownOpen(!isDropdownOpen))} onClick={() => setIsDropdownOpen(!isDropdownOpen)}
  className={cn(
- "flex items-center gap-1.5 px-2 h-full transition-colors",
+ "flex items-center gap-1.5 px-2 h-full transition-colors border-none p-0 focus:outline-none",
  isDropdownOpen ? "bg-mui-blue-700" : "hover:bg-white/10"
  )}
  >

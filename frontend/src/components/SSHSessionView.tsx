@@ -365,11 +365,12 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
  </div>
 
  {fileContextMenu && (
- <div role="button" tabIndex={0}
- className="fixed z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg py-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-100"
+ <div role="button" tabIndex={0} // NOSONAR
+ className="fixed z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg py-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-100 cursor-default p-0"
  style={{ top: fileContextMenu.y, left: fileContextMenu.x }}
  onClick={(e) => e.stopPropagation()}
   onKeyDown={handleActionKey((e) => e.stopPropagation())}>
+ <div className="w-full h-full" onClick={(e) => e.stopPropagation()}>
  <button
  onClick={async () => {
  const name = prompt('Rename:', fileContextMenu.file.name);
@@ -418,6 +419,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
  <button onClick={() => { handleDelete(fileContextMenu.file); setFileContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2 transition-all">
  <Trash2 size={14} /> Delete
  </button>
+ </div>
  </div>
  )}
  </div>

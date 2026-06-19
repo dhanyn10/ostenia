@@ -121,7 +121,7 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
 
  {openTerminalDropdown === app.name && (
  <>
- <div className="fixed inset-0 z-10" role="button" tabIndex={0} onKeyDown={handleActionKey(() => setOpenTerminalDropdown(null))} onClick={() => setOpenTerminalDropdown(null)} />
+ <button className="fixed inset-0 z-10 w-full h-full bg-transparent border-none p-0 cursor-default focus:outline-none" onKeyDown={handleActionKey(() => setOpenTerminalDropdown(null))} onClick={() => setOpenTerminalDropdown(null)} />
  <div className="absolute top-full right-0 mt-1 w-40 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg shadow-xl z-20 animate-in fade-in slide-in-from-top-1 duration-200 overflow-hidden">
  <div className="p-1">
  <button

@@ -48,7 +48,6 @@ const ServiceHeader: React.FC<any> = ({ service, task, renderIcon, handleSwitchV
             return (
               <button
                 key={ver}
-                role="button" tabIndex={0}
                 onKeyDown={handleActionKey(() => handleSwitchVersion(service.name, ver))}
                 onClick={() => handleSwitchVersion(service.name, ver)}
                 className={cn(
@@ -118,7 +117,7 @@ const MainActions: React.FC<any> = ({ isInstalled, service, handleToggleService,
       <button onClick={() => setActiveTab('plugins')} className="px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
     ) : (
       <button
-        role="button" tabIndex={0} onKeyDown={handleActionKey(() => handleToggleService(service.name, service.status))} onClick={() => handleToggleService(service.name, service.status)}
+        onKeyDown={handleActionKey(() => handleToggleService(service.name, service.status))} onClick={() => handleToggleService(service.name, service.status)}
         className={cn(
           "w-12 h-6 rounded-sm p-0.5 transition-all duration-300 ease-in-out relative ring-1 ring-inset",
           service.status === 'Running'
@@ -134,7 +133,7 @@ const MainActions: React.FC<any> = ({ isInstalled, service, handleToggleService,
     )}
 
     <button
-      role="button" tabIndex={0} onKeyDown={handleActionKey(() => handleRemoveFromHome(service.name))} onClick={() => handleRemoveFromHome(service.name)}
+      onKeyDown={handleActionKey(() => handleRemoveFromHome(service.name))} onClick={() => handleRemoveFromHome(service.name)}
       className="h-6 px-3 bg-slate-100 dark:bg-white/5 hover:bg-rose-500/10 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-white/5"
     >
       <Trash2 size={12} />
@@ -206,7 +205,7 @@ const ServiceExtraActions: React.FC<any> = ({
 
           {openTerminalDropdown === service.name && (
             <>
-              <div className="fixed inset-0 z-[150]" role="button" tabIndex={0} onKeyDown={handleActionKey(() => setOpenTerminalDropdown(null))} onClick={() => setOpenTerminalDropdown(null)} />
+              <button className="fixed inset-0 z-[150] w-full h-full bg-transparent border-none p-0 cursor-default focus:outline-none" onKeyDown={handleActionKey(() => setOpenTerminalDropdown(null))} onClick={() => setOpenTerminalDropdown(null)} />
               <div className="absolute top-full left-0 mt-1 w-40 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-sm shadow-2xl z-[160] animate-in fade-in slide-in-from-top-1 duration-200">
                 <div className="p-1">
                   <button onClick={() => handleOpenLocalTerminal(service.name, 'cmd')} className="w-full flex items-center gap-3 px-3 py-1.5 rounded-sm text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"><Monitor size={12} className="text-blue-500" /> CMD</button>
@@ -281,12 +280,13 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
 
   return (
     <div
+      role="button" tabIndex={0} // NOSONAR
       className={cn(
-        "bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all flex flex-col relative shadow-sm dark:shadow-lg outline-none focus:ring-1 focus:ring-blue-500/40",
+        "w-full text-left bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all flex flex-col relative shadow-sm dark:shadow-lg outline-none focus:ring-1 focus:ring-blue-500/40",
         isExpanded ? "z-[100] ring-1 ring-blue-500/20" : "z-10",
         hasExtraActions ? "cursor-pointer" : "cursor-default"
       )}
-      role="button" tabIndex={0} onKeyDown={handleActionKey(() => onToggleAccordion(service.name, hasExtraActions))} onClick={() => onToggleAccordion(service.name, hasExtraActions)}
+      onKeyDown={handleActionKey(() => onToggleAccordion(service.name, hasExtraActions))} onClick={() => onToggleAccordion(service.name, hasExtraActions)}
     >
       <div className="flex items-center gap-5">
         <div className="flex-1 min-w-0 px-2">

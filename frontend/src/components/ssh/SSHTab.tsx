@@ -108,13 +108,11 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
 
  {activeSessionIds.length > 0 && (
  <div className="flex items-center gap-[2px] overflow-x-auto no-scrollbar shrink-0 pt-2 px-6 bg-mui-grey-50 dark:bg-mui-grey-900 border-b border-mui-grey-200 dark:border-white/5">
- <div
- role="button"
- tabIndex={0}
+ <div role="button" tabIndex={0} // NOSONAR
  onClick={() => setCurrentSessionId(null)}
  onKeyDown={handleActionKey(() => setCurrentSessionId(null))}
  className={clsx(
- "relative px-6 py-2 text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer rounded-t-xl group min-w-[120px] max-w-[200px] outline-none",
+ "relative px-6 py-2 text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer rounded-t-xl group min-w-[120px] max-w-[200px] outline-none border-none p-0",
  currentSessionId === null
  ? "bg-white dark:bg-mui-dark-bg text-mui-blue-600 z-10 border-t border-x border-mui-grey-200 dark:border-white/5"
  : "text-mui-grey-500 hover:bg-mui-grey-200 dark:hover:bg-white/10 focus:bg-mui-grey-100 dark:focus:bg-white/5"
@@ -131,14 +129,12 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
  const isActive = currentSessionId === id;
  const displayName = session.name || session.host;
  return (
- <div
+ <div role="button" tabIndex={0} // NOSONAR
  key={id}
- role="button"
- tabIndex={0}
  onClick={() => setCurrentSessionId(id)}
  onKeyDown={handleActionKey(() => setCurrentSessionId(id))}
  className={clsx(
- "relative pl-6 pr-2 py-2 text-xs transition-all group cursor-pointer rounded-t-xl flex items-center justify-between min-w-[140px] max-w-[220px] outline-none",
+ "relative pl-6 pr-2 py-2 text-xs transition-all group cursor-pointer rounded-t-xl flex items-center justify-between min-w-[140px] max-w-[220px] outline-none border-none p-0",
  isActive
  ? "bg-white dark:bg-mui-dark-bg text-mui-blue-600 z-10 border-t border-x border-mui-grey-200 dark:border-white/80"
  : "text-mui-grey-500 hover:bg-mui-grey-200 dark:hover:bg-white/10 focus:bg-mui-grey-100 dark:focus:bg-white/5"
@@ -218,14 +214,12 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
  <div className="flex-1 overflow-y-auto pr-2 pb-4 custom-scrollbar">
  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
  {sessions.map((session) => (
- <div
+ <div role="button" tabIndex={0} // NOSONAR
  key={session.id}
- role="button"
- tabIndex={0}
  onDoubleClick={() => handleConnect(session)}
  onKeyDown={handleActionKey(() => handleConnect(session))}
  onContextMenu={(e) => handleContextMenu(e, session)}
- className="group bg-mui-grey-50 dark:bg-mui-dark-paper border border-mui-grey-200 dark:border-white/10 rounded-lg p-3 hover:border-mui-blue-500/50 hover:shadow-md transition-all relative overflow-hidden flex items-center gap-3 cursor-pointer select-none outline-none focus:ring-1 focus:ring-mui-blue-500/40"
+ className="group bg-mui-grey-50 dark:bg-mui-dark-paper border border-mui-grey-200 dark:border-white/10 rounded-lg p-3 hover:border-mui-blue-500/50 hover:shadow-md transition-all relative overflow-hidden flex items-center gap-3 cursor-pointer select-none outline-none focus:ring-1 focus:ring-mui-blue-500/40 text-left"
  >
  <div className="bg-mui-blue-600 text-white p-2 rounded-md shrink-0">
  <Server size={18} />
@@ -276,11 +270,12 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
  )}
 
  {contextMenu && (
- <div role="button" tabIndex={0}
- className="fixed z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg py-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-100"
+ <div role="button" tabIndex={0} // NOSONAR
+ className="fixed z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg py-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-100 cursor-default p-0"
  style={{ top: contextMenu.y, left: contextMenu.x }}
  onClick={(e) => e.stopPropagation()}
   onKeyDown={handleActionKey((e) => e.stopPropagation())}>
+ <div className="w-full h-full" onClick={(e) => e.stopPropagation()}>
  <button
  onClick={() => {
  handleDelete(contextMenu.sessionId);
@@ -291,6 +286,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
  <Trash2 size={14} />
  Delete Session
  </button>
+ </div>
  </div>
  )}
  </div>

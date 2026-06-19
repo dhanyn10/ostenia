@@ -32,7 +32,7 @@ const SSHManagementCategory: React.FC = () => {
           <span className="text-xs font-black uppercase tracking-widest text-mui-grey-400">ssh_sessions.json</span>
           <div className="flex items-center gap-2">
             <button
-              role="button" tabIndex={0} onKeyDown={handleActionKey(() => setShowPasswords(!showPasswords))} onClick={() => setShowPasswords(!showPasswords)}
+              onKeyDown={handleActionKey(() => setShowPasswords(!showPasswords))} onClick={() => setShowPasswords(!showPasswords)}
               className="flex items-center gap-1.5 px-2 py-1 rounded bg-mui-blue-500/10 text-mui-blue-500 hover:bg-mui-blue-500/20 transition-colors text-[10px] font-bold uppercase tracking-tight"
             >
               {showPasswords ? <EyeOff size={12} /> : <Eye size={12} />}

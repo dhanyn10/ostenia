@@ -30,7 +30,7 @@ const ProfileCategory: React.FC<ProfileCategoryProps> = ({ initApp }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <button
-          role="button" tabIndex={0} onKeyDown={handleActionKey(handleImport)} onClick={handleImport}
+          onKeyDown={handleActionKey(handleImport)} onClick={handleImport}
           className="flex items-start gap-4 p-4 rounded-lg border border-mui-grey-200 dark:border-white/10 hover:bg-mui-grey-50 dark:hover:bg-white/5 transition-all group"
         >
           <div className="p-3 rounded-full bg-mui-blue-500/10 text-mui-blue-500 group-hover:scale-110 transition-transform">
@@ -43,7 +43,7 @@ const ProfileCategory: React.FC<ProfileCategoryProps> = ({ initApp }) => {
         </button>
 
         <button
-          role="button" tabIndex={0} onKeyDown={handleActionKey(() => handleExport('all'))} onClick={() => handleExport('all')}
+          onKeyDown={handleActionKey(() => handleExport('all'))} onClick={() => handleExport('all')}
           className="flex items-start gap-4 p-4 rounded-lg border border-mui-grey-200 dark:border-white/10 hover:bg-mui-grey-50 dark:hover:bg-white/5 transition-all group"
         >
           <div className="p-3 rounded-full bg-emerald-500/10 text-emerald-500 group-hover:scale-110 transition-transform">

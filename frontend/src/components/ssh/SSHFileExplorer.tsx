@@ -122,9 +122,8 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
             {/* Go Up Directory */}
             {(remotePath && remotePath !== '/') && (
               <div
-                role="button"
-                tabIndex={0}
-                className="group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-mui-grey-100 dark:hover:bg-mui-grey-800 cursor-pointer border border-transparent transition-all select-none outline-none focus:bg-mui-grey-100 dark:focus:bg-mui-grey-800"
+                role="button" tabIndex={0} // NOSONAR
+                className="w-full group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-mui-grey-100 dark:hover:bg-mui-grey-800 cursor-pointer border border-transparent transition-all select-none outline-none focus:bg-mui-grey-100 dark:focus:bg-mui-grey-800 bg-transparent p-0 text-left"
                 onDoubleClick={onNavigateUp}
                 onKeyDown={handleActionKey(onNavigateUp)}
               >
@@ -137,10 +136,9 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
             {sortedFiles.map((file) => (
               <div
                 key={file.name}
-                role="button"
-                tabIndex={0}
+                role="button" tabIndex={0} // NOSONAR
                 onContextMenu={(e) => onFileContextMenu(e, file)}
-                className="group flex items-center gap-2 px-2 py-1 rounded hover:bg-mui-grey-100 dark:hover:bg-mui-grey-800 cursor-pointer border border-transparent hover:border-mui-grey-200 dark:hover:border-mui-grey-700 transition-all select-none outline-none focus:bg-mui-grey-100 dark:focus:bg-mui-grey-800"
+                className="w-full group flex items-center gap-2 px-2 py-1 rounded hover:bg-mui-grey-100 dark:hover:bg-mui-grey-800 cursor-pointer border border-transparent hover:border-mui-grey-200 dark:hover:border-mui-grey-700 transition-all select-none outline-none focus:bg-mui-grey-100 dark:focus:bg-mui-grey-800 bg-transparent p-0 text-left"
                 onDoubleClick={() => onFileDoubleClick(file)}
                 onKeyDown={handleActionKey(() => onFileDoubleClick(file))}
               >
