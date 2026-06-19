@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
 import * as AppBackend from '../wailsjs/go/backend/App';
-import { clsx } from 'clsx';
+import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 // Components
@@ -15,15 +15,22 @@ import LogViewer from './components/LogViewer';
 import ActivityTab from './components/ActivityTab';
 import PluginsTab from './components/PluginsTab';
 import ProxyTab from './components/ProxyTab';
-import SSHTab from './components/SSHTab';
+import SSHTab from './components/ssh/SSHTab';
 import Icons from './components/Icons';
 import ConfirmationModal from './components/ConfirmationModal';
 
-// Icons
-import { Loader2 } from 'lucide-react';
-
-function cn(...inputs) {
+function cn(...inputs: ClassValue[]) {
  return twMerge(clsx(inputs));
+}
+
+interface ServiceInfo {
+  name: string;
+  status: string;
+  pid: number;
+  port: number;
+  ports: number[];
+  activeVersion: string;
+  remainingDays?: number;
 }
 
 function App() {
@@ -31,7 +38,7 @@ function App() {
  const [theme, setTheme] = useState(() => {
  return localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
  });
- const [services, setServices] = useState([
+ const [services, setServices] = useState<ServiceInfo[]>([
  { name: 'Apache', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
  { name: 'Nginx', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
  { name: 'MySQL', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
@@ -41,14 +48,14 @@ function App() {
  { name: 'HeidiSQL', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
  { name: 'OpenSSL', status: 'Stopped', pid: 0, port: 0, remainingDays: 0, ports: [], activeVersion: '' },
  ]);
- const [prerequisites, setPrerequisites] = useState([]);
- const [downloadProgress, setDownloadProgress] = useState({});
- const [toasts, setToasts] = useState([]);
- const [logs, setLogs] = useState([]);
- const [openDropdown, setOpenDropdown] = useState(null);
+ const [prerequisites, setPrerequisites] = useState<any[]>([]);
+ const [downloadProgress, setDownloadProgress] = useState<Record<string, any>>({});
+ const [toasts, setToasts] = useState<any[]>([]);
+ const [logs, setLogs] = useState<any[]>([]);
+ const [openDropdown, setOpenDropdown] = useState<string | null>(null);
  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
  const [loading, setLoading] = useState(true);
- const [selectedVersions, setSelectedVersions] = useState({});
+ const [selectedVersions, setSelectedVersions] = useState<Record<string, string>>({});
  const [isAddingPlugin, setIsAddingPlugin] = useState(false);
  const [settingsModal, setSettingsModal] = useState({ isOpen: false, category: 'profile' });
 
@@ -58,7 +65,7 @@ function App() {
  const [nginxHttps, setNginxHttps] = useState(false);
  const [defaultEditor, setDefaultEditor] = useState('');
 
- const [confirmModal, setConfirmModal] = useState({
+ const [confirmModal, setConfirmModal] = useState<any>({
  isOpen: false,
  title: '',
  message: '',
@@ -77,35 +84,35 @@ function App() {
 
  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
- const addLog = useCallback((msg, type = 'info') => {
+ const addLog = useCallback((msg: string, type = 'info') => {
  const time = new Date().toLocaleTimeString();
  const prefix = type === 'error' ? 'ERR' : type === 'warn' ? 'WRN' : 'SYS';
  setLogs(prev => [{ time, msg: `[${prefix}] ${msg}` }, ...prev].slice(0, 1000));
  }, []);
 
- const renderIcon = (name, size = 20, className = "") => {
+ const renderIcon = (name: string, size = 20, className = "") => {
  const task = (prerequisites || []).find(p => p.name === name);
  if (task && task.iconSvg) return <Icons.Raw svgString={task.iconSvg} size={size} className={className} />;
  return null;
  };
 
- const addToast = (title, message, type = 'info') => {
- const id = Math.random().toString(36).substr(2, 9);
+ const addToast = (title: string, message: string, type: 'info' | 'success' | 'warn' | 'error' = 'info') => {
+ const id = crypto.randomUUID();
  setToasts(prev => [...prev, { id, title, message, type }]);
  setTimeout(() => setToasts(curr => curr.filter(t => t.id !== id)), 5000);
  };
 
- const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
+ const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
  const refreshPrerequisites = async () => {
- if (!AppBackend.GetPrerequisites) return;
+ if (!(AppBackend as any).GetPrerequisites) return;
  try {
  const tasks = await AppBackend.GetPrerequisites();
  setPrerequisites(tasks || []);
  if (tasks) {
  setSelectedVersions(prev => {
  const next = { ...prev };
- tasks.forEach(t => {
+ (tasks as any[]).forEach(t => {
  if (t.name === 'OpenSSL' && t.installedVers && t.installedVers.length > 0) {
  next[t.name] = t.installedVers[0];
  return;
@@ -125,7 +132,7 @@ function App() {
  };
 
  const loadInitialData = async () => {
- if (!AppBackend.GetConfig) return;
+ if (!(AppBackend as any).GetConfig) return;
  try {
  const cfg = await AppBackend.GetConfig();
  if (cfg) {
@@ -141,7 +148,7 @@ function App() {
  try {
  const detail = await AppBackend.GetServiceStatus(service.name);
  if (!detail) return service;
- return { ...service, ...detail, status: detail.status || 'Stopped' };
+ return { ...service, ...detail, status: detail.status || 'Stopped' } as ServiceInfo;
  } catch (e) { return service; }
  })
  );
@@ -161,67 +168,154 @@ function App() {
  }
  };
 
+ // Extracted event handlers to reduce nesting
+ const handleServiceLog = (data: any) => {
+   addLog(`[${data.service}] ${data.message}`, 'info');
+ };
+
+ const handleServiceStatus = (data: any) => {
+   setServices(prev => prev.map(s => s.name === data.name ? { ...s, ...data } : s));
+ };
+
+ const handleDownloadProgress = (data: any) => {
+   setDownloadProgress(prev => ({ ...prev, [data.name]: data }));
+   if (data.status?.startsWith('Error')) {
+     addToast('Installation Failed', `${data.name}: ${data.status}`, 'error');
+     addLog(`Installation Failed: ${data.name} - ${data.status}`, 'error');
+   }
+   if (data.percentage === 100 && (data.status === 'Completed' || data.status === 'Ready')) {
+     refreshPrerequisites();
+   }
+ };
+
  useEffect(() => {
  const originalLog = console.log;
  const originalWarn = console.warn;
  const originalError = console.error;
 
- console.log = (...args) => {
- addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'info');
- originalLog.apply(console, args);
+ console.log = (...args: any[]) => {
+   addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'info');
+   originalLog.apply(console, args);
  };
- console.warn = (...args) => {
- addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'warn');
- originalWarn.apply(console, args);
+ console.warn = (...args: any[]) => {
+   addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'warn');
+   originalWarn.apply(console, args);
  };
- console.error = (...args) => {
- addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'error');
- originalError.apply(console, args);
+ console.error = (...args: any[]) => {
+   addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'error');
+   originalError.apply(console, args);
  };
 
  initApp();
 
  if (window.runtime) {
- EventsOn('service_log', (data) => {
- addLog(`[${data.service}] ${data.message}`, 'info');
- });
-
- EventsOn('service_status', (data) => {
- setServices(prev => prev.map(s => s.name === data.name ? { ...s, ...data } : s));
- });
-
- EventsOn('download_progress', (data) => {
- setDownloadProgress(prev => ({ ...prev, [data.name]: data }));
- if (data.status?.startsWith('Error')) {
- addToast('Installation Failed', `${data.name}: ${data.status}`, 'error');
- addLog(`Installation Failed: ${data.name} - ${data.status}`, 'error');
- }
- if (data.percentage === 100 && (data.status === 'Completed' || data.status === 'Ready')) {
- refreshPrerequisites();
- }
- });
-
- EventsOn('environment_changed', () => {
- initApp();
- });
+   EventsOn('service_log', handleServiceLog);
+   EventsOn('service_status', handleServiceStatus);
+   EventsOn('download_progress', handleDownloadProgress);
+   EventsOn('environment_changed', initApp);
  }
 
  return () => {
- console.log = originalLog;
- console.warn = originalWarn;
- console.error = originalError;
+   console.log = originalLog;
+   console.warn = originalWarn;
+   console.error = originalError;
  };
  }, [addLog]);
 
+ // Main action handlers
+ const handleBrowseAppsLocation = async () => {
+   const selected = await AppBackend.SelectServerRoot();
+   if (selected) { setAppsLocation(selected); initApp(); }
+ };
+
+ const handleBrowseServerRoot = async () => {
+   const selected = await AppBackend.SelectWWWRoot();
+   if (selected) { setServerRootState(selected); initApp(); }
+ };
+
+ const handleAddToHome = (task: any) => {
+   setServices(prev => {
+     if (prev.find(s => s.name === task.name)) return prev;
+     return [...prev, { name: task.name, status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '', remainingDays: 0 }];
+   });
+   setIsAddingPlugin(false);
+ };
+
+ const handleToggleService = (name: string, status: string) => {
+   if (status === 'Running') {
+     if (name === 'HeidiSQL') {
+       setConfirmModal({
+         isOpen: true,
+         title: 'Uninstall HeidiSQL',
+         message: 'Are you sure you want to uninstall HeidiSQL from your system? This will remove the application but your database data should remain intact.',
+         type: 'danger',
+         onConfirm: () => {
+           AppBackend.StopService(name);
+           setConfirmModal((prev: any) => ({ ...prev, isOpen: false }));
+         }
+       });
+       return;
+     }
+     AppBackend.StopService(name);
+   } else {
+     AppBackend.StartService(name);
+   }
+ };
+
+ const handleToggleHttps = async (name: string) => {
+   if (name === 'Apache') {
+     const next = !apacheHttps; setApacheHttps(next); await AppBackend.SetApacheHTTPS(next);
+   } else {
+     const next = !nginxHttps; setNginxHttps(next); await AppBackend.SetNginxHTTPS(next);
+   }
+ };
+
+ const handleInstallSingle = async (task: any) => {
+   const selectedVer = selectedVersions[task.name] || task.version;
+   setDownloadProgress(prev => ({ ...prev, [task.name]: { name: task.name, percentage: 0, status: 'Starting...' } }));
+   const modifiedTask = { ...task, version: selectedVer };
+   const prefixMap: Record<string, string> = {
+     'PHP': 'php-', 'Apache': 'httpd-', 'MySQL': 'mysql-',
+     'Nginx': 'nginx-', 'OpenSSL': 'openssl-', 'Node.js': 'node-v', 'Python': 'python-'
+   };
+   const categoryMap: Record<string, string> = { 'Node.js': 'nodejs', 'HeidiSQL': 'heidisql' };
+   const category = categoryMap[task.name] || task.name.toLowerCase();
+   const prefix = prefixMap[task.name] || '';
+   modifiedTask.target = `${category}/${prefix}${selectedVer}`;
+   if (task.versionUrls && task.versionUrls[selectedVer]) {
+     modifiedTask.url = task.versionUrls[selectedVer];
+   }
+   try { await AppBackend.InstallPrerequisite(modifiedTask); } catch (e: any) { addToast('Error', e.toString(), 'error'); }
+ };
+
+ const handleInstallModule = async (parentName: string, modName: string) => {
+   setDownloadProgress(prev => ({ ...prev, [modName]: { name: modName, percentage: 0, status: 'Starting...' } }));
+   try {
+     await AppBackend.InstallPluginModule(parentName, modName);
+   } catch (e: any) {
+     addToast('Error', e.toString(), 'error');
+     setDownloadProgress(prev => ({ ...prev, [modName]: { name: modName, percentage: 0, status: 'Error: ' + e.toString() } }));
+   }
+ };
+
+ const handleUninstallModule = async (parentName: string, modName: string) => {
+   try {
+     await AppBackend.UninstallPluginModule(parentName, modName);
+     refreshPrerequisites();
+   } catch (e: any) {
+     addToast('Error', e.toString(), 'error');
+   }
+ };
+
  return (
  <div className={cn(
- "flex flex-col h-screen font-sans selection:bg-mui-blue-500/30 overflow-hidden transition-colors duration-300 fixed inset-0", // Added fixed inset-0
+ "flex flex-col h-screen font-sans selection:bg-mui-blue-500/30 overflow-hidden transition-colors duration-300 fixed inset-0",
  theme === 'dark' ? "bg-mui-dark-bg text-mui-grey-200" : "bg-mui-grey-50 text-mui-grey-900"
  )}>
  <MenuBar
  theme={theme}
  setTheme={setTheme}
- onOpenSettings={(category) => setSettingsModal({ isOpen: true, category })}
+ onOpenSettings={(category: string) => setSettingsModal({ isOpen: true, category })}
  />
 
  <div className="flex-1 flex min-h-0 overflow-hidden relative">
@@ -240,7 +334,7 @@ function App() {
  activeTab={activeTab}
  handleStartAll={() => AppBackend.StartAllServices()}
  handleStopAll={() => AppBackend.StopAllServices()}
- handleTerminal={(type) => { AppBackend.OpenTerminal(type); setIsTerminalOpen(false); }}
+ handleTerminal={(type: string) => { AppBackend.OpenTerminal(type); setIsTerminalOpen(false); }}
  isTerminalOpen={isTerminalOpen}
  setIsTerminalOpen={setIsTerminalOpen}
  />
@@ -254,60 +348,23 @@ function App() {
  <ActivityTab
  serverRoot={serverRootState}
  appsLocation={appsLocation}
- handleBrowseAppsLocation={async () => {
- const selected = await AppBackend.SelectServerRoot();
- if (selected) { setAppsLocation(selected); initApp(); }
- }}
- handleBrowseServerRoot={async () => {
- const selected = await AppBackend.SelectWWWRoot();
- if (selected) { setServerRootState(selected); initApp(); }
- }}
+ handleBrowseAppsLocation={handleBrowseAppsLocation}
+ handleBrowseServerRoot={handleBrowseServerRoot}
  isAddingPlugin={isAddingPlugin}
  setIsAddingPlugin={setIsAddingPlugin}
  prerequisites={prerequisites}
  services={services}
- handleAddToHome={(task) => {
- setServices(prev => {
- if (prev.find(s => s.name === task.name)) return prev;
- return [...prev, { name: task.name, status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '', remainingDays: 0 }];
- });
- setIsAddingPlugin(false);
- }}
+ handleAddToHome={handleAddToHome}
  renderIcon={renderIcon}
- handleToggleService={(name, status) => {
- if (status === 'Running') {
- if (name === 'HeidiSQL') {
- setConfirmModal({
- isOpen: true,
- title: 'Uninstall HeidiSQL',
- message: 'Are you sure you want to uninstall HeidiSQL from your system? This will remove the application but your database data should remain intact.',
- type: 'danger',
- onConfirm: () => {
- AppBackend.StopService(name);
- setConfirmModal(prev => ({ ...prev, isOpen: false }));
- }
- });
- return;
- }
- AppBackend.StopService(name);
- } else {
- AppBackend.StartService(name);
- }
- }}
- handleRemoveFromHome={(name) => setServices(prev => prev.filter(s => s.name !== name))}
+ handleToggleService={handleToggleService}
+ handleRemoveFromHome={(name: string) => setServices(prev => prev.filter(s => s.name !== name))}
  setActiveTab={setActiveTab}
- handleOpenPluginFolder={(name) => AppBackend.OpenPluginFolder(name)}
+ handleOpenPluginFolder={(name: string) => AppBackend.OpenPluginFolder(name)}
  handleOpenServerRootFolder={() => AppBackend.OpenServerRootFolder()}
  handleOpenAppsLocationFolder={() => AppBackend.OpenAppsLocationFolder()}
  apacheHttps={apacheHttps}
  nginxHttps={nginxHttps}
- handleToggleHttps={async (name) => {
- if (name === 'Apache') {
- const next = !apacheHttps; setApacheHttps(next); await AppBackend.SetApacheHTTPS(next);
- } else {
- const next = !nginxHttps; setNginxHttps(next); await AppBackend.SetNginxHTTPS(next);
- }
- }}
+ handleToggleHttps={handleToggleHttps}
  isLoading={loading}
  />
  </div>
@@ -320,43 +377,12 @@ function App() {
  setOpenDropdown={setOpenDropdown}
  selectedVersions={selectedVersions}
  setSelectedVersions={setSelectedVersions}
- handleDeleteVersion={(name, ver) => AppBackend.DeleteVersion(name, ver).then(refreshPrerequisites)}
- handleInstallSingle={async (task) => {
- const selectedVer = selectedVersions[task.name] || task.version;
- setDownloadProgress(prev => ({ ...prev, [task.name]: { name: task.name, percentage: 0, status: 'Starting...' } }));
- const modifiedTask = { ...task, version: selectedVer };
- const prefixMap = {
- 'PHP': 'php-', 'Apache': 'httpd-', 'MySQL': 'mysql-',
- 'Nginx': 'nginx-', 'OpenSSL': 'openssl-', 'Node.js': 'node-v', 'Python': 'python-'
- };
- const categoryMap = { 'Node.js': 'nodejs', 'HeidiSQL': 'heidisql' };
- const category = categoryMap[task.name] || task.name.toLowerCase();
- const prefix = prefixMap[task.name] || '';
- modifiedTask.target = `${category}/${prefix}${selectedVer}`;
- if (task.versionUrls && task.versionUrls[selectedVer]) {
- modifiedTask.url = task.versionUrls[selectedVer];
- }
- try { await AppBackend.InstallPrerequisite(modifiedTask); } catch (e) { addToast('Error', e.toString(), 'error'); }
- }}
- handleCancel={(name) => AppBackend.CancelDownload(name)}
+ handleDeleteVersion={(name: string, ver: string) => AppBackend.DeleteVersion(name, ver).then(refreshPrerequisites)}
+ handleInstallSingle={handleInstallSingle}
+ handleCancel={(name: string) => AppBackend.CancelDownload(name)}
  renderIcon={renderIcon}
- handleInstallModule={async (parentName, modName) => {
- setDownloadProgress(prev => ({ ...prev, [modName]: { name: modName, percentage: 0, status: 'Starting...' } }));
- try {
- await AppBackend.InstallPluginModule(parentName, modName);
- } catch (e) {
- addToast('Error', e.toString(), 'error');
- setDownloadProgress(prev => ({ ...prev, [modName]: { name: modName, percentage: 0, status: 'Error: ' + e.toString() } }));
- }
- }}
- handleUninstallModule={async (parentName, modName) => {
- try {
- await AppBackend.UninstallPluginModule(parentName, modName);
- refreshPrerequisites();
- } catch (e) {
- addToast('Error', e.toString(), 'error');
- }
- }}
+ handleInstallModule={handleInstallModule}
+ handleUninstallModule={handleUninstallModule}
  />
  </div>
 
@@ -399,7 +425,7 @@ function App() {
  message={confirmModal.message}
  type={confirmModal.type}
  onConfirm={confirmModal.onConfirm}
- onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+ onCancel={() => setConfirmModal((prev: any) => ({ ...prev, isOpen: false }))}
  />
  </div>
  );

@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { CheckCircle2, Trash2, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import VersionDropdown from './VersionDropdown';
 import CircularProgress from './CircularProgress';
-import { clsx } from 'clsx';
+import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { handleActionKey } from '../utils/a11y';
 
-function cn(...inputs) {
+function cn(...inputs: ClassValue[]) {
  return twMerge(clsx(inputs));
 }
 
@@ -80,8 +81,11 @@ function PluginItem({
  {installedVersions.map(ver => (
  <div
  key={ver}
+ role="button"
+ tabIndex={0}
  onClick={(e) => { e.stopPropagation(); onDeleteVersion(task.name, ver); }}
- className="group/tag flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 text-[8px] font-bold uppercase tracking-widest rounded-sm hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400 transition-all cursor-pointer shadow-sm"
+ onKeyDown={handleActionKey(() => onDeleteVersion(task.name, ver))}
+ className="group/tag flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 text-[8px] font-bold uppercase tracking-widest rounded-sm hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400 transition-all cursor-pointer shadow-sm outline-none focus:ring-1 focus:ring-rose-500/40"
  title={`Delete v${ver}`}
  >
  <Trash2 size={10} className="w-0 opacity-0 group-hover/tag:w-2.5 group-hover/tag:opacity-100 transition-all text-rose-500" />
@@ -169,7 +173,7 @@ function PluginItem({
  <span className="text-[7px] text-slate-400 font-bold">{modProgress.percentage.toFixed(0)}%</span>
  </div>
  <div className="w-8 h-8">
- <CircularProgress percentage={modProgress.percentage} hideText size={32} />
+ <CircularProgress percentage={modProgress.percentage}  size={32} />
  </div>
  </div>
  )}

@@ -1,16 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import * as AppBackend from '../../wailsjs/go/backend/App';
-import { Plus, Terminal, Trash2, Edit2, Play, AlertCircle, X, Server, Key, Lock, ChevronRight, Folder, File, Download, Upload, RefreshCw, MoreVertical } from 'lucide-react';
-import SSHSessionView from './SSHSessionView';
+import * as AppBackend from '../../../wailsjs/go/backend/App';
+import { Plus, Trash2, Edit2, X, Server, ChevronRight, RefreshCw } from 'lucide-react';
+import SSHSessionView from '../SSHSessionView';
 import SSHSessionForm from './SSHSessionForm';
 import { clsx } from 'clsx';
+import { handleActionKey } from '../../utils/a11y';
 
-const SSHTab = ({ addToast, theme }) => {
- const [sessions, setSessions] = useState([]);
- const [activeSessionIds, setActiveSessionIds] = useState([]);
- const [currentSessionId, setCurrentSessionId] = useState(null);
+interface SSHTabProps {
+  addToast: (title: string, message: string, type?: 'info' | 'success' | 'warn' | 'error') => void;
+  theme?: string;
+}
+
+const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme }) => {
+ const [sessions, setSessions] = useState<any[]>([]);
+ const [activeSessionIds, setActiveSessionIds] = useState<string[]>([]);
+ const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
  const [showForm, setShowForm] = useState(false);
- const [editingSession, setEditingSession] = useState(null);
+ const [editingSession, setEditingSession] = useState<any>(null);
  const [loading, setLoading] = useState(true);
 
  useEffect(() => {
@@ -30,14 +36,14 @@ const SSHTab = ({ addToast, theme }) => {
  }
  };
 
- const handleConnect = (session) => {
+ const handleConnect = (session: any) => {
  if (!activeSessionIds.includes(session.id)) {
  setActiveSessionIds([...activeSessionIds, session.id]);
  }
  setCurrentSessionId(session.id);
  };
 
- const handleCloseSession = (id) => {
+ const handleCloseSession = (id: string) => {
  AppBackend.DisconnectSSH(id);
  const nextActive = activeSessionIds.filter(sid => sid !== id);
  setActiveSessionIds(nextActive);
@@ -46,19 +52,19 @@ const SSHTab = ({ addToast, theme }) => {
  }
  };
 
- const handleDelete = async (id) => {
+ const handleDelete = async (id: string) => {
  if (confirm('Are you sure you want to delete this session?')) {
  try {
  await AppBackend.DeleteSSHSession(id);
  loadSessions();
- addToast('Success', 'Session deleted successfully');
+ addToast('Success', 'Session deleted successfully', 'success');
  } catch (err) {
  addToast('Error', 'Failed to delete session', 'error');
  }
  }
  };
 
- const [contextMenu, setContextMenu] = useState(null);
+ const [contextMenu, setContextMenu] = useState<any>(null);
 
  useEffect(() => {
  const handleClick = () => setContextMenu(null);
@@ -66,7 +72,7 @@ const SSHTab = ({ addToast, theme }) => {
  return () => window.removeEventListener('click', handleClick);
  }, []);
 
- const handleContextMenu = (e, session) => {
+ const handleContextMenu = (e: React.MouseEvent, session: any) => {
  e.preventDefault();
  setContextMenu({
  x: e.clientX,
@@ -77,9 +83,7 @@ const SSHTab = ({ addToast, theme }) => {
 
  return (
  <div className="flex h-full overflow-hidden bg-white dark:bg-mui-dark-bg transition-colors duration-300">
- {/* Main Content Area */}
  <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
- {/* Persistent Header */}
  <div className="px-6 pt-2 pb-4 flex justify-between items-center shrink-0 border-b border-mui-grey-100 dark:border-white/5">
  <div>
  <h2 className="text-2xl font-bold text-mui-grey-900 dark:text-white">
@@ -101,16 +105,18 @@ const SSHTab = ({ addToast, theme }) => {
  )}
  </div>
 
- {/* Tab Header for Active Sessions */}
  {activeSessionIds.length > 0 && (
  <div className="flex items-center gap-[2px] overflow-x-auto no-scrollbar shrink-0 pt-2 px-6 bg-mui-grey-50 dark:bg-mui-grey-900 border-b border-mui-grey-200 dark:border-white/5">
  <div
+ role="button"
+ tabIndex={0}
  onClick={() => setCurrentSessionId(null)}
+ onKeyDown={handleActionKey(() => setCurrentSessionId(null))}
  className={clsx(
- "relative px-6 py-2 text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer rounded-t-xl group min-w-[120px] max-w-[200px]",
+ "relative px-6 py-2 text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer rounded-t-xl group min-w-[120px] max-w-[200px] outline-none",
  currentSessionId === null
  ? "bg-white dark:bg-mui-dark-bg text-mui-blue-600 z-10 border-t border-x border-mui-grey-200 dark:border-white/5"
- : "text-mui-grey-500 hover:bg-mui-grey-200 dark:hover:bg-white/10"
+ : "text-mui-grey-500 hover:bg-mui-grey-200 dark:hover:bg-white/10 focus:bg-mui-grey-100 dark:focus:bg-white/5"
  )}
  >
  <span className="truncate">Dashboard</span>
@@ -126,12 +132,15 @@ const SSHTab = ({ addToast, theme }) => {
  return (
  <div
  key={id}
+ role="button"
+ tabIndex={0}
  onClick={() => setCurrentSessionId(id)}
+ onKeyDown={handleActionKey(() => setCurrentSessionId(id))}
  className={clsx(
- "relative pl-6 pr-2 py-2 text-xs transition-all group cursor-pointer rounded-t-xl flex items-center justify-between min-w-[140px] max-w-[220px]",
+ "relative pl-6 pr-2 py-2 text-xs transition-all group cursor-pointer rounded-t-xl flex items-center justify-between min-w-[140px] max-w-[220px] outline-none",
  isActive
- ? "bg-white dark:bg-mui-dark-bg text-mui-blue-600 z-10 border-t border-x border-mui-grey-200 dark:border-mui-grey-800"
- : "text-mui-grey-500 hover:bg-mui-grey-200 dark:hover:bg-mui-grey-800"
+ ? "bg-white dark:bg-mui-dark-bg text-mui-blue-600 z-10 border-t border-x border-mui-grey-200 dark:border-white/80"
+ : "text-mui-grey-500 hover:bg-mui-grey-200 dark:hover:bg-white/10 focus:bg-mui-grey-100 dark:focus:bg-white/5"
  )}
  >
  <span className={clsx(
@@ -148,7 +157,7 @@ const SSHTab = ({ addToast, theme }) => {
  className={clsx(
  "p-1 rounded-md transition-all ml-2",
  isActive ? "hover:bg-mui-blue-500/10" : "hover:bg-mui-grey-500/10",
- "opacity-0 group-hover:opacity-100"
+ "opacity-0 group-hover:opacity-100 focus:opacity-100"
  )}
  >
  <X size={12} className={isActive ? "text-mui-blue-600" : "text-mui-grey-500"} />
@@ -183,7 +192,6 @@ const SSHTab = ({ addToast, theme }) => {
  </div>
  ) : (
  <div className="flex flex-col h-full">
-
  {loading ? (
  <div className="flex-1 flex items-center justify-center">
  <RefreshCw className="animate-spin text-mui-grey-400" size={32} />
@@ -210,9 +218,12 @@ const SSHTab = ({ addToast, theme }) => {
  {sessions.map((session) => (
  <div
  key={session.id}
+ role="button"
+ tabIndex={0}
  onDoubleClick={() => handleConnect(session)}
+ onKeyDown={handleActionKey(() => handleConnect(session))}
  onContextMenu={(e) => handleContextMenu(e, session)}
- className="group bg-mui-grey-50 dark:bg-mui-dark-paper border border-mui-grey-200 dark:border-mui-grey-800 rounded-lg p-3 hover:border-mui-blue-500/50 hover:shadow-md transition-all relative overflow-hidden flex items-center gap-3 cursor-pointer select-none"
+ className="group bg-mui-grey-50 dark:bg-mui-dark-paper border border-mui-grey-200 dark:border-white/10 rounded-lg p-3 hover:border-mui-blue-500/50 hover:shadow-md transition-all relative overflow-hidden flex items-center gap-3 cursor-pointer select-none outline-none focus:ring-1 focus:ring-mui-blue-500/40"
  >
  <div className="bg-mui-blue-600 text-white p-2 rounded-md shrink-0">
  <Server size={18} />
@@ -227,7 +238,7 @@ const SSHTab = ({ addToast, theme }) => {
  </div>
  </div>
 
- <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+ <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity">
  <button
  onClick={(e) => {
  e.stopPropagation();
@@ -250,7 +261,6 @@ const SSHTab = ({ addToast, theme }) => {
  </div>
  </div>
 
- {/* Sidebar Form */}
  {showForm && (
  <SSHSessionForm
  session={editingSession}
@@ -263,13 +273,12 @@ const SSHTab = ({ addToast, theme }) => {
  />
  )}
 
- {/* Context Menu */}
  {contextMenu && (
- <div
+ <div role="button" tabIndex={0}
  className="fixed z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg py-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-100"
  style={{ top: contextMenu.y, left: contextMenu.x }}
  onClick={(e) => e.stopPropagation()}
- >
+  onKeyDown={handleActionKey((e) => e.stopPropagation())}>
  <button
  onClick={() => {
  handleDelete(contextMenu.sessionId);

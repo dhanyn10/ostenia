@@ -1,13 +1,35 @@
 import React from 'react';
 import { Activity, Globe, Trash2, FolderOpen, Clock, Lock, Unlock, Terminal, ChevronDown, Monitor, CheckCircle2, Settings2 } from 'lucide-react';
-import { clsx } from 'clsx';
+import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { handleActionKey } from '../utils/a11y';
 
-function cn(...inputs) {
+function cn(...inputs: ClassValue[]) {
  return twMerge(clsx(inputs));
 }
 
-function ServiceItem({ 
+interface ServiceItemProps {
+ service: any;
+ task: any;
+ isExpanded: boolean;
+ onToggleAccordion: (name: string, hasExtraActions: boolean) => void;
+ renderIcon: (name: string, size?: number, className?: string) => React.ReactNode;
+ handleToggleService: (name: string, status: string) => void;
+ handleRemoveFromHome: (name: string) => void;
+ handleSwitchVersion: (name: string, version: string) => void;
+ handleOpenLocalTerminal: (name: string, type: string) => void;
+ handleToggleHttps: (name: string) => void;
+ openTerminalDropdown: string | null;
+ setOpenTerminalDropdown: (name: string | null) => void;
+ setIsModalOpen: (open: boolean) => void;
+ apacheHttps: boolean;
+ nginxHttps: boolean;
+ isOpenSslEnabled: boolean;
+ setActiveTab: (tab: string) => void;
+ handleOpenPluginFolder: (name: string) => void;
+}
+
+const ServiceItem: React.FC<ServiceItemProps> = ({
  service,
  task,
  isExpanded,
@@ -26,7 +48,7 @@ function ServiceItem({
  isOpenSslEnabled,
  setActiveTab,
  handleOpenPluginFolder
-}) {
+}) => {
  const isInstalled = (task?.installedVers && task.installedVers.length > 0) || service.name === 'OpenSSL';
  const isWebServer = service.name === 'Apache' || service.name === 'Nginx';
  const isHttpsEnabled = service.name === 'Apache' ? apacheHttps : (service.name === 'Nginx' ? nginxHttps : false);
@@ -44,11 +66,11 @@ function ServiceItem({
  return (
  <div
  className={cn(
- "bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all flex flex-col relative shadow-sm dark:shadow-lg",
+ "bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all flex flex-col relative shadow-sm dark:shadow-lg outline-none focus:ring-1 focus:ring-blue-500/40",
  isExpanded ? "z-[100] ring-1 ring-blue-500/20" : "z-10",
  hasExtraActions ? "cursor-pointer" : "cursor-default"
  )}
- onClick={() => onToggleAccordion(service.name, hasExtraActions)}
+ role="button" tabIndex={0} onKeyDown={handleActionKey(() => onToggleAccordion(service.name, hasExtraActions))} onClick={() => onToggleAccordion(service.name, hasExtraActions)}
  >
  <div className="flex items-center gap-5">
  <div className="flex-1 min-w-0 px-2">
@@ -60,7 +82,7 @@ function ServiceItem({
 
  {/* Added Python to the version switcher list */}
  {(service.name === 'PHP' || service.name === 'Node.js' || service.name === 'Python') && installedVersions.length > 0 && (
- <div className="flex items-center gap-1 ml-1" onClick={(e) => e.stopPropagation()}>
+ <div className="flex items-center gap-1 ml-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
  {installedVersions.map(ver => {
  const systemString = (service.activeVersion || "").toString().toLowerCase().trim();
  const cleanVer = ver.toString().replace(/^v/, "").replace(/^[a-z. ]+-/, "").trim();
@@ -69,7 +91,7 @@ function ServiceItem({
  return (
  <button
  key={ver}
- onClick={() => handleSwitchVersion(service.name, ver)}
+ role="button" tabIndex={0} onKeyDown={handleActionKey(() => handleSwitchVersion(service.name, ver))} onClick={() => handleSwitchVersion(service.name, ver)}
  className={cn(
  "px-1.5 py-0.5 rounded-sm text-[8px] font-black uppercase tracking-widest border transition-all",
  isActive
@@ -122,12 +144,12 @@ function ServiceItem({
  </div>
  </div>
 
- <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+ <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
  {!isInstalled && service.name !== 'OpenSSL' ? (
  <button onClick={() => setActiveTab('plugins')} className="px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
  ) : (
  <button
- onClick={() => handleToggleService(service.name, service.status)}
+ role="button" tabIndex={0} onKeyDown={handleActionKey(() => handleToggleService(service.name, service.status))} onClick={() => handleToggleService(service.name, service.status)}
  className={cn(
  "w-12 h-6 rounded-sm p-0.5 transition-all duration-300 ease-in-out relative ring-1 ring-inset",
  service.status === 'Running'
@@ -143,7 +165,7 @@ function ServiceItem({
  )}
 
  <button
- onClick={() => handleRemoveFromHome(service.name)}
+ role="button" tabIndex={0} onKeyDown={handleActionKey(() => handleRemoveFromHome(service.name))} onClick={() => handleRemoveFromHome(service.name)}
  className="h-6 px-3 bg-slate-100 dark:bg-white/5 hover:bg-rose-500/10 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-white/5"
  >
  <Trash2 size={12} />
@@ -158,6 +180,7 @@ function ServiceItem({
  isExpanded ? "max-h-24 opacity-100 mt-4" : "max-h-0 opacity-0 mt-0 overflow-hidden"
  )}
  onClick={(e) => e.stopPropagation()}
+ onKeyDown={(e) => e.stopPropagation()}
  >
  <div className="flex items-center flex-wrap gap-4 px-1 pb-2">
  {hasPhpExtManager && (
@@ -177,7 +200,7 @@ function ServiceItem({
 
  {hasHeidiOpen && (
  <button
- onClick={(e) => { e.stopPropagation(); window.go.main.App.OpenHeidiSQL(); }}
+ onClick={(e) => { e.stopPropagation(); (window as any).go.main.App.OpenHeidiSQL(); }}
  className="flex items-center gap-2 px-3 py-1.5 h-8 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20"
  >
  <Monitor size={14} /> Open HeidiSQL
@@ -199,7 +222,7 @@ function ServiceItem({
 
  {openTerminalDropdown === service.name && (
  <>
- <div className="fixed inset-0 z-[150]" onClick={() => setOpenTerminalDropdown(null)} />
+ <div className="fixed inset-0 z-[150]" role="button" tabIndex={0} onKeyDown={handleActionKey(() => setOpenTerminalDropdown(null))} onClick={() => setOpenTerminalDropdown(null)} />
  <div className="absolute top-full left-0 mt-1 w-40 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-sm shadow-2xl z-[160] animate-in fade-in slide-in-from-top-1 duration-200">
  <div className="p-1">
  <button onClick={() => handleOpenLocalTerminal(service.name, 'cmd')} className="w-full flex items-center gap-3 px-3 py-1.5 rounded-sm text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"><Monitor size={12} className="text-blue-500" /> CMD</button>

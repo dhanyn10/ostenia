@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Circle, ChevronUp, Server } from 'lucide-react';
-import { clsx } from 'clsx';
+import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { handleActionKey } from '../utils/a11y';
 
-function cn(...inputs) {
+function cn(...inputs: ClassValue[]) {
  return twMerge(clsx(inputs));
 }
 
@@ -32,7 +33,7 @@ const StatusBar = ({ services }) => {
  className="relative h-full"
  >
  <button
- onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+ role="button" tabIndex={0} onKeyDown={handleActionKey(() => setIsDropdownOpen(!isDropdownOpen))} onClick={() => setIsDropdownOpen(!isDropdownOpen)}
  className={cn(
  "flex items-center gap-1.5 px-2 h-full transition-colors",
  isDropdownOpen ? "bg-mui-blue-700" : "hover:bg-white/10"
