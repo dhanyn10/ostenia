@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"testing"
 )
@@ -47,9 +48,9 @@ func TestDownloadAndExtract(t *testing.T) {
 		os.WriteFile(zipFile, buf.Bytes(), 0644)
 
 		extractDir := filepath.Join(tmpBaseDir, "extracted")
-		err := mgr.unzipFile(context.Background(), zipFile, extractDir, "Test")
+		err := Unzip(context.Background(), zipFile, extractDir, "Test", mgr.emit)
 		if err != nil {
-			t.Fatalf("unzipFile failed: %v", err)
+			t.Fatalf("Unzip failed: %v", err)
 		}
 
 		expectedFile := filepath.Join(extractDir, "test_plugin/bin/test.exe")
@@ -60,9 +61,9 @@ func TestDownloadAndExtract(t *testing.T) {
 
 	t.Run("Mock Download Logic", func(t *testing.T) {
 		tmpFile := filepath.Join(tmpBaseDir, "downloaded.zip")
-		err := mgr.downloadFile(context.Background(), ts.URL, tmpFile, "TestDownload")
+		err := utils.DownloadFile(context.Background(), ts.URL, tmpFile, "TestDownload", nil)
 		if err != nil {
-			t.Fatalf("downloadFile failed: %v", err)
+			t.Fatalf("DownloadFile failed: %v", err)
 		}
 
 		if _, err := os.Stat(tmpFile); os.IsNotExist(err) {
@@ -88,8 +89,8 @@ func TestFormatBytes(t *testing.T) {
 		{1024 * 1024 * 1024, "1.0 GB"},
 	}
 	for _, tt := range tests {
-		if got := formatBytes(tt.bytes); got != tt.want {
-			t.Errorf("formatBytes(%d) = %v, want %v", tt.bytes, got, tt.want)
+		if got := utils.FormatBytes(tt.bytes); got != tt.want {
+			t.Errorf("FormatBytes(%d) = %v, want %v", tt.bytes, got, tt.want)
 		}
 	}
 }

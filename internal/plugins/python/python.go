@@ -3,8 +3,6 @@ package python
 import (
 	_ "embed"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"ostenia/internal/plugins/utils"
@@ -18,7 +16,7 @@ var iconSVG string
 
 // DetectVersions scans the NuGet API for available Python versions.
 func DetectVersions() ([]string, map[string]string) {
-	content := fetchContent("https://api.nuget.org/v3-flatcontainer/python/index.json")
+	content := utils.FetchContent("https://api.nuget.org/v3-flatcontainer/python/index.json")
 	if content == "" {
 		// Fallback to a safe version if API is down
 		v := "3.13.13"
@@ -34,7 +32,7 @@ func DetectVersions() ([]string, map[string]string) {
 		fullVer := m[1]
 		minorKey := "3." + m[2]
 
-		if existing, ok := latestPatches[minorKey]; !ok || compareVersions(fullVer, existing) > 0 {
+		if existing, ok := latestPatches[minorKey]; !ok || utils.CompareVersions(fullVer, existing) > 0 {
 			latestPatches[minorKey] = fullVer
 		}
 	}
@@ -47,21 +45,10 @@ func DetectVersions() ([]string, map[string]string) {
 	}
 
 	sort.Slice(versions, func(i, j int) bool {
-		return compareVersions(versions[i], versions[j]) > 0
+		return utils.CompareVersions(versions[i], versions[j]) > 0
 	})
 
 	return versions, urlMap
-}
-
-func compareVersions(v1, v2 string) int {
-	var a1, b1, c1 int
-	var a2, b2, c2 int
-	fmt.Sscanf(v1, "%d.%d.%d", &a1, &b1, &c1)
-	fmt.Sscanf(v2, "%d.%d.%d", &a2, &b2, &c2)
-
-	if a1 != a2 { return a1 - a2 }
-	if b1 != b2 { return b1 - b2 }
-	return c1 - c2
 }
 
 func GetIcon() string {
@@ -103,10 +90,3 @@ func InstallModule(ctx interface{}, m interface{}, moduleName string, pythonPath
 	return fmt.Errorf("unknown module: %s", moduleName)
 }
 
-func fetchContent(url string) string {
-	resp, err := http.Get(url)
-	if err != nil { return "" }
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	return string(body)
-}

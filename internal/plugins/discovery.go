@@ -59,11 +59,7 @@ func GetLatestKnownVersions() []DownloadTask {
 		},
 		{
 			Name: "HeidiSQL", Category: "heidisql", TargetPrefix: "heidisql/heidisql-", CheckFile: "heidisql.exe",
-			Detect: func() ([]string, map[string]string) {
-				v, u := heidisql.DetectVersions()
-				return []string{v}, map[string]string{v: u}
-			},
-			GetIcon: heidisql.GetIcon,
+			Detect: heidisql.DetectVersions, GetIcon: heidisql.GetIcon,
 		},
 		{
 			Name: "Nginx", Category: "nginx", TargetPrefix: "nginx/nginx-", CheckFile: "nginx.exe",
@@ -71,11 +67,7 @@ func GetLatestKnownVersions() []DownloadTask {
 		},
 		{
 			Name: "OpenSSL", Category: "openssl", TargetPrefix: "openssl/openssl-", CheckFile: "bin/openssl.exe",
-			Detect: func() ([]string, map[string]string) {
-				v, u := openssl.DetectVersions()
-				return []string{v}, map[string]string{v: u}
-			},
-			GetIcon: openssl.GetIcon,
+			Detect: openssl.DetectVersions, GetIcon: openssl.GetIcon,
 		},
 	}
 

@@ -8,11 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-func Unzip(ctx context.Context, src string, dest string, name string) error {
+func Unzip(ctx context.Context, src string, dest string, name string, emit func(context.Context, string, ...interface{})) error {
 	r, err := zip.OpenReader(src)
 	if err != nil {
 		return err
@@ -58,12 +56,14 @@ func Unzip(ctx context.Context, src string, dest string, name string) error {
 			}
 
 			// Report extraction progress
-			percentage := (float64(i+1) / float64(totalFiles)) * 100
-			wruntime.EventsEmit(ctx, "download_progress", Progress{
-				Name:       name,
-				Percentage: percentage,
-				Status:     "Extracting...",
-			})
+			if i%20 == 0 || i+1 == totalFiles {
+				percentage := (float64(i+1) / float64(totalFiles)) * 100
+				emit(ctx, "download_progress", Progress{
+					Name:       name,
+					Percentage: percentage,
+					Status:     "Extracting...",
+				})
+			}
 		}
 	}
 	return nil

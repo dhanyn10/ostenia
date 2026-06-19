@@ -3,8 +3,7 @@ package nginx
 import (
 	_ "embed"
 	"fmt"
-	"io"
-	"net/http"
+	"ostenia/internal/plugins/utils"
 	"regexp"
 	"sort"
 )
@@ -13,7 +12,7 @@ import (
 var iconSVG string
 
 func DetectVersions() ([]string, map[string]string) {
-	content := fetchContent("https://nginx.org/download/")
+	content := utils.FetchContent("https://nginx.org/download/")
 	// Match versions like nginx-1.29.x.zip
 	re := regexp.MustCompile(`nginx-(\d+\.\d+\.\d+)\.zip`)
 	matches := re.FindAllStringSubmatch(content, -1)
@@ -35,7 +34,7 @@ func DetectVersions() ([]string, map[string]string) {
 		}
 	}
 
-	sort.Slice(versions, func(i, j int) bool { return compareVersions(versions[i], versions[j]) > 0 })
+	sort.Slice(versions, func(i, j int) bool { return utils.CompareVersions(versions[i], versions[j]) > 0 })
 
 	if len(versions) == 0 {
 		v := "1.27.2"
@@ -44,24 +43,6 @@ func DetectVersions() ([]string, map[string]string) {
 	return versions, urlMap
 }
 
-func compareVersions(v1, v2 string) int {
-	var a1, b1, c1 int
-	var a2, b2, c2 int
-	fmt.Sscanf(v1, "%d.%d.%d", &a1, &b1, &c1)
-	fmt.Sscanf(v2, "%d.%d.%d", &a2, &b2, &c2)
-	if a1 != a2 { return a1 - a2 }
-	if b1 != b2 { return b1 - b2 }
-	return c1 - c2
-}
-
 func GetIcon() string {
 	return iconSVG
-}
-
-func fetchContent(url string) string {
-	resp, err := http.Get(url)
-	if err != nil { return "" }
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	return string(body)
 }

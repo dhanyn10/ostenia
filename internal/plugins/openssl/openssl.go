@@ -14,7 +14,7 @@ import (
 //go:embed openssl.svg
 var iconSVG string
 
-func DetectVersions() (string, string) {
+func DetectVersions() ([]string, map[string]string) {
 	version := "4.0.0"
 	arch := utils.GetSystemArch()
 	var url string
@@ -23,7 +23,7 @@ func DetectVersions() (string, string) {
 	} else {
 		url = "https://slproweb.com/download/Win32OpenSSL_Light-4_0_0.exe"
 	}
-	return version, url
+	return []string{version}, map[string]string{version: url}
 }
 
 func GetIcon() string {
