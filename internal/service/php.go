@@ -35,23 +35,8 @@ func GetPHPVersion(currentPath string) (string, error) {
 // It initializes php.ini from development/production templates if it doesn't exist.
 func UpdatePHPConfig(phpPath string) error {
 	iniPath := filepath.Join(phpPath, "php.ini")
-	iniDevelopment := filepath.Join(phpPath, "php.ini-development")
-	iniProduction := filepath.Join(phpPath, "php.ini-production")
-
-	if _, err := os.Stat(iniPath); os.IsNotExist(err) {
-		source := ""
-		if _, errDev := os.Stat(iniDevelopment); errDev == nil {
-			source = iniDevelopment
-		} else if _, errProd := os.Stat(iniProduction); errProd == nil {
-			source = iniProduction
-		}
-
-		if source != "" {
-			data, errRead := os.ReadFile(source)
-			if errRead == nil {
-				_ = os.WriteFile(iniPath, data, 0644)
-			}
-		}
+	if err := initializePHPIni(phpPath, iniPath); err != nil {
+		return err
 	}
 
 	input, err := os.ReadFile(iniPath)
@@ -62,27 +47,58 @@ func UpdatePHPConfig(phpPath string) error {
 
 	absPath, _ := filepath.Abs(phpPath)
 	extDir := strings.ReplaceAll(filepath.Join(absPath, "ext"), "\\", "/")
+	content = configurePHPExtDir(content, extDir)
+	content = enableCorePHPExtensions(content)
 
-	reExtDir := regexp.MustCompile(`(?m)^;?\s*extension_dir\s*=\s*".*?"`)
-	if reExtDir.MatchString(content) {
-		content = reExtDir.ReplaceAllString(content, fmt.Sprintf("extension_dir = \"%s\"", extDir))
-	} else {
-		reExtDirSimple := regexp.MustCompile(`(?m)^;?\s*extension_dir\s*=\s*ext`)
-		if reExtDirSimple.MatchString(content) {
-			content = reExtDirSimple.ReplaceAllString(content, fmt.Sprintf("extension_dir = \"%s\"", extDir))
-		} else {
-			content += fmt.Sprintf("\nextension_dir = \"%s\"\n", extDir)
-		}
+	return os.WriteFile(iniPath, []byte(content), 0644)
+}
+
+func initializePHPIni(phpPath, iniPath string) error {
+	if _, err := os.Stat(iniPath); err == nil {
+		return nil
 	}
 
-	// Enable standard required extensions
+	iniDevelopment := filepath.Join(phpPath, "php.ini-development")
+	iniProduction := filepath.Join(phpPath, "php.ini-production")
+
+	source := ""
+	if _, errDev := os.Stat(iniDevelopment); errDev == nil {
+		source = iniDevelopment
+	} else if _, errProd := os.Stat(iniProduction); errProd == nil {
+		source = iniProduction
+	}
+
+	if source != "" {
+		data, errRead := os.ReadFile(source)
+		if errRead == nil {
+			return os.WriteFile(iniPath, data, 0644)
+		}
+		return errRead
+	}
+	return nil
+}
+
+func configurePHPExtDir(content, extDir string) string {
+	reExtDir := regexp.MustCompile(`(?m)^;?\s*extension_dir\s*=\s*".*?"`)
+	if reExtDir.MatchString(content) {
+		return reExtDir.ReplaceAllString(content, fmt.Sprintf("extension_dir = \"%s\"", extDir))
+	}
+
+	reExtDirSimple := regexp.MustCompile(`(?m)^;?\s*extension_dir\s*=\s*ext`)
+	if reExtDirSimple.MatchString(content) {
+		return reExtDirSimple.ReplaceAllString(content, fmt.Sprintf("extension_dir = \"%s\"", extDir))
+	}
+
+	return content + fmt.Sprintf("\nextension_dir = \"%s\"\n", extDir)
+}
+
+func enableCorePHPExtensions(content string) string {
 	coreExts := []string{"openssl", "mbstring", "curl"}
 	for _, ext := range coreExts {
 		re := regexp.MustCompile(`(?m)^;\s*(extension\s*=\s*(?:php_)?` + ext + `(?:\.dll)?\s*)$`)
 		content = re.ReplaceAllString(content, "$1")
 	}
-
-	return os.WriteFile(iniPath, []byte(content), 0644)
+	return content
 }
 
 // GetPHPExtensions reads php.ini and returns list of extensions with their status
@@ -107,26 +123,25 @@ func GetPHPExtensions(phpPath string) ([]PHPExtensionInfo, error) {
 
 	for _, m := range matches {
 		name := strings.TrimSpace(m[1])
-		if name == "" || name == "ext" {
-			continue
-		}
-		if _, exists := extMap[name]; exists {
+		if name == "" || name == "ext" || extMap[name] {
 			continue
 		}
 
-		enabled := false
-		for _, line := range lines {
-			trimmed := strings.TrimSpace(line)
-			if !strings.HasPrefix(trimmed, ";") && strings.Contains(trimmed, "extension") && strings.Contains(trimmed, m[1]) {
-				enabled = true
-				break
-			}
-		}
-
+		enabled := isPHPExtensionEnabled(lines, m[1])
 		extMap[name] = true
 		extensions = append(extensions, PHPExtensionInfo{Name: name, Enabled: enabled})
 	}
 	return extensions, nil
+}
+
+func isPHPExtensionEnabled(lines []string, extName string) bool {
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, ";") && strings.Contains(trimmed, "extension") && strings.Contains(trimmed, extName) {
+			return true
+		}
+	}
+	return false
 }
 
 // TogglePHPExtension enables or disables an extension in php.ini

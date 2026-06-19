@@ -112,23 +112,38 @@ func (a *App) findExecutable(binDir string, exeName string) (string, string) {
 
 	// 1. Try "current" link first for efficiency
 	if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
-		path := filepath.Join(resolved, "bin", exeName)
-		if exeName == exeNginx {
-			path = filepath.Join(resolved, exeName)
-		}
-		if _, err := os.Stat(path); err == nil {
-			return path, resolved
-		}
-		// Apache fallback
-		if exeName == exeApache {
-			path = filepath.Join(resolved, "Apache24", "bin", exeName)
-			if _, err := os.Stat(path); err == nil {
-				return path, filepath.Join(resolved, "Apache24")
-			}
+		if bin, base := a.checkStandardExePath(resolved, exeName); bin != "" {
+			return bin, base
 		}
 	}
 
 	// 2. Fallback to Walk if "current" is not valid or doesn't match
+	return a.walkForExecutable(binDir, exeName)
+}
+
+func (a *App) checkStandardExePath(resolved string, exeName string) (string, string) {
+	// Standard bin path
+	path := filepath.Join(resolved, "bin", exeName)
+	if exeName == exeNginx {
+		path = filepath.Join(resolved, exeName)
+	}
+
+	if _, err := os.Stat(path); err == nil {
+		return path, resolved
+	}
+
+	// Apache specific fallback
+	if exeName == exeApache {
+		apachePath := filepath.Join(resolved, "Apache24", "bin", exeName)
+		if _, err := os.Stat(apachePath); err == nil {
+			return apachePath, filepath.Join(resolved, "Apache24")
+		}
+	}
+
+	return "", ""
+}
+
+func (a *App) walkForExecutable(binDir string, exeName string) (string, string) {
 	var binPath, basePath string
 	_ = filepath.Walk(binDir, func(path string, info os.FileInfo, err error) error {
 		if info != nil && !info.IsDir() && info.Name() == exeName {

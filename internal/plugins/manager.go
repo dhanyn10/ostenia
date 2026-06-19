@@ -82,12 +82,27 @@ func (m *Manager) DeleteVersion(taskName, version string) error {
 
 // DownloadAndExtract handles the full lifecycle of installing a plugin task
 func (m *Manager) DownloadAndExtract(task DownloadTask) error {
-	baseDir := config.GetBaseDir()
-	targetDir := filepath.Join(baseDir, "bin", task.Target)
-
+	targetDir := filepath.Join(config.GetBaseDir(), "bin", task.Target)
 	fmt.Printf("[Manager] Request to install %s version %s to %s\n", task.Name, task.Version, targetDir)
 
-	// 1. Strict target folder validation
+	if m.isAlreadyInstalled(task, targetDir) {
+		return nil
+	}
+
+	tmpFile, isArchive, err := m.downloadPlugin(task)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmpFile)
+
+	if !isArchive {
+		return m.handleInstaller(task, tmpFile, targetDir)
+	}
+
+	return m.handleArchive(task, tmpFile, targetDir)
+}
+
+func (m *Manager) isAlreadyInstalled(task DownloadTask, targetDir string) bool {
 	checkFile := filepath.Join(targetDir, task.CheckFile)
 	if task.Name == "Apache" {
 		if _, err := os.Stat(checkFile); os.IsNotExist(err) {
@@ -99,10 +114,12 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 		fmt.Printf("[Manager] %s v%s already exists. Linking only.\n", task.Name, task.Version)
 		_ = m.ensureCurrentLink(task)
 		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Ready"})
-		return nil
+		return true
 	}
+	return false
+}
 
-	// 2. Start Download
+func (m *Manager) downloadPlugin(task DownloadTask) (string, bool, error) {
 	fmt.Printf("[Manager] Downloading %s from %s\n", task.Name, task.URL)
 	ctx, cancel := context.WithCancel(m.ctx)
 	m.cancelsMu.Lock()
@@ -125,51 +142,68 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 	}
 	tmp := filepath.Join(os.TempDir(), "ostenia_"+task.Name+ext)
 
-	if err := utils.DownloadFile(ctx, task.URL, tmp, task.Name, func(pct float64, status, speed, downloaded string) {
+	err := utils.DownloadFile(ctx, task.URL, tmp, task.Name, func(pct float64, status, speed, downloaded string) {
 		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: pct, Status: status, Speed: speed, Downloaded: downloaded})
-	}); err != nil {
+	})
+
+	if err != nil {
 		fmt.Printf("[Manager] Download failed: %v\n", err)
 		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: "Error: " + err.Error()})
+		return "", false, err
+	}
+
+	return tmp, isZip || isNupkg, nil
+}
+
+func (m *Manager) handleInstaller(task DownloadTask, tmpFile, targetDir string) error {
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return err
 	}
-
-	// 3. Extraction or execution
-	if !isZip && !isNupkg {
-		if err := os.MkdirAll(targetDir, 0755); err != nil {
-			return err
-		}
-		dest := filepath.Join(targetDir, "installer.exe")
-		// Correct copy for Windows (replace old installer if it exists)
-		if err := utils.CopyFile(tmp, dest); err != nil {
-			return fmt.Errorf("failed to copy installer: %w", err)
-		}
-
-		cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
-		cmd := exec.Command(cmdPath, "/c", "start", "", dest)
-		cmd.Env = utils.SafeEnv()
-		utils.SetHideWindow(cmd)
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("failed to launch installer: %w", err)
-		}
-
-		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Completed"})
-		return nil
+	dest := filepath.Join(targetDir, "installer.exe")
+	if err := utils.CopyFile(tmpFile, dest); err != nil {
+		return fmt.Errorf("failed to copy installer: %w", err)
 	}
 
+	cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
+	cmd := exec.Command(cmdPath, "/c", "start", "", dest)
+	cmd.Env = utils.SafeEnv()
+	utils.SetHideWindow(cmd)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to launch installer: %w", err)
+	}
+
+	m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Completed"})
+	return nil
+}
+
+func (m *Manager) handleArchive(task DownloadTask, tmpFile, targetDir string) error {
 	fmt.Printf("[Manager] Extracting %s to %s\n", task.Name, targetDir)
 	m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 99, Status: "Extracting..."})
 
 	extractTmp := targetDir + ".tmp"
 	_ = os.RemoveAll(extractTmp)
 
-	if err := Unzip(ctx, tmp, extractTmp, task.Name, m.emit); err != nil {
+	if err := Unzip(m.ctx, tmpFile, extractTmp, task.Name, m.emit); err != nil {
 		fmt.Printf("[Manager] Extraction failed: %v\n", err)
 		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: "Error: " + err.Error()})
 		return err
 	}
 
-	// Handle Nuget package structure (files are in 'tools' folder)
-	if isNupkg {
+	if err := m.postProcessExtraction(task, extractTmp, targetDir); err != nil {
+		fmt.Printf("[Manager] Post-processing failed: %v\n", err)
+		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: "Error: " + err.Error()})
+		return err
+	}
+
+	_ = m.ensureCurrentLink(task)
+	fmt.Printf("[Manager] %s v%s installation complete.\n", task.Name, task.Version)
+	m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Completed"})
+	return nil
+}
+
+func (m *Manager) postProcessExtraction(task DownloadTask, extractTmp, targetDir string) error {
+	// Handle Nuget package structure
+	if strings.HasSuffix(strings.ToLower(task.URL), ".nupkg") {
 		toolsDir := filepath.Join(extractTmp, "tools")
 		if _, err := os.Stat(toolsDir); err == nil {
 			es, _ := os.ReadDir(toolsDir)
@@ -180,7 +214,7 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 		}
 	}
 
-	// Handle nested folders (e.g., zip containing a single root folder)
+	// Handle nested folders
 	es, _ := os.ReadDir(extractTmp)
 	if len(es) == 1 && es[0].IsDir() {
 		sDir := filepath.Join(extractTmp, es[0].Name())
@@ -192,16 +226,7 @@ func (m *Manager) DownloadAndExtract(task DownloadTask) error {
 	}
 
 	_ = os.RemoveAll(targetDir)
-	if err := os.Rename(extractTmp, targetDir); err != nil {
-		fmt.Printf("[Manager] Failed to rename folder: %v\n", err)
-		return err
-	}
-
-	_ = os.Remove(tmp)
-	_ = m.ensureCurrentLink(task)
-	fmt.Printf("[Manager] %s v%s installation complete.\n", task.Name, task.Version)
-	m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Completed"})
-	return nil
+	return os.Rename(extractTmp, targetDir)
 }
 
 // DownloadFileManual downloads a file without context-based cancellation

@@ -15,68 +15,13 @@ type InstalledApp struct {
 func (a *App) GetInstalledApps() ([]InstalledApp, error) {
 	apps := make(map[string]string)
 
-	keywords := []string{
-		"code", "editor", "notepad", "sublime", "studio", "vim",
-		"text", "edit", "writer", "atom", "jetbrains", "intellij",
-		"pycharm", "webstorm", "phpstorm", "zed", "cursor", "vscodium",
-	}
-
 	paths := []string{
 		`SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall`,
 		`SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall`,
 	}
 
 	for _, path := range paths {
-		k, err := registry.OpenKey(registry.LOCAL_MACHINE, path, registry.ENUMERATE_SUB_KEYS|registry.QUERY_VALUE)
-		if err != nil {
-			continue
-		}
-
-		subkeys, err := k.ReadSubKeyNames(-1)
-		k.Close()
-		if err != nil {
-			continue
-		}
-
-		for _, subkey := range subkeys {
-			sk, err := registry.OpenKey(registry.LOCAL_MACHINE, path+`\`+subkey, registry.QUERY_VALUE)
-			if err != nil {
-				continue
-			}
-
-			name, _, _ := sk.GetStringValue("DisplayName")
-			location, _, _ := sk.GetStringValue("InstallLocation")
-			exe, _, _ := sk.GetStringValue("DisplayIcon") // Often contains the main exe path
-
-			sk.Close()
-
-			if name != "" {
-				lowerName := strings.ToLower(name)
-				isEditor := false
-				for _, kw := range keywords {
-					if strings.Contains(lowerName, kw) {
-						isEditor = true
-						break
-					}
-				}
-
-				if !isEditor {
-					sk.Close()
-					continue
-				}
-
-				appPath := location
-				if appPath == "" && exe != "" {
-					// Clean up DisplayIcon which might have ",0" at the end
-					appPath = strings.Split(exe, ",")[0]
-					appPath = strings.Trim(appPath, `"`)
-				}
-
-				if appPath != "" {
-					apps[name] = appPath
-				}
-			}
-		}
+		a.scanRegistryPath(path, apps)
 	}
 
 	var result []InstalledApp
@@ -85,4 +30,64 @@ func (a *App) GetInstalledApps() ([]InstalledApp, error) {
 	}
 
 	return result, nil
+}
+
+func (a *App) scanRegistryPath(path string, apps map[string]string) {
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, path, registry.ENUMERATE_SUB_KEYS|registry.QUERY_VALUE)
+	if err != nil {
+		return
+	}
+	defer k.Close()
+
+	subkeys, err := k.ReadSubKeyNames(-1)
+	if err != nil {
+		return
+	}
+
+	for _, subkey := range subkeys {
+		a.processAppSubkey(path, subkey, apps)
+	}
+}
+
+func (a *App) processAppSubkey(path, subkey string, apps map[string]string) {
+	sk, err := registry.OpenKey(registry.LOCAL_MACHINE, path+`\`+subkey, registry.QUERY_VALUE)
+	if err != nil {
+		return
+	}
+	defer sk.Close()
+
+	name, _, _ := sk.GetStringValue("DisplayName")
+	if name == "" || !a.isEditorApp(name) {
+		return
+	}
+
+	location, _, _ := sk.GetStringValue("InstallLocation")
+	exe, _, _ := sk.GetStringValue("DisplayIcon")
+
+	appPath := location
+	if appPath == "" && exe != "" {
+		// Clean up DisplayIcon which might have ",0" at the end
+		appPath = strings.Split(exe, ",")[0]
+		appPath = strings.Trim(appPath, `"`)
+	}
+
+	if appPath != "" {
+		apps[name] = appPath
+	}
+}
+
+func (a *App) isEditorApp(name string) bool {
+	keywords := []string{
+		"code", "editor", "notepad", "sublime", "studio", "vim",
+		"text", "edit", "writer", "atom", "jetbrains", "intellij",
+		"pycharm", "webstorm", "phpstorm", "zed", "cursor", "vscodium",
+	}
+
+	lowerName := strings.ToLower(name)
+	for _, kw := range keywords {
+		if strings.Contains(lowerName, kw) {
+			return true
+		}
+	}
+	return false
 }

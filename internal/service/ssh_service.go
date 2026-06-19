@@ -110,6 +110,17 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 	stdin, _ := sshSession.StdinPipe()
 	conn.Shell = stdin
 
+	if err := m.setupPTY(sshSession); err != nil {
+		fmt.Printf("failed to setup terminal: %v\n", err)
+		return
+	}
+
+	exitChan := make(chan struct{})
+	go m.processTerminalOutput(conn, stdout, exitChan)
+	m.handleTerminalExit(conn, sshSession, exitChan)
+}
+
+func (m *SSHManager) setupPTY(sshSession *ssh.Session) error {
 	modes := ssh.TerminalModes{
 		ssh.ECHO:          1,
 		ssh.TTY_OP_ISPEED: 14400,
@@ -117,45 +128,35 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 		ssh.ICANON:        0,
 	}
 
-	// RequestPty(term, height, width, modes)
-	// Hardcoded wide dimensions to prevent wrapping during initialization.
-	// We set rows: 50, cols: 200.
 	if err := sshSession.RequestPty("xterm-256color", 50, 200, modes); err != nil {
-		fmt.Printf("request for pseudo terminal failed: %v\n", err)
-		return
+		return err
 	}
 
-	if err := sshSession.Shell(); err != nil {
-		fmt.Printf("failed to start shell: %v\n", err)
-		return
-	}
+	return sshSession.Shell()
+}
 
-	// Channel to signal shell exit
-	exitChan := make(chan struct{})
-
-	// For PTY sessions, SSH combines Stdout and Stderr into a single stream.
-	// Reading them separately in parallel causes character interleaving and corrupted escape sequences.
-	go func() {
-		buf := make([]byte, 2048)
-		for {
-			n, err := stdout.Read(buf)
-			if n > 0 {
-				wruntime.EventsEmit(m.ctx, "ssh_output", map[string]interface{}{
-					"sessionId": conn.SessionID,
-					"data":      string(buf[:n]),
-				})
-			}
-			if err != nil {
-				select {
-				case <-exitChan:
-				default:
-					close(exitChan)
-				}
-				break
-			}
+func (m *SSHManager) processTerminalOutput(conn *SSHConnection, stdout io.Reader, exitChan chan struct{}) {
+	buf := make([]byte, 2048)
+	for {
+		n, err := stdout.Read(buf)
+		if n > 0 {
+			wruntime.EventsEmit(m.ctx, "ssh_output", map[string]interface{}{
+				"sessionId": conn.SessionID,
+				"data":      string(buf[:n]),
+			})
 		}
-	}()
+		if err != nil {
+			select {
+			case <-exitChan:
+			default:
+				close(exitChan)
+			}
+			break
+		}
+	}
+}
 
+func (m *SSHManager) handleTerminalExit(conn *SSHConnection, sshSession *ssh.Session, exitChan chan struct{}) {
 	select {
 	case <-conn.Context.Done():
 		sshSession.Close()
@@ -358,59 +359,84 @@ func (m *SSHManager) EditFile(sessionID string, remotePath string, defaultEditor
 
 	remotePath = path.Clean(remotePath)
 
-	tempDir := filepath.Join(os.TempDir(), "ostenia-ssh-edit")
-	os.MkdirAll(tempDir, 0755)
+	tempDir, err := os.MkdirTemp("", "ostenia-ssh-edit-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
 
 	fileName := path.Base(remotePath)
 	localPath := filepath.Join(tempDir, fmt.Sprintf("%d-%s", time.Now().Unix(), fileName))
 
-	err := m.DownloadFile(sessionID, remotePath, localPath)
-	if err != nil {
+	if err := m.DownloadFile(sessionID, remotePath, localPath); err != nil {
 		return err
 	}
 
-	// Get initial file info
 	initialInfo, _ := os.Stat(localPath)
+	if err := m.runEditor(localPath, defaultEditor); err != nil {
+		return err
+	}
 
-	// Open with default editor
+	finalInfo, err := os.Stat(localPath)
+	if err == nil && finalInfo.ModTime().After(initialInfo.ModTime()) {
+		return m.UploadFile(sessionID, localPath, remotePath)
+	}
+
+	return nil
+}
+
+func (m *SSHManager) runEditor(localPath, defaultEditor string) error {
 	var cmd *exec.Cmd
 	if defaultEditor != "" {
-		if runtime.GOOS == "windows" {
-			cmd = exec.Command("cmd", "/c", "start", "/wait", "", defaultEditor, localPath)
-			utils.SetHideWindow(cmd)
-		} else {
-			cmd = exec.Command(defaultEditor, localPath)
-		}
-	} else if runtime.GOOS == "windows" {
-		cmd = exec.Command("notepad.exe", localPath)
-	} else if runtime.GOOS == "darwin" {
-		cmd = exec.Command("open", "-t", localPath)
+		cmd = m.getCustomEditorCmd(defaultEditor, localPath)
 	} else {
-		// Try to find a common editor on Linux
-		editors := []string{"xdg-open", "gnome-text-editor", "kwrite", "gedit", "nano"}
-		for _, e := range editors {
-			if _, err := exec.LookPath(e); err == nil {
-				cmd = exec.Command(e, localPath)
-				break
-			}
-		}
+		cmd = m.getDefaultEditorCmd(localPath)
 	}
 
 	if cmd == nil {
 		return fmt.Errorf("no suitable text editor found")
 	}
 
-	err = cmd.Run()
-	if err != nil {
-		return err
-	}
+	return cmd.Run()
+}
 
-	// Check if file was modified
-	finalInfo, err := os.Stat(localPath)
-	if err == nil && finalInfo.ModTime().After(initialInfo.ModTime()) {
-		return m.UploadFile(sessionID, localPath, remotePath)
+func (m *SSHManager) getCustomEditorCmd(editor, localPath string) *exec.Cmd {
+	if runtime.GOOS == "windows" {
+		cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
+		cmd := exec.Command(cmdPath, "/c", "start", "/wait", "", editor, localPath)
+		cmd.Env = utils.SafeEnv()
+		utils.SetHideWindow(cmd)
+		return cmd
 	}
+	cmd := exec.Command(editor, localPath)
+	cmd.Env = utils.SafeEnv()
+	return cmd
+}
 
+func (m *SSHManager) getDefaultEditorCmd(localPath string) *exec.Cmd {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmdPath := filepath.Join(utils.GetSystemDirectory(), "notepad.exe")
+		cmd = exec.Command(cmdPath, localPath)
+	case "darwin":
+		cmd = exec.Command("/usr/bin/open", "-t", localPath)
+	default:
+		return m.findLinuxEditor(localPath)
+	}
+	cmd.Env = utils.SafeEnv()
+	return cmd
+}
+
+func (m *SSHManager) findLinuxEditor(localPath string) *exec.Cmd {
+	editors := []string{"xdg-open", "gnome-text-editor", "kwrite", "gedit", "nano"}
+	for _, e := range editors {
+		if path, err := exec.LookPath(e); err == nil {
+			cmd := exec.Command(path, localPath)
+			cmd.Env = utils.SafeEnv()
+			return cmd
+		}
+	}
 	return nil
 }
 
