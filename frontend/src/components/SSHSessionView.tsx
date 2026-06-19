@@ -4,7 +4,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime';
 import * as AppBackend from '../../wailsjs/go/backend/App';
-import { Edit2, Edit3, Download, Trash2, RefreshCw } from 'lucide-react';
+import { Edit2, Edit3, Download, Trash2, RefreshCw, ExternalLink } from 'lucide-react';
 import SSHToolbar from './ssh/SSHToolbar';
 import SSHFileExplorer from './ssh/SSHFileExplorer';
 import { handleActionKey } from '../utils/a11y';
@@ -15,9 +15,10 @@ interface SSHSessionViewProps {
   addToast: (title: string, message: string, type?: 'info' | 'success' | 'warn' | 'error') => void;
   isActive: boolean;
   theme?: string;
+  onOpenSettings: (category: string) => void;
 }
 
-const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addToast, isActive, theme }) => {
+const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addToast, isActive, theme, onOpenSettings }) => {
  const terminalRef = useRef<HTMLDivElement>(null);
  const xterm = useRef<XTerm | null>(null);
  const fitAddon = useRef(new FitAddon());
@@ -390,6 +391,24 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
  <button onClick={() => { handleEdit(fileContextMenu.file); setFileContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2">
  <Edit3 size={14} /> Edit File
  </button>
+ {(() => {
+    const name = fileContextMenu.file.name.toLowerCase();
+    const isArchive = name.endsWith('.zip') || name.endsWith('.tar') || name.endsWith('.gz') || name.endsWith('.7z') || name.endsWith('.rar') || name.endsWith('.bz2') || name.endsWith('.xz');
+    if (!isArchive) {
+      return (
+        <button
+          onClick={() => {
+            onOpenSettings('config');
+            setFileContextMenu(null);
+          }}
+          className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+        >
+          <ExternalLink size={14} /> Open With
+        </button>
+      );
+    }
+    return null;
+  })()}
  <button onClick={() => { handleDownload(fileContextMenu.file); setFileContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2">
  <Download size={14} /> Download
  </button>

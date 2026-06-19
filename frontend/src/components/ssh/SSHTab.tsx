@@ -9,9 +9,10 @@ import { handleActionKey } from '../../utils/a11y';
 interface SSHTabProps {
   addToast: (title: string, message: string, type?: 'info' | 'success' | 'warn' | 'error') => void;
   theme?: string;
+  onOpenSettings: (category: string) => void;
 }
 
-const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme }) => {
+const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
  const [sessions, setSessions] = useState<any[]>([]);
  const [activeSessionIds, setActiveSessionIds] = useState<string[]>([]);
  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -186,6 +187,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme }) => {
  addToast={addToast}
  isActive={currentSessionId === id}
  theme={theme}
+ onOpenSettings={onOpenSettings}
  />
  </div>
  ))}

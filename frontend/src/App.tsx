@@ -391,7 +391,7 @@ function App() {
  </div>
 
  <div className={cn("h-full flex flex-col", activeTab !== 'ssh' && "hidden")}>
- <SSHTab addToast={addToast} theme={theme} />
+ <SSHTab addToast={addToast} theme={theme} onOpenSettings={(category: string) => setSettingsModal({ isOpen: true, category })} />
  </div>
 
  <div className={cn("h-full flex flex-col", activeTab !== 'logs' && "hidden")}>
