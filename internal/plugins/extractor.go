@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// Unzip extracts a zip file to a destination directory.
 func Unzip(ctx context.Context, src string, dest string, name string, emit func(context.Context, string, ...interface{})) error {
 	r, err := zip.OpenReader(src)
 	if err != nil {
@@ -23,35 +24,7 @@ func Unzip(ctx context.Context, src string, dest string, name string, emit func(
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			fpath := filepath.Join(dest, f.Name)
-			if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
-				return fmt.Errorf("%s: illegal file path", fpath)
-			}
-
-			if f.FileInfo().IsDir() {
-				os.MkdirAll(fpath, os.ModePerm)
-				continue
-			}
-
-			if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
-				return err
-			}
-
-			outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-			if err != nil {
-				return err
-			}
-
-			rc, err := f.Open()
-			if err != nil {
-				outFile.Close()
-				return err
-			}
-
-			_, err = io.Copy(outFile, rc)
-			outFile.Close()
-			rc.Close()
-			if err != nil {
+			if err := extractFile(dest, f); err != nil {
 				return err
 			}
 
@@ -67,4 +40,38 @@ func Unzip(ctx context.Context, src string, dest string, name string, emit func(
 		}
 	}
 	return nil
+}
+
+func extractFile(dest string, f *zip.File) error {
+	fpath := filepath.Join(dest, f.Name)
+	if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
+		return fmt.Errorf("%s: illegal file path", fpath)
+	}
+
+	if f.FileInfo().IsDir() {
+		return os.MkdirAll(fpath, os.ModePerm)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+		return err
+	}
+
+	return writeFile(fpath, f)
+}
+
+func writeFile(fpath string, f *zip.File) error {
+	outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+	if err != nil {
+		return err
+	}
+	defer outFile.Close()
+
+	rc, err := f.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	_, err = io.Copy(outFile, rc)
+	return err
 }
