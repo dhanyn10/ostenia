@@ -5,7 +5,7 @@ import { twMerge } from 'tailwind-merge';
 import { handleActionKey } from '../utils/a11y';
 
 function cn(...inputs: ClassValue[]) {
- return twMerge(clsx(inputs));
+  return twMerge(clsx(inputs));
 }
 
 interface ServiceItemProps {
@@ -43,7 +43,7 @@ const VersionSwitcher: React.FC<any> = ({ service, task, handleSwitchVersion }) 
   if (!show) return null;
 
   return (
-    <div className="flex items-center gap-1 ml-1" onClick={(e) => e.stopPropagation()}>
+    <div className="flex items-center gap-1 ml-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
       {installedVersions.map((ver: string) => {
         const systemString = (service.activeVersion || "").toString().toLowerCase().trim();
         const cleanVer = ver.toString().replace(/^v/, "").replace(/^[a-z. ]+-/, "").trim();
@@ -117,9 +117,10 @@ const ServiceStatus: React.FC<any> = ({ service }) => {
 const MainActions: React.FC<any> = ({ isInstalled, service, handleToggleService, handleRemoveFromHome, setActiveTab }) => (
   <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
     {!isInstalled && service.name !== 'OpenSSL' ? (
-      <button onClick={() => setActiveTab('plugins')} className="px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
+      <button type="button" onClick={() => setActiveTab('plugins')} className="px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
     ) : (
       <button
+        type="button"
         onKeyDown={handleActionKey(() => handleToggleService(service.name, service.status))} onClick={() => handleToggleService(service.name, service.status)}
         className={cn(
           "w-12 h-6 rounded-sm p-0.5 transition-all duration-300 ease-in-out relative ring-1 ring-inset",
@@ -136,6 +137,7 @@ const MainActions: React.FC<any> = ({ isInstalled, service, handleToggleService,
     )}
 
     <button
+      type="button"
       onKeyDown={handleActionKey(() => handleRemoveFromHome(service.name))} onClick={() => handleRemoveFromHome(service.name)}
       className="h-6 px-3 bg-slate-100 dark:bg-white/5 hover:bg-rose-500/10 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-white/5"
     >
@@ -171,6 +173,7 @@ const ServiceExtraActions: React.FC<any> = ({
     <div className="flex items-center flex-wrap gap-4 px-1 pb-2">
       {hasPhpExtManager && (
         <button
+          type="button"
           onClick={() => setIsModalOpen(true)}
           className="flex items-center gap-2 px-3 py-1.5 h-8 bg-slate-100 dark:bg-white/5 hover:bg-blue-600/10 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-white/5"
         >
@@ -179,13 +182,14 @@ const ServiceExtraActions: React.FC<any> = ({
       )}
 
       {hasOpenFolder && (
-        <button onClick={() => handleOpenPluginFolder(service.name)} className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-white/5 hover:bg-blue-600/10 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-sm border border-slate-200 dark:border-white/5 transition-all" title="Open Folder">
+        <button type="button" onClick={() => handleOpenPluginFolder(service.name)} className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-white/5 hover:bg-blue-600/10 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-sm border border-slate-200 dark:border-white/5 transition-all" title="Open Folder">
           <FolderOpen size={16} />
         </button>
       )}
 
       {hasHeidiOpen && (
         <button
+          type="button"
           onClick={(e) => { e.stopPropagation(); (window as any).go.main.App.OpenHeidiSQL(); }}
           className="flex items-center gap-2 px-3 py-1.5 h-8 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20"
         >
@@ -196,6 +200,7 @@ const ServiceExtraActions: React.FC<any> = ({
       {hasTerminal && (
         <div className="relative">
           <button
+            type="button"
             onClick={() => setOpenTerminalDropdown(openTerminalDropdown === service.name ? null : service.name)}
             className={cn(
               "w-12 h-8 flex items-center justify-center gap-1 rounded-sm border border-slate-200 dark:border-white/5 transition-all",
@@ -211,8 +216,8 @@ const ServiceExtraActions: React.FC<any> = ({
               <button type="button" className="fixed inset-0 z-[150] w-full h-full bg-transparent border-none p-0 cursor-default focus:outline-none" onKeyDown={handleActionKey(() => setOpenTerminalDropdown(null))} onClick={() => setOpenTerminalDropdown(null)} />
               <div className="absolute top-full left-0 mt-1 w-40 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-sm shadow-2xl z-[160] animate-in fade-in slide-in-from-top-1 duration-200">
                 <div className="p-1">
-                  <button onClick={() => handleOpenLocalTerminal(service.name, 'cmd')} className="w-full flex items-center gap-3 px-3 py-1.5 rounded-sm text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"><Monitor size={12} className="text-blue-500" /> CMD</button>
-                  <button onClick={() => handleOpenLocalTerminal(service.name, 'powershell')} className="w-full flex items-center gap-3 px-3 py-1.5 rounded-sm text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"><Monitor size={12} className="text-blue-600" /> PowerShell</button>
+                  <button type="button" onClick={() => handleOpenLocalTerminal(service.name, 'cmd')} className="w-full flex items-center gap-3 px-3 py-1.5 rounded-sm text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"><Monitor size={12} className="text-blue-500" /> CMD</button>
+                  <button type="button" onClick={() => handleOpenLocalTerminal(service.name, 'powershell')} className="w-full flex items-center gap-3 px-3 py-1.5 rounded-sm text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"><Monitor size={12} className="text-blue-600" /> PowerShell</button>
                 </div>
               </div>
             </>
@@ -222,6 +227,7 @@ const ServiceExtraActions: React.FC<any> = ({
 
       {hasHttpsToggle && (
         <button
+          type="button"
           onClick={() => handleToggleHttps(service.name)}
           className={cn(
             "w-14 h-8 rounded-sm p-1 transition-all duration-300 ease-in-out relative ring-1 ring-inset",
@@ -327,8 +333,8 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
           isHttpsEnabled={isHttpsEnabled}
         />
       )}
- </div>
- );
+    </div>
+  );
 }
 
 export default ServiceItem;
