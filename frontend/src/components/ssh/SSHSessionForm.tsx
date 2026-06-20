@@ -90,7 +90,7 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({ session, onClose, onSav
  type="number"
  className="w-full px-2 py-2 bg-mui-grey-50 dark:bg-white/5 border border-transparent focus:border-mui-blue-500 focus:bg-white dark:focus:bg-mui-grey-900 rounded-md outline-none text-mui-grey-900 dark:text-white transition-all text-sm text-center"
  value={formData.port}
- onChange={e => setFormData({ ...formData, port: parseInt(e.target.value) })}
+ onChange={e => setFormData({ ...formData, port: Number.parseInt(e.target.value) })}
  />
  </div>
  </div>

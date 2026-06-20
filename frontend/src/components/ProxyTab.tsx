@@ -42,7 +42,7 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
  }, []);
 
  const handlePortChange = (name, value) => {
- setApps(prev => prev.map(app => app.name === name ? { ...app, port: parseInt(value) || 0 } : app));
+ setApps(prev => prev.map(app => app.name === name ? { ...app, port: Number.parseInt(value) || 0 } : app));
  };
 
  const handleSave = async (name, port) => {
