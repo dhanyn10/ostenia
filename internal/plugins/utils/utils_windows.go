@@ -34,8 +34,8 @@ func checkHeidiSQLRegistry() (string, string) {
 			regKey, _ = registry.OpenKey(registry.CURRENT_USER, k, registry.QUERY_VALUE)
 		}
 		if regKey != 0 {
-			exe, _ := regKey.GetStringValue("DisplayIcon")
-			uninst, _ := regKey.GetStringValue("UninstallString")
+			exe, _, _ := regKey.GetStringValue("DisplayIcon")
+			uninst, _, _ := regKey.GetStringValue("UninstallString")
 			regKey.Close()
 			if exe != "" {
 				return strings.Trim(exe, "\""), strings.Trim(uninst, "\"")
