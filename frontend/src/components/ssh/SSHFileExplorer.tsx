@@ -137,13 +137,13 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
               <div
                 key={file.name}
                 className="w-full group flex items-center gap-2 px-2 py-1 rounded hover:bg-mui-grey-100 dark:hover:bg-mui-grey-800 border border-transparent hover:border-mui-grey-200 dark:hover:border-mui-grey-700 transition-all select-none relative"
-                onContextMenu={(e) => onFileContextMenu(e, file)}
               >
                 <button
                   type="button"
                   className="flex-1 flex items-center gap-2 outline-none text-left min-w-0 bg-transparent border-none p-0"
                   onDoubleClick={() => onFileDoubleClick(file)}
                   onKeyDown={handleActionKey(() => onFileDoubleClick(file))}
+                  onContextMenu={(e) => onFileContextMenu(e, file)}
                 >
                   {file.isDir ? <Folder size={14} className="text-mui-blue-500 dark:text-mui-blue-400 shrink-0" /> : <File size={14} className="text-mui-grey-400 dark:text-mui-grey-500 shrink-0" />}
                   <span className="flex-1 text-[11px] text-mui-grey-700 dark:text-mui-grey-400 group-hover:text-mui-grey-900 dark:group-hover:text-white truncate">{file.name}</span>

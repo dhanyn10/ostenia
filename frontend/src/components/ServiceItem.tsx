@@ -29,41 +29,44 @@ interface ServiceItemProps {
   handleOpenPluginFolder: (name: string) => void;
 }
 
-const ServiceHeader: React.FC<any> = ({ service, task, renderIcon, handleSwitchVersion }) => {
+const ServiceIdentity: React.FC<any> = ({ service, renderIcon }) => (
+  <div className="flex items-center gap-3">
+    {renderIcon(service.name, 18, "text-slate-900 dark:text-white")}
+    <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{service.name}</h3>
+  </div>
+);
+
+const VersionSwitcher: React.FC<any> = ({ service, task, handleSwitchVersion }) => {
   const installedVersions = task?.installedVers || [];
-  const showVersionSwitcher = (service.name === 'PHP' || service.name === 'Node.js' || service.name === 'Python') && installedVersions.length > 0;
+  const show = (service.name === 'PHP' || service.name === 'Node.js' || service.name === 'Python') && installedVersions.length > 0;
+
+  if (!show) return null;
 
   return (
-    <div className="flex items-center gap-3">
-      {renderIcon(service.name, 18, "text-slate-900 dark:text-white")}
-      <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">{service.name}</h3>
+    <div className="flex items-center gap-1 ml-1" onClick={(e) => e.stopPropagation()}>
+      {installedVersions.map((ver: string) => {
+        const systemString = (service.activeVersion || "").toString().toLowerCase().trim();
+        const cleanVer = ver.toString().replace(/^v/, "").replace(/^[a-z. ]+-/, "").trim();
+        const isActive = systemString.includes(cleanVer.toLowerCase());
 
-      {showVersionSwitcher && (
-        <div className="flex items-center gap-1 ml-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-          {installedVersions.map((ver: string) => {
-            const systemString = (service.activeVersion || "").toString().toLowerCase().trim();
-            const cleanVer = ver.toString().replace(/^v/, "").replace(/^[a-z. ]+-/, "").trim();
-            const isActive = systemString.includes(cleanVer.toLowerCase());
-
-            return (
-              <button
-                key={ver}
-                onKeyDown={handleActionKey(() => handleSwitchVersion(service.name, ver))}
-                onClick={() => handleSwitchVersion(service.name, ver)}
-                className={cn(
-                  "px-1.5 py-0.5 rounded-sm text-[8px] font-black uppercase tracking-widest border transition-all",
-                  isActive
-                    ? "bg-blue-600 border-blue-500 text-white shadow-lg"
-                    : "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-500 hover:border-blue-500/50 hover:text-blue-500"
-                )}
-              >
-                {isActive && <CheckCircle2 size={8} className="inline mr-1" />}
-                {cleanVer}
-              </button>
-            );
-          })}
-        </div>
-      )}
+        return (
+          <button
+            key={ver}
+            type="button"
+            onKeyDown={handleActionKey(() => handleSwitchVersion(service.name, ver))}
+            onClick={() => handleSwitchVersion(service.name, ver)}
+            className={cn(
+              "px-1.5 py-0.5 rounded-sm text-[8px] font-black uppercase tracking-widest border transition-all",
+              isActive
+                ? "bg-blue-600 border-blue-500 text-white shadow-lg"
+                : "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-500 hover:border-blue-500/50 hover:text-blue-500"
+            )}
+          >
+            {isActive && <CheckCircle2 size={8} className="inline mr-1" />}
+            {cleanVer}
+          </button>
+        );
+      })}
     </div>
   );
 };
@@ -286,20 +289,22 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
       )}
     >
       <div className="flex items-center gap-5">
-        <button
-          type="button"
-          className={cn(
-            "flex-1 min-w-0 px-2 outline-none focus:ring-1 focus:ring-blue-500/40 rounded-sm py-1 transition-all",
-            hasExtraActions ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5" : "cursor-default"
-          )}
-          onClick={() => onToggleAccordion(service.name, hasExtraActions)}
-          onKeyDown={handleActionKey(() => onToggleAccordion(service.name, hasExtraActions))}
-        >
-          <div className="flex items-center gap-3 flex-wrap">
-            <ServiceHeader service={service} task={task} renderIcon={renderIcon} handleSwitchVersion={handleSwitchVersion} />
+        <div className="flex-1 min-w-0 flex items-center gap-3 flex-wrap px-2">
+          <button
+            type="button"
+            className={cn(
+              "flex items-center gap-3 outline-none focus:ring-1 focus:ring-blue-500/40 rounded-sm py-1 transition-all",
+              hasExtraActions ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5" : "cursor-default"
+            )}
+            onClick={() => onToggleAccordion(service.name, hasExtraActions)}
+            onKeyDown={handleActionKey(() => onToggleAccordion(service.name, hasExtraActions))}
+          >
+            <ServiceIdentity service={service} renderIcon={renderIcon} />
             <ServiceStatus service={service} />
-          </div>
-        </button>
+          </button>
+
+          <VersionSwitcher service={service} task={task} handleSwitchVersion={handleSwitchVersion} />
+        </div>
 
         <MainActions isInstalled={isInstalled} service={service} handleToggleService={handleToggleService} handleRemoveFromHome={handleRemoveFromHome} setActiveTab={setActiveTab} />
       </div>

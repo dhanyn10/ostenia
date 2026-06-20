@@ -15,6 +15,7 @@ interface SSHTabProps {
 const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
  const [sessions, setSessions] = useState<any[]>([]);
  const [activeSessionIds, setActiveSessionIds] = useState<string[]>([]);
+ const contextMenuRef = React.useRef<HTMLDivElement>(null);
  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
  const [showForm, setShowForm] = useState(false);
  const [editingSession, setEditingSession] = useState<any>(null);
@@ -68,7 +69,12 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
  const [contextMenu, setContextMenu] = useState<any>(null);
 
  useEffect(() => {
- const handleClick = () => setContextMenu(null);
+ const handleClick = (e: MouseEvent) => {
+   if (contextMenuRef.current && contextMenuRef.current.contains(e.target as Node)) {
+     return;
+   }
+   setContextMenu(null);
+ };
  window.addEventListener('click', handleClick);
  return () => window.removeEventListener('click', handleClick);
  }, []);
@@ -282,10 +288,9 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
 
  {contextMenu && (
  <div
+ ref={contextMenuRef}
  className="fixed z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg py-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-100 cursor-default p-0"
  style={{ top: contextMenu.y, left: contextMenu.x }}
- onClick={(e) => e.stopPropagation()}
- onKeyDown={(e) => { e.stopPropagation(); }}
  >
  <button
  onClick={() => {

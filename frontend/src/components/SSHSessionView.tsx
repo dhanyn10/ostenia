@@ -22,6 +22,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
  const terminalRef = useRef<HTMLDivElement>(null);
  const xterm = useRef<XTerm | null>(null);
  const fitAddon = useRef(new FitAddon());
+ const contextMenuRef = useRef<HTMLDivElement>(null);
  const currentPathRef = useRef('');
  const [connecting, setConnecting] = useState(true);
  const [remotePath, setRemotePath] = useState('');
@@ -50,7 +51,12 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
  };
 
  useEffect(() => {
- const handleClick = () => setFileContextMenu(null);
+ const handleClick = (e: MouseEvent) => {
+   if (contextMenuRef.current && contextMenuRef.current.contains(e.target as Node)) {
+     return;
+   }
+   setFileContextMenu(null);
+ };
  window.addEventListener('click', handleClick);
  return () => window.removeEventListener('click', handleClick);
  }, []);
@@ -366,10 +372,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
 
  {fileContextMenu && (
  <div
+ ref={contextMenuRef}
  className="fixed z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg py-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-100 cursor-default p-0"
  style={{ top: fileContextMenu.y, left: fileContextMenu.x }}
- onClick={(e) => e.stopPropagation()}
- onKeyDown={(e) => { e.stopPropagation(); }}
  >
  <button
  onClick={async () => {
