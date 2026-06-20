@@ -52,7 +52,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
 
  useEffect(() => {
  const handleClick = (e: MouseEvent) => {
-   if (contextMenuRef.current && contextMenuRef.current.contains(e.target as Node)) {
+   if (contextMenuRef.current?.contains(e.target as Node)) {
      return;
    }
    setFileContextMenu(null);
@@ -75,8 +75,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
  if (terminalRef.current.offsetParent === null) return;
 
  try {
- fitAddon.current.fit();
- const dims = fitAddon.current.proposeDimensions();
+ fitAddon.current?.fit();
+ const dims = fitAddon.current?.proposeDimensions();
 
  if (dims && dims.cols >= 20 && dims.rows >= 2) {
  const safeCols = Math.max(dims.cols, 120);
@@ -150,7 +150,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
  });
 
  const handleOutput = (event: any) => {
- if (event.sessionId === session.id && xterm.current) xterm.current.write(event.data);
+ if (event.sessionId === session.id) xterm.current?.write(event.data);
  };
 
  const handlePathChange = (event: any) => {
@@ -163,8 +163,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
  };
 
  const handleDisconnect = (id: any) => {
- if (id === session.id && xterm.current) {
- xterm.current.write('\r\n\x1b[31mDisconnected from server.\x1b[0m\r\n');
+ if (id === session.id) {
+ xterm.current?.write('\r\n\x1b[31mDisconnected from server.\x1b[0m\r\n');
  addToast('SSH', 'Disconnected from ' + session.name, 'warn');
  }
  };
@@ -392,13 +392,13 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
  <Edit2 size={14} /> Rename
  </button>
 
- {!fileContextMenu.file.isDir && (
+ {!fileContextMenu?.file?.isDir && (
  <>
  <button onClick={() => { handleEdit(fileContextMenu.file); setFileContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2">
  <Edit3 size={14} /> Edit File
  </button>
  {(() => {
-    const name = fileContextMenu.file.name.toLowerCase();
+    const name = fileContextMenu?.file?.name?.toLowerCase() || "";
     const isArchive = name.endsWith('.zip') || name.endsWith('.tar') || name.endsWith('.gz') || name.endsWith('.7z') || name.endsWith('.rar') || name.endsWith('.bz2') || name.endsWith('.xz');
     if (!isArchive) {
       return (

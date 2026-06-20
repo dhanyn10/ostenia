@@ -70,7 +70,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
 
  useEffect(() => {
  const handleClick = (e: MouseEvent) => {
-   if (contextMenuRef.current && contextMenuRef.current.contains(e.target as Node)) {
+   if (contextMenuRef.current?.contains(e.target as Node)) {
      return;
    }
    setContextMenu(null);
