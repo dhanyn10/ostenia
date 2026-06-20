@@ -130,7 +130,7 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
                 <Folder size={14} className="text-mui-grey-400 dark:text-mui-grey-500 shrink-0" />
                 <span className="flex-1 text-[11px] font-bold text-mui-grey-500 dark:text-mui-grey-400 truncate">...</span>
                 <span className="w-16 text-[10px] text-right text-mui-grey-400 opacity-0 group-hover:opacity-100">UP</span>
-              </div>
+              </button>
             )}
 
             {sortedFiles.map((file) => (
