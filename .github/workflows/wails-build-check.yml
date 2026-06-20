@@ -1,4 +1,4 @@
-name: Wails Dev Check
+name: Wails Build Check
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main, dev ]
 
 jobs:
-  check-dev:
+  check-build:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,7 +19,7 @@ jobs:
           cache: true
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
         with:
           version: 10
 
@@ -49,7 +49,7 @@ jobs:
           $env:PATH += ";C:\Users\runneradmin\go\bin"
           wails version
 
-      - name: Run Wails Dev Check
+      - name: Run Wails Build Check
         run: |
           $env:PATH += ";C:\Users\runneradmin\go\bin"
-          powershell -File scripts/check-wails-dev.ps1
+          powershell -File scripts/check-wails-build.ps1
