@@ -1,0 +1,55 @@
+name: Wails Build Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  check-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
+        with:
+          version: 10
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install Frontend Dependencies
+        run: cd frontend && pnpm install
+
+      - name: Cache Wails CLI
+        id: cache-wails
+        uses: actions/cache@v4
+        with:
+          path: C:\Users\runneradmin\go\bin\wails.exe
+          key: ${{ runner.os }}-wails-2.12.0
+
+      - name: Install Wails CLI
+        if: steps.cache-wails.outputs.cache-hit != 'true'
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+
+      - name: Verify Wails Installation
+        run: |
+          $env:PATH += ";C:\Users\runneradmin\go\bin"
+          wails version
+
+      - name: Run Wails Build Check
+        run: |
+          $env:PATH += ";C:\Users\runneradmin\go\bin"
+          powershell -File scripts/check-wails-build.ps1
