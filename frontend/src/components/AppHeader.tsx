@@ -55,7 +55,7 @@ function AppHeader({ activeTab, handleStartAll, handleStopAll, handleTerminal, i
 
  {isTerminalOpen && (
  <>
- <button className="fixed inset-0 z-[60] w-full h-full cursor-default bg-transparent border-none p-0 focus:outline-none" onKeyDown={handleActionKey(() => setIsTerminalOpen(false))} onClick={() => setIsTerminalOpen(false)} />
+ <button type="button" className="fixed inset-0 z-[60] w-full h-full cursor-default bg-transparent border-none p-0 focus:outline-none" onKeyDown={handleActionKey(() => setIsTerminalOpen(false))} onClick={() => setIsTerminalOpen(false)} />
  <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-sm shadow-2xl z-[70] animate-in fade-in zoom-in-95 duration-200">
  <div className="p-1">
  <button

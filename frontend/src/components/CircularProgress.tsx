@@ -26,6 +26,7 @@ const CircularProgress: React.FC<CircularProgressProps> = ({ percentage, status,
   return (
     <div className="flex flex-col items-center gap-2">
       <button
+        type="button"
         className="relative group/progress cursor-pointer overflow-hidden p-0.5 rounded-sm outline-none focus:ring-1 focus:ring-blue-500/40 bg-transparent border-none"
         onClick={onCancel}
         onKeyDown={onCancel ? handleActionKey(onCancel) : undefined}

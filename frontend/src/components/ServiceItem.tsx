@@ -205,7 +205,7 @@ const ServiceExtraActions: React.FC<any> = ({
 
           {openTerminalDropdown === service.name && (
             <>
-              <button className="fixed inset-0 z-[150] w-full h-full bg-transparent border-none p-0 cursor-default focus:outline-none" onKeyDown={handleActionKey(() => setOpenTerminalDropdown(null))} onClick={() => setOpenTerminalDropdown(null)} />
+              <button type="button" className="fixed inset-0 z-[150] w-full h-full bg-transparent border-none p-0 cursor-default focus:outline-none" onKeyDown={handleActionKey(() => setOpenTerminalDropdown(null))} onClick={() => setOpenTerminalDropdown(null)} />
               <div className="absolute top-full left-0 mt-1 w-40 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-sm shadow-2xl z-[160] animate-in fade-in slide-in-from-top-1 duration-200">
                 <div className="p-1">
                   <button onClick={() => handleOpenLocalTerminal(service.name, 'cmd')} className="w-full flex items-center gap-3 px-3 py-1.5 rounded-sm text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"><Monitor size={12} className="text-blue-500" /> CMD</button>
@@ -287,6 +287,7 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
     >
       <div className="flex items-center gap-5">
         <button
+          type="button"
           className={cn(
             "flex-1 min-w-0 px-2 outline-none focus:ring-1 focus:ring-blue-500/40 rounded-sm py-1 transition-all",
             hasExtraActions ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5" : "cursor-default"

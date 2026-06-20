@@ -31,16 +31,17 @@ const VersionDropdown: React.FC<VersionDropdownProps> = ({ current, options, onC
 
  {isOpen && (
  <>
- <button className="fixed inset-0 z-[60] w-full h-full bg-transparent border-none p-0 cursor-default focus:outline-none" onKeyDown={handleActionKey(onToggle)} onClick={onToggle} />
+ <button type="button" className="fixed inset-0 z-[60] w-full h-full bg-transparent border-none p-0 cursor-default focus:outline-none" onKeyDown={handleActionKey(onToggle)} onClick={onToggle} />
  <div className="absolute top-full left-0 mt-1 w-32 max-h-56 overflow-y-auto bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-white/10 rounded-sm z-[70] animate-in fade-in zoom-in-95 duration-200">
  <div className="p-1 space-y-0.5">
  {options.map((v) => (
  <button
+   type="button"
  key={v}
  onClick={() => { onChange(v); onToggle(); }}
  onKeyDown={handleActionKey(() => { onChange(v); onToggle(); })}
  className={cn(
- "w-full text-left px-2 py-1 rounded-sm text-[9px] font-bold cursor-pointer transition-all outline-none",
+ "w-full text-left px-2 py-1 rounded-sm text-[9px] font-bold cursor-pointer transition-all outline-none bg-transparent border-none",
  v === current ? "bg-blue-600 text-white" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white focus:bg-slate-100 dark:focus:bg-white/10"
  )}
  >

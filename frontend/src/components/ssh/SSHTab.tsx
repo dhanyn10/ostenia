@@ -109,6 +109,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
  {activeSessionIds.length > 0 && (
  <div className="flex items-center gap-[2px] overflow-x-auto no-scrollbar shrink-0 pt-2 px-6 bg-mui-grey-50 dark:bg-mui-grey-900 border-b border-mui-grey-200 dark:border-white/5">
  <button
+   type="button"
  onClick={() => setCurrentSessionId(null)}
  onKeyDown={handleActionKey(() => setCurrentSessionId(null))}
  className={clsx(
@@ -139,9 +140,10 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
  )}
  >
  <button
+   type="button"
  onClick={() => setCurrentSessionId(id)}
  onKeyDown={handleActionKey(() => setCurrentSessionId(id))}
- className="flex-1 min-w-0 pl-6 pr-1 h-full text-left outline-none"
+ className="flex-1 min-w-0 pl-6 pr-1 h-full text-left outline-none bg-transparent border-none p-0"
  >
  <span className={clsx(
  "truncate font-bold block",
@@ -223,10 +225,11 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
  className="group bg-mui-grey-50 dark:bg-mui-dark-paper border border-mui-grey-200 dark:border-white/10 rounded-lg p-3 hover:border-mui-blue-500/50 hover:shadow-md transition-all relative overflow-hidden flex items-center gap-3 select-none"
  >
  <button
+   type="button"
  onDoubleClick={() => handleConnect(session)}
  onKeyDown={handleActionKey(() => handleConnect(session))}
  onContextMenu={(e) => handleContextMenu(e, session)}
- className="flex-1 flex items-center gap-3 outline-none text-left min-w-0"
+ className="flex-1 flex items-center gap-3 outline-none text-left min-w-0 bg-transparent border-none p-0"
  >
  <div className="bg-mui-blue-600 text-white p-2 rounded-md shrink-0">
  <Server size={18} />

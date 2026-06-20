@@ -122,6 +122,7 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
             {/* Go Up Directory */}
             {(remotePath && remotePath !== '/') && (
               <button
+                type="button"
                 className="w-full group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-mui-grey-100 dark:hover:bg-mui-grey-800 cursor-pointer border border-transparent transition-all select-none outline-none focus:bg-mui-grey-100 dark:focus:bg-mui-grey-800 bg-transparent p-0 text-left"
                 onDoubleClick={onNavigateUp}
                 onKeyDown={handleActionKey(onNavigateUp)}
@@ -139,7 +140,8 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
                 onContextMenu={(e) => onFileContextMenu(e, file)}
               >
                 <button
-                  className="flex-1 flex items-center gap-2 outline-none text-left min-w-0"
+                  type="button"
+                  className="flex-1 flex items-center gap-2 outline-none text-left min-w-0 bg-transparent border-none p-0"
                   onDoubleClick={() => onFileDoubleClick(file)}
                   onKeyDown={handleActionKey(() => onFileDoubleClick(file))}
                 >

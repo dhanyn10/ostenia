@@ -33,6 +33,7 @@ const StatusBar = ({ services }) => {
  className="relative h-full"
  >
  <button
+   type="button"
  onKeyDown={handleActionKey(() => setIsDropdownOpen(!isDropdownOpen))} onClick={() => setIsDropdownOpen(!isDropdownOpen)}
  className={cn(
  "flex items-center gap-1.5 px-2 h-full transition-colors border-none p-0 focus:outline-none",

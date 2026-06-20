@@ -80,6 +80,7 @@ function PluginItem({
 
  {installedVersions.map(ver => (
  <button
+   type="button"
  key={ver}
  onClick={(e) => { e.stopPropagation(); onDeleteVersion(task.name, ver); }}
  onKeyDown={handleActionKey(() => onDeleteVersion(task.name, ver))}

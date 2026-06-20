@@ -77,6 +77,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
  return (
  <div className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-transparent animate-in fade-in duration-300">
  <button
+ type="button"
  className="absolute inset-0 w-full h-full bg-transparent border-none p-0 cursor-default focus:outline-none"
  onKeyDown={handleActionKey(onClose)} onClick={onClose}
  />
@@ -125,10 +126,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
  <div className="flex-1 overflow-y-auto px-2 space-y-1">
  {filteredCategories.map(cat => (
  <button
+ type="button"
  key={cat.id}
  onKeyDown={handleActionKey(() => setActiveCategory(cat.id))} onClick={() => setActiveCategory(cat.id)}
  className={cn(
- "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all group",
+ "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all group bg-transparent border-none",
  activeCategory === cat.id
  ? "bg-mui-blue-500 text-white shadow-lg shadow-mui-blue-500/30"
  : "text-mui-grey-600 dark:text-mui-grey-400 hover:bg-white dark:hover:bg-white/5"

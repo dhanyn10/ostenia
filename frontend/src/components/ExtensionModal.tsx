@@ -21,6 +21,7 @@ function ExtensionModal({ isOpen, onClose, extensions, onToggle, serviceName }) 
  <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
  {/* Backdrop */}
  <button
+   type="button"
  className="absolute inset-0 bg-slate-950/40 animate-in fade-in duration-300 w-full h-full border-none p-0 cursor-default focus:outline-none"
  onKeyDown={handleActionKey(onClose)} onClick={onClose}
  />

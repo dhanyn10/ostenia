@@ -30,8 +30,9 @@ const ProfileCategory: React.FC<ProfileCategoryProps> = ({ initApp }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <button
+          type="button"
           onKeyDown={handleActionKey(handleImport)} onClick={handleImport}
-          className="flex items-start gap-4 p-4 rounded-lg border border-mui-grey-200 dark:border-white/10 hover:bg-mui-grey-50 dark:hover:bg-white/5 transition-all group"
+          className="flex items-start gap-4 p-4 rounded-lg border border-mui-grey-200 dark:border-white/10 hover:bg-mui-grey-50 dark:hover:bg-white/5 transition-all group bg-transparent text-left"
         >
           <div className="p-3 rounded-full bg-mui-blue-500/10 text-mui-blue-500 group-hover:scale-110 transition-transform">
             <Upload size={24} />
@@ -43,8 +44,9 @@ const ProfileCategory: React.FC<ProfileCategoryProps> = ({ initApp }) => {
         </button>
 
         <button
+          type="button"
           onKeyDown={handleActionKey(() => handleExport('all'))} onClick={() => handleExport('all')}
-          className="flex items-start gap-4 p-4 rounded-lg border border-mui-grey-200 dark:border-white/10 hover:bg-mui-grey-50 dark:hover:bg-white/5 transition-all group"
+          className="flex items-start gap-4 p-4 rounded-lg border border-mui-grey-200 dark:border-white/10 hover:bg-mui-grey-50 dark:hover:bg-white/5 transition-all group bg-transparent text-left"
         >
           <div className="p-3 rounded-full bg-emerald-500/10 text-emerald-500 group-hover:scale-110 transition-transform">
             <Download size={24} />
