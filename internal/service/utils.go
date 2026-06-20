@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"ostenia/internal/network"
+	"ostenia/internal/plugins/utils"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -34,7 +36,10 @@ func RunMeAsAdmin() error {
 	args := strings.Join(os.Args[1:], " ")
 
 	if runtime.GOOS == "windows" {
-		return exec.Command("cmd", "/c", "powershell", "Start-Process", "-FilePath", fmt.Sprintf("'%s'", exe), "-ArgumentList", fmt.Sprintf("'%s'", args), "-Verb", verb).Run()
+		cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
+		cmd := exec.Command(cmdPath, "/c", "powershell", "Start-Process", "-FilePath", fmt.Sprintf("'%s'", exe), "-ArgumentList", fmt.Sprintf("'%s'", args), "-Verb", verb)
+		cmd.Env = utils.SafeEnv()
+		return cmd.Run()
 	}
 
 	return fmt.Errorf("elevation not supported on this platform")
@@ -65,7 +70,10 @@ func AddHostWithElevation(ip string, hostname string) error {
 		// Use powershell to start a process as admin to run a command that adds the host
 		// We'll call ourselves with a special flag --add-host
 		args := fmt.Sprintf("--add-host %s %s", ip, hostname)
-		return exec.Command("cmd", "/c", "powershell", "Start-Process", "-FilePath", fmt.Sprintf("'%s'", exe), "-ArgumentList", fmt.Sprintf("'%s'", args), "-Verb", "runas", "-WindowStyle", "Hidden").Run()
+		cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
+		cmd := exec.Command(cmdPath, "/c", "powershell", "Start-Process", "-FilePath", fmt.Sprintf("'%s'", exe), "-ArgumentList", fmt.Sprintf("'%s'", args), "-Verb", "runas", "-WindowStyle", "Hidden")
+		cmd.Env = utils.SafeEnv()
+		return cmd.Run()
 	}
 
 	return fmt.Errorf("elevation required but not supported on this platform")

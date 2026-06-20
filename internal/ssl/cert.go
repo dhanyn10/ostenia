@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"runtime"
 	"time"
@@ -43,7 +44,7 @@ func GenerateRootCA(destDir string) error {
 	expiration := time.Now().AddDate(1, 0, 0)
 
 	pubBytes, _ := x509.MarshalPKIXPublicKey(&priv.PublicKey)
-	skid := sha1.Sum(pubBytes)
+	skid := sha1.Sum(pubBytes) // NOSONAR
 
 	template := x509.Certificate{
 		SerialNumber:          big.NewInt(time.Now().Unix()),
@@ -100,9 +101,13 @@ func GetRemainingDays(certPath string) (int, error) {
 func TrustRootCA(caPath string) error {
 	if runtime.GOOS == "windows" {
 		// Add to both Local Machine (if admin) and Current User to ensure visibility
-		exec.Command("certutil", "-addstore", "-f", "Root", caPath).Run()
-		cmd := exec.Command("certutil", "-user", "-addstore", "-f", "Root", caPath)
-		return cmd.Run()
+		certutilPath := filepath.Join(utils.GetSystemDirectory(), "certutil.exe")
+		cmd1 := exec.Command(certutilPath, "-addstore", "-f", "Root", caPath)
+		cmd1.Env = utils.SafeEnv()
+		_ = cmd1.Run()
+		cmd2 := exec.Command(certutilPath, "-user", "-addstore", "-f", "Root", caPath)
+		cmd2.Env = utils.SafeEnv()
+		return cmd2.Run()
 	}
 	return nil
 }
@@ -137,7 +142,7 @@ func SignCertificate(caDir string, domain string, destDir string) error {
 	if err != nil { return err }
 
 	pubBytes, _ := x509.MarshalPKIXPublicKey(&priv.PublicKey)
-	skid := sha1.Sum(pubBytes)
+	skid := sha1.Sum(pubBytes) // NOSONAR
 
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(time.Now().Unix()),

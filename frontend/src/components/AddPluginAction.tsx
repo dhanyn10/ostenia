@@ -12,7 +12,8 @@ function AddPluginAction({ isAddingPlugin, setIsAddingPlugin, prerequisites, ser
  return (
  <div className="mb-3 relative">
  <button
- role="button" tabIndex={0} onKeyDown={handleActionKey(() => setIsAddingPlugin(!isAddingPlugin))} onClick={() => setIsAddingPlugin(!isAddingPlugin)}
+   type="button"
+ onKeyDown={handleActionKey(() => setIsAddingPlugin(!isAddingPlugin))} onClick={() => setIsAddingPlugin(!isAddingPlugin)}
  className="w-full bg-slate-100/50 dark:bg-white/[0.01] border border-dashed border-slate-300 dark:border-white/5 hover:border-blue-500/20 hover:bg-blue-500/5 rounded-sm p-3 transition-all flex items-center justify-center gap-3 group"
  >
  <Plus size={14} className={cn("transition-colors", isAddingPlugin ? "text-rose-500" : "text-slate-400 group-hover:text-blue-500")} />
@@ -27,8 +28,9 @@ function AddPluginAction({ isAddingPlugin, setIsAddingPlugin, prerequisites, ser
  {prerequisites.filter(p => !services.find(s => s.name === p.name)).map(task => {
  return (
  <button
+   type="button"
  key={task.name}
- role="button" tabIndex={0} onKeyDown={handleActionKey(() => handleAddToHome(task))} onClick={() => handleAddToHome(task)}
+ onKeyDown={handleActionKey(() => handleAddToHome(task))} onClick={() => handleAddToHome(task)}
  className="flex items-center gap-2.5 p-2.5 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 rounded-sm text-left transition-all group/item"
  >
  <div className="w-7 h-7 rounded-sm bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover/item:bg-blue-500 group-hover/item:text-white transition-all">

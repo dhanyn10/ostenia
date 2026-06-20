@@ -43,8 +43,8 @@ function LogViewer({ logs }) {
  </div>
  ) : (
  <div className="flex flex-col-reverse justify-end min-h-full">
- {logs.map((log, i) => (
- <div key={i} className="flex gap-4 group py-0.5 border-b border-transparent hover:border-slate-100 dark:hover:border-white/5 transition-all">
+          {logs.map((log) => (
+            <div key={log.id} className="flex gap-4 group py-0.5 border-b border-transparent hover:border-slate-100 dark:hover:border-white/5 transition-all">
  <span className="text-slate-400 dark:text-slate-600 select-none shrink-0 w-20">[{log.time}]</span>
  <span className={cn(
  "flex-1 break-all leading-relaxed",

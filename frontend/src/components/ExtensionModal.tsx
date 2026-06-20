@@ -20,9 +20,10 @@ function ExtensionModal({ isOpen, onClose, extensions, onToggle, serviceName }) 
  return (
  <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
  {/* Backdrop */}
- <div
- className="absolute inset-0 bg-slate-950/40 animate-in fade-in duration-300"
- role="button" tabIndex={0} onKeyDown={handleActionKey(onClose)} onClick={onClose}
+ <button
+   type="button"
+ className="absolute inset-0 bg-slate-950/40 animate-in fade-in duration-300 w-full h-full border-none p-0 cursor-default focus:outline-none"
+ onKeyDown={handleActionKey(onClose)} onClick={onClose}
  />
 
  {/* Modal Content */}

@@ -14,9 +14,10 @@ function ConfirmationModal({ isOpen, title, message, onConfirm, onCancel, confir
  return (
  <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6">
  {/* Backdrop */}
- <div
- className="absolute inset-0 bg-slate-900/60 animate-in fade-in duration-300"
- role="button" tabIndex={0} onKeyDown={handleActionKey(onCancel)} onClick={onCancel}
+ <button
+   type="button"
+ className="absolute inset-0 bg-slate-900/60 animate-in fade-in duration-300 w-full h-full border-none p-0 cursor-default focus:outline-none"
+ onKeyDown={handleActionKey(onCancel)} onClick={onCancel}
  />
 
  {/* Modal */}

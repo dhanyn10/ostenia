@@ -79,10 +79,9 @@ function PluginItem({
  )}
 
  {installedVersions.map(ver => (
- <div
+ <button
+   type="button"
  key={ver}
- role="button"
- tabIndex={0}
  onClick={(e) => { e.stopPropagation(); onDeleteVersion(task.name, ver); }}
  onKeyDown={handleActionKey(() => onDeleteVersion(task.name, ver))}
  className="group/tag flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 text-[8px] font-bold uppercase tracking-widest rounded-sm hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400 transition-all cursor-pointer shadow-sm outline-none focus:ring-1 focus:ring-rose-500/40"
@@ -90,7 +89,7 @@ function PluginItem({
  >
  <Trash2 size={10} className="w-0 opacity-0 group-hover/tag:w-2.5 group-hover/tag:opacity-100 transition-all text-rose-500" />
  {ver}
- </div>
+ </button>
  ))}
  </div>
  </div>
