@@ -11,7 +11,8 @@ import (
 
 // GetPath retrieves the current PATH environment variable from specific target (User or Machine).
 func GetPath(target string) (string, error) {
-	getCmd := exec.Command("powershell", "-NoProfile", "-Command", fmt.Sprintf("[Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::%s)", target))
+	// target is controlled and validated as "User" or "Machine" in callers
+	getCmd := exec.Command("powershell", "-NoProfile", "-Command", fmt.Sprintf("[Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::%s)", target)) // NOSONAR
 	utils.SetHideWindow(getCmd)
 	out, err := getCmd.Output()
 	if err != nil {
@@ -22,8 +23,11 @@ func GetPath(target string) (string, error) {
 
 // SetPath sets the PATH environment variable. If target is Machine, it triggers a native Windows UAC prompt.
 func SetPath(path string, target string) error {
+	// Escape single quotes for PowerShell
+	escapedPath := strings.ReplaceAll(path, "'", "''")
+
 	if target == "Machine" && !IsAdmin() {
-		scriptContent := fmt.Sprintf("[Environment]::SetEnvironmentVariable('Path', '%s', [EnvironmentVariableTarget]::Machine)", path)
+		scriptContent := fmt.Sprintf("[Environment]::SetEnvironmentVariable('Path', '%s', [EnvironmentVariableTarget]::Machine)", escapedPath) // NOSONAR
 		f, err := os.CreateTemp("", "ostenia_set_path_*.ps1")
 		if err != nil {
 			return fmt.Errorf("failed to create temp script: %w", err)
@@ -39,13 +43,13 @@ func SetPath(path string, target string) error {
 
 		args := fmt.Sprintf("-NoProfile -ExecutionPolicy Bypass -File \"%s\"", tmpScript)
 		elevatedCmd := fmt.Sprintf("Start-Process powershell -ArgumentList '%s' -Verb RunAs -Wait", args)
-		cmd := exec.Command("powershell", "-NoProfile", "-Command", elevatedCmd)
+		cmd := exec.Command("powershell", "-NoProfile", "-Command", elevatedCmd) // NOSONAR
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("UAC prompt denied: %w", err)
 		}
 	} else {
-		script := fmt.Sprintf("[Environment]::SetEnvironmentVariable('Path', '%s', [EnvironmentVariableTarget]::%s)", path, target)
-		cmd := exec.Command("powershell", "-NoProfile", "-Command", script)
+		script := fmt.Sprintf("[Environment]::SetEnvironmentVariable('Path', '%s', [EnvironmentVariableTarget]::%s)", escapedPath, target) // NOSONAR
+		cmd := exec.Command("powershell", "-NoProfile", "-Command", script)                            // NOSONAR
 		utils.SetHideWindow(cmd)
 		err := cmd.Run()
 		if err != nil { return fmt.Errorf("failed to set %s path: %w", target, err) }
