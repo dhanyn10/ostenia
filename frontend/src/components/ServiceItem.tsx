@@ -187,7 +187,7 @@ const ServiceExtraActions: React.FC<any> = ({
       {hasHeidiOpen && (
         <button
           type="button"
-          onClick={() => (window as any).go.main.App.OpenHeidiSQL()}
+          onClick={() => (globalThis as any).go.main.App.OpenHeidiSQL()}
           className="flex items-center gap-2 px-3 py-1.5 h-8 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20"
         >
           <Monitor size={14} /> Open HeidiSQL
