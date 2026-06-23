@@ -13,7 +13,6 @@ import { twMerge } from 'tailwind-merge';
 import ProfileCategory from './settings/ProfileCategory';
 import GlobalConfigCategory from './settings/GlobalConfigCategory';
 import SSHManagementCategory from './settings/SSHManagementCategory';
-import { handleActionKey } from '../utils/a11y';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -79,7 +78,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       <button
         type="button"
         className="absolute inset-0 w-full h-full bg-transparent border-none p-0 cursor-default focus:outline-none"
-        onKeyDown={handleActionKey(onClose)} onClick={onClose}
+        onClick={onClose}
       />
       <div
         onClick={(e) => e.stopPropagation()}
@@ -130,7 +129,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 <button
                   type="button"
                   key={cat.id}
-                  onKeyDown={handleActionKey(() => setActiveCategory(cat.id))} onClick={() => setActiveCategory(cat.id)}
+                  onClick={() => setActiveCategory(cat.id)}
                   className={cn(
                     "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all group bg-transparent border-none",
                     activeCategory === cat.id

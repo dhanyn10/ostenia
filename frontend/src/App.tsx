@@ -93,7 +93,7 @@ function App() {
 
  const renderIcon = (name: string, size = 20, className = "") => {
  const task = (prerequisites || []).find(p => p.name === name);
- if (task && task.iconSvg) return <Icons.Raw svgString={task.iconSvg} size={size} className={className} />;
+ if (task?.iconSvg) return <Icons.Raw svgString={task.iconSvg} size={size} className={className} />;
  return null;
  };
 
@@ -114,12 +114,12 @@ function App() {
  setSelectedVersions(prev => {
  const next = { ...prev };
  (tasks as any[]).forEach(t => {
- if (t.name === 'OpenSSL' && t.installedVers && t.installedVers.length > 0) {
+ if (t.name === 'OpenSSL' && t.installedVers?.length > 0) {
  next[t.name] = t.installedVers[0];
  return;
  }
  if (!next[t.name]) {
- if (t.installedVers && t.installedVers.length > 0) {
+ if (t.installedVers?.length > 0) {
  next[t.name] = t.installedVers[0];
  } else if (t.version) {
  next[t.name] = t.version;
@@ -283,7 +283,7 @@ function App() {
    const category = categoryMap[task.name] || task.name.toLowerCase();
    const prefix = prefixMap[task.name] || '';
    modifiedTask.target = `${category}/${prefix}${selectedVer}`;
-   if (task.versionUrls && task.versionUrls[selectedVer]) {
+   if (task.versionUrls?.[selectedVer]) {
      modifiedTask.url = task.versionUrls[selectedVer];
    }
    try { await AppBackend.InstallPrerequisite(modifiedTask); } catch (e: any) { addToast('Error', e.toString(), 'error'); }

@@ -2,8 +2,6 @@ import React from 'react';
 import { Activity, Globe, Trash2, FolderOpen, Clock, Lock, Unlock, Terminal, ChevronDown, Monitor, CheckCircle2, Settings2 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { handleActionKey } from '../utils/a11y';
-
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -53,7 +51,6 @@ const VersionSwitcher: React.FC<any> = ({ service, task, handleSwitchVersion }) 
           <button
             key={ver}
             type="button"
-            onKeyDown={handleActionKey(() => handleSwitchVersion(service.name, ver))}
             onClick={() => handleSwitchVersion(service.name, ver)}
             className={cn(
               "px-1.5 py-0.5 rounded-sm text-[8px] font-black uppercase tracking-widest border transition-all",
@@ -121,7 +118,7 @@ const MainActions: React.FC<any> = ({ isInstalled, service, handleToggleService,
     ) : (
       <button
         type="button"
-        onKeyDown={handleActionKey(() => handleToggleService(service.name, service.status))} onClick={() => handleToggleService(service.name, service.status)}
+        onClick={() => handleToggleService(service.name, service.status)}
         className={cn(
           "w-12 h-6 rounded-sm p-0.5 transition-all duration-300 ease-in-out relative ring-1 ring-inset",
           service.status === 'Running'
@@ -138,7 +135,7 @@ const MainActions: React.FC<any> = ({ isInstalled, service, handleToggleService,
 
     <button
       type="button"
-      onKeyDown={handleActionKey(() => handleRemoveFromHome(service.name))} onClick={() => handleRemoveFromHome(service.name)}
+      onClick={() => handleRemoveFromHome(service.name)}
       className="h-6 px-3 bg-slate-100 dark:bg-white/5 hover:bg-rose-500/10 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-white/5"
     >
       <Trash2 size={12} />
@@ -190,7 +187,7 @@ const ServiceExtraActions: React.FC<any> = ({
       {hasHeidiOpen && (
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); (window as any).go.main.App.OpenHeidiSQL(); }}
+          onClick={() => (globalThis as any).go.main.App.OpenHeidiSQL()}
           className="flex items-center gap-2 px-3 py-1.5 h-8 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20"
         >
           <Monitor size={14} /> Open HeidiSQL
@@ -213,7 +210,7 @@ const ServiceExtraActions: React.FC<any> = ({
 
           {openTerminalDropdown === service.name && (
             <>
-              <button type="button" className="fixed inset-0 z-[150] w-full h-full bg-transparent border-none p-0 cursor-default focus:outline-none" onKeyDown={handleActionKey(() => setOpenTerminalDropdown(null))} onClick={() => setOpenTerminalDropdown(null)} />
+              <button type="button" className="fixed inset-0 z-[150] w-full h-full bg-transparent border-none p-0 cursor-default focus:outline-none" onClick={() => setOpenTerminalDropdown(null)} />
               <div className="absolute top-full left-0 mt-1 w-40 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-sm shadow-2xl z-[160] animate-in fade-in slide-in-from-top-1 duration-200">
                 <div className="p-1">
                   <button type="button" onClick={() => handleOpenLocalTerminal(service.name, 'cmd')} className="w-full flex items-center gap-3 px-3 py-1.5 rounded-sm text-[10px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"><Monitor size={12} className="text-blue-500" /> CMD</button>
@@ -303,7 +300,6 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
               hasExtraActions ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5" : "cursor-default"
             )}
             onClick={() => onToggleAccordion(service.name, hasExtraActions)}
-            onKeyDown={handleActionKey(() => onToggleAccordion(service.name, hasExtraActions))}
           >
             <ServiceIdentity service={service} renderIcon={renderIcon} />
             <ServiceStatus service={service} />
