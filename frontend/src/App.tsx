@@ -23,6 +23,8 @@ function cn(...inputs: ClassValue[]) {
  return twMerge(clsx(inputs));
 }
 
+const formatLogArgs = (args: any[]) => args.map(a => (typeof a === 'object' ? JSON.stringify(a) : a)).join(' ');
+
 interface ServiceInfo {
   name: string;
   status: string;
@@ -93,17 +95,17 @@ function App() {
 
  const renderIcon = (name: string, size = 20, className = "") => {
  const task = (prerequisites || []).find(p => p.name === name);
- if (task && task.iconSvg) return <Icons.Raw svgString={task.iconSvg} size={size} className={className} />;
+ if (task?.iconSvg) return <Icons.Raw svgString={task.iconSvg} size={size} className={className} />;
  return null;
  };
+
+ const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
  const addToast = (title: string, message: string, type: 'info' | 'success' | 'warn' | 'error' = 'info') => {
  const id = crypto.randomUUID();
  setToasts(prev => [...prev, { id, title, message, type }]);
- setTimeout(() => setToasts(curr => curr.filter(t => t.id !== id)), 5000);
+ setTimeout(() => removeToast(id), 5000);
  };
-
- const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
  const refreshPrerequisites = async () => {
  if (!(AppBackend as any).GetPrerequisites) return;
@@ -113,19 +115,19 @@ function App() {
  if (tasks) {
  setSelectedVersions(prev => {
  const next = { ...prev };
- (tasks as any[]).forEach(t => {
- if (t.name === 'OpenSSL' && t.installedVers && t.installedVers.length > 0) {
+ for (const t of (tasks as any[])) {
+ if (t.name === 'OpenSSL' && t.installedVers?.length > 0) {
  next[t.name] = t.installedVers[0];
- return;
+ continue;
  }
  if (!next[t.name]) {
- if (t.installedVers && t.installedVers.length > 0) {
+ if (t.installedVers?.length > 0) {
  next[t.name] = t.installedVers[0];
  } else if (t.version) {
  next[t.name] = t.version;
  }
  }
- });
+ }
  return next;
  });
  }
@@ -195,16 +197,16 @@ function App() {
  const originalError = console.error;
 
  console.log = (...args: any[]) => {
-   addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'info');
-   originalLog.apply(console, args);
+ addLog(formatLogArgs(args), 'info');
+ originalLog.apply(console, args);
  };
  console.warn = (...args: any[]) => {
-   addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'warn');
-   originalWarn.apply(console, args);
+ addLog(formatLogArgs(args), 'warn');
+ originalWarn.apply(console, args);
  };
  console.error = (...args: any[]) => {
-   addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'error');
-   originalError.apply(console, args);
+ addLog(formatLogArgs(args), 'error');
+ originalError.apply(console, args);
  };
 
  initApp();
@@ -271,6 +273,10 @@ function App() {
    }
  };
 
+ const handleRemoveFromHome = (name: string) => {
+   setServices(prev => prev.filter(s => s.name !== name));
+ };
+
  const handleInstallSingle = async (task: any) => {
    const selectedVer = selectedVersions[task.name] || task.version;
    setDownloadProgress(prev => ({ ...prev, [task.name]: { name: task.name, percentage: 0, status: 'Starting...' } }));
@@ -283,7 +289,7 @@ function App() {
    const category = categoryMap[task.name] || task.name.toLowerCase();
    const prefix = prefixMap[task.name] || '';
    modifiedTask.target = `${category}/${prefix}${selectedVer}`;
-   if (task.versionUrls && task.versionUrls[selectedVer]) {
+   if (task.versionUrls?.[selectedVer]) {
      modifiedTask.url = task.versionUrls[selectedVer];
    }
    try { await AppBackend.InstallPrerequisite(modifiedTask); } catch (e: any) { addToast('Error', e.toString(), 'error'); }
@@ -358,7 +364,7 @@ function App() {
  handleAddToHome={handleAddToHome}
  renderIcon={renderIcon}
  handleToggleService={handleToggleService}
- handleRemoveFromHome={(name: string) => setServices(prev => prev.filter(s => s.name !== name))}
+ handleRemoveFromHome={handleRemoveFromHome}
  setActiveTab={setActiveTab}
  handleOpenPluginFolder={(name: string) => AppBackend.OpenPluginFolder(name)}
  handleOpenServerRootFolder={() => AppBackend.OpenServerRootFolder()}
