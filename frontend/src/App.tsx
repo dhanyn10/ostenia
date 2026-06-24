@@ -92,9 +92,8 @@ function App() {
  }, []);
 
  const renderIcon = (name: string, size = 20, className = "") => {
- const task = (prerequisites || []).find(p => p.name === name);
- if (task?.iconSvg) return <Icons.Raw svgString={task.iconSvg} size={size} className={className} />;
- return null;
+   const task = prerequisites?.find(p => p.name === name);
+   return task?.iconSvg ? <Icons.Raw svgString={task.iconSvg} size={size} className={className} /> : null;
  };
 
  const addToast = (title: string, message: string, type: 'info' | 'success' | 'warn' | 'error' = 'info') => {
@@ -105,57 +104,60 @@ function App() {
 
  const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
+ const updateSelectedVersions = useCallback((tasks: any[]) => {
+   setSelectedVersions(prev => {
+     const next = { ...prev };
+     for (const t of tasks) {
+       if (t.name === 'OpenSSL' && t.installedVers?.length > 0) {
+         next[t.name] = t.installedVers[0];
+         continue;
+       }
+       if (!next[t.name]) {
+         if (t.installedVers?.length > 0) {
+           next[t.name] = t.installedVers[0];
+         } else if (t.version) {
+           next[t.name] = t.version;
+         }
+       }
+     }
+     return next;
+   });
+ }, []);
+
  const refreshPrerequisites = async () => {
- if (!(AppBackend as any).GetPrerequisites) return;
- try {
- const tasks = await AppBackend.GetPrerequisites();
- setPrerequisites(tasks || []);
- if (tasks) {
- setSelectedVersions(prev => {
- const next = { ...prev };
- (tasks as any[]).forEach(t => {
- if (t.name === 'OpenSSL' && t.installedVers?.length > 0) {
- next[t.name] = t.installedVers[0];
- return;
- }
- if (!next[t.name]) {
- if (t.installedVers?.length > 0) {
- next[t.name] = t.installedVers[0];
- } else if (t.version) {
- next[t.name] = t.version;
- }
- }
- });
- return next;
- });
- }
- } catch (err) { console.error(err); }
+   if (!(AppBackend as any).GetPrerequisites) return;
+   try {
+     const tasks = await AppBackend.GetPrerequisites();
+     const tasksArray = tasks ?? [];
+     setPrerequisites(tasksArray);
+     if (tasksArray.length > 0) {
+       updateSelectedVersions(tasksArray);
+     }
+   } catch (err) { console.error(err); }
  };
 
  const loadInitialData = async () => {
- if (!(AppBackend as any).GetConfig) return;
- try {
- const cfg = await AppBackend.GetConfig();
- if (cfg) {
- setServerRootState(cfg.wwwRoot || '');
- setAppsLocation(cfg.baseDir || '');
- setApacheHttps(cfg.apacheHttps || false);
- setNginxHttps(cfg.nginxHttps || false);
- setDefaultEditor(cfg.defaultEditor || '');
- }
- if (AppBackend.GetServiceStatus) {
- const updatedServices = await Promise.all(
- services.map(async (service) => {
- try {
- const detail = await AppBackend.GetServiceStatus(service.name);
- if (!detail) return service;
- return { ...service, ...detail, status: detail.status || 'Stopped' } as ServiceInfo;
- } catch (e) { return service; }
- })
- );
- setServices(updatedServices);
- }
- } catch (err) { console.error(err); }
+   if (!(AppBackend as any).GetConfig) return;
+   try {
+     const cfg = await AppBackend.GetConfig();
+     setServerRootState(cfg?.wwwRoot ?? '');
+     setAppsLocation(cfg?.baseDir ?? '');
+     setApacheHttps(cfg?.apacheHttps ?? false);
+     setNginxHttps(cfg?.nginxHttps ?? false);
+     setDefaultEditor(cfg?.defaultEditor ?? '');
+
+     if (AppBackend.GetServiceStatus) {
+       const updatedServices = await Promise.all(
+         services.map(async (service) => {
+           try {
+             const detail = await AppBackend.GetServiceStatus(service.name);
+             return detail ? { ...service, ...detail, status: detail.status ?? 'Stopped' } : service;
+           } catch (e) { return service; }
+         })
+       );
+       setServices(updatedServices as ServiceInfo[]);
+     }
+   } catch (err) { console.error(err); }
  };
 
  const initApp = async () => {
@@ -189,39 +191,42 @@ function App() {
    }
  };
 
- useEffect(() => {
- const originalLog = console.log;
- const originalWarn = console.warn;
- const originalError = console.error;
-
- console.log = (...args: any[]) => {
-   addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'info');
-   originalLog.apply(console, args);
- };
- console.warn = (...args: any[]) => {
-   addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'warn');
-   originalWarn.apply(console, args);
- };
- console.error = (...args: any[]) => {
-   addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'error');
-   originalError.apply(console, args);
- };
-
- initApp();
-
- if (window.runtime) {
-   EventsOn('service_log', handleServiceLog);
-   EventsOn('service_status', handleServiceStatus);
-   EventsOn('download_progress', handleDownloadProgress);
-   EventsOn('environment_changed', initApp);
- }
-
- return () => {
-   console.log = originalLog;
-   console.warn = originalWarn;
-   console.error = originalError;
- };
+ const setupConsoleOverrides = useCallback((originalLog: any, originalWarn: any, originalError: any) => {
+   console.log = (...args: any[]) => {
+     addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'info');
+     originalLog.apply(console, args);
+   };
+   console.warn = (...args: any[]) => {
+     addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'warn');
+     originalWarn.apply(console, args);
+   };
+   console.error = (...args: any[]) => {
+     addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'error');
+     originalError.apply(console, args);
+   };
  }, [addLog]);
+
+ useEffect(() => {
+   const originalLog = console.log;
+   const originalWarn = console.warn;
+   const originalError = console.error;
+
+   setupConsoleOverrides(originalLog, originalWarn, originalError);
+   initApp();
+
+   if (window.runtime) {
+     EventsOn('service_log', handleServiceLog);
+     EventsOn('service_status', handleServiceStatus);
+     EventsOn('download_progress', handleDownloadProgress);
+     EventsOn('environment_changed', initApp);
+   }
+
+   return () => {
+     console.log = originalLog;
+     console.warn = originalWarn;
+     console.error = originalError;
+   };
+ }, [addLog, setupConsoleOverrides]);
 
  // Main action handlers
  const handleBrowseAppsLocation = async () => {
@@ -242,6 +247,11 @@ function App() {
    setIsAddingPlugin(false);
  };
 
+ const handleConfirmHeidiSQLUninstall = useCallback((name: string) => {
+   AppBackend.StopService(name);
+   handleCloseConfirmModal();
+ }, [handleCloseConfirmModal]);
+
  const handleToggleService = (name: string, status: string) => {
    if (status === 'Running') {
      if (name === 'HeidiSQL') {
@@ -250,10 +260,7 @@ function App() {
          title: 'Uninstall HeidiSQL',
          message: 'Are you sure you want to uninstall HeidiSQL from your system? This will remove the application but your database data should remain intact.',
          type: 'danger',
-         onConfirm: () => {
-           AppBackend.StopService(name);
-           setConfirmModal((prev: any) => ({ ...prev, isOpen: false }));
-         }
+         onConfirm: () => handleConfirmHeidiSQLUninstall(name)
        });
        return;
      }
@@ -308,6 +315,19 @@ function App() {
    }
  };
 
+ const handleOpenSettings = (category: string) => setSettingsModal({ isOpen: true, category });
+ const handleRemoveFromHome = (name: string) => setServices(prev => prev.filter(s => s.name !== name));
+ const handleDeleteVersion = (name: string, ver: string) => AppBackend.DeleteVersion(name, ver).then(refreshPrerequisites);
+ const handleOpenPluginFolder = (name: string) => AppBackend.OpenPluginFolder(name);
+ const handleCloseSettings = () => setSettingsModal(prev => ({ ...prev, isOpen: false }));
+ const handleCloseConfirmModal = () => setConfirmModal(prev => ({ ...prev, isOpen: false }));
+ const handleStartAll = () => AppBackend.StartAllServices();
+ const handleStopAll = () => AppBackend.StopAllServices();
+ const handleTerminal = (type: string) => { AppBackend.OpenTerminal(type); setIsTerminalOpen(false); };
+ const handleOpenServerRootFolder = () => AppBackend.OpenServerRootFolder();
+ const handleOpenAppsLocationFolder = () => AppBackend.OpenAppsLocationFolder();
+ const handleCancelDownload = (name: string) => AppBackend.CancelDownload(name);
+
  return (
  <div className={cn(
  "flex flex-col h-screen font-sans selection:bg-mui-blue-500/30 overflow-hidden transition-colors duration-300 fixed inset-0",
@@ -316,7 +336,7 @@ function App() {
  <MenuBar
  theme={theme}
  setTheme={setTheme}
- onOpenSettings={(category: string) => setSettingsModal({ isOpen: true, category })}
+ onOpenSettings={handleOpenSettings}
  />
 
  <div className="flex-1 flex min-h-0 overflow-hidden relative">
@@ -333,9 +353,9 @@ function App() {
  <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
  <AppHeader
  activeTab={activeTab}
- handleStartAll={() => AppBackend.StartAllServices()}
- handleStopAll={() => AppBackend.StopAllServices()}
- handleTerminal={(type: string) => { AppBackend.OpenTerminal(type); setIsTerminalOpen(false); }}
+ handleStartAll={handleStartAll}
+ handleStopAll={handleStopAll}
+ handleTerminal={handleTerminal}
  isTerminalOpen={isTerminalOpen}
  setIsTerminalOpen={setIsTerminalOpen}
  />
@@ -358,11 +378,11 @@ function App() {
  handleAddToHome={handleAddToHome}
  renderIcon={renderIcon}
  handleToggleService={handleToggleService}
- handleRemoveFromHome={(name: string) => setServices(prev => prev.filter(s => s.name !== name))}
+ handleRemoveFromHome={handleRemoveFromHome}
  setActiveTab={setActiveTab}
- handleOpenPluginFolder={(name: string) => AppBackend.OpenPluginFolder(name)}
- handleOpenServerRootFolder={() => AppBackend.OpenServerRootFolder()}
- handleOpenAppsLocationFolder={() => AppBackend.OpenAppsLocationFolder()}
+ handleOpenPluginFolder={handleOpenPluginFolder}
+ handleOpenServerRootFolder={handleOpenServerRootFolder}
+ handleOpenAppsLocationFolder={handleOpenAppsLocationFolder}
  apacheHttps={apacheHttps}
  nginxHttps={nginxHttps}
  handleToggleHttps={handleToggleHttps}
@@ -378,9 +398,9 @@ function App() {
  setOpenDropdown={setOpenDropdown}
  selectedVersions={selectedVersions}
  setSelectedVersions={setSelectedVersions}
- handleDeleteVersion={(name: string, ver: string) => AppBackend.DeleteVersion(name, ver).then(refreshPrerequisites)}
+ handleDeleteVersion={handleDeleteVersion}
  handleInstallSingle={handleInstallSingle}
- handleCancel={(name: string) => AppBackend.CancelDownload(name)}
+ handleCancel={handleCancelDownload}
  renderIcon={renderIcon}
  handleInstallModule={handleInstallModule}
  handleUninstallModule={handleUninstallModule}
@@ -392,7 +412,7 @@ function App() {
  </div>
 
  <div className={cn("h-full flex flex-col", activeTab !== 'ssh' && "hidden")}>
- <SSHTab addToast={addToast} theme={theme} onOpenSettings={(category: string) => setSettingsModal({ isOpen: true, category })} />
+ <SSHTab addToast={addToast} theme={theme} onOpenSettings={handleOpenSettings} />
  </div>
 
  <div className={cn("h-full flex flex-col", activeTab !== 'logs' && "hidden")}>
@@ -407,7 +427,7 @@ function App() {
 
  <SettingsModal
  isOpen={settingsModal.isOpen}
- onClose={() => setSettingsModal(prev => ({ ...prev, isOpen: false }))}
+ onClose={handleCloseSettings}
  initialCategory={settingsModal.category}
  appConfig={{
  baseDir: appsLocation,
@@ -426,7 +446,7 @@ function App() {
  message={confirmModal.message}
  type={confirmModal.type}
  onConfirm={confirmModal.onConfirm}
- onCancel={() => setConfirmModal((prev: any) => ({ ...prev, isOpen: false }))}
+ onCancel={handleCloseConfirmModal}
  />
  </div>
  );
