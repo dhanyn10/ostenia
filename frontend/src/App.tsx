@@ -75,38 +75,39 @@ function App() {
  type: 'danger'
  });
 
- useEffect(() => {
- if (theme === 'dark') {
- document.documentElement.classList.add('dark');
- document.documentElement.classList.remove('light');
- } else {
- document.documentElement.classList.add('light');
- document.documentElement.classList.remove('dark');
- }
- localStorage.setItem('theme', theme);
- }, [theme]);
-
+ // Define simple state setters and modal handlers first
  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+ const handleOpenSettings = (category: string) => setSettingsModal({ isOpen: true, category });
+ const handleCloseSettings = () => setSettingsModal(prev => ({ ...prev, isOpen: false }));
+ const handleCloseConfirmModal = () => setConfirmModal(prev => ({ ...prev, isOpen: false }));
+ const handleRemoveFromHome = (name: string) => setServices(prev => prev.filter(s => s.name !== name));
+ const handleStartAll = () => AppBackend.StartAllServices();
+ const handleStopAll = () => AppBackend.StopAllServices();
+ const handleTerminal = (type: string) => { AppBackend.OpenTerminal(type); setIsTerminalOpen(false); };
+ const handleOpenServerRootFolder = () => AppBackend.OpenServerRootFolder();
+ const handleOpenAppsLocationFolder = () => AppBackend.OpenAppsLocationFolder();
+ const handleCancelDownload = (name: string) => AppBackend.CancelDownload(name);
+ const handleOpenPluginFolder = (name: string) => AppBackend.OpenPluginFolder(name);
 
  const addLog = useCallback((msg: string, type = 'info') => {
- const time = new Date().toLocaleTimeString();
- const id = crypto.randomUUID();
- const prefix = type === 'error' ? 'ERR' : type === 'warn' ? 'WRN' : 'SYS';
- setLogs(prev => [{ id, time, msg: `[${prefix}] ${msg}` }, ...prev].slice(0, 1000));
+   const time = new Date().toLocaleTimeString();
+   const id = crypto.randomUUID();
+   const prefix = type === 'error' ? 'ERR' : type === 'warn' ? 'WRN' : 'SYS';
+   setLogs(prev => [{ id, time, msg: `[${prefix}] ${msg}` }, ...prev].slice(0, 1000));
  }, []);
 
- const renderIcon = (name: string, size = 20, className = "") => {
-   const task = prerequisites?.find(p => p.name === name);
-   return task?.iconSvg ? <Icons.Raw svgString={task.iconSvg} size={size} className={className} /> : null;
- };
-
  const addToast = (title: string, message: string, type: 'info' | 'success' | 'warn' | 'error' = 'info') => {
- const id = crypto.randomUUID();
- setToasts(prev => [...prev, { id, title, message, type }]);
- setTimeout(() => setToasts(curr => curr.filter(t => t.id !== id)), 5000);
+   const id = crypto.randomUUID();
+   setToasts(prev => [...prev, { id, title, message, type }]);
+   setTimeout(() => setToasts(curr => curr.filter(t => t.id !== id)), 5000);
  };
 
  const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
+
+ const handleConfirmHeidiSQLUninstall = useCallback((name: string) => {
+   AppBackend.StopService(name);
+   handleCloseConfirmModal();
+ }, []);
 
  const updateSelectedVersions = useCallback((tasks: any[]) => {
    setSelectedVersions(prev => {
@@ -165,17 +166,18 @@ function App() {
  };
 
  const initApp = async () => {
- setLoading(true);
- try {
- await Promise.all([refreshPrerequisites(), loadInitialData()]);
- } catch (err) {
- console.error("Initialization failed:", err);
- } finally {
- setTimeout(() => setLoading(false), 600);
- }
+   setLoading(true);
+   try {
+     await Promise.all([refreshPrerequisites(), loadInitialData()]);
+   } catch (err) {
+     console.error("Initialization failed:", err);
+   } finally {
+     setTimeout(() => setLoading(false), 600);
+   }
  };
 
- // Extracted event handlers to reduce nesting
+ const handleDeleteVersion = (name: string, ver: string) => AppBackend.DeleteVersion(name, ver).then(refreshPrerequisites);
+
  const handleServiceLog = (data: any) => {
    addLog(`[${data.service}] ${data.message}`, 'info');
  };
@@ -211,6 +213,17 @@ function App() {
  }, [addLog]);
 
  useEffect(() => {
+   if (theme === 'dark') {
+     document.documentElement.classList.add('dark');
+     document.documentElement.classList.remove('light');
+   } else {
+     document.documentElement.classList.add('light');
+     document.documentElement.classList.remove('dark');
+   }
+   localStorage.setItem('theme', theme);
+ }, [theme]);
+
+ useEffect(() => {
    const originalLog = console.log;
    const originalWarn = console.warn;
    const originalError = console.error;
@@ -232,7 +245,6 @@ function App() {
    };
  }, [addLog, setupConsoleOverrides]);
 
- // Main action handlers
  const handleBrowseAppsLocation = async () => {
    const selected = await AppBackend.SelectServerRoot();
    if (selected) { setAppsLocation(selected); initApp(); }
@@ -250,11 +262,6 @@ function App() {
    });
    setIsAddingPlugin(false);
  };
-
- const handleConfirmHeidiSQLUninstall = useCallback((name: string) => {
-   AppBackend.StopService(name);
-   handleCloseConfirmModal();
- }, [handleCloseConfirmModal]);
 
  const handleToggleService = (name: string, status: string) => {
    if (status === 'Running') {
@@ -319,18 +326,10 @@ function App() {
    }
  };
 
- const handleOpenSettings = (category: string) => setSettingsModal({ isOpen: true, category });
- const handleRemoveFromHome = (name: string) => setServices(prev => prev.filter(s => s.name !== name));
- const handleDeleteVersion = (name: string, ver: string) => AppBackend.DeleteVersion(name, ver).then(refreshPrerequisites);
- const handleOpenPluginFolder = (name: string) => AppBackend.OpenPluginFolder(name);
- const handleCloseSettings = () => setSettingsModal(prev => ({ ...prev, isOpen: false }));
- const handleCloseConfirmModal = () => setConfirmModal(prev => ({ ...prev, isOpen: false }));
- const handleStartAll = () => AppBackend.StartAllServices();
- const handleStopAll = () => AppBackend.StopAllServices();
- const handleTerminal = (type: string) => { AppBackend.OpenTerminal(type); setIsTerminalOpen(false); };
- const handleOpenServerRootFolder = () => AppBackend.OpenServerRootFolder();
- const handleOpenAppsLocationFolder = () => AppBackend.OpenAppsLocationFolder();
- const handleCancelDownload = (name: string) => AppBackend.CancelDownload(name);
+ const renderIcon = (name: string, size = 20, className = "") => {
+   const task = prerequisites?.find(p => p.name === name);
+   return task?.iconSvg ? <Icons.Raw svgString={task.iconSvg} size={size} className={className} /> : null;
+ };
 
  return (
  <div className={cn(
