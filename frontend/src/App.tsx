@@ -36,7 +36,9 @@ interface ServiceInfo {
 function App() {
  const [activeTab, setActiveTab] = useState('activity');
  const [theme, setTheme] = useState(() => {
- return localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+   const saved = localStorage.getItem('theme');
+   if (saved) return saved;
+   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
  });
  const [services, setServices] = useState<ServiceInfo[]>([
  { name: 'Apache', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
