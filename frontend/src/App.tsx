@@ -59,6 +59,7 @@ function App() {
  const [loading, setLoading] = useState(true);
  const [selectedVersions, setSelectedVersions] = useState<Record<string, string>>({});
  const [isAddingPlugin, setIsAddingPlugin] = useState(false);
+ const [transitioningServices, setTransitioningServices] = useState<Set<string>>(new Set());
  const [settingsModal, setSettingsModal] = useState({ isOpen: false, category: 'profile' });
 
  const [serverRootState, setServerRootState] = useState('');
@@ -104,10 +105,21 @@ function App() {
 
  const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
- const handleConfirmHeidiSQLUninstall = useCallback((name: string) => {
-   AppBackend.StopService(name);
-   handleCloseConfirmModal();
- }, []);
+ const handleConfirmHeidiSQLUninstall = useCallback(async (name: string) => {
+   setTransitioningServices(prev => new Set(prev).add(name));
+   try {
+     await AppBackend.StopService(name);
+   } catch (err: any) {
+     addToast('Error', `Failed to uninstall ${name}: ${err.message || err}`, 'error');
+   } finally {
+     setTransitioningServices(prev => {
+       const next = new Set(prev);
+       next.delete(name);
+       return next;
+     });
+     handleCloseConfirmModal();
+   }
+ }, [addToast]);
 
  const updateSelectedVersions = useCallback((tasks: any[]) => {
    setSelectedVersions(prev => {
@@ -263,7 +275,7 @@ function App() {
    setIsAddingPlugin(false);
  };
 
- const handleToggleService = (name: string, status: string) => {
+ const handleToggleService = async (name: string, status: string) => {
    if (status === 'Running') {
      if (name === 'HeidiSQL') {
        setConfirmModal({
@@ -275,9 +287,31 @@ function App() {
        });
        return;
      }
-     AppBackend.StopService(name);
+     setTransitioningServices(prev => new Set(prev).add(name));
+     try {
+       await AppBackend.StopService(name);
+     } catch (err: any) {
+       addToast('Error', `Failed to stop ${name}: ${err.message || err}`, 'error');
+     } finally {
+       setTransitioningServices(prev => {
+         const next = new Set(prev);
+         next.delete(name);
+         return next;
+       });
+     }
    } else {
-     AppBackend.StartService(name);
+     setTransitioningServices(prev => new Set(prev).add(name));
+     try {
+       await AppBackend.StartService(name);
+     } catch (err: any) {
+       addToast('Error', `Failed to start ${name}: ${err.message || err}`, 'error');
+     } finally {
+       setTransitioningServices(prev => {
+         const next = new Set(prev);
+         next.delete(name);
+         return next;
+       });
+     }
    }
  };
 
@@ -390,6 +424,7 @@ function App() {
  nginxHttps={nginxHttps}
  handleToggleHttps={handleToggleHttps}
  isLoading={loading}
+ transitioningServices={transitioningServices}
  />
  </div>
 

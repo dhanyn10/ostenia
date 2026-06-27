@@ -11,7 +11,7 @@ function ActivityTab({
  renderIcon, handleToggleService, handleRemoveFromHome, setActiveTab,
  handleOpenPluginFolder, handleOpenServerRootFolder, handleOpenAppsLocationFolder,
  apacheHttps, nginxHttps, handleToggleHttps,
- isLoading
+ isLoading, transitioningServices
 }) {
  const [openTerminalDropdown, setOpenTerminalDropdown] = useState(null);
  const [activeAccordion, setActiveAccordion] = useState(null);
@@ -118,6 +118,7 @@ function ActivityTab({
  isOpenSslEnabled={isOpenSslEnabled}
  setActiveTab={setActiveTab}
  handleOpenPluginFolder={handleOpenPluginFolder}
+ isTransitioning={transitioningServices?.has(service.name)}
  />
  ))}
 
