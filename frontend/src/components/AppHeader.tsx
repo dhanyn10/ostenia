@@ -9,14 +9,12 @@ function cn(...inputs: ClassValue[]) {
 }
 
 function AppHeader({ activeTab, handleStartAll, handleStopAll, handleTerminal, isTerminalOpen, setIsTerminalOpen }) {
- // Hide header elements completely for logs and ssh tab if preferred,
- // or just show the appropriate title.
- if (activeTab === 'logs' || activeTab === 'ssh') return null;
-
  const title = {
- activity: 'Activity Center',
- plugins: 'Plugin Management',
- proxy: 'Proxy Management',
+   activity: 'Activity Center',
+   plugins: 'Plugin Management',
+   proxy: 'Proxy Management',
+   ssh: 'SSH & Remote Files',
+   logs: 'System Activity Logs'
  }[activeTab] || '';
 
  return (
