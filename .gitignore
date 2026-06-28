@@ -45,3 +45,5 @@ config.json
 # Go
 go.work
 .env
+*.out
+coverage/
