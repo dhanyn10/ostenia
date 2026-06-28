@@ -5,28 +5,49 @@ import (
 )
 
 func TestGetLatestKnownVersions(t *testing.T) {
-	// Startup usually sets things up, but we can just call it
 	tasks := GetLatestKnownVersions()
 	if len(tasks) == 0 {
-		t.Error("Expected at least one task")
+		t.Fatal("Expected at least one task")
 	}
 
-	foundPHP := false
 	for _, task := range tasks {
-		if task.Name == "PHP" {
-			foundPHP = true
-			break
-		}
-	}
-	if !foundPHP {
-		t.Error("PHP task not found")
+		t.Run(task.Name, func(t *testing.T) {
+			if len(task.Versions) == 0 {
+				t.Errorf("No versions detected for %s", task.Name)
+			}
+			if task.IconSVG == "" {
+				t.Errorf("No icon detected for %s", task.Name)
+			}
+			for _, v := range task.Versions {
+				if task.VersionUrls[v] == "" {
+					t.Errorf("No URL for version %s of %s", v, task.Name)
+				}
+			}
+
+			// Specific checks
+			if task.Name == "PHP" {
+				foundComposer := false
+				for _, mod := range task.Modules {
+					if mod.Name == "Composer" {
+						foundComposer = true
+					}
+				}
+				if !foundComposer {
+					t.Error("Expected Composer module for PHP")
+				}
+			}
+			if task.Name == "Python" {
+				if len(task.Modules) != 0 {
+					t.Error("Expected no modules for Python")
+				}
+			}
+		})
 	}
 }
 
 func TestHandleHeidiSQLDetection(t *testing.T) {
 	task := &DownloadTask{Name: "HeidiSQL"}
 	handleHeidiSQLDetection(task)
-	// Even if not installed on CI, it should run without error
 }
 
 func TestCheckFileExists(t *testing.T) {
