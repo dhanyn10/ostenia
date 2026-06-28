@@ -43,7 +43,7 @@ jobs:
         working-directory: frontend
         run: |
           pnpm install
-          pnpm test -- --coverage --coverage.reporter=lcov --coverage.reportsDirectory=./coverage
+          pnpm vitest run --coverage --coverage.reporter=lcov --coverage.reportsDirectory=./coverage
           mkdir -p ../coverage
           cp coverage/lcov.info ../coverage/lcov.info
 
