@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, Globe, Trash2, FolderOpen, Clock, Lock, Unlock, Terminal, ChevronDown, Monitor, CheckCircle2, Settings2 } from 'lucide-react';
+import { Activity, Globe, Trash2, FolderOpen, Clock, Lock, Unlock, Terminal, ChevronDown, Monitor, CheckCircle2, Settings2, Loader2 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 function cn(...inputs: ClassValue[]) {
@@ -25,6 +25,7 @@ interface ServiceItemProps {
   isOpenSslEnabled: boolean;
   setActiveTab: (tab: string) => void;
   handleOpenPluginFolder: (name: string) => void;
+  isTransitioning?: boolean;
 }
 
 const ServiceIdentity: React.FC<any> = ({ service, renderIcon }) => (
@@ -111,25 +112,33 @@ const ServiceStatus: React.FC<any> = ({ service }) => {
   );
 };
 
-const MainActions: React.FC<any> = ({ isInstalled, service, handleToggleService, handleRemoveFromHome, setActiveTab }) => (
+const MainActions: React.FC<any> = ({ isInstalled, service, handleToggleService, handleRemoveFromHome, setActiveTab, isTransitioning }) => (
   <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
     {!isInstalled && service.name !== 'OpenSSL' ? (
       <button type="button" onClick={() => setActiveTab('plugins')} className="px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
     ) : (
       <button
         type="button"
+        disabled={isTransitioning}
         onClick={() => handleToggleService(service.name, service.status)}
         className={cn(
           "w-12 h-6 rounded-sm p-0.5 transition-all duration-300 ease-in-out relative ring-1 ring-inset",
           service.status === 'Running'
             ? "bg-emerald-500 ring-emerald-400/50"
-            : "bg-slate-200 dark:bg-slate-800 ring-slate-300 dark:ring-white/5"
+            : "bg-slate-200 dark:bg-slate-800 ring-slate-300 dark:ring-white/5",
+          isTransitioning && "opacity-80 cursor-not-allowed"
         )}
       >
-        <div className={cn(
-          "w-5 h-5 bg-white rounded-sm transition-all duration-300 shadow-lg",
-          service.status === 'Running' ? "translate-x-6" : "translate-x-0"
-        )} />
+        {isTransitioning ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Loader2 size={12} className={cn("animate-spin", service.status === 'Running' ? "text-white" : "text-blue-500")} />
+          </div>
+        ) : (
+          <div className={cn(
+            "w-5 h-5 bg-white rounded-sm transition-all duration-300 shadow-lg",
+            service.status === 'Running' ? "translate-x-6" : "translate-x-0"
+          )} />
+        )}
       </button>
     )}
 
@@ -264,7 +273,8 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
   nginxHttps,
   isOpenSslEnabled,
   setActiveTab,
-  handleOpenPluginFolder
+  handleOpenPluginFolder,
+  isTransitioning
 }) => {
   const isInstalled = (task?.installedVers && task.installedVers.length > 0) || service.name === 'OpenSSL';
   const isWebServer = service.name === 'Apache' || service.name === 'Nginx';
@@ -308,7 +318,7 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
           <VersionSwitcher service={service} task={task} handleSwitchVersion={handleSwitchVersion} />
         </div>
 
-        <MainActions isInstalled={isInstalled} service={service} handleToggleService={handleToggleService} handleRemoveFromHome={handleRemoveFromHome} setActiveTab={setActiveTab} />
+        <MainActions isInstalled={isInstalled} service={service} handleToggleService={handleToggleService} handleRemoveFromHome={handleRemoveFromHome} setActiveTab={setActiveTab} isTransitioning={isTransitioning} />
       </div>
 
       {hasExtraActions && (
