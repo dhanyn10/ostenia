@@ -1,4 +1,3 @@
-const appWindow = globalThis.window; // NOSONAR
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import SSHTab from '../components/ssh/SSHTab'
@@ -13,6 +12,8 @@ vi.mock('../../wailsjs/go/backend/App', () => ({
 }))
 
 import * as AppBackendRaw from '../../wailsjs/go/backend/App'
+
+const appWindow = window; // NOSONAR
 const AppBackend = AppBackendRaw as any;
 
 // Mock sub-components to focus on SSHTab logic

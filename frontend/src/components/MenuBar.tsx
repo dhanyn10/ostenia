@@ -1,4 +1,3 @@
-const appWindow = globalThis.window; // NOSONAR
 import React, { useState, useEffect, useRef } from 'react';
 import {
  Vibrate,
@@ -20,6 +19,8 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as AppBackend from '../../wailsjs/go/backend/App';
 import { handleActionKey } from '../utils/a11y';
+
+const appWindow = window; // NOSONAR
 
 function cn(...inputs: ClassValue[]) {
  return twMerge(clsx(inputs));

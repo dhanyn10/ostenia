@@ -1,0 +1,85 @@
+
+> frontend@0.0.0 dev /app/frontend
+> vite
+
+Port 5173 is in use, trying another one...
+
+  VITE v6.4.3  ready in 234 ms
+
+  ➜  Local:   http://localhost:9:00:05 AM [vite] (client) page reload src/test/VerticalNav.test.tsx
+9:00:05 AM [vite] (client) page reload src/test/ServiceItem.test.tsx
+9:00:05 AM [vite] (client) page reload src/test/CircularProgress.test.tsx
+9:00:05 AM [vite] (client) page reload src/test/StatusBar.test.tsx
+9:00:05 AM [vite] (client) page reload src/test/SSHTab.test.tsx
+9:00:05 AM [vite] (client) hmr update /src/components/MenuBar.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/settings/SSHManagementCategory.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/settings/ProfileCategory.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/settings/GlobalConfigCategory.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/LogViewer.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/SettingsModal.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/VersionDropdown.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/CircularProgress.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/ActivityTab.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/ServiceItem.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/SSHSessionView.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/AppHeader.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/PluginsTab.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/Toast.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/ProxyTab.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/Icons.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/ConfirmationModal.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/ExtensionModal.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/AddPluginAction.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/PluginItem.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/StatusBar.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/VerticalNav.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/ssh/SSHSessionForm.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/ssh/SSHFileExplorer.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/ssh/SSHToolbar.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/components/ssh/SSHTab.tsx, /src/index.css
+9:00:05 AM [vite] (client) hmr update /src/index.css, /src/components/ssh/SSHTab.tsx, /src/components/AppHeader.tsx, /src/components/StatusBar.tsx, /src/components/ConfirmationModal.tsx, /src/components/MenuBar.tsx, /src/components/ProxyTab.tsx, /src/components/ExtensionModal.tsx, /src/components/AddPluginAction.tsx, /src/components/PluginItem.tsx, /src/components/settings/ProfileCategory.tsx, /src/components/settings/SSHManagementCategory.tsx, /src/components/ssh/SSHFileExplorer.tsx, /src/components/VersionDropdown.tsx, /src/components/CircularProgress.tsx
+9:00:05 AM [vite] (client) hmr update /src/App.tsx, /src/index.css
+9:00:05 AM [vite] (client) page reload src/vite-env.d.ts
+9:00:05 AM [vite] (client) page reload src/main.tsx
+9:00:05 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ssh/SSHTab.tsx, /src/components/ActivityTab.tsx, /src/components/PluginsTab.tsx, /src/components/MenuBar.tsx, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx, /src/components/ssh/SSHSessionForm.tsx, /src/components/settings/ProfileCategory.tsx, /src/components/settings/GlobalConfigCategory.tsx, /src/components/settings/SSHManagementCategory.tsx
+9:00:05 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx
+9:00:05 AM [vite] (client) page reload src/test/VerticalNav.test.tsx
+9:06:26 AM [vite] (client) hmr update /src/App.tsx, /src/index.css
+9:06:26 AM [vite] (client) hmr update /src/components/MenuBar.tsx, /src/index.css
+9:06:26 AM [vite] (client) hmr update /src/components/ProxyTab.tsx, /src/index.css
+9:06:26 AM [vite] (client) hmr update /src/components/SSHSessionView.tsx, /src/index.css
+9:06:26 AM [vite] (client) hmr update /src/components/ServiceItem.tsx, /src/index.css
+9:06:26 AM [vite] (client) hmr update /src/components/ssh/SSHTab.tsx, /src/index.css
+9:06:26 AM [vite] (client) page reload src/test/SSHTab.test.tsx
+9:06:26 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ssh/SSHTab.tsx, /src/components/ActivityTab.tsx, /src/components/PluginsTab.tsx, /src/components/MenuBar.tsx, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx, /src/components/ssh/SSHSessionForm.tsx, /src/components/settings/ProfileCategory.tsx, /src/components/settings/GlobalConfigCategory.tsx, /src/components/settings/SSHManagementCategory.tsx
+9:06:26 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx
+9:07:11 AM [vite] (client) hmr update /src/App.tsx, /src/index.css
+9:07:11 AM [vite] (client) hmr update /src/components/MenuBar.tsx, /src/index.css
+9:07:11 AM [vite] (client) hmr update /src/components/SSHSessionView.tsx, /src/index.css
+9:07:11 AM [vite] (client) hmr update /src/components/ProxyTab.tsx, /src/index.css
+9:07:12 AM [vite] (client) hmr update /src/components/ssh/SSHTab.tsx, /src/index.css
+9:07:12 AM [vite] (client) hmr update /src/components/ServiceItem.tsx, /src/index.css
+9:07:12 AM [vite] (client) page reload src/test/SSHTab.test.tsx
+9:07:12 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ssh/SSHTab.tsx, /src/components/ActivityTab.tsx, /src/components/PluginsTab.tsx, /src/components/MenuBar.tsx, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx, /src/components/ssh/SSHSessionForm.tsx, /src/components/settings/ProfileCategory.tsx, /src/components/settings/GlobalConfigCategory.tsx, /src/components/settings/SSHManagementCategory.tsx
+9:07:12 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx
+9:10:38 AM [vite] (client) hmr update /src/components/ssh/SSHTab.tsx, /src/index.css
+9:10:38 AM [vite] (client) hmr update /src/App.tsx, /src/index.css
+9:10:38 AM [vite] (client) hmr update /src/components/MenuBar.tsx, /src/index.css
+9:10:38 AM [vite] (client) hmr update /src/components/SSHSessionView.tsx, /src/index.css
+9:10:38 AM [vite] (client) hmr update /src/components/ProxyTab.tsx, /src/index.css
+9:10:38 AM [vite] (client) hmr update /src/components/ServiceItem.tsx, /src/index.css
+9:16:25 AM [vite] (client) hmr update /src/App.tsx, /src/index.css
+9:16:25 AM [vite] (client) hmr update /src/components/MenuBar.tsx, /src/index.css
+9:16:25 AM [vite] (client) hmr update /src/components/ProxyTab.tsx, /src/index.css
+9:16:25 AM [vite] (client) hmr update /src/components/SSHSessionView.tsx, /src/index.css
+9:16:25 AM [vite] (client) hmr update /src/components/ServiceItem.tsx, /src/index.css
+9:16:25 AM [vite] (client) hmr update /src/components/ssh/SSHTab.tsx, /src/index.css
+9:16:25 AM [vite] (client) page reload src/test/SSHTab.test.tsx
+9:16:25 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ssh/SSHTab.tsx, /src/components/ActivityTab.tsx, /src/components/PluginsTab.tsx, /src/components/MenuBar.tsx, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx, /src/components/ssh/SSHSessionForm.tsx, /src/components/settings/ProfileCategory.tsx, /src/components/settings/GlobalConfigCategory.tsx, /src/components/settings/SSHManagementCategory.tsx
+9:16:25 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx
+9:16:25 AM [vite] (client) hmr update /src/components/ProxyTab.tsx, /src/index.css
+9:16:25 AM [vite] (client) hmr update /src/components/ssh/SSHTab.tsx, /src/index.css
+9:16:25 AM [vite] (client) hmr update /src/components/ServiceItem.tsx, /src/index.css
+9:16:25 AM [vite] (client) page reload src/test/SSHTab.test.tsx
+9:16:25 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ssh/SSHTab.tsx, /src/components/ActivityTab.tsx, /src/components/PluginsTab.tsx, /src/components/MenuBar.tsx, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx, /src/components/ssh/SSHSessionForm.tsx, /src/components/settings/ProfileCategory.tsx, /src/components/settings/GlobalConfigCategory.tsx, /src/components/settings/SSHManagementCategory.tsx
+9:16:25 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx

@@ -1,8 +1,9 @@
-const appWindow = globalThis.window; // NOSONAR
 import React from 'react';
 import { Activity, Globe, Trash2, FolderOpen, Clock, Lock, Unlock, Terminal, ChevronDown, Monitor, CheckCircle2, Settings2, Loader2 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+
+const appWindow = window; // NOSONAR
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

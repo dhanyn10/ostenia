@@ -1,4 +1,3 @@
-const appWindow = globalThis.window; // NOSONAR
 import React, { useState, useEffect, useRef } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
@@ -9,6 +8,8 @@ import { Edit2, Edit3, Download, Trash2, RefreshCw, ExternalLink } from 'lucide-
 import SSHToolbar from './ssh/SSHToolbar';
 import SSHFileExplorer from './ssh/SSHFileExplorer';
 import { handleActionKey } from '../utils/a11y';
+
+const appWindow = window; // NOSONAR
 
 interface SSHSessionViewProps {
   session: any;

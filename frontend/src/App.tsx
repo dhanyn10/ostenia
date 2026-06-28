@@ -1,4 +1,3 @@
-const appWindow = globalThis.window; // NOSONAR
 import { useState, useEffect, useCallback } from 'react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
 import * as AppBackend from '../wailsjs/go/backend/App';
@@ -19,6 +18,8 @@ import ProxyTab from './components/ProxyTab';
 import SSHTab from './components/ssh/SSHTab';
 import Icons from './components/Icons';
 import ConfirmationModal from './components/ConfirmationModal';
+
+const appWindow = window; // NOSONAR
 
 function cn(...inputs: ClassValue[]) {
  return twMerge(clsx(inputs));

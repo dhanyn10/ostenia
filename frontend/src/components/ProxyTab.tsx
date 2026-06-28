@@ -1,9 +1,10 @@
-const appWindow = globalThis.window; // NOSONAR
 import React, { useState, useEffect } from 'react';
 import { Save, ExternalLink, Search, Folder, Terminal, ChevronDown, Monitor, Activity } from 'lucide-react';
 import { EventsOn } from '../../wailsjs/runtime/runtime';
 import * as AppBackend from '../../wailsjs/go/backend/App';
 import { handleActionKey } from '../utils/a11y';
+
+const appWindow = window; // NOSONAR
 
 interface ProxyTabProps {
   addToast: (title: string, message: string, type?: 'info' | 'success' | 'warn' | 'error') => void;

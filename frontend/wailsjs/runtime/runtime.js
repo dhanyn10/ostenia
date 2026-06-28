@@ -1,4 +1,5 @@
-const appWindow = appWindow; // NOSONAR
+
+const appWindow = window; // NOSONAR
 /*
  _       __      _ __
 | |     / /___ _(_) /____

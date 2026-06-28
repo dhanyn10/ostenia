@@ -1,4 +1,3 @@
-const appWindow = globalThis.window; // NOSONAR
 import React, { useState, useEffect } from 'react';
 import * as AppBackend from '../../../wailsjs/go/backend/App';
 import { Plus, Trash2, Edit2, X, Server, ChevronRight, RefreshCw } from 'lucide-react';
@@ -6,6 +5,8 @@ import SSHSessionView from '../SSHSessionView';
 import SSHSessionForm from './SSHSessionForm';
 import { clsx } from 'clsx';
 import { handleActionKey } from '../../utils/a11y';
+
+const appWindow = window; // NOSONAR
 
 interface SSHTabProps {
   addToast: (title: string, message: string, type?: 'info' | 'success' | 'warn' | 'error') => void;
