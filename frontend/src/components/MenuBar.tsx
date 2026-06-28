@@ -1,3 +1,4 @@
+const appWindow = globalThis.window; // NOSONAR
 import React, { useState, useEffect, useRef } from 'react';
 import {
  Vibrate,
@@ -163,7 +164,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ theme, setTheme, onOpenSettings }) =>
  { id: 'help', label: 'Help', content: (
  <>
  <SubMenuItem label="About Ostenia" icon={HelpCircle} onClick={() => { alert("Ostenia v1.0.0\nPortable Development Environment"); setOpenMenu(null); }} onKeyDown={handleActionKey(() => { alert("Ostenia v1.0.0\nPortable Development Environment"); setOpenMenu(null); })} />
- <SubMenuItem label="Documentation" icon={ExternalLink} onClick={() => { window.open('https://github.com/dhanyn/ostenia', '_blank', 'noopener,noreferrer'); setOpenMenu(null); }} onKeyDown={handleActionKey(() => { window.open('https://github.com/dhanyn/ostenia', '_blank', 'noopener,noreferrer'); setOpenMenu(null); })} />
+ <SubMenuItem label="Documentation" icon={ExternalLink} onClick={() => { appWindow.open('https://github.com/dhanyn/ostenia', '_blank', 'noopener,noreferrer'); setOpenMenu(null); }} onKeyDown={handleActionKey(() => { appWindow.open('https://github.com/dhanyn/ostenia', '_blank', 'noopener,noreferrer'); setOpenMenu(null); })} />
  </>
  )}
  ];

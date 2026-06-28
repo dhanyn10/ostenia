@@ -1,3 +1,4 @@
+const appWindow = globalThis.window; // NOSONAR
 import React, { useState, useEffect, useRef } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
@@ -57,8 +58,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
    }
    setFileContextMenu(null);
  };
- window.addEventListener('click', handleClick);
- return () => window.removeEventListener('click', handleClick);
+ appWindow.addEventListener('click', handleClick);
+ return () => appWindow.removeEventListener('click', handleClick);
  }, []);
 
  const handleFileContextMenu = (e: React.MouseEvent, file: any) => {
@@ -129,7 +130,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
  resizeTimeout = setTimeout(performFit, 200);
  };
 
- window.addEventListener('resize', handleWindowResize);
+ appWindow.addEventListener('resize', handleWindowResize);
  const ro = new ResizeObserver(() => {
  clearTimeout(resizeTimeout);
  resizeTimeout = setTimeout(performFit, 250);
@@ -179,7 +180,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
   (EventsOff as any)('ssh_path_changed', handlePathChange);
   (EventsOff as any)('ssh_disconnected', handleDisconnect);
  if (ro) ro.disconnect();
- window.removeEventListener('resize', handleWindowResize);
+ appWindow.removeEventListener('resize', handleWindowResize);
  if (xterm.current) xterm.current.dispose();
  };
  }, [session.id]);

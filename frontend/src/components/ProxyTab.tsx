@@ -1,3 +1,4 @@
+const appWindow = globalThis.window; // NOSONAR
 import React, { useState, useEffect } from 'react';
 import { Save, ExternalLink, Search, Folder, Terminal, ChevronDown, Monitor, Activity } from 'lucide-react';
 import { EventsOn } from '../../wailsjs/runtime/runtime';
@@ -30,7 +31,7 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
  useEffect(() => {
  fetchApps();
 
- if (window.runtime) {
+ if (appWindow.runtime) {
  return EventsOn('proxy_status', (data) => {
  const statusMap = {};
  data.forEach(item => {

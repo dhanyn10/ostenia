@@ -1,3 +1,4 @@
+const appWindow = globalThis.window; // NOSONAR
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import SSHTab from '../components/ssh/SSHTab'

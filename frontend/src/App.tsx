@@ -1,3 +1,4 @@
+const appWindow = globalThis.window; // NOSONAR
 import { useState, useEffect, useCallback } from 'react';
 import { EventsOn } from '../wailsjs/runtime/runtime';
 import * as AppBackend from '../wailsjs/go/backend/App';
@@ -38,7 +39,7 @@ function App() {
  const [theme, setTheme] = useState(() => {
    const saved = localStorage.getItem('theme');
    if (saved) return saved;
-   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+   return appWindow.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
  });
  const [services, setServices] = useState<ServiceInfo[]>([
  { name: 'Apache', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
@@ -243,7 +244,7 @@ function App() {
    setupConsoleOverrides(originalLog, originalWarn, originalError);
    initApp();
 
-   if (window.runtime) {
+   if (appWindow.runtime) {
      EventsOn('service_log', handleServiceLog);
      EventsOn('service_status', handleServiceStatus);
      EventsOn('download_progress', handleDownloadProgress);

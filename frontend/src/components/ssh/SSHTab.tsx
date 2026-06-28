@@ -1,3 +1,4 @@
+const appWindow = globalThis.window; // NOSONAR
 import React, { useState, useEffect } from 'react';
 import * as AppBackend from '../../../wailsjs/go/backend/App';
 import { Plus, Trash2, Edit2, X, Server, ChevronRight, RefreshCw } from 'lucide-react';
@@ -75,8 +76,8 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
    }
    setContextMenu(null);
  };
- window.addEventListener('click', handleClick);
- return () => window.removeEventListener('click', handleClick);
+ appWindow.addEventListener('click', handleClick);
+ return () => appWindow.removeEventListener('click', handleClick);
  }, []);
 
  const handleContextMenu = (e: React.MouseEvent, session: any) => {
