@@ -6,11 +6,11 @@
 *.dylib
 ostenia
 ostenia.exe
-# frontend/wailsjs/go/main/App.js - Removed from ignore to allow testing in CI
 
 # Wails
 build/bin/*
 !build/bin/*.md
+frontend/wailsjs/
 frontend/dist
 !frontend/dist/.gitkeep
 frontend/package-lock.json
