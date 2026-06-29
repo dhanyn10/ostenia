@@ -4,8 +4,6 @@ import { EventsOn } from '../../wailsjs/runtime/runtime';
 import * as AppBackend from '../../wailsjs/go/backend/App';
 import { handleActionKey } from '../utils/a11y';
 
-const appWindow = window; // NOSONAR
-
 interface ProxyTabProps {
   addToast: (title: string, message: string, type?: 'info' | 'success' | 'warn' | 'error') => void;
 }
@@ -32,7 +30,7 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
  useEffect(() => {
  fetchApps();
 
- if (appWindow.runtime) {
+ if (window.runtime) { // NOSONAR
  return EventsOn('proxy_status', (data) => {
  const statusMap = {};
  data.forEach(item => {

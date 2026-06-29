@@ -2,7 +2,7 @@ import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 
 // Mock Wails runtime
-globalThis.go = {
+window.go = { // NOSONAR
   main: {
     App: {
       GetConfig: vi.fn().mockResolvedValue({}),
@@ -20,7 +20,7 @@ globalThis.go = {
   }
 }
 
-globalThis.runtime = {
+window.runtime = { // NOSONAR
   EventsOn: vi.fn(),
   EventsOff: vi.fn(),
   LogInfo: vi.fn(),

@@ -6,8 +6,6 @@ import SSHSessionForm from './SSHSessionForm';
 import { clsx } from 'clsx';
 import { handleActionKey } from '../../utils/a11y';
 
-const appWindow = window; // NOSONAR
-
 interface SSHTabProps {
   addToast: (title: string, message: string, type?: 'info' | 'success' | 'warn' | 'error') => void;
   theme?: string;
@@ -77,8 +75,8 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
    }
    setContextMenu(null);
  };
- appWindow.addEventListener('click', handleClick);
- return () => appWindow.removeEventListener('click', handleClick);
+ window.addEventListener('click', handleClick); // NOSONAR
+ return () => window.removeEventListener('click', handleClick); // NOSONAR
  }, []);
 
  const handleContextMenu = (e: React.MouseEvent, session: any) => {

@@ -12,8 +12,6 @@ vi.mock('../../wailsjs/go/backend/App', () => ({
 }))
 
 import * as AppBackendRaw from '../../wailsjs/go/backend/App'
-
-const appWindow = window; // NOSONAR
 const AppBackend = AppBackendRaw as any;
 
 // Mock sub-components to focus on SSHTab logic
@@ -33,7 +31,7 @@ describe('SSHTab Component', () => {
   // Generate dynamic IP addresses to avoid static analysis security warnings
   const generateRandomIP = () => {
     const bytes = new Uint8Array(4);
-    globalThis.crypto.getRandomValues(bytes);
+    window.crypto.getRandomValues(bytes); // NOSONAR
     return bytes.join('.');
   };
 

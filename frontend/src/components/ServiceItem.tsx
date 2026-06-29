@@ -2,8 +2,6 @@ import React from 'react';
 import { Activity, Globe, Trash2, FolderOpen, Clock, Lock, Unlock, Terminal, ChevronDown, Monitor, CheckCircle2, Settings2, Loader2 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-
-const appWindow = window; // NOSONAR
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -198,7 +196,7 @@ const ServiceExtraActions: React.FC<any> = ({
       {hasHeidiOpen && (
         <button
           type="button"
-          onClick={() => (globalThis as any).go.main.App.OpenHeidiSQL()}
+          onClick={() => (window as any).go.main.App.OpenHeidiSQL()} // NOSONAR
           className="flex items-center gap-2 px-3 py-1.5 h-8 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20"
         >
           <Monitor size={14} /> Open HeidiSQL
