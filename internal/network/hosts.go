@@ -8,7 +8,12 @@ import (
 	"strings"
 )
 
+var hostsPathOverride string
+
 func GetHostsPath() string {
+	if hostsPathOverride != "" {
+		return hostsPathOverride
+	}
 	if runtime.GOOS == "windows" {
 		return `C:\Windows\System32\drivers\etc\hosts`
 	}
