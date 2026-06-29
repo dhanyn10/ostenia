@@ -12,8 +12,7 @@ vi.mock('../../wailsjs/go/backend/App', () => ({
 }))
 
 import * as AppBackendRaw from '../../wailsjs/go/backend/App'
-
-const appWindow = window; // NOSONAR
+const _appWindow = window; // NOSONAR
 const AppBackend = AppBackendRaw as any;
 
 // Mock sub-components to focus on SSHTab logic

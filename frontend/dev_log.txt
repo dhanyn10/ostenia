@@ -6,88 +6,98 @@ Port 5173 is in use, trying another one...
 
   VITE v6.4.3  ready in 234 ms
 
-  ➜  Local:   http://localhost:9:00:05 AM [vite] (client) page reload src/test/VerticalNav.test.tsx
-9:00:05 AM [vite] (client) page reload src/test/ServiceItem.test.tsx
-9:00:05 AM [vite] (client) page reload src/test/CircularProgress.test.tsx
-9:00:05 AM [vite] (client) page reload src/test/StatusBar.test.tsx
-9:00:05 AM [vite] (client) page reload src/test/SSHTab.test.tsx
-9:00:05 AM [vite] (client) hmr update /src/components/MenuBar.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/settings/SSHManagementCategory.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/settings/ProfileCategory.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/settings/GlobalConfigCategory.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/LogViewer.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/SettingsModal.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/VersionDropdown.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/CircularProgress.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/ActivityTab.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/ServiceItem.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/SSHSessionView.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/AppHeader.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/PluginsTab.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/Toast.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/ProxyTab.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/Icons.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/ConfirmationModal.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/ExtensionModal.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/AddPluginAction.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/PluginItem.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/StatusBar.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/VerticalNav.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/ssh/SSHSessionForm.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/ssh/SSHFileExplorer.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/ssh/SSHToolbar.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/components/ssh/SSHTab.tsx, /src/index.css
-9:00:05 AM [vite] (client) hmr update /src/index.css, /src/components/ssh/SSHTab.tsx, /src/components/AppHeader.tsx, /src/components/StatusBar.tsx, /src/components/ConfirmationModal.tsx, /src/components/MenuBar.tsx, /src/components/ProxyTab.tsx, /src/components/ExtensionModal.tsx, /src/components/AddPluginAction.tsx, /src/components/PluginItem.tsx, /src/components/settings/ProfileCategory.tsx, /src/components/settings/SSHManagementCategory.tsx, /src/components/ssh/SSHFileExplorer.tsx, /src/components/VersionDropdown.tsx, /src/components/CircularProgress.tsx
-9:00:05 AM [vite] (client) hmr update /src/App.tsx, /src/index.css
-9:00:05 AM [vite] (client) page reload src/vite-env.d.ts
-9:00:05 AM [vite] (client) page reload src/main.tsx
-9:00:05 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ssh/SSHTab.tsx, /src/components/ActivityTab.tsx, /src/components/PluginsTab.tsx, /src/components/MenuBar.tsx, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx, /src/components/ssh/SSHSessionForm.tsx, /src/components/settings/ProfileCategory.tsx, /src/components/settings/GlobalConfigCategory.tsx, /src/components/settings/SSHManagementCategory.tsx
-9:00:05 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx
-9:00:05 AM [vite] (client) page reload src/test/VerticalNav.test.tsx
-9:06:26 AM [vite] (client) hmr update /src/App.tsx, /src/index.css
-9:06:26 AM [vite] (client) hmr update /src/components/MenuBar.tsx, /src/index.css
-9:06:26 AM [vite] (client) hmr update /src/components/ProxyTab.tsx, /src/index.css
-9:06:26 AM [vite] (client) hmr update /src/components/SSHSessionView.tsx, /src/index.css
-9:06:26 AM [vite] (client) hmr update /src/components/ServiceItem.tsx, /src/index.css
-9:06:26 AM [vite] (client) hmr update /src/components/ssh/SSHTab.tsx, /src/index.css
-9:06:26 AM [vite] (client) page reload src/test/SSHTab.test.tsx
-9:06:26 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ssh/SSHTab.tsx, /src/components/ActivityTab.tsx, /src/components/PluginsTab.tsx, /src/components/MenuBar.tsx, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx, /src/components/ssh/SSHSessionForm.tsx, /src/components/settings/ProfileCategory.tsx, /src/components/settings/GlobalConfigCategory.tsx, /src/components/settings/SSHManagementCategory.tsx
-9:06:26 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx
-9:07:11 AM [vite] (client) hmr update /src/App.tsx, /src/index.css
-9:07:11 AM [vite] (client) hmr update /src/components/MenuBar.tsx, /src/index.css
-9:07:11 AM [vite] (client) hmr update /src/components/SSHSessionView.tsx, /src/index.css
-9:07:11 AM [vite] (client) hmr update /src/components/ProxyTab.tsx, /src/index.css
-9:07:12 AM [vite] (client) hmr update /src/components/ssh/SSHTab.tsx, /src/index.css
-9:07:12 AM [vite] (client) hmr update /src/components/ServiceItem.tsx, /src/index.css
-9:07:12 AM [vite] (client) page reload src/test/SSHTab.test.tsx
-9:07:12 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ssh/SSHTab.tsx, /src/components/ActivityTab.tsx, /src/components/PluginsTab.tsx, /src/components/MenuBar.tsx, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx, /src/components/ssh/SSHSessionForm.tsx, /src/components/settings/ProfileCategory.tsx, /src/components/settings/GlobalConfigCategory.tsx, /src/components/settings/SSHManagementCategory.tsx
-9:07:12 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx
-9:10:38 AM [vite] (client) hmr update /src/components/ssh/SSHTab.tsx, /src/index.css
-9:10:38 AM [vite] (client) hmr update /src/App.tsx, /src/index.css
-9:10:38 AM [vite] (client) hmr update /src/components/MenuBar.tsx, /src/index.css
-9:10:38 AM [vite] (client) hmr update /src/components/SSHSessionView.tsx, /src/index.css
-9:10:38 AM [vite] (client) hmr update /src/components/ProxyTab.tsx, /src/index.css
-9:10:38 AM [vite] (client) hmr update /src/components/ServiceItem.tsx, /src/index.css
-9:16:25 AM [vite] (client) hmr update /src/App.tsx, /src/index.css
-9:16:25 AM [vite] (client) hmr update /src/components/MenuBar.tsx, /src/index.css
-9:16:25 AM [vite] (client) hmr update /src/components/ProxyTab.tsx, /src/index.css
-9:16:25 AM [vite] (client) hmr update /src/components/SSHSessionView.tsx, /src/index.css
-9:16:25 AM [vite] (client) hmr update /src/components/ServiceItem.tsx, /src/index.css
-9:16:25 AM [vite] (client) hmr update /src/components/ssh/SSHTab.tsx, /src/index.css
-9:16:25 AM [vite] (client) page reload src/test/SSHTab.test.tsx
-9:16:25 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ssh/SSHTab.tsx, /src/components/ActivityTab.tsx, /src/components/PluginsTab.tsx, /src/components/MenuBar.tsx, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx, /src/components/ssh/SSHSessionForm.tsx, /src/components/settings/ProfileCategory.tsx, /src/components/settings/GlobalConfigCategory.tsx, /src/components/settings/SSHManagementCategory.tsx
-9:16:25 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx
-9:16:25 AM [vite] (client) hmr update /src/components/ProxyTab.tsx, /src/index.css
-9:16:25 AM [vite] (client) hmr update /src/components/ssh/SSHTab.tsx, /src/index.css
-9:16:25 AM [vite] (client) hmr update /src/components/ServiceItem.tsx, /src/index.css
-9:16:25 AM [vite] (client) page reload src/test/SSHTab.test.tsx
-9:16:25 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ssh/SSHTab.tsx, /src/components/ActivityTab.tsx, /src/components/PluginsTab.tsx, /src/components/MenuBar.tsx, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx, /src/components/ssh/SSHSessionForm.tsx, /src/components/settings/ProfileCategory.tsx, /src/components/settings/GlobalConfigCategory.tsx, /src/components/settings/SSHManagementCategory.tsx
-9:16:25 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx
-10:22:58 AM [vite] (client) hmr update /src/App.tsx, /src/index.css
-10:22:58 AM [vite] (client) hmr update /src/components/MenuBar.tsx, /src/index.css
-10:22:58 AM [vite] (client) hmr update /src/components/ProxyTab.tsx, /src/index.css
-10:22:58 AM [vite] (client) hmr update /src/components/SSHSessionView.tsx, /src/index.css
-10:22:58 AM [vite] (client) hmr update /src/components/ServiceItem.tsx, /src/index.css
+  ➜  Local:   http://localhost:9:00:05 AM [vite] (client) page reload src/3:45:07 AM [vite] (client) page reload coverage/lcov-report/index.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/index.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/index.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/playwright.config.js.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/postcss.config.js.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/tailwind.config.js.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/App.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/index.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/main.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/go/index.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/go/models.ts.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/runtime/index.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/runtime/runtime.js.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ActivityTab.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/AddPluginAction.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/AppHeader.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/CircularProgress.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ConfirmationModal.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/Icons.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/LogViewer.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ExtensionModal.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/PluginItem.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/PluginsTab.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/MenuBar.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ProxyTab.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/SSHSessionView.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ServiceItem.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/SettingsModal.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/StatusBar.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/Toast.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/VersionDropdown.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/VerticalNav.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/index.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/utils/a11y.ts.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/utils/index.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/go/backend/App.js.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/go/backend/index.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/settings/GlobalConfigCategory.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/settings/ProfileCategory.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/settings/SSHManagementCategory.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/settings/index.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/SSHFileExplorer.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/SSHSessionForm.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/SSHTab.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/SSHToolbar.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/playwright.config.js.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/postcss.config.js.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/tailwind.config.js.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/App.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/main.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ActivityTab.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/AppHeader.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/CircularProgress.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ConfirmationModal.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ExtensionModal.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/Icons.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/LogViewer.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/PluginsTab.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/SSHSessionView.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ProxyTab.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ServiceItem.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/SettingsModal.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/StatusBar.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/Toast.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/VersionDropdown.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/VerticalNav.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/runtime/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/runtime/runtime.js.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/utils/a11y.ts.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/utils/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/go/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/go/models.ts.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/go/backend/App.js.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/go/backend/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/AddPluginAction.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/MenuBar.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/PluginItem.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/SSHFileExplorer.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/SSHSessionForm.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/SSHTab.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/SSHToolbar.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/settings/GlobalConfigCategory.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/settings/ProfileCategory.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/settings/SSHManagementCategory.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/settings/index.html
+omponents/ServiceItem.tsx, /src/index.css
 10:22:58 AM [vite] (client) hmr update /src/components/ssh/SSHTab.tsx, /src/index.css
 10:22:58 AM [vite] (client) page reload src/test/SSHTab.test.tsx
 10:22:58 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ssh/SSHTab.tsx, /src/components/ActivityTab.tsx, /src/components/PluginsTab.tsx, /src/components/MenuBar.tsx, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx, /src/components/ssh/SSHSessionForm.tsx, /src/components/settings/ProfileCategory.tsx, /src/components/settings/GlobalConfigCategory.tsx, /src/components/settings/SSHManagementCategory.tsx
@@ -101,3 +111,109 @@ Port 5173 is in use, trying another one...
 10:22:58 AM [vite] (client) page reload src/test/SSHTab.test.tsx
 10:22:58 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ssh/SSHTab.tsx, /src/components/ActivityTab.tsx, /src/components/PluginsTab.tsx, /src/components/MenuBar.tsx, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx, /src/components/ssh/SSHSessionForm.tsx, /src/components/settings/ProfileCategory.tsx, /src/components/settings/GlobalConfigCategory.tsx, /src/components/settings/SSHManagementCategory.tsx
 10:22:58 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx
+10:46:30 AM [vite] (client) hmr update /src/App.tsx, /src/index.css
+10:46:30 AM [vite] (client) hmr update /src/components/MenuBar.tsx, /src/index.css
+10:46:30 AM [vite] (client) hmr update /src/components/ProxyTab.tsx, /src/index.css
+10:46:30 AM [vite] (client) hmr update /src/components/SSHSessionView.tsx, /src/index.css
+10:46:30 AM [vite] (client) hmr update /src/components/ServiceItem.tsx, /src/index.css
+10:46:30 AM [vite] (client) hmr update /src/components/ssh/SSHTab.tsx, /src/index.css
+10:46:30 AM [vite] (client) page reload src/test/SSHTab.test.tsx
+10:46:30 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ssh/SSHTab.tsx, /src/components/ActivityTab.tsx, /src/components/PluginsTab.tsx, /src/components/MenuBar.tsx, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx, /src/components/ssh/SSHSessionForm.tsx, /src/components/settings/ProfileCategory.tsx, /src/components/settings/GlobalConfigCategory.tsx, /src/components/settings/SSHManagementCategory.tsx
+10:46:30 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx
+10:46:30 AM [vite] (client) hmr update /src/App.tsx, /src/index.css
+10:46:30 AM [vite] (client) hmr update /src/components/ProxyTab.tsx, /src/index.css
+10:46:30 AM [vite] (client) hmr update /src/components/ssh/SSHTab.tsx, /src/index.css
+10:46:30 AM [vite] (client) hmr update /src/components/ServiceItem.tsx, /src/index.css
+10:46:30 AM [vite] (client) page reload src/test/SSHTab.test.tsx
+10:46:30 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ssh/SSHTab.tsx, /src/components/ActivityTab.tsx, /src/components/PluginsTab.tsx, /src/components/MenuBar.tsx, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx, /src/components/ssh/SSHSessionForm.tsx, /src/components/settings/ProfileCategory.tsx, /src/components/settings/GlobalConfigCategory.tsx, /src/components/settings/SSHManagementCategory.tsx
+10:46:30 AM [vite] (client) hmr update /src/App.tsx, /src/index.css, /src/components/ProxyTab.tsx, /src/components/SSHSessionView.tsx
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/index.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/index.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/playwright.config.js.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/postcss.config.js.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/tailwind.config.js.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/App.tsx.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/index.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/main.tsx.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ActivityTab.tsx.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/AddPluginAction.tsx.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/AppHeader.tsx.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/CircularProgress.tsx.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ConfirmationModal.tsx.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ExtensionModal.tsx.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/Icons.tsx.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/LogViewer.tsx.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/MenuBar.tsx.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/PluginItem.tsx.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/PluginsTab.tsx.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ProxyTab.tsx.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/SSHSessionView.tsx.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ServiceItem.tsx.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/SettingsModal.tsx.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/StatusBar.tsx.html
+3:45:07 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/Toast.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/VersionDropdown.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/VerticalNav.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/index.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/utils/a11y.ts.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/utils/index.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/go/index.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/go/models.ts.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/runtime/index.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/runtime/runtime.js.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/SSHFileExplorer.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/SSHSessionForm.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/SSHTab.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/SSHToolbar.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/index.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/settings/GlobalConfigCategory.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/settings/ProfileCategory.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/settings/SSHManagementCategory.tsx.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/settings/index.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/go/backend/App.js.html
+3:45:08 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/go/backend/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/playwright.config.js.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/postcss.config.js.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/tailwind.config.js.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/App.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/main.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ActivityTab.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/AppHeader.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ConfirmationModal.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ExtensionModal.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/Icons.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/LogViewer.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/PluginsTab.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ProxyTab.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/SSHSessionView.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ServiceItem.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/SettingsModal.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/CircularProgress.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/StatusBar.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/Toast.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/VersionDropdown.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/VerticalNav.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/runtime/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/runtime/runtime.js.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/utils/a11y.ts.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/utils/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/go/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/go/models.ts.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/go/backend/App.js.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/wailsjs/go/backend/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/AddPluginAction.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/MenuBar.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/PluginItem.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/SSHFileExplorer.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/SSHSessionForm.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/SSHTab.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/SSHToolbar.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/ssh/index.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/settings/GlobalConfigCategory.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/settings/ProfileCategory.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/settings/SSHManagementCategory.tsx.html
+3:45:29 AM [vite] (client) page reload coverage/lcov-report/frontend/src/components/settings/index.html
