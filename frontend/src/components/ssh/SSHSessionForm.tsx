@@ -60,8 +60,9 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({ session, onClose, onSav
  <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
  <div className="space-y-4">
  <div>
- <label className="block text-[10px] font-bold text-mui-grey-400 uppercase tracking-widest mb-1.5 ml-0.5">Label</label>
+ <label htmlFor="session-name" className="block text-[10px] font-bold text-mui-grey-400 uppercase tracking-widest mb-1.5 ml-0.5">Label</label>
  <input
+ id="session-name"
  required
  type="text"
  placeholder="e.g. Production Web"
@@ -73,8 +74,9 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({ session, onClose, onSav
 
  <div className="grid grid-cols-4 gap-2">
  <div className="col-span-3">
- <label className="block text-[10px] font-bold text-mui-grey-400 uppercase tracking-widest mb-1.5 ml-0.5">Address</label>
+ <label htmlFor="session-host" className="block text-[10px] font-bold text-mui-grey-400 uppercase tracking-widest mb-1.5 ml-0.5">Address</label>
  <input
+ id="session-host"
  required
  type="text"
  placeholder="1.2.3.4 or example.com"
@@ -84,8 +86,9 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({ session, onClose, onSav
  />
  </div>
  <div className="col-span-1">
- <label className="block text-[10px] font-bold text-mui-grey-400 uppercase tracking-widest mb-1.5 ml-0.5">Port</label>
+ <label htmlFor="session-port" className="block text-[10px] font-bold text-mui-grey-400 uppercase tracking-widest mb-1.5 ml-0.5">Port</label>
  <input
+ id="session-port"
  required
  type="number"
  className="w-full px-2 py-2 bg-mui-grey-50 dark:bg-white/5 border border-transparent focus:border-mui-blue-500 focus:bg-white dark:focus:bg-mui-grey-900 rounded-md outline-none text-mui-grey-900 dark:text-white transition-all text-sm text-center"
@@ -96,8 +99,9 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({ session, onClose, onSav
  </div>
 
  <div>
- <label className="block text-[10px] font-bold text-mui-grey-400 uppercase tracking-widest mb-1.5 ml-0.5">Username</label>
+ <label htmlFor="session-user" className="block text-[10px] font-bold text-mui-grey-400 uppercase tracking-widest mb-1.5 ml-0.5">Username</label>
  <input
+ id="session-user"
  required
  type="text"
  placeholder="root"
@@ -135,8 +139,9 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({ session, onClose, onSav
 
  {formData.authMethod === 'password' ? (
  <div>
- <label className="block text-[10px] font-bold text-mui-grey-400 uppercase tracking-widest mb-1.5 ml-0.5">Password</label>
+ <label htmlFor="session-password" className="block text-[10px] font-bold text-mui-grey-400 uppercase tracking-widest mb-1.5 ml-0.5">Password</label>
  <input
+ id="session-password"
  required
  type="password"
  placeholder="••••••••"
@@ -148,8 +153,9 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({ session, onClose, onSav
  ) : (
  <div className="space-y-4">
  <div>
- <label className="block text-[10px] font-bold text-mui-grey-400 uppercase tracking-widest mb-1.5 ml-0.5">Private Key Path</label>
+ <label htmlFor="session-keyPath" className="block text-[10px] font-bold text-mui-grey-400 uppercase tracking-widest mb-1.5 ml-0.5">Private Key Path</label>
  <input
+ id="session-keyPath"
  required
  type="text"
  placeholder="e.g. /home/user/.ssh/id_rsa"
@@ -159,8 +165,9 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({ session, onClose, onSav
  />
  </div>
  <div>
- <label className="block text-[10px] font-bold text-mui-grey-400 uppercase tracking-widest mb-1.5 ml-0.5">Passphrase</label>
+ <label htmlFor="session-passphrase" className="block text-[10px] font-bold text-mui-grey-400 uppercase tracking-widest mb-1.5 ml-0.5">Passphrase</label>
  <input
+ id="session-passphrase"
  type="password"
  placeholder="optional"
  className="w-full px-3 py-2 bg-mui-grey-50 dark:bg-white/5 border border-transparent focus:border-mui-blue-500 focus:bg-white dark:focus:bg-mui-grey-900 rounded-md outline-none text-mui-grey-900 dark:text-white transition-all text-sm"
