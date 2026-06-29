@@ -38,7 +38,7 @@ function App() {
  const [theme, setTheme] = useState(() => {
    const saved = localStorage.getItem('theme');
    if (saved) return saved;
-   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; // NOSONAR
+   return globalThis.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
  });
  const [services, setServices] = useState<ServiceInfo[]>([
  { name: 'Apache', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
@@ -243,7 +243,7 @@ function App() {
    setupConsoleOverrides(originalLog, originalWarn, originalError);
    initApp();
 
-   if (window.runtime) { // NOSONAR
+   if (globalThis.runtime) {
      EventsOn('service_log', handleServiceLog);
      EventsOn('service_status', handleServiceStatus);
      EventsOn('download_progress', handleDownloadProgress);

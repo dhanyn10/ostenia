@@ -30,7 +30,7 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
  useEffect(() => {
  fetchApps();
 
- if (window.runtime) { // NOSONAR
+ if (globalThis.runtime) {
  return EventsOn('proxy_status', (data) => {
  const statusMap = {};
  data.forEach(item => {

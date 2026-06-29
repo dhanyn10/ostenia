@@ -31,7 +31,7 @@ describe('SSHTab Component', () => {
   // Generate dynamic IP addresses to avoid static analysis security warnings
   const generateRandomIP = () => {
     const bytes = new Uint8Array(4);
-    window.crypto.getRandomValues(bytes); // NOSONAR
+    globalThis.crypto.getRandomValues(bytes);
     return bytes.join('.');
   };
 

@@ -85,124 +85,124 @@ export function LogInfo(message: string): void;
 // logs the given message at the `warning` log level.
 export function LogWarning(message: string): void;
 
-// [WindowReload](https://wails.io/docs/reference/runtime/window#windowreload) // NOSONAR
+// [WindowReload](https://wails.io/docs/reference/runtime/window#windowreload)
 // Forces a reload by the main application as well as connected browsers.
 export function WindowReload(): void;
 
-// [WindowReloadApp](https://wails.io/docs/reference/runtime/window#windowreloadapp) // NOSONAR
+// [WindowReloadApp](https://wails.io/docs/reference/runtime/window#windowreloadapp)
 // Reloads the application frontend.
 export function WindowReloadApp(): void;
 
-// [WindowSetAlwaysOnTop](https://wails.io/docs/reference/runtime/window#windowsetalwaysontop) // NOSONAR
-// Sets the window AlwaysOnTop or not on top. // NOSONAR
+// [WindowSetAlwaysOnTop](https://wails.io/docs/reference/runtime/window#windowsetalwaysontop)
+// Sets the window AlwaysOnTop or not on top.
 export function WindowSetAlwaysOnTop(b: boolean): void;
 
-// [WindowSetSystemDefaultTheme](https://wails.io/docs/next/reference/runtime/window#windowsetsystemdefaulttheme) // NOSONAR
+// [WindowSetSystemDefaultTheme](https://wails.io/docs/next/reference/runtime/window#windowsetsystemdefaulttheme)
 // *Windows only*
-// Sets window theme to system default (dark/light). // NOSONAR
+// Sets window theme to system default (dark/light).
 export function WindowSetSystemDefaultTheme(): void;
 
-// [WindowSetLightTheme](https://wails.io/docs/next/reference/runtime/window#windowsetlighttheme) // NOSONAR
+// [WindowSetLightTheme](https://wails.io/docs/next/reference/runtime/window#windowsetlighttheme)
 // *Windows only*
-// Sets window to light theme. // NOSONAR
+// Sets window to light theme.
 export function WindowSetLightTheme(): void;
 
-// [WindowSetDarkTheme](https://wails.io/docs/next/reference/runtime/window#windowsetdarktheme) // NOSONAR
+// [WindowSetDarkTheme](https://wails.io/docs/next/reference/runtime/window#windowsetdarktheme)
 // *Windows only*
-// Sets window to dark theme. // NOSONAR
+// Sets window to dark theme.
 export function WindowSetDarkTheme(): void;
 
-// [WindowCenter](https://wails.io/docs/reference/runtime/window#windowcenter) // NOSONAR
-// Centers the window on the monitor the window is currently on. // NOSONAR
+// [WindowCenter](https://wails.io/docs/reference/runtime/window#windowcenter)
+// Centers the window on the monitor the window is currently on.
 export function WindowCenter(): void;
 
-// [WindowSetTitle](https://wails.io/docs/reference/runtime/window#windowsettitle) // NOSONAR
-// Sets the text in the window title bar. // NOSONAR
+// [WindowSetTitle](https://wails.io/docs/reference/runtime/window#windowsettitle)
+// Sets the text in the window title bar.
 export function WindowSetTitle(title: string): void;
 
-// [WindowFullscreen](https://wails.io/docs/reference/runtime/window#windowfullscreen) // NOSONAR
-// Makes the window full screen. // NOSONAR
+// [WindowFullscreen](https://wails.io/docs/reference/runtime/window#windowfullscreen)
+// Makes the window full screen.
 export function WindowFullscreen(): void;
 
-// [WindowUnfullscreen](https://wails.io/docs/reference/runtime/window#windowunfullscreen) // NOSONAR
-// Restores the previous window dimensions and position prior to full screen. // NOSONAR
+// [WindowUnfullscreen](https://wails.io/docs/reference/runtime/window#windowunfullscreen)
+// Restores the previous window dimensions and position prior to full screen.
 export function WindowUnfullscreen(): void;
 
-// [WindowIsFullscreen](https://wails.io/docs/reference/runtime/window#windowisfullscreen) // NOSONAR
-// Returns the state of the window, i.e. whether the window is in full screen mode or not. // NOSONAR
+// [WindowIsFullscreen](https://wails.io/docs/reference/runtime/window#windowisfullscreen)
+// Returns the state of the window, i.e. whether the window is in full screen mode or not.
 export function WindowIsFullscreen(): Promise<boolean>;
 
-// [WindowSetSize](https://wails.io/docs/reference/runtime/window#windowsetsize) // NOSONAR
-// Sets the width and height of the window. // NOSONAR
+// [WindowSetSize](https://wails.io/docs/reference/runtime/window#windowsetsize)
+// Sets the width and height of the window.
 export function WindowSetSize(width: number, height: number): void;
 
-// [WindowGetSize](https://wails.io/docs/reference/runtime/window#windowgetsize) // NOSONAR
-// Gets the width and height of the window. // NOSONAR
+// [WindowGetSize](https://wails.io/docs/reference/runtime/window#windowgetsize)
+// Gets the width and height of the window.
 export function WindowGetSize(): Promise<Size>;
 
-// [WindowSetMaxSize](https://wails.io/docs/reference/runtime/window#windowsetmaxsize) // NOSONAR
-// Sets the maximum window size. Will resize the window if the window is currently larger than the given dimensions. // NOSONAR
+// [WindowSetMaxSize](https://wails.io/docs/reference/runtime/window#windowsetmaxsize)
+// Sets the maximum window size. Will resize the window if the window is currently larger than the given dimensions.
 // Setting a size of 0,0 will disable this constraint.
 export function WindowSetMaxSize(width: number, height: number): void;
 
-// [WindowSetMinSize](https://wails.io/docs/reference/runtime/window#windowsetminsize) // NOSONAR
-// Sets the minimum window size. Will resize the window if the window is currently smaller than the given dimensions. // NOSONAR
+// [WindowSetMinSize](https://wails.io/docs/reference/runtime/window#windowsetminsize)
+// Sets the minimum window size. Will resize the window if the window is currently smaller than the given dimensions.
 // Setting a size of 0,0 will disable this constraint.
 export function WindowSetMinSize(width: number, height: number): void;
 
-// [WindowSetPosition](https://wails.io/docs/reference/runtime/window#windowsetposition) // NOSONAR
-// Sets the window position relative to the monitor the window is currently on. // NOSONAR
+// [WindowSetPosition](https://wails.io/docs/reference/runtime/window#windowsetposition)
+// Sets the window position relative to the monitor the window is currently on.
 export function WindowSetPosition(x: number, y: number): void;
 
-// [WindowGetPosition](https://wails.io/docs/reference/runtime/window#windowgetposition) // NOSONAR
-// Gets the window position relative to the monitor the window is currently on. // NOSONAR
+// [WindowGetPosition](https://wails.io/docs/reference/runtime/window#windowgetposition)
+// Gets the window position relative to the monitor the window is currently on.
 export function WindowGetPosition(): Promise<Position>;
 
-// [WindowHide](https://wails.io/docs/reference/runtime/window#windowhide) // NOSONAR
-// Hides the window. // NOSONAR
+// [WindowHide](https://wails.io/docs/reference/runtime/window#windowhide)
+// Hides the window.
 export function WindowHide(): void;
 
-// [WindowShow](https://wails.io/docs/reference/runtime/window#windowshow) // NOSONAR
-// Shows the window, if it is currently hidden. // NOSONAR
+// [WindowShow](https://wails.io/docs/reference/runtime/window#windowshow)
+// Shows the window, if it is currently hidden.
 export function WindowShow(): void;
 
-// [WindowMaximise](https://wails.io/docs/reference/runtime/window#windowmaximise) // NOSONAR
-// Maximises the window to fill the screen. // NOSONAR
+// [WindowMaximise](https://wails.io/docs/reference/runtime/window#windowmaximise)
+// Maximises the window to fill the screen.
 export function WindowMaximise(): void;
 
-// [WindowToggleMaximise](https://wails.io/docs/reference/runtime/window#windowtogglemaximise) // NOSONAR
+// [WindowToggleMaximise](https://wails.io/docs/reference/runtime/window#windowtogglemaximise)
 // Toggles between Maximised and UnMaximised.
 export function WindowToggleMaximise(): void;
 
-// [WindowUnmaximise](https://wails.io/docs/reference/runtime/window#windowunmaximise) // NOSONAR
-// Restores the window to the dimensions and position prior to maximising. // NOSONAR
+// [WindowUnmaximise](https://wails.io/docs/reference/runtime/window#windowunmaximise)
+// Restores the window to the dimensions and position prior to maximising.
 export function WindowUnmaximise(): void;
 
-// [WindowIsMaximised](https://wails.io/docs/reference/runtime/window#windowismaximised) // NOSONAR
-// Returns the state of the window, i.e. whether the window is maximised or not. // NOSONAR
+// [WindowIsMaximised](https://wails.io/docs/reference/runtime/window#windowismaximised)
+// Returns the state of the window, i.e. whether the window is maximised or not.
 export function WindowIsMaximised(): Promise<boolean>;
 
-// [WindowMinimise](https://wails.io/docs/reference/runtime/window#windowminimise) // NOSONAR
-// Minimises the window. // NOSONAR
+// [WindowMinimise](https://wails.io/docs/reference/runtime/window#windowminimise)
+// Minimises the window.
 export function WindowMinimise(): void;
 
-// [WindowUnminimise](https://wails.io/docs/reference/runtime/window#windowunminimise) // NOSONAR
-// Restores the window to the dimensions and position prior to minimising. // NOSONAR
+// [WindowUnminimise](https://wails.io/docs/reference/runtime/window#windowunminimise)
+// Restores the window to the dimensions and position prior to minimising.
 export function WindowUnminimise(): void;
 
-// [WindowIsMinimised](https://wails.io/docs/reference/runtime/window#windowisminimised) // NOSONAR
-// Returns the state of the window, i.e. whether the window is minimised or not. // NOSONAR
+// [WindowIsMinimised](https://wails.io/docs/reference/runtime/window#windowisminimised)
+// Returns the state of the window, i.e. whether the window is minimised or not.
 export function WindowIsMinimised(): Promise<boolean>;
 
-// [WindowIsNormal](https://wails.io/docs/reference/runtime/window#windowisnormal) // NOSONAR
-// Returns the state of the window, i.e. whether the window is normal or not. // NOSONAR
+// [WindowIsNormal](https://wails.io/docs/reference/runtime/window#windowisnormal)
+// Returns the state of the window, i.e. whether the window is normal or not.
 export function WindowIsNormal(): Promise<boolean>;
 
-// [WindowSetBackgroundColour](https://wails.io/docs/reference/runtime/window#windowsetbackgroundcolour) // NOSONAR
-// Sets the background colour of the window to the given RGBA colour definition. This colour will show through for all transparent pixels. // NOSONAR
+// [WindowSetBackgroundColour](https://wails.io/docs/reference/runtime/window#windowsetbackgroundcolour)
+// Sets the background colour of the window to the given RGBA colour definition. This colour will show through for all transparent pixels.
 export function WindowSetBackgroundColour(R: number, G: number, B: number, A: number): void;
 
-// [ScreenGetAll](https://wails.io/docs/reference/runtime/window#screengetall) // NOSONAR
+// [ScreenGetAll](https://wails.io/docs/reference/runtime/window#screengetall)
 // Gets the all screens. Call this anew each time you want to refresh data from the underlying windowing system.
 export function ScreenGetAll(): Promise<Screen[]>;
 

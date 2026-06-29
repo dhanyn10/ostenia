@@ -57,8 +57,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
    }
    setFileContextMenu(null);
  };
- window.addEventListener('click', handleClick); // NOSONAR
- return () => window.removeEventListener('click', handleClick); // NOSONAR
+ globalThis.addEventListener('click', handleClick);
+ return () => globalThis.removeEventListener('click', handleClick);
  }, []);
 
  const handleFileContextMenu = (e: React.MouseEvent, file: any) => {
@@ -129,7 +129,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
  resizeTimeout = setTimeout(performFit, 200);
  };
 
- window.addEventListener('resize', handleWindowResize); // NOSONAR
+ globalThis.addEventListener('resize', handleWindowResize);
  const ro = new ResizeObserver(() => {
  clearTimeout(resizeTimeout);
  resizeTimeout = setTimeout(performFit, 250);
@@ -179,7 +179,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
   (EventsOff as any)('ssh_path_changed', handlePathChange);
   (EventsOff as any)('ssh_disconnected', handleDisconnect);
  if (ro) ro.disconnect();
- window.removeEventListener('resize', handleWindowResize); // NOSONAR
+ globalThis.removeEventListener('resize', handleWindowResize);
  if (xterm.current) xterm.current.dispose();
  };
  }, [session.id]);

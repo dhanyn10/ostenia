@@ -75,8 +75,8 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
    }
    setContextMenu(null);
  };
- window.addEventListener('click', handleClick); // NOSONAR
- return () => window.removeEventListener('click', handleClick); // NOSONAR
+ globalThis.addEventListener('click', handleClick);
+ return () => globalThis.removeEventListener('click', handleClick);
  }, []);
 
  const handleContextMenu = (e: React.MouseEvent, session: any) => {
