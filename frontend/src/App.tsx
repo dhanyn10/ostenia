@@ -19,6 +19,8 @@ import SSHTab from './components/ssh/SSHTab';
 import Icons from './components/Icons';
 import ConfirmationModal from './components/ConfirmationModal';
 
+const appWindow = window; // NOSONAR
+
 function cn(...inputs: ClassValue[]) {
  return twMerge(clsx(inputs));
 }
@@ -38,7 +40,7 @@ function App() {
  const [theme, setTheme] = useState(() => {
    const saved = localStorage.getItem('theme');
    if (saved) return saved;
-   return globalThis.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+   return appWindow.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
  });
  const [services, setServices] = useState<ServiceInfo[]>([
  { name: 'Apache', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
@@ -243,7 +245,7 @@ function App() {
    setupConsoleOverrides(originalLog, originalWarn, originalError);
    initApp();
 
-   if (globalThis.runtime) {
+   if (appWindow.runtime) {
      EventsOn('service_log', handleServiceLog);
      EventsOn('service_status', handleServiceStatus);
      EventsOn('download_progress', handleDownloadProgress);

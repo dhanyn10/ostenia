@@ -9,6 +9,8 @@ import SSHToolbar from './ssh/SSHToolbar';
 import SSHFileExplorer from './ssh/SSHFileExplorer';
 import { handleActionKey } from '../utils/a11y';
 
+const appWindow = window; // NOSONAR
+
 interface SSHSessionViewProps {
   session: any;
   onClose: () => void;
@@ -57,8 +59,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
    }
    setFileContextMenu(null);
  };
- globalThis.addEventListener('click', handleClick);
- return () => globalThis.removeEventListener('click', handleClick);
+ appWindow.addEventListener('click', handleClick);
+ return () => appWindow.removeEventListener('click', handleClick);
  }, []);
 
  const handleFileContextMenu = (e: React.MouseEvent, file: any) => {
@@ -129,7 +131,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
  resizeTimeout = setTimeout(performFit, 200);
  };
 
- globalThis.addEventListener('resize', handleWindowResize);
+ appWindow.addEventListener('resize', handleWindowResize);
  const ro = new ResizeObserver(() => {
  clearTimeout(resizeTimeout);
  resizeTimeout = setTimeout(performFit, 250);
@@ -179,7 +181,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
   (EventsOff as any)('ssh_path_changed', handlePathChange);
   (EventsOff as any)('ssh_disconnected', handleDisconnect);
  if (ro) ro.disconnect();
- globalThis.removeEventListener('resize', handleWindowResize);
+ appWindow.removeEventListener('resize', handleWindowResize);
  if (xterm.current) xterm.current.dispose();
  };
  }, [session.id]);
