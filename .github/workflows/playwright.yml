@@ -27,6 +27,18 @@ jobs:
       - name: Install dependencies
         run: cd frontend && pnpm install
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@ebe9d32e170905ff726a3bbb3d0076282e4edc41
+
+      - name: Generate Wails Bindings
+        run: |
+          $HOME/go/bin/wails generate module
+
       - name: Get Playwright version
         id: playwright-version
         run: echo "version=$(cd frontend && node -e "console.log(require('./package.json').devDependencies['@playwright/test'])")" >> $GITHUB_OUTPUT
