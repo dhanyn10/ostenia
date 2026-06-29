@@ -19,7 +19,8 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as AppBackend from '../../wailsjs/go/backend/App';
 import { handleActionKey } from '../utils/a11y';
-const _appWindow = window; // NOSONAR
+
+const appWindow = window; // NOSONAR
 
 function cn(...inputs: ClassValue[]) {
  return twMerge(clsx(inputs));
@@ -164,7 +165,7 @@ const MenuBar: React.FC<MenuBarProps> = ({ theme, setTheme, onOpenSettings }) =>
  { id: 'help', label: 'Help', content: (
  <>
  <SubMenuItem label="About Ostenia" icon={HelpCircle} onClick={() => { alert("Ostenia v1.0.0\nPortable Development Environment"); setOpenMenu(null); }} onKeyDown={handleActionKey(() => { alert("Ostenia v1.0.0\nPortable Development Environment"); setOpenMenu(null); })} />
- <SubMenuItem label="Documentation" icon={ExternalLink} onClick={() => { _appWindow.open('https://github.com/dhanyn/ostenia', '_blank', 'noopener,noreferrer'); setOpenMenu(null); }} onKeyDown={handleActionKey(() => { _appWindow.open('https://github.com/dhanyn/ostenia', '_blank', 'noopener,noreferrer'); setOpenMenu(null); })} />
+ <SubMenuItem label="Documentation" icon={ExternalLink} onClick={() => { appWindow.open('https://github.com/dhanyn/ostenia', '_blank', 'noopener,noreferrer'); setOpenMenu(null); }} onKeyDown={handleActionKey(() => { appWindow.open('https://github.com/dhanyn/ostenia', '_blank', 'noopener,noreferrer'); setOpenMenu(null); })} />
  </>
  )}
  ];

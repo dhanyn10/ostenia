@@ -3,7 +3,8 @@ import { Save, ExternalLink, Search, Folder, Terminal, ChevronDown, Monitor, Act
 import { EventsOn } from '../../wailsjs/runtime/runtime';
 import * as AppBackend from '../../wailsjs/go/backend/App';
 import { handleActionKey } from '../utils/a11y';
-const _appWindow = window; // NOSONAR
+
+const appWindow = window; // NOSONAR
 
 interface ProxyTabProps {
   addToast: (title: string, message: string, type?: 'info' | 'success' | 'warn' | 'error') => void;
@@ -31,7 +32,7 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
  useEffect(() => {
  fetchApps();
 
- if (_appWindow.runtime) {
+ if (appWindow.runtime) {
  return EventsOn('proxy_status', (data) => {
  const statusMap = {};
  data.forEach(item => {

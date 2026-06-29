@@ -1,5 +1,6 @@
+
+const appWindow = window; // NOSONAR
 /*
-const _appWindow = window; // NOSONAR
  _       __      _ __
 | |     / /___ _(_) /____
 | | /| / / __ `/ / / ___/
@@ -10,35 +11,35 @@ The electron alternative for Go
 */
 
 export function LogPrint(message) {
-    _appWindow.runtime.LogPrint(message);
+    appWindow.runtime.LogPrint(message);
 }
 
 export function LogTrace(message) {
-    _appWindow.runtime.LogTrace(message);
+    appWindow.runtime.LogTrace(message);
 }
 
 export function LogDebug(message) {
-    _appWindow.runtime.LogDebug(message);
+    appWindow.runtime.LogDebug(message);
 }
 
 export function LogInfo(message) {
-    _appWindow.runtime.LogInfo(message);
+    appWindow.runtime.LogInfo(message);
 }
 
 export function LogWarning(message) {
-    _appWindow.runtime.LogWarning(message);
+    appWindow.runtime.LogWarning(message);
 }
 
 export function LogError(message) {
-    _appWindow.runtime.LogError(message);
+    appWindow.runtime.LogError(message);
 }
 
 export function LogFatal(message) {
-    _appWindow.runtime.LogFatal(message);
+    appWindow.runtime.LogFatal(message);
 }
 
 export function EventsOnMultiple(eventName, callback, maxCallbacks) {
-    return _appWindow.runtime.EventsOnMultiple(eventName, callback, maxCallbacks);
+    return appWindow.runtime.EventsOnMultiple(eventName, callback, maxCallbacks);
 }
 
 export function EventsOn(eventName, callback) {
@@ -46,11 +47,11 @@ export function EventsOn(eventName, callback) {
 }
 
 export function EventsOff(eventName, ...additionalEventNames) {
-    return _appWindow.runtime.EventsOff(eventName, ...additionalEventNames);
+    return appWindow.runtime.EventsOff(eventName, ...additionalEventNames);
 }
 
 export function EventsOffAll() {
-  return _appWindow.runtime.EventsOffAll();
+  return appWindow.runtime.EventsOffAll();
 }
 
 export function EventsOnce(eventName, callback) {
@@ -59,151 +60,151 @@ export function EventsOnce(eventName, callback) {
 
 export function EventsEmit(eventName) {
     let args = [eventName].slice.call(arguments);
-    return _appWindow.runtime.EventsEmit.apply(null, args);
+    return appWindow.runtime.EventsEmit.apply(null, args);
 }
 
 export function WindowReload() {
-    _appWindow.runtime.WindowReload();
+    appWindow.runtime.WindowReload();
 }
 
 export function WindowReloadApp() {
-    _appWindow.runtime.WindowReloadApp();
+    appWindow.runtime.WindowReloadApp();
 }
 
 export function WindowSetAlwaysOnTop(b) {
-    _appWindow.runtime.WindowSetAlwaysOnTop(b);
+    appWindow.runtime.WindowSetAlwaysOnTop(b);
 }
 
 export function WindowSetSystemDefaultTheme() {
-    _appWindow.runtime.WindowSetSystemDefaultTheme();
+    appWindow.runtime.WindowSetSystemDefaultTheme();
 }
 
 export function WindowSetLightTheme() {
-    _appWindow.runtime.WindowSetLightTheme();
+    appWindow.runtime.WindowSetLightTheme();
 }
 
 export function WindowSetDarkTheme() {
-    _appWindow.runtime.WindowSetDarkTheme();
+    appWindow.runtime.WindowSetDarkTheme();
 }
 
 export function WindowCenter() {
-    _appWindow.runtime.WindowCenter();
+    appWindow.runtime.WindowCenter();
 }
 
 export function WindowSetTitle(title) {
-    _appWindow.runtime.WindowSetTitle(title);
+    appWindow.runtime.WindowSetTitle(title);
 }
 
 export function WindowFullscreen() {
-    _appWindow.runtime.WindowFullscreen();
+    appWindow.runtime.WindowFullscreen();
 }
 
 export function WindowUnfullscreen() {
-    _appWindow.runtime.WindowUnfullscreen();
+    appWindow.runtime.WindowUnfullscreen();
 }
 
 export function WindowIsFullscreen() {
-    return _appWindow.runtime.WindowIsFullscreen();
+    return appWindow.runtime.WindowIsFullscreen();
 }
 
 export function WindowGetSize() {
-    return _appWindow.runtime.WindowGetSize();
+    return appWindow.runtime.WindowGetSize();
 }
 
 export function WindowSetSize(width, height) {
-    _appWindow.runtime.WindowSetSize(width, height);
+    appWindow.runtime.WindowSetSize(width, height);
 }
 
 export function WindowSetMaxSize(width, height) {
-    _appWindow.runtime.WindowSetMaxSize(width, height);
+    appWindow.runtime.WindowSetMaxSize(width, height);
 }
 
 export function WindowSetMinSize(width, height) {
-    _appWindow.runtime.WindowSetMinSize(width, height);
+    appWindow.runtime.WindowSetMinSize(width, height);
 }
 
 export function WindowSetPosition(x, y) {
-    _appWindow.runtime.WindowSetPosition(x, y);
+    appWindow.runtime.WindowSetPosition(x, y);
 }
 
 export function WindowGetPosition() {
-    return _appWindow.runtime.WindowGetPosition();
+    return appWindow.runtime.WindowGetPosition();
 }
 
 export function WindowHide() {
-    _appWindow.runtime.WindowHide();
+    appWindow.runtime.WindowHide();
 }
 
 export function WindowShow() {
-    _appWindow.runtime.WindowShow();
+    appWindow.runtime.WindowShow();
 }
 
 export function WindowMaximise() {
-    _appWindow.runtime.WindowMaximise();
+    appWindow.runtime.WindowMaximise();
 }
 
 export function WindowToggleMaximise() {
-    _appWindow.runtime.WindowToggleMaximise();
+    appWindow.runtime.WindowToggleMaximise();
 }
 
 export function WindowUnmaximise() {
-    _appWindow.runtime.WindowUnmaximise();
+    appWindow.runtime.WindowUnmaximise();
 }
 
 export function WindowIsMaximised() {
-    return _appWindow.runtime.WindowIsMaximised();
+    return appWindow.runtime.WindowIsMaximised();
 }
 
 export function WindowMinimise() {
-    _appWindow.runtime.WindowMinimise();
+    appWindow.runtime.WindowMinimise();
 }
 
 export function WindowUnminimise() {
-    _appWindow.runtime.WindowUnminimise();
+    appWindow.runtime.WindowUnminimise();
 }
 
 export function WindowSetBackgroundColour(R, G, B, A) {
-    _appWindow.runtime.WindowSetBackgroundColour(R, G, B, A);
+    appWindow.runtime.WindowSetBackgroundColour(R, G, B, A);
 }
 
 export function ScreenGetAll() {
-    return _appWindow.runtime.ScreenGetAll();
+    return appWindow.runtime.ScreenGetAll();
 }
 
 export function WindowIsMinimised() {
-    return _appWindow.runtime.WindowIsMinimised();
+    return appWindow.runtime.WindowIsMinimised();
 }
 
 export function WindowIsNormal() {
-    return _appWindow.runtime.WindowIsNormal();
+    return appWindow.runtime.WindowIsNormal();
 }
 
 export function BrowserOpenURL(url) {
-    _appWindow.runtime.BrowserOpenURL(url);
+    appWindow.runtime.BrowserOpenURL(url);
 }
 
 export function Environment() {
-    return _appWindow.runtime.Environment();
+    return appWindow.runtime.Environment();
 }
 
 export function Quit() {
-    _appWindow.runtime.Quit();
+    appWindow.runtime.Quit();
 }
 
 export function Hide() {
-    _appWindow.runtime.Hide();
+    appWindow.runtime.Hide();
 }
 
 export function Show() {
-    _appWindow.runtime.Show();
+    appWindow.runtime.Show();
 }
 
 export function ClipboardGetText() {
-    return _appWindow.runtime.ClipboardGetText();
+    return appWindow.runtime.ClipboardGetText();
 }
 
 export function ClipboardSetText(text) {
-    return _appWindow.runtime.ClipboardSetText(text);
+    return appWindow.runtime.ClipboardSetText(text);
 }
 
 /**
@@ -224,76 +225,76 @@ export function ClipboardSetText(text) {
  * @param {boolean} [useDropTarget=true] - Only call the callback when the drop finished on an element that has the drop target style. (--wails-drop-target)
  */
 export function OnFileDrop(callback, useDropTarget) {
-    return _appWindow.runtime.OnFileDrop(callback, useDropTarget);
+    return appWindow.runtime.OnFileDrop(callback, useDropTarget);
 }
 
 /**
  * OnFileDropOff removes the drag and drop listeners and handlers.
  */
 export function OnFileDropOff() {
-    return _appWindow.runtime.OnFileDropOff();
+    return appWindow.runtime.OnFileDropOff();
 }
 
 export function CanResolveFilePaths() {
-    return _appWindow.runtime.CanResolveFilePaths();
+    return appWindow.runtime.CanResolveFilePaths();
 }
 
 export function ResolveFilePaths(files) {
-    return _appWindow.runtime.ResolveFilePaths(files);
+    return appWindow.runtime.ResolveFilePaths(files);
 }
 
 export function InitializeNotifications() {
-    return _appWindow.runtime.InitializeNotifications();
+    return appWindow.runtime.InitializeNotifications();
 }
 
 export function CleanupNotifications() {
-    return _appWindow.runtime.CleanupNotifications();
+    return appWindow.runtime.CleanupNotifications();
 }
 
 export function IsNotificationAvailable() {
-    return _appWindow.runtime.IsNotificationAvailable();
+    return appWindow.runtime.IsNotificationAvailable();
 }
 
 export function RequestNotificationAuthorization() {
-    return _appWindow.runtime.RequestNotificationAuthorization();
+    return appWindow.runtime.RequestNotificationAuthorization();
 }
 
 export function CheckNotificationAuthorization() {
-    return _appWindow.runtime.CheckNotificationAuthorization();
+    return appWindow.runtime.CheckNotificationAuthorization();
 }
 
 export function SendNotification(options) {
-    return _appWindow.runtime.SendNotification(options);
+    return appWindow.runtime.SendNotification(options);
 }
 
 export function SendNotificationWithActions(options) {
-    return _appWindow.runtime.SendNotificationWithActions(options);
+    return appWindow.runtime.SendNotificationWithActions(options);
 }
 
 export function RegisterNotificationCategory(category) {
-    return _appWindow.runtime.RegisterNotificationCategory(category);
+    return appWindow.runtime.RegisterNotificationCategory(category);
 }
 
 export function RemoveNotificationCategory(categoryId) {
-    return _appWindow.runtime.RemoveNotificationCategory(categoryId);
+    return appWindow.runtime.RemoveNotificationCategory(categoryId);
 }
 
 export function RemoveAllPendingNotifications() {
-    return _appWindow.runtime.RemoveAllPendingNotifications();
+    return appWindow.runtime.RemoveAllPendingNotifications();
 }
 
 export function RemovePendingNotification(identifier) {
-    return _appWindow.runtime.RemovePendingNotification(identifier);
+    return appWindow.runtime.RemovePendingNotification(identifier);
 }
 
 export function RemoveAllDeliveredNotifications() {
-    return _appWindow.runtime.RemoveAllDeliveredNotifications();
+    return appWindow.runtime.RemoveAllDeliveredNotifications();
 }
 
 export function RemoveDeliveredNotification(identifier) {
-    return _appWindow.runtime.RemoveDeliveredNotification(identifier);
+    return appWindow.runtime.RemoveDeliveredNotification(identifier);
 }
 
 export function RemoveNotification(identifier) {
-    return _appWindow.runtime.RemoveNotification(identifier);
+    return appWindow.runtime.RemoveNotification(identifier);
 }
