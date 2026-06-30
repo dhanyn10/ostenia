@@ -36,7 +36,7 @@ jobs:
         working-directory: frontend
         run: |
           npm install -g pnpm
-          pnpm install
+          pnpm install --no-frozen-lockfile
           pnpm vitest run --coverage.enabled --coverage.reporter=lcov --coverage.reportsDirectory=./coverage
 
       - name: SonarQube Scan
