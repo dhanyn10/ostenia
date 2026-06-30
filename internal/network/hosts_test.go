@@ -35,6 +35,14 @@ func TestHosts(t *testing.T) {
 		}
 	})
 
+	t.Run("Add Host with different IP", func(t *testing.T) {
+		// Currently AddHost returns nil if hostname exists regardless of IP
+		err := AddHost("127.0.0.2", "test.local")
+		if err != nil {
+			t.Fatalf("AddHost() error = %v", err)
+		}
+	})
+
 	t.Run("Remove Managed Hosts", func(t *testing.T) {
 		err := RemoveManagedHosts()
 		if err != nil {

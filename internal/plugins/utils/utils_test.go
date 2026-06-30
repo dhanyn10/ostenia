@@ -122,6 +122,13 @@ func TestDownloadFile(t *testing.T) {
 	}
 }
 
+func TestGetSystemArch(t *testing.T) {
+	arch := GetSystemArch()
+	if arch == "" {
+		t.Error("GetSystemArch() returned empty string")
+	}
+}
+
 func TestFormatBytes(t *testing.T) {
 	tests := []struct {
 		bytes uint64
