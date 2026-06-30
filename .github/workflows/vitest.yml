@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -25,7 +25,7 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install dependencies
-        run: cd frontend && pnpm install
+        run: cd frontend; pnpm install
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -36,8 +36,7 @@ jobs:
         run: go install github.com/wailsapp/wails/v2/cmd/wails@ebe9d32e170905ff726a3bbb3d0076282e4edc41
 
       - name: Generate Wails Bindings
-        run: |
-          $HOME/go/bin/wails generate module
+        run: wails generate module
 
       - name: Run Vitest
-        run: cd frontend && pnpm test -- --coverage.enabled --coverage.reporter=lcov --coverage.reportsDirectory=./coverage
+        run: cd frontend; pnpm test -- --coverage.enabled --coverage.reporter=lcov --coverage.reportsDirectory=./coverage
