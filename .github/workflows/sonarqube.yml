@@ -39,7 +39,7 @@ jobs:
         working-directory: frontend
         run: |
           npm install -g pnpm
-          $HOME/go/bin/wails generate module
+          cd .. && $HOME/go/bin/wails generate module && cd frontend
           pnpm install --no-frozen-lockfile
           pnpm vitest run --coverage.enabled --coverage.reporter=lcov --coverage.reportsDirectory=./coverage
 
