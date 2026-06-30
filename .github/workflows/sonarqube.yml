@@ -19,6 +19,9 @@ jobs:
         with:
           go-version: '1.25.x'
 
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@ebe9d32e170905ff726a3bbb3d0076282e4edc41
+
       - name: Run Backend Tests
         run: |
           sudo apt-get update
@@ -36,6 +39,7 @@ jobs:
         working-directory: frontend
         run: |
           npm install -g pnpm
+          $HOME/go/bin/wails generate module
           pnpm install --no-frozen-lockfile
           pnpm vitest run --coverage.enabled --coverage.reporter=lcov --coverage.reportsDirectory=./coverage
 
