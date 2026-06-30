@@ -16,3 +16,21 @@ func TestIsAdmin(t *testing.T) {
 		t.Logf("IsAdmin on Windows: %v", res)
 	}
 }
+
+func TestRunMeAsAdmin(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		err := RunMeAsAdmin()
+		if err == nil {
+			t.Error("RunMeAsAdmin should fail on non-windows")
+		}
+	}
+}
+
+func TestAddHostWithElevation(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		err := AddHostWithElevation("127.0.0.1", "test.local")
+		if err == nil && !IsAdmin() {
+			t.Error("AddHostWithElevation should fail on non-windows if not admin")
+		}
+	}
+}

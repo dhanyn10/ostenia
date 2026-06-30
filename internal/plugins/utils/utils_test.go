@@ -29,6 +29,57 @@ func TestCompareVersions(t *testing.T) {
 	}
 }
 
+func TestGetSystemDirectory(t *testing.T) {
+	dir := GetSystemDirectory()
+	if dir == "" {
+		t.Error("GetSystemDirectory() returned empty string")
+	}
+}
+
+func TestSafeEnv(t *testing.T) {
+	env := SafeEnv()
+	if len(env) == 0 {
+		t.Error("SafeEnv() returned empty environment")
+	}
+	foundPath := false
+	for _, e := range env {
+		if len(e) >= 5 && e[:5] == "PATH=" {
+			foundPath = true
+			break
+		}
+	}
+	if !foundPath {
+		t.Error("SafeEnv() did not contain PATH")
+	}
+}
+
+func TestCopyFile(t *testing.T) {
+	tmpDir, _ := os.MkdirTemp("", "copyfile_test")
+	defer os.RemoveAll(tmpDir)
+
+	src := filepath.Join(tmpDir, "src.txt")
+	dst := filepath.Join(tmpDir, "dst.txt")
+
+	want := "hello world"
+	_ = os.WriteFile(src, []byte(want), 0644)
+
+	err := CopyFile(src, dst)
+	if err != nil {
+		t.Fatalf("CopyFile failed: %v", err)
+	}
+
+	content, _ := os.ReadFile(dst)
+	if string(content) != want {
+		t.Errorf("Copied content = %q, want %q", string(content), want)
+	}
+
+	// Test non-existent source
+	err = CopyFile("non-existent", dst)
+	if err == nil {
+		t.Error("CopyFile should fail for non-existent source")
+	}
+}
+
 func TestFetchContent(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("mock content"))
