@@ -43,6 +43,8 @@ vi.mock('../../wailsjs/go/backend/App', () => ({
 vi.mock('../../wailsjs/runtime/runtime', () => ({
   EventsOn: vi.fn(),
   EventsOff: vi.fn(),
+  EventsOnMultiple: vi.fn(),
+  EventsEmit: vi.fn(),
   LogInfo: vi.fn(),
   LogError: vi.fn(),
   WindowSetTitle: vi.fn(),
