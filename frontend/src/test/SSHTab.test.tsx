@@ -4,14 +4,14 @@ import SSHTab from '../components/ssh/SSHTab'
 import React from 'react'
 
 // Mock AppBackend
-vi.mock('../../wailsjs/go/backend/App', () => ({
+vi.mock('../../wailsjs/go/backend/App.js', () => ({
   GetSSHSessions: vi.fn(),
   ConnectSSH: vi.fn(),
   DisconnectSSH: vi.fn(),
   DeleteSSHSession: vi.fn(),
 }))
 
-import * as AppBackendRaw from '../../wailsjs/go/backend/App'
+import * as AppBackendRaw from '../../wailsjs/go/backend/App.js'
 const AppBackend = AppBackendRaw as any;
 
 // Mock sub-components to focus on SSHTab logic
