@@ -91,6 +91,12 @@ func TestFetchContent(t *testing.T) {
 	if got != want {
 		t.Errorf("FetchContent() = %q, want %q", got, want)
 	}
+
+	// Error case
+	gotErr := FetchContent("http://invalid.url. Ostenia-Test")
+	if gotErr != "" {
+		t.Errorf("FetchContent() with invalid URL = %q, want empty string", gotErr)
+	}
 }
 
 func TestDownloadFile(t *testing.T) {
@@ -126,6 +132,42 @@ func TestGetSystemArch(t *testing.T) {
 	arch := GetSystemArch()
 	if arch == "" {
 		t.Error("GetSystemArch() returned empty string")
+	}
+}
+
+func TestGetInstalledVersionPaths(t *testing.T) {
+	tmpDir, _ := os.MkdirTemp("", "version_paths_test")
+	defer os.RemoveAll(tmpDir)
+
+	category := "test-cat"
+	checkFile := "check.txt"
+	binDir := filepath.Join(tmpDir, "bin", category)
+
+	// Create dummy version directories
+	os.MkdirAll(filepath.Join(binDir, "v1.0.0"), 0755)
+	os.WriteFile(filepath.Join(binDir, "v1.0.0", checkFile), []byte("ok"), 0644)
+
+	os.MkdirAll(filepath.Join(binDir, "node-v2.1.0"), 0755)
+	os.WriteFile(filepath.Join(binDir, "node-v2.1.0", checkFile), []byte("ok"), 0644)
+
+	// Dir without check file
+	os.MkdirAll(filepath.Join(binDir, "v3.0.0"), 0755)
+
+	// File instead of dir
+	os.WriteFile(filepath.Join(binDir, "not-a-dir"), []byte("data"), 0644)
+
+	versions := GetInstalledVersionPaths(tmpDir, category, checkFile)
+
+	if len(versions) != 2 {
+		t.Errorf("Expected 2 versions, got %d", len(versions))
+	}
+
+	if _, ok := versions["v1.0.0"]; !ok {
+		t.Error("v1.0.0 not found in results")
+	}
+
+	if _, ok := versions["2.1.0"]; !ok {
+		t.Error("2.1.0 (normalized from node-v2.1.0) not found in results")
 	}
 }
 
