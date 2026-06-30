@@ -40,4 +40,4 @@ jobs:
           $HOME/go/bin/wails generate module
 
       - name: Run Vitest
-        run: cd frontend && pnpm test
+        run: cd frontend && pnpm test -- --coverage.enabled --coverage.reporter=lcov --coverage.reportsDirectory=./coverage
