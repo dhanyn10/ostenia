@@ -26,7 +26,7 @@ func (a *App) ExportProfile(includeConfig bool, includeSSH bool) error {
 	}
 
 	filePath, err := a.runtime.SaveFileDialog(a.ctx, wruntime.SaveDialogOptions{
-		Title:           "Export Ostenia Profile",
+		Title:           "Export Profile",
 		DefaultFilename: "ostenia_profile.json",
 		Filters: []wruntime.FileFilter{
 			{DisplayName: "JSON Files (*.json)", Pattern: "*.json"},
@@ -45,10 +45,10 @@ func (a *App) ExportProfile(includeConfig bool, includeSSH bool) error {
 	return os.WriteFile(filePath, data, 0644)
 }
 
-// ImportProfile imports the application configuration and/or SSH sessions from a JSON file
+// ImportProfile imports an application profile from a JSON file
 func (a *App) ImportProfile() error {
 	filePath, err := a.runtime.OpenFileDialog(a.ctx, wruntime.OpenDialogOptions{
-		Title: "Import Ostenia Profile",
+		Title: "Import Profile",
 		Filters: []wruntime.FileFilter{
 			{DisplayName: "JSON Files (*.json)", Pattern: "*.json"},
 		},
@@ -69,9 +69,6 @@ func (a *App) ImportProfile() error {
 	}
 
 	if profile.Config != nil {
-		// We preserve BaseDir and WWWRoot to avoid breaking the current installation
-		profile.Config.BaseDir = a.cfg.BaseDir
-		profile.Config.WWWRoot = a.cfg.WWWRoot
 		a.cfg = profile.Config
 		_ = config.SaveConfig(a.cfg)
 	}
@@ -80,8 +77,5 @@ func (a *App) ImportProfile() error {
 		_ = a.sshManager.SaveSessions(profile.SSHSessions)
 	}
 
-	if a.runtime != nil && a.ctx != nil {
-		a.runtime.EventsEmit(a.ctx, "environment_changed", a.cfg)
-	}
 	return nil
 }
