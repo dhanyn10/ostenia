@@ -21,19 +21,18 @@ func (a *App) ExportProfile(includeConfig bool, includeSSH bool) error {
 		profile.Config = a.cfg
 	}
 	if includeSSH {
-		sessions, err := config.LoadSSHSessions()
-		if err == nil {
-			profile.SSHSessions = sessions
-		}
+		sessions, _ := a.sshManager.GetSessions()
+		profile.SSHSessions = sessions
 	}
 
-	filePath, err := wruntime.SaveFileDialog(a.ctx, wruntime.SaveDialogOptions{
+	filePath, err := a.runtime.SaveFileDialog(a.ctx, wruntime.SaveDialogOptions{
 		Title:           "Export Ostenia Profile",
 		DefaultFilename: "ostenia_profile.json",
 		Filters: []wruntime.FileFilter{
 			{DisplayName: "JSON Files (*.json)", Pattern: "*.json"},
 		},
 	})
+
 	if err != nil || filePath == "" {
 		return err
 	}
@@ -48,12 +47,13 @@ func (a *App) ExportProfile(includeConfig bool, includeSSH bool) error {
 
 // ImportProfile imports the application configuration and/or SSH sessions from a JSON file
 func (a *App) ImportProfile() error {
-	filePath, err := wruntime.OpenFileDialog(a.ctx, wruntime.OpenDialogOptions{
+	filePath, err := a.runtime.OpenFileDialog(a.ctx, wruntime.OpenDialogOptions{
 		Title: "Import Ostenia Profile",
 		Filters: []wruntime.FileFilter{
 			{DisplayName: "JSON Files (*.json)", Pattern: "*.json"},
 		},
 	})
+
 	if err != nil || filePath == "" {
 		return err
 	}
@@ -64,8 +64,7 @@ func (a *App) ImportProfile() error {
 	}
 
 	var profile ProfileData
-	err = json.Unmarshal(data, &profile)
-	if err != nil {
+	if err := json.Unmarshal(data, &profile); err != nil {
 		return err
 	}
 
@@ -78,9 +77,11 @@ func (a *App) ImportProfile() error {
 	}
 
 	if profile.SSHSessions != nil {
-		_ = config.SaveSSHSessions(profile.SSHSessions)
+		_ = a.sshManager.SaveSessions(profile.SSHSessions)
 	}
 
-	wruntime.EventsEmit(a.ctx, "environment_changed", a.cfg)
+	if a.runtime != nil && a.ctx != nil {
+		a.runtime.EventsEmit(a.ctx, "environment_changed", a.cfg)
+	}
 	return nil
 }

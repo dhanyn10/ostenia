@@ -6,6 +6,8 @@ import (
 	"ostenia/internal/config"
 	"ostenia/internal/plugins"
 	"ostenia/internal/service"
+	"ostenia/internal/backend/interfaces"
+	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct manages the main application state and coordinates between backend services and the frontend
@@ -16,6 +18,27 @@ type App struct {
 	symlinkMgr   *service.SymlinkManager
 	sshManager   *service.SSHManager
 	cfg          *config.Config
+	runtime      interfaces.Runtime
+}
+
+type WailsRuntime struct{}
+
+func (w *WailsRuntime) EventsEmit(ctx context.Context, eventName string, optionalData ...interface{}) {
+	wruntime.EventsEmit(ctx, eventName, optionalData...)
+}
+func (w *WailsRuntime) WindowMinimise(ctx context.Context) { wruntime.WindowMinimise(ctx) }
+func (w *WailsRuntime) WindowMaximise(ctx context.Context) { wruntime.WindowMaximise(ctx) }
+func (w *WailsRuntime) WindowUnmaximise(ctx context.Context) { wruntime.WindowUnmaximise(ctx) }
+func (w *WailsRuntime) WindowExecJS(ctx context.Context, js string) { wruntime.WindowExecJS(ctx, js) }
+func (w *WailsRuntime) Quit(ctx context.Context) { wruntime.Quit(ctx) }
+func (w *WailsRuntime) OpenFileDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) {
+	return wruntime.OpenFileDialog(ctx, options)
+}
+func (w *WailsRuntime) OpenDirectoryDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) {
+	return wruntime.OpenDirectoryDialog(ctx, options)
+}
+func (w *WailsRuntime) SaveFileDialog(ctx context.Context, options wruntime.SaveDialogOptions) (string, error) {
+	return wruntime.SaveFileDialog(ctx, options)
 }
 
 const (
@@ -36,6 +59,7 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
+	a.runtime = &WailsRuntime{}
 	a.downloader = plugins.NewManager(ctx)
 	a.orchestrator = service.NewOrchestrator(ctx)
 	a.symlinkMgr = service.NewSymlinkManager()

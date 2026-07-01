@@ -59,13 +59,13 @@ func (a *App) SetServerRoot(rootPath string) error {
 	if err != nil { return err }
 	a.ensureEnvironmentStructure()
 	a.orchestrator.RequestRefresh()
-	wruntime.EventsEmit(a.ctx, "environment_changed", a.cfg)
+	a.runtime.EventsEmit(a.ctx, "environment_changed", a.cfg)
 	return nil
 }
 
 // SelectServerRoot opens a directory dialog to select the Ostenia apps location
 func (a *App) SelectServerRoot() (string, error) {
-	selectedDir, err := wruntime.OpenDirectoryDialog(a.ctx, wruntime.OpenDialogOptions{Title: "Select Ostenia Apps Location"})
+	selectedDir, err := a.runtime.OpenDirectoryDialog(a.ctx, wruntime.OpenDialogOptions{Title: "Select Ostenia Apps Location"})
 	if err != nil { return "", err }
 	if selectedDir != "" { err = a.SetServerRoot(selectedDir); if err != nil { return "", err } }
 	return selectedDir, nil
@@ -73,7 +73,7 @@ func (a *App) SelectServerRoot() (string, error) {
 
 // SelectWWWRoot opens a directory dialog to select the server root (www)
 func (a *App) SelectWWWRoot() (string, error) {
-	selectedDir, err := wruntime.OpenDirectoryDialog(a.ctx, wruntime.OpenDialogOptions{Title: "Select Server Root (www)"})
+	selectedDir, err := a.runtime.OpenDirectoryDialog(a.ctx, wruntime.OpenDialogOptions{Title: "Select Server Root (www)"})
 	if err != nil { return "", err }
 	if selectedDir != "" { err = a.SetWWWRoot(selectedDir); if err != nil { return "", err } }
 	return selectedDir, nil

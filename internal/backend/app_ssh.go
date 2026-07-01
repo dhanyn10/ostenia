@@ -76,7 +76,7 @@ func (a *App) GetRemoteCurrentPath(sessionID string) (string, error) {
 // DownloadRemoteFile downloads a file from a remote host to the local machine
 func (a *App) DownloadRemoteFile(sessionID string, remotePath string) error {
 	fileName := filepath.Base(remotePath)
-	localPath, err := wruntime.SaveFileDialog(a.ctx, wruntime.SaveDialogOptions{
+	localPath, err := a.runtime.SaveFileDialog(a.ctx, wruntime.SaveDialogOptions{
 		Title:           "Download File",
 		DefaultFilename: fileName,
 	})
@@ -88,7 +88,7 @@ func (a *App) DownloadRemoteFile(sessionID string, remotePath string) error {
 
 // UploadRemoteFile uploads a file from the local machine to a remote host
 func (a *App) UploadRemoteFile(sessionID string, remoteDir string) error {
-	localPath, err := wruntime.OpenFileDialog(a.ctx, wruntime.OpenDialogOptions{
+	localPath, err := a.runtime.OpenFileDialog(a.ctx, wruntime.OpenDialogOptions{
 		Title: "Upload File",
 	})
 	if err != nil || localPath == "" {

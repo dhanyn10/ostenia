@@ -10,6 +10,7 @@ import (
 	"ostenia/internal/config"
 	"ostenia/internal/plugins/utils"
 	"ostenia/internal/ssl"
+	"ostenia/internal/backend/interfaces"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -17,8 +18,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // ServiceDetailedInfo contains comprehensive status and metadata for a service
@@ -47,6 +46,7 @@ type Orchestrator struct {
 	tabMu        sync.RWMutex
 	needsRefresh bool
 	refreshMu    sync.Mutex
+	runtime      interfaces.Runtime
 }
 
 // NewOrchestrator creates a new Orchestrator instance
@@ -57,6 +57,17 @@ func NewOrchestrator(ctx context.Context) *Orchestrator {
 		serviceCache: make(map[string]ServiceDetailedInfo),
 		activeTab:    "activity",
 		needsRefresh: true,
+	}
+}
+
+// SetRuntime sets the Wails runtime for events emission
+func (o *Orchestrator) SetRuntime(r interfaces.Runtime) {
+	o.runtime = r
+}
+
+func (o *Orchestrator) emitEvent(eventName string, optionalData ...interface{}) {
+	if o.runtime != nil && o.ctx != nil {
+		o.runtime.EventsEmit(o.ctx, eventName, optionalData...)
 	}
 }
 
@@ -107,7 +118,7 @@ func (o *Orchestrator) performWatcherCheck(services []string) {
 	if o.shouldRefresh(services) {
 		for _, name := range services {
 			info := o.updateServiceInfo(name)
-			wruntime.EventsEmit(o.ctx, "service_status", info)
+			o.emitEvent("service_status", info)
 		}
 	}
 }
@@ -304,7 +315,7 @@ func findOsteniaPIDs(exeName string) []int {
 	}
 
 	wmicPath := filepath.Join(utils.GetSystemDirectory(), "wbem", "wmic.exe")
-	cmd := exec.Command(wmicPath, "process", "where", fmt.Sprintf("name='%s'", exeName), "get", "ExecutablePath,ProcessId", "/format:csv")
+	cmd := utils.Executor.Command(wmicPath, "process", "where", fmt.Sprintf("name='%s'", exeName), "get", "ExecutablePath,ProcessId", "/format:csv")
 	cmd.Env = utils.SafeEnv()
 	utils.SetHideWindow(cmd)
 
@@ -352,7 +363,7 @@ func findPortsByPIDExact(pid int) []int {
 	}
 
 	netstatPath := filepath.Join(utils.GetSystemDirectory(), "netstat.exe")
-	cmd := exec.Command(netstatPath, "-ano")
+	cmd := utils.Executor.Command(netstatPath, "-ano")
 	cmd.Env = utils.SafeEnv()
 	utils.SetHideWindow(cmd)
 	out, err := cmd.Output()
@@ -449,7 +460,7 @@ func (o *Orchestrator) isServiceAlreadyRunning(name, binaryPath string) bool {
 
 func (o *Orchestrator) setupServiceCommand(name, binaryPath string, args []string, workingDir string) (*exec.Cmd, error) {
 	absPath, _ := filepath.Abs(binaryPath)
-	cmd := exec.Command(absPath, args...)
+	cmd := utils.Executor.Command(absPath, args...)
 	if workingDir != "" {
 		cmd.Dir = workingDir
 	}
@@ -513,7 +524,7 @@ func (o *Orchestrator) stopServiceWindows(name string) {
 	for _, exe := range exeMap[name] {
 		pids := findOsteniaPIDs(exe)
 		for _, pid := range pids {
-			killCmd := exec.Command(taskkillPath, "/F", "/PID", strconv.Itoa(pid), "/T")
+			killCmd := utils.Executor.Command(taskkillPath, "/F", "/PID", strconv.Itoa(pid), "/T")
 			killCmd.Env = utils.SafeEnv()
 			utils.SetHideWindow(killCmd)
 			_ = killCmd.Run()
@@ -525,7 +536,7 @@ func (o *Orchestrator) stopHeidiSQLWindows() {
 	_, uninstaller := utils.DetectHeidiSQLInstallation()
 	if uninstaller != "" {
 		cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
-		cmd := exec.Command(cmdPath, "/c", "start", "", uninstaller)
+		cmd := utils.Executor.Command(cmdPath, "/c", "start", "", uninstaller)
 		cmd.Env = utils.SafeEnv()
 		utils.SetHideWindow(cmd)
 		_ = cmd.Run()
@@ -533,7 +544,7 @@ func (o *Orchestrator) stopHeidiSQLWindows() {
 		taskkillPath := filepath.Join(utils.GetSystemDirectory(), "taskkill.exe")
 		pids := findOsteniaPIDs("heidisql.exe")
 		for _, pid := range pids {
-			killCmd := exec.Command(taskkillPath, "/F", "/PID", strconv.Itoa(pid), "/T")
+			killCmd := utils.Executor.Command(taskkillPath, "/F", "/PID", strconv.Itoa(pid), "/T")
 			killCmd.Env = utils.SafeEnv()
 			utils.SetHideWindow(killCmd)
 			_ = killCmd.Run()
@@ -545,13 +556,13 @@ func (o *Orchestrator) captureLogs(name string, reader io.ReadCloser) {
 	defer reader.Close()
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
-		wruntime.EventsEmit(o.ctx, "service_log", map[string]string{"service": name, "message": scanner.Text()})
+		o.emitEvent("service_log", map[string]string{"service": name, "message": scanner.Text()})
 	}
 }
 
 func (o *Orchestrator) emitStatus(name string, status string) {
 	info := o.updateServiceInfo(name)
-	wruntime.EventsEmit(o.ctx, "service_status", info)
+	o.emitEvent("service_status", info)
 }
 
 // StopAll terminates all services currently being tracked by the orchestrator
