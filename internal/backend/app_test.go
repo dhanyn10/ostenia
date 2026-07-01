@@ -14,6 +14,8 @@ import (
 )
 
 type MockRuntime struct {
+    SelectedFile string
+    SelectedDir  string
 }
 
 func (m *MockRuntime) EventsEmit(ctx context.Context, eventName string, optionalData ...interface{}) {}
@@ -23,13 +25,13 @@ func (m *MockRuntime) WindowUnmaximise(ctx context.Context) {}
 func (m *MockRuntime) WindowExecJS(ctx context.Context, js string) {}
 func (m *MockRuntime) Quit(ctx context.Context)             {}
 func (m *MockRuntime) OpenFileDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) {
-	return "C:\\selected\\file.txt", nil
+	return m.SelectedFile, nil
 }
 func (m *MockRuntime) OpenDirectoryDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) {
-	return "C:\\selected", nil
+	return m.SelectedDir, nil
 }
 func (m *MockRuntime) SaveFileDialog(ctx context.Context, options wruntime.SaveDialogOptions) (string, error) {
-	return "C:\\selected\\saved.txt", nil
+	return m.SelectedFile, nil
 }
 
 type MockExecutor struct {
@@ -43,10 +45,15 @@ func TestApp_Full(t *testing.T) {
 	utils.Executor = &MockExecutor{}
 	defer func() { utils.Executor = oldExecutor }()
 
-	mock := &MockRuntime{}
-    tempDir, _ := os.MkdirTemp("", "ostenia-app-*")
-    defer os.RemoveAll(tempDir)
+    tempDir := t.TempDir()
     os.Setenv("OSTENIA_HOME", tempDir)
+    defer os.Unsetenv("OSTENIA_HOME")
+
+	mock := &MockRuntime{
+        SelectedFile: filepath.Join(tempDir, "selected.txt"),
+        SelectedDir:  filepath.Join(tempDir, "selected_dir"),
+    }
+    os.MkdirAll(mock.SelectedDir, 0755)
 
 	app := &App{
 		runtime:      mock,
@@ -157,8 +164,8 @@ func TestNewApp(t *testing.T) {
 	a := NewApp()
 	if a == nil { t.Error("NewApp returned nil") }
     // Test Startup with dummy environment
-    tempDir, _ := os.MkdirTemp("", "ostenia-startup-*")
-    defer os.RemoveAll(tempDir)
+    tempDir := t.TempDir()
     os.Setenv("OSTENIA_HOME", tempDir)
+    defer os.Unsetenv("OSTENIA_HOME")
     a.Startup(context.Background())
 }
