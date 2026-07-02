@@ -3,7 +3,6 @@ package backend
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"ostenia/internal/config"
 	"ostenia/internal/network"
 	"ostenia/internal/plugins"
@@ -373,7 +372,7 @@ func (a *App) OpenHeidiSQL() error {
 		return fmt.Errorf("HeidiSQL is not installed")
 	}
 	cmdPath := filepath.Join(plugins_utils.GetSystemDirectory(), "cmd.exe")
-	cmd := exec.Command(cmdPath, "/c", "start", "", exePath)
+	cmd := plugins_utils.Executor.Command(cmdPath, "/c", "start", "", exePath)
 	cmd.Env = plugins_utils.SafeEnv()
 	plugins_utils.SetHideWindow(cmd)
 	return cmd.Run()

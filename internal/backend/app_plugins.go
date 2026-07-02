@@ -3,7 +3,6 @@ package backend
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"ostenia/internal/config"
 	"ostenia/internal/plugins"
 	plugins_utils "ostenia/internal/plugins/utils"
@@ -148,7 +147,7 @@ func (a *App) SwitchServiceVersion(serviceName string, version string) error {
 	_ = os.Remove(currentPath)
 	if _, err := os.Stat(targetDir); err == nil {
 		cmdPath := filepath.Join(plugins_utils.GetSystemDirectory(), "cmd.exe")
-		cmd := exec.Command(cmdPath, "/c", "mklink", "/J", currentPath, targetDir)
+		cmd := plugins_utils.Executor.Command(cmdPath, "/c", "mklink", "/J", currentPath, targetDir)
 		cmd.Env = plugins_utils.SafeEnv()
 		plugins_utils.SetHideWindow(cmd)
 		_ = cmd.Run()

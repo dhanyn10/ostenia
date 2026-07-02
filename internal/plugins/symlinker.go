@@ -2,7 +2,6 @@ package plugins
 
 import (
 	"os"
-	"os/exec"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"runtime"
@@ -12,7 +11,7 @@ func CreateSymlink(oldname, newname string) error {
 	os.Remove(newname)
 	if runtime.GOOS == "windows" {
 		// Use Junction on Windows as it doesn't require admin privileges
-		cmd := exec.Command("cmd", "/c", "mklink", "/J", newname, oldname)
+		cmd := utils.Executor.Command("cmd", "/c", "mklink", "/J", newname, oldname)
 		utils.SetHideWindow(cmd)
 		return cmd.Run()
 	}
