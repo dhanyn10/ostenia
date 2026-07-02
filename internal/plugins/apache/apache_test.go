@@ -25,12 +25,13 @@ func TestDetectVersions(t *testing.T) {
 	defer func() { utils.Client = origClient }()
 
 	mockHTML := `
-		<a href="binaries/httpd-2.4.58-win64-VS17.zip">httpd-2.4.58-win64-VS17.zip</a>
+		<a href="binaries/httpd-2.4.66-260223-Win64-VS18.zip">httpd-2.4.66-260223-Win64-VS18.zip</a>
 		<a href="binaries/httpd-2.4.57-win64-VS17.zip">httpd-2.4.57-win64-VS17.zip</a>
 	`
 	utils.Client = &mockHTTPClient{content: mockHTML}
 
 	versions, urlMap := DetectVersions()
+	_ = urlMap
 
 	if len(versions) == 0 {
 		t.Error("Expected versions to be detected")
@@ -46,10 +47,6 @@ func TestDetectVersions(t *testing.T) {
 		t.Errorf("Expected version 2.4.66-260223 to be detected")
 	}
 
-	if len(versions) > 0 {
-        t.Logf("Detected versions: %v", versions)
-        t.Logf("URL map: %v", urlMap)
-    }
 }
 
 func TestGetIcon(t *testing.T) {
