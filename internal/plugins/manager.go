@@ -27,6 +27,21 @@ type Manager struct {
 	emit      func(ctx context.Context, eventName string, optionalData ...interface{})
 }
 
+func (m *Manager) GetInstalledVersionPaths(category, checkFile string) map[string]string {
+	return utils.GetInstalledVersionPaths(config.GetBaseDir(), category, checkFile)
+}
+
+func (m *Manager) InstallModule(moduleName string, phpPath string, emitProgress func(string, float64, string)) error {
+	// Actual implementation is in subpackages, but Manager provides the entry point for the interface
+	// This is a bit tricky because the interface expects it here.
+	// For now, the App calls subpackages directly, so we just satisfy the interface.
+	return nil
+}
+
+func (m *Manager) UninstallModule(moduleName string, phpPath string) error {
+	return nil
+}
+
 // NewManager creates a new plugin Manager instance
 func NewManager(ctx context.Context) *Manager {
 	return &Manager{

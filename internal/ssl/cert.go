@@ -17,6 +17,8 @@ import (
 	"time"
 )
 
+var RSAKeySize = 4096
+
 func GenerateRootCA(destDir string) error {
 	caPath := filepath.Join(destDir, "ca.crt")
 	keyPath := filepath.Join(destDir, "ca.key")
@@ -25,7 +27,7 @@ func GenerateRootCA(destDir string) error {
 		return nil // Already exists
 	}
 
-	priv, err := rsa.GenerateKey(rand.Reader, 4096)
+	priv, err := rsa.GenerateKey(rand.Reader, RSAKeySize)
 	if err != nil {
 		return err
 	}
@@ -137,7 +139,9 @@ func SignCertificate(caDir string, domain string, destDir string) error {
 	caKey, err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
 	if err != nil { return fmt.Errorf("failed to parse ca.key: %w", err) }
 
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	size := 2048
+	if RSAKeySize < 2048 { size = RSAKeySize }
+	priv, err := rsa.GenerateKey(rand.Reader, size)
 	if err != nil { return err }
 
 	pubBytes, _ := x509.MarshalPKIXPublicKey(&priv.PublicKey)

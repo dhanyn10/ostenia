@@ -6,6 +6,7 @@ import (
 	"ostenia/internal/config"
 	"ostenia/internal/plugins"
 	"ostenia/internal/service"
+	"ostenia/internal/ssl"
 	"ostenia/internal/backend/interfaces"
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -13,10 +14,11 @@ import (
 // App struct manages the main application state and coordinates between backend services and the frontend
 type App struct {
 	ctx          context.Context
-	downloader   *plugins.Manager
-	orchestrator *service.Orchestrator
+	downloader   interfaces.PluginManager
+	orchestrator interfaces.Orchestrator
 	symlinkMgr   *service.SymlinkManager
-	sshManager   *service.SSHManager
+	sshManager   interfaces.SSHManager
+	sslManager   interfaces.SSLManager
 	cfg          *config.Config
 	runtime      interfaces.Runtime
 }
@@ -57,6 +59,16 @@ func NewApp() *App {
 
 // Startup is called when the app starts. The context is saved
 // so we can call the runtime methods
+type DefaultSSLManager struct{}
+
+func (s *DefaultSSLManager) GenerateRootCA(destDir string) error { return ssl.GenerateRootCA(destDir) }
+func (s *DefaultSSLManager) GetRemainingDays(path string) (int, error) {
+	return ssl.GetRemainingDays(path)
+}
+func (s *DefaultSSLManager) SignCertificate(caDir, domain, destDir string) error {
+	return ssl.SignCertificate(caDir, domain, destDir)
+}
+
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 	a.runtime = &WailsRuntime{}
@@ -64,6 +76,7 @@ func (a *App) Startup(ctx context.Context) {
 	a.orchestrator = service.NewOrchestrator(ctx)
 	a.symlinkMgr = service.NewSymlinkManager()
 	a.sshManager = service.NewSSHManager(ctx)
+	a.sslManager = &DefaultSSLManager{}
 
 	cfg, err := config.LoadConfig()
 	if err != nil {

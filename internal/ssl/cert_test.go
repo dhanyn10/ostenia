@@ -22,6 +22,10 @@ func TestSSL_Complete(t *testing.T) {
 	defer func() { utils.Executor = origExecutor }()
 	utils.Executor = &sslMockExecutor{}
 
+	origKeySize := RSAKeySize
+	RSAKeySize = 1024
+	defer func() { RSAKeySize = origKeySize }()
+
 	tmpDir := t.TempDir()
 
 	t.Run("GenerateRootCA", func(t *testing.T) {

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"ostenia/internal/plugins/utils"
 	"ostenia/internal/backend/interfaces"
+	"path/filepath"
 	"testing"
 )
 
@@ -74,8 +75,15 @@ func TestOrchestrator_Complete(t *testing.T) {
 		os.Setenv("OSTENIA_HOME", tempDir)
 		defer os.Unsetenv("OSTENIA_HOME")
 
+		binDir := filepath.Join(tempDir, "bin")
+		apacheExe := filepath.Join(binDir, "apache", "httpd.exe")
+
+		// The mock output should NOT start with "Node" as that is skipped by parseWmicOutput
+		// And should use a path that matches our binDir
+		mockOutput := fmt.Sprintf("Header,ProcessId,ExecutablePath\nMYPC,%d,%s\n", 1234, apacheExe)
+
 		m := &mockExecutor{
-			output: []byte("Node,C:\\bin\\apache\\httpd.exe,1234\n"),
+			output: []byte(mockOutput),
 		}
 		utils.Executor = m
 

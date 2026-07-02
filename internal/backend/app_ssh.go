@@ -2,7 +2,7 @@ package backend
 
 import (
 	"ostenia/internal/config"
-	"ostenia/internal/service"
+	"ostenia/internal/backend/interfaces"
 	"path/filepath"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -54,7 +54,7 @@ func (a *App) ResizeSSHTerminal(sessionID string, cols int, rows int) error {
 }
 
 // GetRemoteFiles lists files in a remote directory via SFTP
-func (a *App) GetRemoteFiles(sessionID string, path string) ([]service.RemoteFile, error) {
+func (a *App) GetRemoteFiles(sessionID string, path string) ([]interfaces.RemoteFile, error) {
 	return a.sshManager.ListFiles(sessionID, path)
 }
 
