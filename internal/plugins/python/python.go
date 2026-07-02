@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
-	"os/exec"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"regexp"
@@ -68,7 +67,7 @@ func GetInfo(pythonPath string) string {
 	if _, err := os.Stat(pythonExe); err != nil {
 		return ""
 	}
-	cmd := exec.Command(pythonExe, "-m", "pip", "--version")
+	cmd := utils.Executor.Command(pythonExe, "-m", "pip", "--version")
 	utils.SetHideWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {

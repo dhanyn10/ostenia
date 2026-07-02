@@ -5,7 +5,6 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
-	"os/exec"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"regexp"
@@ -75,7 +74,7 @@ func GetModuleVersion(moduleName string, phpPath string) string {
 		composerPhar := filepath.Join(phpPath, "composer.phar")
 		if _, err := os.Stat(composerPhar); err != nil { return "" }
 		phpExe := filepath.Join(phpPath, "php.exe")
-		cmd := exec.Command(phpExe, composerPhar, "--version")
+		cmd := utils.Executor.Command(phpExe, composerPhar, "--version")
 		utils.SetHideWindow(cmd)
 		out, err := cmd.Output()
 		if err != nil { return "" }

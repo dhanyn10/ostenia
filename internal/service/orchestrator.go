@@ -357,7 +357,12 @@ func extractOsteniaPID(execPath, pidStr, binPath string) int {
 	return 0
 }
 
+var findPortsByPIDExactOverride func(pid int) []int
+
 func findPortsByPIDExact(pid int) []int {
+	if findPortsByPIDExactOverride != nil {
+		return findPortsByPIDExactOverride(pid)
+	}
 	if pid <= 0 {
 		return []int{}
 	}

@@ -63,8 +63,8 @@ func findExecutables() []string {
 	}
 
 	for _, cmd := range []*exec.Cmd{
-		exec.Command("cmd", "/d", "/c", "where openssl"),
-		exec.Command("where.exe", "openssl"),
+		utils.Executor.Command("cmd", "/d", "/c", "where openssl"),
+		utils.Executor.Command("where.exe", "openssl"),
 	} {
 		utils.SetHideWindow(cmd)
 		if out, err := cmd.Output(); err == nil {
@@ -88,7 +88,7 @@ func findExecutables() []string {
 }
 
 func versionFromExecutable(exePath string) string {
-	cmd := exec.Command(exePath, "version")
+	cmd := utils.Executor.Command(exePath, "version")
 	utils.SetHideWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {
