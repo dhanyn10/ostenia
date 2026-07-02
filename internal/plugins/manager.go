@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"ostenia/internal/config"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
@@ -71,7 +70,7 @@ func (m *Manager) DeleteVersion(taskName, version string) error {
 		}
 		if exe, ok := exeMap[strings.ToLower(taskName)]; ok {
 			taskkillPath := filepath.Join(utils.GetSystemDirectory(), "taskkill.exe")
-			c := exec.Command(taskkillPath, "/F", "/IM", exe, "/T")
+			c := utils.Executor.Command(taskkillPath, "/F", "/IM", exe, "/T")
 			c.Env = utils.SafeEnv()
 			utils.SetHideWindow(c)
 			_ = c.Run()
@@ -180,7 +179,7 @@ func (m *Manager) handleInstaller(task DownloadTask, tmpFile, targetDir string) 
 	}
 
 	cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
-	cmd := exec.Command(cmdPath, "/c", "start", "", dest)
+	cmd := utils.Executor.Command(cmdPath, "/c", "start", "", dest)
 	cmd.Env = utils.SafeEnv()
 	utils.SetHideWindow(cmd)
 	if err := cmd.Run(); err != nil {
@@ -262,7 +261,7 @@ func (m *Manager) ensureCurrentLink(task DownloadTask) error {
 	target := filepath.Join(baseDir, "bin", task.Target)
 	_ = os.Remove(link) // Remove old junction
 	cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
-	c := exec.Command(cmdPath, "/c", "mklink", "/J", link, target)
+	c := utils.Executor.Command(cmdPath, "/c", "mklink", "/J", link, target)
 	c.Env = utils.SafeEnv()
 	utils.SetHideWindow(c)
 	return c.Run()

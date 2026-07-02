@@ -3,8 +3,8 @@ package service
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"ostenia/internal/config"
+	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"runtime"
 )
@@ -37,7 +37,7 @@ func (s *SymlinkManager) SwitchVersion(category string, targetVersionDir string)
 	if runtime.GOOS == "windows" {
 		// Use Directory Junction on Windows (mklink /J)
 		// It doesn't require admin privileges and is very portable.
-		cmd := exec.Command("cmd", "/c", "mklink", "/J", currentLink, targetPath)
+		cmd := utils.Executor.Command("cmd", "/c", "mklink", "/J", currentLink, targetPath)
 		return cmd.Run()
 	}
 

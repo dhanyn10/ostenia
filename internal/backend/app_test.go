@@ -36,9 +36,9 @@ type MockOrchestrator struct {
     Running map[string]bool
 }
 func (m *MockOrchestrator) SetRuntime(r interfaces.Runtime) {}
+func (m *MockOrchestrator) StartWatcher()                  {}
 func (m *MockOrchestrator) SetActiveTab(tab string)        {}
 func (m *MockOrchestrator) RequestRefresh()                {}
-func (m *MockOrchestrator) StartWatcher()                  {}
 func (m *MockOrchestrator) IsRunning(name string) bool     { return m.Running[name] }
 func (m *MockOrchestrator) GetDetailedInfo(name string) interfaces.ServiceDetailedInfo {
     return interfaces.ServiceDetailedInfo{Name: name, Status: "Stopped", Port: 80}
@@ -121,6 +121,15 @@ func TestApp_Full_Mocked(t *testing.T) {
 	app.Unmaximize()
 	app.ToggleDevTools()
 	app.Close()
+	app.EventsEmit(context.Background(), "test", nil)
+	_, _ = app.OpenFileDialog(context.Background(), wruntime.OpenDialogOptions{})
+	_, _ = app.OpenDirectoryDialog(context.Background(), wruntime.OpenDialogOptions{})
+	_, _ = app.SaveFileDialog(context.Background(), wruntime.SaveDialogOptions{})
+	app.Quit(context.Background())
+
+	_ = app.GenerateRootCA("test")
+	_, _ = app.GetRemainingDays("test")
+	_ = app.SignCertificate("ca", "domain", "dest")
 
     // Config
 	_ = app.GetConfig()
@@ -140,6 +149,8 @@ func TestApp_Full_Mocked(t *testing.T) {
     // Plugins
 	_ = app.GetPrerequisites()
 	app.CancelDownload("test")
+	_ = app.OpenPluginFolder("PHP")
+	_ = app.InstallPrerequisite(interfaces.DownloadTask{Name: "OpenSSL"})
     _ = app.InstallPluginModule("PHP", "Composer")
     _ = app.UninstallPluginModule("PHP", "Composer")
     _ = app.SwitchServiceVersion("PHP", "8.2.0")
@@ -177,6 +188,7 @@ func TestApp_Full_Mocked(t *testing.T) {
     _ = app.CheckProxyPorts()
     _ = app.GetProxyApps()
     _ = app.SaveProxyPort("myapp", 4000)
+    app.OpenProxyTerminal("myapp", "cmd")
 
     // PHP
     _, _ = app.GetPHPExtensions()
