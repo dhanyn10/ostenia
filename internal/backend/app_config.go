@@ -8,7 +8,7 @@ import (
 
 // SelectDefaultEditor opens a file dialog to choose the default text editor
 func (a *App) SelectDefaultEditor() (string, error) {
-	selected, err := wruntime.OpenFileDialog(a.ctx, wruntime.OpenDialogOptions{
+	selected, err := a.runtime.OpenFileDialog(a.ctx, wruntime.OpenDialogOptions{
 		Title: "Select Default Text Editor",
 		Filters: []wruntime.FileFilter{
 			{DisplayName: "Executables (*.exe;*.app)", Pattern: "*.exe;*.app"},

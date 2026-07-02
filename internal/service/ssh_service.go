@@ -45,6 +45,14 @@ func NewSSHManager(ctx context.Context) *SSHManager {
 	}
 }
 
+func (m *SSHManager) GetSessions() ([]config.SSHSession, error) {
+	return config.LoadSSHSessions()
+}
+
+func (m *SSHManager) SaveSessions(sessions []config.SSHSession) error {
+	return config.SaveSSHSessions(sessions)
+}
+
 func (m *SSHManager) Connect(session config.SSHSession) error {
 	// Set UTF-8 environment for the session
 	os.Setenv("LANG", "en_US.UTF-8")
@@ -140,10 +148,12 @@ func (m *SSHManager) processTerminalOutput(conn *SSHConnection, stdout io.Reader
 	for {
 		n, err := stdout.Read(buf)
 		if n > 0 {
-			wruntime.EventsEmit(m.ctx, "ssh_output", map[string]interface{}{
-				"sessionId": conn.SessionID,
-				"data":      string(buf[:n]),
-			})
+			if m.ctx != nil {
+				wruntime.EventsEmit(m.ctx, "ssh_output", map[string]interface{}{
+					"sessionId": conn.SessionID,
+					"data":      string(buf[:n]),
+				})
+			}
 		}
 		if err != nil {
 			select {
@@ -161,7 +171,9 @@ func (m *SSHManager) handleTerminalExit(conn *SSHConnection, sshSession *ssh.Ses
 	case <-conn.Context.Done():
 		sshSession.Close()
 	case <-exitChan:
-		wruntime.EventsEmit(m.ctx, "ssh_disconnected", conn.SessionID)
+		if m.ctx != nil {
+			wruntime.EventsEmit(m.ctx, "ssh_disconnected", conn.SessionID)
+		}
 		m.mu.Lock()
 		delete(m.connections, conn.SessionID)
 		m.mu.Unlock()
@@ -403,12 +415,12 @@ func (m *SSHManager) runEditor(localPath, defaultEditor string) error {
 func (m *SSHManager) getCustomEditorCmd(editor, localPath string) *exec.Cmd {
 	if runtime.GOOS == "windows" {
 		cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
-		cmd := exec.Command(cmdPath, "/c", "start", "/wait", "", editor, localPath)
+		cmd := utils.Executor.Command(cmdPath, "/c", "start", "/wait", "", editor, localPath)
 		cmd.Env = utils.SafeEnv()
 		utils.SetHideWindow(cmd)
 		return cmd
 	}
-	cmd := exec.Command(editor, localPath)
+	cmd := utils.Executor.Command(editor, localPath)
 	cmd.Env = utils.SafeEnv()
 	return cmd
 }
@@ -418,7 +430,7 @@ func (m *SSHManager) getDefaultEditorCmd(localPath string) *exec.Cmd {
 	switch runtime.GOOS {
 	case "windows":
 		cmdPath := filepath.Join(utils.GetSystemDirectory(), "notepad.exe")
-		cmd = exec.Command(cmdPath, localPath)
+		cmd = utils.Executor.Command(cmdPath, localPath)
 	case "darwin":
 		cmd = exec.Command("/usr/bin/open", "-t", localPath)
 	default:
@@ -432,7 +444,7 @@ func (m *SSHManager) findLinuxEditor(localPath string) *exec.Cmd {
 	editors := []string{"xdg-open", "gnome-text-editor", "kwrite", "gedit", "nano"}
 	for _, e := range editors {
 		if path, err := exec.LookPath(e); err == nil {
-			cmd := exec.Command(path, localPath)
+			cmd := utils.Executor.Command(path, localPath)
 			cmd.Env = utils.SafeEnv()
 			return cmd
 		}
