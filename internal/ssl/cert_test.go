@@ -2,11 +2,26 @@ package ssl
 
 import (
 	"os"
+	"os/exec"
+	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"testing"
 )
 
+type sslMockExecutor struct {
+	utils.CommandExecutor
+}
+
+func (m *sslMockExecutor) Command(name string, args ...string) *exec.Cmd {
+	// Return a dummy command that does nothing
+	return exec.Command("go", "version")
+}
+
 func TestSSL_Complete(t *testing.T) {
+	origExecutor := utils.Executor
+	defer func() { utils.Executor = origExecutor }()
+	utils.Executor = &sslMockExecutor{}
+
 	tmpDir := t.TempDir()
 
 	t.Run("GenerateRootCA", func(t *testing.T) {

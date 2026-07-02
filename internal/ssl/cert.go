@@ -11,7 +11,6 @@ import (
 	"math/big"
 	"net"
 	"os"
-	"os/exec"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"runtime"
@@ -102,10 +101,10 @@ func TrustRootCA(caPath string) error {
 	if runtime.GOOS == "windows" {
 		// Add to both Local Machine (if admin) and Current User to ensure visibility
 		certutilPath := filepath.Join(utils.GetSystemDirectory(), "certutil.exe")
-		cmd1 := exec.Command(certutilPath, "-addstore", "-f", "Root", caPath)
+		cmd1 := utils.Executor.Command(certutilPath, "-addstore", "-f", "Root", caPath)
 		cmd1.Env = utils.SafeEnv()
 		_ = cmd1.Run()
-		cmd2 := exec.Command(certutilPath, "-user", "-addstore", "-f", "Root", caPath)
+		cmd2 := utils.Executor.Command(certutilPath, "-user", "-addstore", "-f", "Root", caPath)
 		cmd2.Env = utils.SafeEnv()
 		return cmd2.Run()
 	}
