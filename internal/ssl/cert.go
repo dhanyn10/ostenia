@@ -19,7 +19,25 @@ import (
 
 var RSAKeySize = 4096
 
+var (
+	GenerateRootCAFunc   = generateRootCA
+	GetRemainingDaysFunc = getRemainingDays
+	SignCertificateFunc  = signCertificate
+)
+
 func GenerateRootCA(destDir string) error {
+	return GenerateRootCAFunc(destDir)
+}
+
+func GetRemainingDays(certPath string) (int, error) {
+	return GetRemainingDaysFunc(certPath)
+}
+
+func SignCertificate(caDir string, domain string, destDir string) error {
+	return SignCertificateFunc(caDir, domain, destDir)
+}
+
+func generateRootCA(destDir string) error {
 	caPath := filepath.Join(destDir, "ca.crt")
 	keyPath := filepath.Join(destDir, "ca.key")
 
@@ -64,18 +82,26 @@ func GenerateRootCA(destDir string) error {
 		return err
 	}
 
-	caOut, _ := os.Create(caPath)
-	pem.Encode(caOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+	caOut, err := os.Create(caPath)
+	if err != nil { return err }
+	if err := pem.Encode(caOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}); err != nil {
+		caOut.Close()
+		return err
+	}
 	caOut.Close()
 
-	keyOut, _ := os.OpenFile(keyPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+	keyOut, err := os.OpenFile(keyPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil { return err }
+	if err := pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)}); err != nil {
+		keyOut.Close()
+		return err
+	}
 	keyOut.Close()
 
 	return TrustRootCA(caPath)
 }
 
-func GetRemainingDays(certPath string) (int, error) {
+func getRemainingDays(certPath string) (int, error) {
 	certData, err := os.ReadFile(certPath)
 	if err != nil {
 		return 0, err
@@ -99,7 +125,12 @@ func GetRemainingDays(certPath string) (int, error) {
 	return days, nil
 }
 
+var TrustRootCAOverride func(caPath string) error
+
 func TrustRootCA(caPath string) error {
+	if TrustRootCAOverride != nil {
+		return TrustRootCAOverride(caPath)
+	}
 	if runtime.GOOS == "windows" {
 		// Add to both Local Machine (if admin) and Current User to ensure visibility
 		certutilPath := filepath.Join(utils.GetSystemDirectory(), "certutil.exe")
@@ -113,7 +144,7 @@ func TrustRootCA(caPath string) error {
 	return nil
 }
 
-func SignCertificate(caDir string, domain string, destDir string) error {
+func signCertificate(caDir string, domain string, destDir string) error {
 	certPath := filepath.Join(destDir, domain+".crt")
 	if _, err := os.Stat(certPath); err == nil {
 		// If cert exists, check if it's new enough (we changed logic, so we might want to force re-sign)
