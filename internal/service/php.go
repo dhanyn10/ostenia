@@ -3,7 +3,6 @@ package service
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"regexp"
@@ -22,7 +21,7 @@ func GetPHPVersion(currentPath string) (string, error) {
 	if _, err := os.Stat(phpExe); os.IsNotExist(err) {
 		return "", err
 	}
-	cmd := exec.Command(phpExe, "-v")
+	cmd := utils.Executor.Command(phpExe, "-v")
 	utils.SetHideWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {

@@ -7,8 +7,6 @@ import (
 	"ostenia/internal/config"
 	"path/filepath"
 	"time"
-
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // ProxyStatusInfo represents the health status of a proxy target
@@ -34,7 +32,7 @@ func (a *App) startProxyWatcher() {
 			return
 		case <-ticker.C:
 			statuses := a.CheckProxyPorts()
-			wruntime.EventsEmit(a.ctx, "proxy_status", statuses)
+			a.runtime.EventsEmit(a.ctx, "proxy_status", statuses)
 		}
 	}
 }

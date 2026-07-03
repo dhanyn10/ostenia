@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"ostenia/internal/plugins/utils"
 	"ostenia/internal/backend/interfaces"
+	"path/filepath"
 	"testing"
 )
 
@@ -22,7 +24,8 @@ type mockExecutor struct {
 }
 
 func (m *mockExecutor) Command(name string, args ...string) *exec.Cmd {
-	cmd := exec.Command(os.Args[0], "-test.run=TestHelperProcess")
+	cmd := exec.Command(os.Args[0], "-test.run=TestHelperProcess", "--")
+	cmd.Args = append(cmd.Args, args...)
 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "MOCK_OUTPUT="+string(m.output))
 	return cmd
 }
@@ -31,8 +34,7 @@ func TestHelperProcess(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
 		return
 	}
-	output := os.Getenv("MOCK_OUTPUT")
-	os.Stdout.WriteString(output)
+	fmt.Fprint(os.Stdout, os.Getenv("MOCK_OUTPUT"))
 	os.Exit(0)
 }
 
@@ -61,6 +63,11 @@ func TestOrchestrator_Complete(t *testing.T) {
 		if info.PID != 123 {
 			t.Errorf("Expected PID 123, got %d", info.PID)
 		}
+
+		info = orch.GetDetailedInfo("Unknown")
+		if info.Status != "Stopped" {
+			t.Errorf("Expected Stopped for unknown service, got %s", info.Status)
+		}
 	})
 
 	t.Run("UpdateServiceInfoMocks", func(t *testing.T) {
@@ -68,13 +75,67 @@ func TestOrchestrator_Complete(t *testing.T) {
 		os.Setenv("OSTENIA_HOME", tempDir)
 		defer os.Unsetenv("OSTENIA_HOME")
 
+		binDir := filepath.Join(tempDir, "bin")
+		apacheExe := filepath.Join(binDir, "apache", "httpd.exe")
+
+		// The mock output should NOT start with "Node" as that is skipped by parseWmicOutput
+		// And should use a path that matches our binDir
+		mockOutput := fmt.Sprintf("Header,ProcessId,ExecutablePath\nMYPC,%d,%s\n", 1234, apacheExe)
+
 		m := &mockExecutor{
-			output: []byte("Node,C:\\bin\\apache\\httpd.exe,1234\n"),
+			output: []byte(mockOutput),
 		}
 		utils.Executor = m
 
 		orch.updateServiceInfo("Apache")
 		orch.updateServiceInfo("Node.js")
+		orch.updateServiceInfo("MySQL")
+		orch.updateServiceInfo("Nginx")
+		orch.updateServiceInfo("PHP")
+		orch.updateServiceInfo("Python")
+		orch.updateServiceInfo("HeidiSQL")
+		orch.updateServiceInfo("OpenSSL")
+	})
+
+	t.Run("StartStopService", func(t *testing.T) {
+		utils.Executor = &mockExecutor{output: []byte("")}
+
+		// Try starting a service (will use helper process which exits immediately)
+		err := orch.StartService("TestService", os.Args[0], []string{"-test.run=TestHelperProcess"}, "")
+		if err != nil {
+			t.Errorf("StartService failed: %v", err)
+		}
+
+		orch.StopAll()
+	})
+
+	t.Run("WatcherAndRefresh", func(t *testing.T) {
+		orch.RequestRefresh()
+		orch.performWatcherCheck([]string{"Apache"})
+	})
+
+	t.Run("ServiceTrackingAndCleanup", func(t *testing.T) {
+		info := &ServiceDetailedInfo{Name: "Apache", Status: "Running", Port: 80}
+		orch.ensureServiceTracked("Apache", info, nil, false)
+		orch.cleanupUntrackedService("Apache", "/tmp")
+	})
+
+	t.Run("NetstatAndPorts", func(t *testing.T) {
+		findPortsByPIDExactOverride = func(pid int) []int {
+			return []int{80}
+		}
+		defer func() { findPortsByPIDExactOverride = nil }()
+
+		ports := findPortsByPIDExact(1234)
+		if len(ports) == 0 || ports[0] != 80 {
+			t.Errorf("Expected port 80, got %v", ports)
+		}
+
+		info := &ServiceDetailedInfo{Name: "Apache"}
+		orch.updateServicePorts(info, []int{1234}, nil, false)
+		if info.Port != 80 {
+			t.Errorf("Expected port 80, got %d", info.Port)
+		}
 	})
 }
 

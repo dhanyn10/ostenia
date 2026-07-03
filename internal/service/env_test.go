@@ -4,6 +4,10 @@ import (
 	"testing"
 )
 
+import (
+	"ostenia/internal/plugins/utils"
+)
+
 func TestPathExistsInString(t *testing.T) {
 	tests := []struct {
 		pathString string
@@ -24,4 +28,45 @@ func TestPathExistsInString(t *testing.T) {
 			t.Errorf("pathExistsInString(%q, %q) = %v, want %v", tt.pathString, tt.targetPath, got, tt.want)
 		}
 	}
+}
+
+func TestUpdatePaths(t *testing.T) {
+	origExecutor := utils.Executor
+	defer func() { utils.Executor = origExecutor }()
+	utils.Executor = &mockExecutor{output: []byte("")}
+
+	getPathOverride = func(target string) (string, error) {
+		return "C:\\some\\path;C:\\ostenia\\old-php", nil
+	}
+	defer func() { getPathOverride = nil }()
+
+	t.Run("UpdatePHPPath", func(t *testing.T) {
+		err := UpdatePHPPath("C:\\ostenia\\new-php", true)
+		if err != nil {
+			t.Errorf("UpdatePHPPath failed: %v", err)
+		}
+	})
+
+	t.Run("UpdateNodePath", func(t *testing.T) {
+		err := UpdateNodePath("C:\\ostenia\\node", true)
+		if err != nil {
+			t.Errorf("UpdateNodePath failed: %v", err)
+		}
+	})
+
+	t.Run("UpdatePythonPath", func(t *testing.T) {
+		err := UpdatePythonPath("C:\\ostenia\\python", true)
+		if err != nil {
+			t.Errorf("UpdatePythonPath failed: %v", err)
+		}
+	})
+
+	t.Run("CheckPaths", func(t *testing.T) {
+		if !IsPathInUserPath("C:\\some\\path") {
+			t.Error("Expected path in user path")
+		}
+		if IsPathInSystemPath("C:\\other\\path") {
+			t.Error("Did not expect other path in system path")
+		}
+	})
 }

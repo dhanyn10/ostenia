@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"ostenia/internal/config"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
@@ -27,12 +26,31 @@ type Manager struct {
 	emit      func(ctx context.Context, eventName string, optionalData ...interface{})
 }
 
+func (m *Manager) GetInstalledVersionPaths(category, checkFile string) map[string]string {
+	return utils.GetInstalledVersionPaths(config.GetBaseDir(), category, checkFile)
+}
+
+func (m *Manager) InstallModule(moduleName string, phpPath string, emitProgress func(string, float64, string)) error {
+	// Actual implementation is in subpackages, but Manager provides the entry point for the interface
+	// This is a bit tricky because the interface expects it here.
+	// For now, the App calls subpackages directly, so we just satisfy the interface.
+	return nil
+}
+
+func (m *Manager) UninstallModule(moduleName string, phpPath string) error {
+	return nil
+}
+
 // NewManager creates a new plugin Manager instance
 func NewManager(ctx context.Context) *Manager {
 	return &Manager{
 		ctx:     ctx,
 		cancels: make(map[string]context.CancelFunc),
-		emit:    wruntime.EventsEmit,
+		emit: func(ctx context.Context, eventName string, optionalData ...interface{}) {
+			if ctx != nil {
+				wruntime.EventsEmit(ctx, eventName, optionalData...)
+			}
+		},
 	}
 }
 
@@ -56,7 +74,7 @@ func (m *Manager) DeleteVersion(taskName, version string) error {
 		}
 		if exe, ok := exeMap[strings.ToLower(taskName)]; ok {
 			taskkillPath := filepath.Join(utils.GetSystemDirectory(), "taskkill.exe")
-			c := exec.Command(taskkillPath, "/F", "/IM", exe, "/T")
+			c := utils.Executor.Command(taskkillPath, "/F", "/IM", exe, "/T")
 			c.Env = utils.SafeEnv()
 			utils.SetHideWindow(c)
 			_ = c.Run()
@@ -165,7 +183,7 @@ func (m *Manager) handleInstaller(task DownloadTask, tmpFile, targetDir string) 
 	}
 
 	cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
-	cmd := exec.Command(cmdPath, "/c", "start", "", dest)
+	cmd := utils.Executor.Command(cmdPath, "/c", "start", "", dest)
 	cmd.Env = utils.SafeEnv()
 	utils.SetHideWindow(cmd)
 	if err := cmd.Run(); err != nil {
@@ -247,7 +265,7 @@ func (m *Manager) ensureCurrentLink(task DownloadTask) error {
 	target := filepath.Join(baseDir, "bin", task.Target)
 	_ = os.Remove(link) // Remove old junction
 	cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
-	c := exec.Command(cmdPath, "/c", "mklink", "/J", link, target)
+	c := utils.Executor.Command(cmdPath, "/c", "mklink", "/J", link, target)
 	c.Env = utils.SafeEnv()
 	utils.SetHideWindow(c)
 	return c.Run()

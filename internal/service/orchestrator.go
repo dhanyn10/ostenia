@@ -21,15 +21,7 @@ import (
 )
 
 // ServiceDetailedInfo contains comprehensive status and metadata for a service
-type ServiceDetailedInfo struct {
-	Name          string `json:"name"`
-	Status        string `json:"status"`
-	PID           int    `json:"pid"`
-	Port          int    `json:"port"`
-	Ports         []int  `json:"ports"`
-	RemainingDays int    `json:"remainingDays,omitempty"`
-	ActiveVersion string `json:"activeVersion,omitempty"`
-}
+type ServiceDetailedInfo = interfaces.ServiceDetailedInfo
 
 type runningService struct {
 	cmd  *exec.Cmd
@@ -357,7 +349,12 @@ func extractOsteniaPID(execPath, pidStr, binPath string) int {
 	return 0
 }
 
+var findPortsByPIDExactOverride func(pid int) []int
+
 func findPortsByPIDExact(pid int) []int {
+	if findPortsByPIDExactOverride != nil {
+		return findPortsByPIDExactOverride(pid)
+	}
 	if pid <= 0 {
 		return []int{}
 	}

@@ -11,12 +11,13 @@ import (
 	"math/big"
 	"net"
 	"os"
-	"os/exec"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"runtime"
 	"time"
 )
+
+var RSAKeySize = 4096
 
 func GenerateRootCA(destDir string) error {
 	caPath := filepath.Join(destDir, "ca.crt")
@@ -26,7 +27,7 @@ func GenerateRootCA(destDir string) error {
 		return nil // Already exists
 	}
 
-	priv, err := rsa.GenerateKey(rand.Reader, 4096)
+	priv, err := rsa.GenerateKey(rand.Reader, RSAKeySize)
 	if err != nil {
 		return err
 	}
@@ -102,10 +103,10 @@ func TrustRootCA(caPath string) error {
 	if runtime.GOOS == "windows" {
 		// Add to both Local Machine (if admin) and Current User to ensure visibility
 		certutilPath := filepath.Join(utils.GetSystemDirectory(), "certutil.exe")
-		cmd1 := exec.Command(certutilPath, "-addstore", "-f", "Root", caPath)
+		cmd1 := utils.Executor.Command(certutilPath, "-addstore", "-f", "Root", caPath)
 		cmd1.Env = utils.SafeEnv()
 		_ = cmd1.Run()
-		cmd2 := exec.Command(certutilPath, "-user", "-addstore", "-f", "Root", caPath)
+		cmd2 := utils.Executor.Command(certutilPath, "-user", "-addstore", "-f", "Root", caPath)
 		cmd2.Env = utils.SafeEnv()
 		return cmd2.Run()
 	}
@@ -138,7 +139,9 @@ func SignCertificate(caDir string, domain string, destDir string) error {
 	caKey, err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
 	if err != nil { return fmt.Errorf("failed to parse ca.key: %w", err) }
 
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	size := 2048
+	if RSAKeySize < 2048 { size = RSAKeySize }
+	priv, err := rsa.GenerateKey(rand.Reader, size)
 	if err != nil { return err }
 
 	pubBytes, _ := x509.MarshalPKIXPublicKey(&priv.PublicKey)

@@ -3,19 +3,18 @@ package backend
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"ostenia/internal/config"
 	"ostenia/internal/network"
 	"ostenia/internal/plugins"
 	plugins_utils "ostenia/internal/plugins/utils"
 	"ostenia/internal/service"
-	"ostenia/internal/ssl"
+	"ostenia/internal/backend/interfaces"
 	"path/filepath"
 	"time"
 )
 
 // GetServiceStatus returns detailed information about a specific service
-func (a *App) GetServiceStatus(serviceName string) service.ServiceDetailedInfo {
+func (a *App) GetServiceStatus(serviceName string) interfaces.ServiceDetailedInfo {
 	return a.orchestrator.GetDetailedInfo(serviceName)
 }
 
@@ -100,7 +99,7 @@ func (a *App) startPythonService(currentPath string) error {
 
 func (a *App) startOpenSSLService() error {
 	caDir := filepath.Join(config.GetBaseDir(), "ssl")
-	if err := ssl.GenerateRootCA(caDir); err != nil {
+	if err := a.sslManager.GenerateRootCA(caDir); err != nil {
 		return err
 	}
 	a.orchestrator.RequestRefresh()
@@ -312,7 +311,7 @@ func (a *App) updateApacheConfig(apachePath string, port int) error {
 		vhostsContent += service.GenerateProxyVHost(name, targetPort, port, a.cfg.ApacheHTTPS, sslDir)
 		_ = service.AddHostWithElevation("127.0.0.1", name+".test")
 		if a.cfg.ApacheHTTPS {
-			_ = ssl.SignCertificate(sslDir, name+".test", sslDir)
+			_ = a.sslManager.SignCertificate(sslDir, name+".test", sslDir)
 		}
 	}
 
@@ -337,7 +336,7 @@ func (a *App) updateNginxConfig(nginxPath string, port int) error {
 		proxies = append(proxies, service.ProxyConfig{Name: name, TargetPort: targetPort})
 		_ = service.AddHostWithElevation("127.0.0.1", name+".test")
 		if a.cfg.NginxHTTPS {
-			_ = ssl.SignCertificate(sslDir, name+".test", sslDir)
+			_ = a.sslManager.SignCertificate(sslDir, name+".test", sslDir)
 		}
 	}
 
@@ -373,7 +372,7 @@ func (a *App) OpenHeidiSQL() error {
 		return fmt.Errorf("HeidiSQL is not installed")
 	}
 	cmdPath := filepath.Join(plugins_utils.GetSystemDirectory(), "cmd.exe")
-	cmd := exec.Command(cmdPath, "/c", "start", "", exePath)
+	cmd := plugins_utils.Executor.Command(cmdPath, "/c", "start", "", exePath)
 	cmd.Env = plugins_utils.SafeEnv()
 	plugins_utils.SetHideWindow(cmd)
 	return cmd.Run()

@@ -30,7 +30,7 @@ func DownloadFile(ctx context.Context, url, path, name string, onProgress func(p
 		return err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := Client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -101,9 +101,29 @@ func GetSystemArch() string {
 	return "x86"
 }
 
+// HTTPClient is an interface for making HTTP GET requests, allowing for test mocking.
+type HTTPClient interface {
+	Get(url string) (resp *http.Response, err error)
+	Do(req *http.Request) (*http.Response, error)
+}
+
+// DefaultHTTPClient is the production implementation of HTTPClient.
+type DefaultHTTPClient struct{}
+
+func (c *DefaultHTTPClient) Get(url string) (*http.Response, error) {
+	return http.Get(url)
+}
+
+func (c *DefaultHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	return http.DefaultClient.Do(req)
+}
+
+// Client is the global HTTP client instance.
+var Client HTTPClient = &DefaultHTTPClient{}
+
 // FetchContent retrieves the content of a URL as a string.
 func FetchContent(url string) string {
-	resp, err := http.Get(url)
+	resp, err := Client.Get(url)
 	if err != nil {
 		return ""
 	}

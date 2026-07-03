@@ -6,6 +6,7 @@ import (
 	"ostenia/internal/config"
 	"ostenia/internal/plugins"
 	"ostenia/internal/service"
+	"ostenia/internal/ssl"
 	"ostenia/internal/backend/interfaces"
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -13,10 +14,11 @@ import (
 // App struct manages the main application state and coordinates between backend services and the frontend
 type App struct {
 	ctx          context.Context
-	downloader   *plugins.Manager
-	orchestrator *service.Orchestrator
+	downloader   interfaces.PluginManager
+	orchestrator interfaces.Orchestrator
 	symlinkMgr   *service.SymlinkManager
-	sshManager   *service.SSHManager
+	sshManager   interfaces.SSHManager
+	sslManager   interfaces.SSLManager
 	cfg          *config.Config
 	runtime      interfaces.Runtime
 }
@@ -41,6 +43,28 @@ func (w *WailsRuntime) SaveFileDialog(ctx context.Context, options wruntime.Save
 	return wruntime.SaveFileDialog(ctx, options)
 }
 
+func (a *App) EventsEmit(ctx context.Context, eventName string, optionalData ...interface{}) {
+	a.runtime.EventsEmit(ctx, eventName, optionalData...)
+}
+func (a *App) Quit(ctx context.Context) { a.runtime.Quit(ctx) }
+func (a *App) OpenFileDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) {
+	return a.runtime.OpenFileDialog(ctx, options)
+}
+func (a *App) OpenDirectoryDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) {
+	return a.runtime.OpenDirectoryDialog(ctx, options)
+}
+func (a *App) SaveFileDialog(ctx context.Context, options wruntime.SaveDialogOptions) (string, error) {
+	return a.runtime.SaveFileDialog(ctx, options)
+}
+
+func (a *App) GenerateRootCA(destDir string) error { return a.sslManager.GenerateRootCA(destDir) }
+func (a *App) GetRemainingDays(certPath string) (int, error) {
+	return a.sslManager.GetRemainingDays(certPath)
+}
+func (a *App) SignCertificate(caDir string, domain string, destDir string) error {
+	return a.sslManager.SignCertificate(caDir, domain, destDir)
+}
+
 const (
 	exeNginx  = "nginx.exe"
 	exeApache = "httpd.exe"
@@ -57,13 +81,26 @@ func NewApp() *App {
 
 // Startup is called when the app starts. The context is saved
 // so we can call the runtime methods
+type DefaultSSLManager struct{}
+
+func (s *DefaultSSLManager) GenerateRootCA(destDir string) error { return ssl.GenerateRootCA(destDir) }
+func (s *DefaultSSLManager) GetRemainingDays(path string) (int, error) {
+	return ssl.GetRemainingDays(path)
+}
+func (s *DefaultSSLManager) SignCertificate(caDir, domain, destDir string) error {
+	return ssl.SignCertificate(caDir, domain, destDir)
+}
+
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
-	a.runtime = &WailsRuntime{}
+	if a.runtime == nil {
+		a.runtime = &WailsRuntime{}
+	}
 	a.downloader = plugins.NewManager(ctx)
 	a.orchestrator = service.NewOrchestrator(ctx)
 	a.symlinkMgr = service.NewSymlinkManager()
 	a.sshManager = service.NewSSHManager(ctx)
+	a.sslManager = &DefaultSSLManager{}
 
 	cfg, err := config.LoadConfig()
 	if err != nil {

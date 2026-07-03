@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"ostenia/internal/config"
 	"ostenia/internal/plugins/utils"
+	"ostenia/internal/backend/interfaces"
 	"path/filepath"
 	"sync"
 	"time"
@@ -20,6 +21,8 @@ import (
 	"path"
 	"runtime"
 )
+
+type RemoteFile = interfaces.RemoteFile
 
 type SSHConnection struct {
 	SessionID string
@@ -231,13 +234,6 @@ func (m *SSHManager) Disconnect(sessionID string) {
 	}
 }
 
-type RemoteFile struct {
-	Name    string `json:"name"`
-	Size    int64  `json:"size"`
-	IsDir   bool   `json:"isDir"`
-	ModTime int64  `json:"modTime"`
-	Mode    string `json:"mode"`
-}
 
 func (m *SSHManager) ListFiles(sessionID string, pathStr string) ([]RemoteFile, error) {
 	m.mu.RLock()
@@ -432,7 +428,7 @@ func (m *SSHManager) getDefaultEditorCmd(localPath string) *exec.Cmd {
 		cmdPath := filepath.Join(utils.GetSystemDirectory(), "notepad.exe")
 		cmd = utils.Executor.Command(cmdPath, localPath)
 	case "darwin":
-		cmd = exec.Command("/usr/bin/open", "-t", localPath)
+		cmd = utils.Executor.Command("/usr/bin/open", "-t", localPath)
 	default:
 		return m.findLinuxEditor(localPath)
 	}

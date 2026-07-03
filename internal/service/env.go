@@ -3,16 +3,20 @@ package service
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"strings"
 )
 
+var getPathOverride func(target string) (string, error)
+
 // GetPath retrieves the current PATH environment variable from specific target (User or Machine).
 func GetPath(target string) (string, error) {
+	if getPathOverride != nil {
+		return getPathOverride(target)
+	}
 	// target is controlled and validated as "User" or "Machine" in callers
-	getCmd := exec.Command("powershell", "-NoProfile", "-Command", fmt.Sprintf("[Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::%s)", target)) // NOSONAR
+	getCmd := utils.Executor.Command("powershell", "-NoProfile", "-Command", fmt.Sprintf("[Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::%s)", target)) // NOSONAR
 	utils.SetHideWindow(getCmd)
 	out, err := getCmd.Output()
 	if err != nil {
@@ -43,13 +47,13 @@ func SetPath(path string, target string) error {
 
 		args := fmt.Sprintf("-NoProfile -ExecutionPolicy Bypass -File \"%s\"", tmpScript)
 		elevatedCmd := fmt.Sprintf("Start-Process powershell -ArgumentList '%s' -Verb RunAs -Wait", args)
-		cmd := exec.Command("powershell", "-NoProfile", "-Command", elevatedCmd) // NOSONAR
+		cmd := utils.Executor.Command("powershell", "-NoProfile", "-Command", elevatedCmd) // NOSONAR
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("UAC prompt denied: %w", err)
 		}
 	} else {
 		script := fmt.Sprintf("[Environment]::SetEnvironmentVariable('Path', '%s', [EnvironmentVariableTarget]::%s)", escapedPath, target) // NOSONAR
-		cmd := exec.Command("powershell", "-NoProfile", "-Command", script)                            // NOSONAR
+		cmd := utils.Executor.Command("powershell", "-NoProfile", "-Command", script)                            // NOSONAR
 		utils.SetHideWindow(cmd)
 		err := cmd.Run()
 		if err != nil { return fmt.Errorf("failed to set %s path: %w", target, err) }

@@ -28,7 +28,12 @@ type pluginDefinition struct {
 	GetModuleVersion func(name string, path string) string
 }
 
+var detectHeidiSQLInstallationOverride func() (string, string)
+
 func DetectHeidiSQLInstallation() (string, string) {
+	if detectHeidiSQLInstallationOverride != nil {
+		return detectHeidiSQLInstallationOverride()
+	}
 	return utils.DetectHeidiSQLInstallation()
 }
 
@@ -132,7 +137,7 @@ func createDownloadTask(def pluginDefinition, baseDir string) DownloadTask {
 }
 
 func handleHeidiSQLDetection(t *DownloadTask) {
-	exePath, _ := utils.DetectHeidiSQLInstallation()
+	exePath, _ := DetectHeidiSQLInstallation()
 	if exePath != "" {
 		t.IsInstalled = true
 		if len(t.InstalledVers) == 0 {

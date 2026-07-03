@@ -3,7 +3,6 @@ package backend
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"ostenia/internal/config"
 	"ostenia/internal/plugins"
 	plugins_utils "ostenia/internal/plugins/utils"
@@ -13,8 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // GetPrerequisites returns the list of latest known plugin versions for installation
@@ -67,7 +64,7 @@ func (a *App) InstallPluginModule(parentName string, moduleName string) error {
 	}
 
 	emitProgress := func(name string, pct float64, status string) {
-		wruntime.EventsEmit(a.ctx, "download_progress", plugins.Progress{Name: name, Percentage: pct, Status: status})
+		a.runtime.EventsEmit(a.ctx, "download_progress", plugins.Progress{Name: name, Percentage: pct, Status: status})
 	}
 
 	var err error
@@ -148,7 +145,7 @@ func (a *App) SwitchServiceVersion(serviceName string, version string) error {
 	_ = os.Remove(currentPath)
 	if _, err := os.Stat(targetDir); err == nil {
 		cmdPath := filepath.Join(plugins_utils.GetSystemDirectory(), "cmd.exe")
-		cmd := exec.Command(cmdPath, "/c", "mklink", "/J", currentPath, targetDir)
+		cmd := plugins_utils.Executor.Command(cmdPath, "/c", "mklink", "/J", currentPath, targetDir)
 		cmd.Env = plugins_utils.SafeEnv()
 		plugins_utils.SetHideWindow(cmd)
 		_ = cmd.Run()
