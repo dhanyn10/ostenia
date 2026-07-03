@@ -46,7 +46,11 @@ func NewManager(ctx context.Context) *Manager {
 	return &Manager{
 		ctx:     ctx,
 		cancels: make(map[string]context.CancelFunc),
-		emit:    wruntime.EventsEmit,
+		emit: func(ctx context.Context, eventName string, optionalData ...interface{}) {
+			if ctx != nil {
+				wruntime.EventsEmit(ctx, eventName, optionalData...)
+			}
+		},
 	}
 }
 

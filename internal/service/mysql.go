@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"strings"
 )
@@ -79,10 +80,10 @@ func InitializeMySQLDataDir(mysqlBinDir string, mysqlBaseDir string, dataDir str
 
 	// Try mysql_install_db first (older versions)
 	if _, err := os.Stat(mysqlInstallDbPath); err == nil {
-		cmd = exec.Command(mysqlInstallDbPath, "--defaults-file="+iniPath, "--basedir="+mysqlBaseDir, "--datadir="+dataDir, "--console")
+		cmd = utils.Executor.Command(mysqlInstallDbPath, "--defaults-file="+iniPath, "--basedir="+mysqlBaseDir, "--datadir="+dataDir, "--console")
 	} else if _, err := os.Stat(mysqldPath); err == nil {
 		// For MySQL 8.0+, use mysqld --initialize-insecure
-		cmd = exec.Command(mysqldPath, "--defaults-file="+iniPath, "--initialize-insecure", "--console")
+		cmd = utils.Executor.Command(mysqldPath, "--defaults-file="+iniPath, "--initialize-insecure", "--console")
 	} else {
 		return fmt.Errorf("neither mysql_install_db.exe nor mysqld.exe found for initialization")
 	}

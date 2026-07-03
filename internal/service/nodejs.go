@@ -2,7 +2,6 @@ package service
 
 import (
 	"os"
-	"os/exec"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
 )
@@ -12,7 +11,7 @@ func GetNodeVersion(currentPath string) (string, error) {
 	if _, err := os.Stat(nodeExe); err != nil {
 		return "", err
 	}
-	cmd := exec.Command(nodeExe, "-v")
+	cmd := utils.Executor.Command(nodeExe, "-v")
 	utils.SetHideWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {

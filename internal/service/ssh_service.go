@@ -428,7 +428,7 @@ func (m *SSHManager) getDefaultEditorCmd(localPath string) *exec.Cmd {
 		cmdPath := filepath.Join(utils.GetSystemDirectory(), "notepad.exe")
 		cmd = utils.Executor.Command(cmdPath, localPath)
 	case "darwin":
-		cmd = exec.Command("/usr/bin/open", "-t", localPath)
+		cmd = utils.Executor.Command("/usr/bin/open", "-t", localPath)
 	default:
 		return m.findLinuxEditor(localPath)
 	}

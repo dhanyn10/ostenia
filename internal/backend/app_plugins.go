@@ -12,8 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // GetPrerequisites returns the list of latest known plugin versions for installation
@@ -66,7 +64,7 @@ func (a *App) InstallPluginModule(parentName string, moduleName string) error {
 	}
 
 	emitProgress := func(name string, pct float64, status string) {
-		wruntime.EventsEmit(a.ctx, "download_progress", plugins.Progress{Name: name, Percentage: pct, Status: status})
+		a.runtime.EventsEmit(a.ctx, "download_progress", plugins.Progress{Name: name, Percentage: pct, Status: status})
 	}
 
 	var err error
