@@ -20,35 +20,34 @@ jobs:
 
       - name: Run Backend Tests and Generate Coverage
         run: |
-          New-Item -Path "frontend/dist" -ItemType Directory -Force
-          "dummy" | Out-File -FilePath "frontend/dist/index.html"
+          if not exist frontend\dist mkdir frontend\dist
+          echo dummy > frontend\dist\index.html
           
-          Write-Host "Listing all .go files in the repository:"
-          Get-ChildItem -Path . -Recurse -Include *.go | Format-List FullName # Debugging: List Go files
+          echo Listing all .go files in the repository:
+          dir /s /b *.go
           
-          Write-Host "Running Go tests and generating coverage profile..."
-          # Mengarahkan output go test ke file log untuk debugging
-          go test -v -coverprofile=coverage.out ./... *>&1 | Out-File -FilePath "go_test_output.log"
+          echo Running Go tests and generating coverage profile...
+          go test -v -coverprofile=coverage.out -- ./...
           
-          Write-Host "Content of go_test_output.log:"
-          Get-Content "go_test_output.log" # Menampilkan output go test
+          echo Listing files in current directory after go test:
+          dir /s
           
           go install github.com/AlekSi/gocov-xml@latest
           
-          $coverageFile = "coverage.out"
-          if (Test-Path $coverageFile) {
-              $fileInfo = Get-Item $coverageFile
-              if ($fileInfo.Length -gt 0) {
-                  Write-Host "$coverageFile created successfully and is not empty. Converting to XML..."
-                  Get-Content $coverageFile | gocov-xml | Set-Content coverage.xml
-              } else {
-                  Write-Host "WARNING: $coverageFile was created but is empty. Skipping gocov-xml conversion."
-              }
-          } else {
-              Write-Host "ERROR: $coverageFile was NOT created by 'go test'. Cannot generate Go coverage XML."
-              exit 1 # Gagal jika coverage.out tidak ditemukan
-          }
-        shell: pwsh
+          set "coverageFile=coverage.out"
+          if exist "%coverageFile%" (
+              for %%F in ("%coverageFile%") do set "fileSize=%%~zF"
+              if %fileSize% gtr 0 (
+                  echo %coverageFile% created successfully and is not empty. Converting to XML...
+                  type "%coverageFile%" | gocov-xml > coverage.xml
+              ) else (
+                  echo WARNING: %coverageFile% was created but is empty. Skipping gocov-xml conversion.
+              )
+          ) else (
+              echo ERROR: %coverageFile% was NOT created by 'go test'. Cannot generate Go coverage XML.
+              exit /b 1
+          )
+        shell: cmd
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
