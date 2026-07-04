@@ -9,10 +9,24 @@ jobs:
   sonarqube:
     name: SonarQube Scan
     runs-on: ubuntu-latest
+    # Menunggu semua job test selesai
+    needs: [backend/test, vitest/test, playwright/test]
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Download backend coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage-report
+          path: . # Laporan coverage.xml akan diunduh ke root direktori
+
+      - name: Download frontend Vitest coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-vitest-coverage-report
+          path: frontend/coverage # Laporan lcov.info akan diunduh ke frontend/coverage
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -22,28 +36,19 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@ebe9d32e170905ff726a3bbb3d0076282e4edc41
 
-      - name: Run Backend Tests
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
-          mkdir -p frontend/dist
-          echo "dummy" > frontend/dist/index.html
-          go test ./... -v -coverprofile=coverage-backend.out
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 24
 
-      - name: Run Frontend Tests
-        working-directory: frontend
-        run: |
-          npm install -g pnpm
-          cd .. && $HOME/go/bin/wails generate module && cd frontend
-          pnpm install --no-frozen-lockfile
-          pnpm vitest run --coverage.enabled --coverage.reporter=lcov --coverage.reportsDirectory=./coverage
+      # Menghapus langkah Run Frontend Tests karena sudah dipindahkan ke vitest.yml
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.coverage.go.reportPaths=coverage.xml
+            -Dsonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info
+            -Dsonar.typescript.lcov.reportPaths=frontend/coverage/lcov.info

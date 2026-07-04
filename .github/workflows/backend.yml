@@ -18,9 +18,17 @@ jobs:
           go-version-file: 'go.mod'
           cache: true
 
-      - name: Run Backend Tests
+      - name: Run Backend Tests and Generate Coverage
         run: |
           New-Item -Path "frontend/dist" -ItemType Directory -Force
           "dummy" | Out-File -FilePath "frontend/dist/index.html"
-          go test -v ./...
+          go test -v -coverprofile=coverage.out ./...
+          go install github.com/AlekSi/gocov-xml@latest
+          gocov-xml < coverage.out > coverage.xml
         shell: pwsh
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-report
+          path: coverage.xml
