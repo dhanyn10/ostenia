@@ -23,11 +23,15 @@ jobs:
           New-Item -Path "frontend/dist" -ItemType Directory -Force
           "dummy" | Out-File -FilePath "frontend/dist/index.html"
           
-          Write-Host "Running Go tests and generating coverage profile..."
-          go test -v -coverprofile=coverage.out ./...
+          Write-Host "Listing all .go files in the repository:"
+          Get-ChildItem -Path . -Recurse -Include *.go | Format-List FullName # Debugging: List Go files
           
-          Write-Host "Listing files in current directory after go test:"
-          Get-ChildItem -Path . -Recurse -Force | Format-List FullName, Length # Menampilkan file untuk debugging
+          Write-Host "Running Go tests and generating coverage profile..."
+          # Mengarahkan output go test ke file log untuk debugging
+          go test -v -coverprofile=coverage.out ./... *>&1 | Out-File -FilePath "go_test_output.log"
+          
+          Write-Host "Content of go_test_output.log:"
+          Get-Content "go_test_output.log" # Menampilkan output go test
           
           go install github.com/AlekSi/gocov-xml@latest
           
