@@ -22,9 +22,28 @@ jobs:
         run: |
           New-Item -Path "frontend/dist" -ItemType Directory -Force
           "dummy" | Out-File -FilePath "frontend/dist/index.html"
+          
+          Write-Host "Running Go tests and generating coverage profile..."
           go test -v -coverprofile=coverage.out ./...
+          
+          Write-Host "Listing files in current directory after go test:"
+          Get-ChildItem -Path . -Recurse -Force | Format-List FullName, Length # Menampilkan file untuk debugging
+          
           go install github.com/AlekSi/gocov-xml@latest
-          Get-Content coverage.out | gocov-xml | Set-Content coverage.xml
+          
+          $coverageFile = "coverage.out"
+          if (Test-Path $coverageFile) {
+              $fileInfo = Get-Item $coverageFile
+              if ($fileInfo.Length -gt 0) {
+                  Write-Host "$coverageFile created successfully and is not empty. Converting to XML..."
+                  Get-Content $coverageFile | gocov-xml | Set-Content coverage.xml
+              } else {
+                  Write-Host "WARNING: $coverageFile was created but is empty. Skipping gocov-xml conversion."
+              }
+          } else {
+              Write-Host "ERROR: $coverageFile was NOT created by 'go test'. Cannot generate Go coverage XML."
+              exit 1 # Gagal jika coverage.out tidak ditemukan
+          }
         shell: pwsh
 
       - name: Upload coverage report
