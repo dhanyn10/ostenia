@@ -2,6 +2,7 @@ package service
 
 import (
 	"os"
+	"ostenia/internal/ssl"
 	"path/filepath"
 	"testing"
 )
@@ -13,6 +14,11 @@ func TestNginxConfig(t *testing.T) {
 
 	confPath := filepath.Join(confDir, "nginx.conf")
 	os.WriteFile(confPath, []byte("http { server { listen 80; } }"), 0644)
+
+    // Mock SSL
+    origSign := ssl.SignCertificateFunc
+    ssl.SignCertificateFunc = func(ca, dom, dst string) error { return nil }
+    defer func() { ssl.SignCertificateFunc = origSign }()
 
 	t.Run("UpdateNginxConfig", func(t *testing.T) {
 		proxies := []ProxyConfig{
