@@ -301,23 +301,6 @@ func (o *Orchestrator) updateCache(name string, info ServiceDetailedInfo) {
 	o.mu.Unlock()
 }
 
-func findOsteniaPIDs(exeName string) []int {
-	if runtime.GOOS != "windows" {
-		return []int{}
-	}
-
-	wmicPath := filepath.Join(utils.GetSystemDirectory(), "wbem", "wmic.exe")
-	cmd := utils.Executor.Command(wmicPath, "process", "where", fmt.Sprintf("name='%s'", exeName), "get", "ExecutablePath,ProcessId", "/format:csv")
-	cmd.Env = utils.SafeEnv()
-	utils.SetHideWindow(cmd)
-
-	out, err := cmd.Output()
-	if err != nil {
-		return []int{}
-	}
-
-	return parseWmicOutput(string(out))
-}
 
 func parseWmicOutput(output string) []int {
 	pids := []int{}
@@ -560,6 +543,29 @@ func (o *Orchestrator) captureLogs(name string, reader io.ReadCloser) {
 func (o *Orchestrator) emitStatus(name string, status string) {
 	info := o.updateServiceInfo(name)
 	o.emitEvent("service_status", info)
+}
+
+var findOsteniaPIDsOverride func(exeName string) []int
+
+func findOsteniaPIDs(exeName string) []int {
+	if findOsteniaPIDsOverride != nil {
+		return findOsteniaPIDsOverride(exeName)
+	}
+	if runtime.GOOS != "windows" {
+		return []int{}
+	}
+
+	wmicPath := filepath.Join(utils.GetSystemDirectory(), "wbem", "wmic.exe")
+	cmd := utils.Executor.Command(wmicPath, "process", "where", fmt.Sprintf("name='%s'", exeName), "get", "ExecutablePath,ProcessId", "/format:csv")
+	cmd.Env = utils.SafeEnv()
+	utils.SetHideWindow(cmd)
+
+	out, err := cmd.Output()
+	if err != nil {
+		return []int{}
+	}
+
+	return parseWmicOutput(string(out))
 }
 
 // StopAll terminates all services currently being tracked by the orchestrator

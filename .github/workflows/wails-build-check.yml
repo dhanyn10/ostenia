@@ -15,7 +15,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version-file: 'go.mod'
           cache: true
 
       - name: Install pnpm
@@ -31,7 +31,7 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install Frontend Dependencies
-        run: cd frontend && pnpm install
+        run: cd frontend && pnpm install --no-frozen-lockfile
 
       - name: Cache Wails CLI
         id: cache-wails

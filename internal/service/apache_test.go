@@ -16,9 +16,15 @@ func TestApacheConfig(t *testing.T) {
 	confPath := filepath.Join(confDir, "httpd.conf")
 	os.WriteFile(confPath, []byte("Listen 80\n#LoadModule rewrite_module"), 0644)
 
-    origRSA := ssl.RSAKeySize
-    ssl.RSAKeySize = 1024
-    defer func() { ssl.RSAKeySize = origRSA }()
+    // Mock SSL to avoid heavy cert generation
+    origGen := ssl.GenerateRootCAFunc
+    origSign := ssl.SignCertificateFunc
+    ssl.GenerateRootCAFunc = func(dir string) error { return nil }
+    ssl.SignCertificateFunc = func(ca, dom, dst string) error { return nil }
+    defer func() {
+        ssl.GenerateRootCAFunc = origGen
+        ssl.SignCertificateFunc = origSign
+    }()
 
 	t.Run("GenerateVHost", func(t *testing.T) {
 		res := GenerateVHost("test", "/path", 80)

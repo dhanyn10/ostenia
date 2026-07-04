@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"ostenia/internal/plugins/utils"
 	"ostenia/internal/backend/interfaces"
-	"path/filepath"
 	"testing"
 )
 
@@ -24,8 +23,9 @@ type mockExecutor struct {
 }
 
 func (m *mockExecutor) Command(name string, args ...string) *exec.Cmd {
-	cmd := exec.Command(os.Args[0], "-test.run=TestHelperProcess", "--")
-	cmd.Args = append(cmd.Args, args...)
+	argList := []string{"-test.run=TestHelperProcess", "--"}
+	argList = append(argList, args...)
+	cmd := exec.Command(os.Args[0], argList...)
 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "MOCK_OUTPUT="+string(m.output))
 	return cmd
 }
@@ -34,7 +34,9 @@ func TestHelperProcess(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
 		return
 	}
-	fmt.Fprint(os.Stdout, os.Getenv("MOCK_OUTPUT"))
+	if os.Getenv("MOCK_OUTPUT") != "" {
+		fmt.Fprint(os.Stdout, os.Getenv("MOCK_OUTPUT"))
+	}
 	os.Exit(0)
 }
 
@@ -75,19 +77,20 @@ func TestOrchestrator_Complete(t *testing.T) {
 		os.Setenv("OSTENIA_HOME", tempDir)
 		defer os.Unsetenv("OSTENIA_HOME")
 
-		binDir := filepath.Join(tempDir, "bin")
-		apacheExe := filepath.Join(binDir, "apache", "httpd.exe")
-
-		// The mock output should NOT start with "Node" as that is skipped by parseWmicOutput
-		// And should use a path that matches our binDir
-		mockOutput := fmt.Sprintf("Header,ProcessId,ExecutablePath\nMYPC,%d,%s\n", 1234, apacheExe)
-
-		m := &mockExecutor{
-			output: []byte(mockOutput),
+		findOsteniaPIDsOverride = func(exeName string) []int {
+			if exeName == "httpd.exe" {
+				return []int{1234}
+			}
+			return []int{}
 		}
-		utils.Executor = m
+		defer func() { findOsteniaPIDsOverride = nil }()
 
 		orch.updateServiceInfo("Apache")
+		info := orch.GetDetailedInfo("Apache")
+		if info.Status != "Running" || info.PID != 1234 {
+			t.Errorf("Expected Apache to be Running with PID 1234, got %s (PID %d)", info.Status, info.PID)
+		}
+
 		orch.updateServiceInfo("Node.js")
 		orch.updateServiceInfo("MySQL")
 		orch.updateServiceInfo("Nginx")
@@ -101,7 +104,7 @@ func TestOrchestrator_Complete(t *testing.T) {
 		utils.Executor = &mockExecutor{output: []byte("")}
 
 		// Try starting a service (will use helper process which exits immediately)
-		err := orch.StartService("TestService", os.Args[0], []string{"-test.run=TestHelperProcess"}, "")
+		err := orch.StartService("TestService", os.Args[0], []string{"-test.run=TestHelperProcess", "--"}, "")
 		if err != nil {
 			t.Errorf("StartService failed: %v", err)
 		}

@@ -9,6 +9,8 @@ function cn(...inputs: ClassValue[]) {
 }
 
 function AppHeader({ activeTab, handleStartAll, handleStopAll, handleTerminal, isTerminalOpen, setIsTerminalOpen }) {
+  if (activeTab === 'logs') return null;
+
  const title = {
    activity: 'Activity Center',
    plugins: 'Plugin Management',
