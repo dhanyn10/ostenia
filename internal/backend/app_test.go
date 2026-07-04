@@ -197,6 +197,15 @@ func TestApp_Full_Mocked(t *testing.T) {
     // Profile
     _ = app.ExportProfile(true, true)
     _ = app.ImportProfile()
+
+    // Test Startup (partial)
+    _ = NewApp()
+    // We can't easily test the full Startup because it starts goroutines and loads real config
+    // But we can test the DefaultSSLManager
+    sslMgr := &DefaultSSLManager{}
+    _ = sslMgr.GenerateRootCA("test")
+    _, _ = sslMgr.GetRemainingDays("test")
+    _ = sslMgr.SignCertificate("ca", "domain", "dest")
 }
 
 func TestNewApp(t *testing.T) {
