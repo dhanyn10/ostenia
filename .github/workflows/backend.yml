@@ -18,6 +18,9 @@ jobs:
           go-version-file: 'go.mod'
           cache: true
 
+      - name: Go Mod Tidy
+        run: go mod tidy
+
       - name: Run Backend Tests
         run: |
           New-Item -Path "frontend/dist" -ItemType Directory -Force
