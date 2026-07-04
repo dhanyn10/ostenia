@@ -19,8 +19,6 @@ jobs:
           cache: true
 
       - name: Run Backend Tests and Generate Coverage
-        env: # Menambahkan blok env di sini
-          GIT_TERMINAL_PROMPT: 0 # Memberi tahu Git untuk tidak meminta kredensial
         run: |
           mkdir -p frontend/dist
           echo dummy > frontend/dist/index.html
@@ -34,18 +32,17 @@ jobs:
           echo "Listing files in current directory after go test:"
           ls -R
           
-          # Install gocov and gocov-xml
-          go install github.com/AlekSi/gocov@latest
-          go install github.com/AlekSi/gocov-xml@latest
+          # Install go-sonar-report (alternative to gocov and gocov-xml)
+          go install github.com/gabriel-samfira/go-sonar-report@latest
           
           coverageFile="coverage.out"
           if [ -f "$coverageFile" ]; then
               if [ -s "$coverageFile" ]; then
-                  echo "$coverageFile created successfully and is not empty. Converting to JSON then XML..."
-                  gocov convert "$coverageFile" > coverage.json
-                  cat coverage.json | gocov-xml > coverage.xml
+                  echo "$coverageFile created successfully and is not empty. Converting to SonarQube XML..."
+                  # Convert coverage.out directly to SonarQube XML using go-sonar-report
+                  go-sonar-report -coverage-profile="$coverageFile" -output=coverage.xml
               else
-                  echo "WARNING: $coverageFile was created but is empty. Skipping gocov-xml conversion."
+                  echo "WARNING: $coverageFile was created but is empty. Skipping coverage XML generation."
               fi
           else
               echo "ERROR: $coverageFile was NOT created by 'go test'. Cannot generate Go coverage XML."
