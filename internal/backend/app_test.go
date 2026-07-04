@@ -127,9 +127,9 @@ func TestApp_Full_Mocked(t *testing.T) {
 	_, _ = app.SaveFileDialog(context.Background(), wruntime.SaveDialogOptions{})
 	app.Quit(context.Background())
 
-	_ = app.GenerateRootCA("test")
-	_, _ = app.GetRemainingDays("test")
-	_ = app.SignCertificate("ca", "domain", "dest")
+	_ = app.GenerateRootCA(tempDir)
+	_, _ = app.GetRemainingDays(filepath.Join(tempDir, "ca.crt"))
+	_ = app.SignCertificate(tempDir, "domain", tempDir)
 
     // Config
 	_ = app.GetConfig()
@@ -203,9 +203,9 @@ func TestApp_Full_Mocked(t *testing.T) {
     // We can't easily test the full Startup because it starts goroutines and loads real config
     // But we can test the DefaultSSLManager
     sslMgr := &DefaultSSLManager{}
-    _ = sslMgr.GenerateRootCA("test")
-    _, _ = sslMgr.GetRemainingDays("test")
-    _ = sslMgr.SignCertificate("ca", "domain", "dest")
+    _ = sslMgr.GenerateRootCA(tempDir)
+    _, _ = sslMgr.GetRemainingDays(filepath.Join(tempDir, "ca.crt"))
+    _ = sslMgr.SignCertificate(tempDir, "domain", tempDir)
 }
 
 func TestNewApp(t *testing.T) {

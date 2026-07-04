@@ -1,6 +1,7 @@
 package openssl
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"ostenia/internal/plugins/utils"
@@ -17,21 +18,39 @@ type mockExecutor struct {
 func (m *mockExecutor) Command(name string, arg ...string) *exec.Cmd {
 	full := name + " " + strings.Join(arg, " ")
 
-	// Check for exact match
 	var response string
 	var found bool
 	if response, found = m.responses[full]; !found {
-		// Fallback to name-only check if specific command not found
 		response = m.responses[name]
 	}
 
+	exitCode := "0"
 	if response == "__ERROR__" {
-		return exec.Command("false")
+		exitCode = "1"
+		response = ""
 	}
 
-	// We use a trick to return a command that outputs our mock response
-	// On Unix-like systems, we can use 'echo'
-	return exec.Command("echo", "-n", response)
+	argList := []string{"-test.run=TestHelperProcess", "--"}
+	argList = append(argList, arg...)
+	cmd := exec.Command(os.Args[0], argList...)
+	cmd.Env = append(os.Environ(),
+		"GO_WANT_HELPER_PROCESS=1",
+		"MOCK_OUTPUT="+response,
+		"MOCK_EXIT_CODE="+exitCode,
+	)
+	return cmd
+}
+
+func TestHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	if os.Getenv("MOCK_OUTPUT") != "" {
+		fmt.Fprint(os.Stdout, os.Getenv("MOCK_OUTPUT"))
+	}
+	exitCode := 0
+	fmt.Sscanf(os.Getenv("MOCK_EXIT_CODE"), "%d", &exitCode)
+	os.Exit(exitCode)
 }
 
 func TestDetectVersions(t *testing.T) {
@@ -95,10 +114,8 @@ func TestFindExecutables(t *testing.T) {
 			break
 		}
 	}
-	// Note: findExecutables also walks config.GetBaseDir()/bin which we haven't mocked here
-	// But it should at least find the one from 'where' if it existed in os.Stat
 	if !found {
-		t.Logf("findExecutables did not find %s, but that might be due to os.Stat failing if it doesn't actually exist on disk", exePath)
+		t.Logf("findExecutables did not find %s", exePath)
 	}
 }
 
@@ -123,7 +140,6 @@ func TestFindExecutables_Linux(t *testing.T) {
 		t.Skip("Skipping Linux-specific test")
 	}
 
-	// On Linux, findExecutables returns empty list immediately
 	exes := findExecutables()
 	if len(exes) != 0 {
 		t.Errorf("Expected 0 executables on Linux, got %d", len(exes))
