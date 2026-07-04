@@ -20,6 +20,14 @@ func (m *mockHTTPClient) Get(url string) (*http.Response, error) {
 	}, nil
 }
 
+func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		ContentLength: int64(len(m.content)),
+		Body:       io.NopCloser(bytes.NewBufferString(m.content)),
+	}, nil
+}
+
 func TestDetectVersions(t *testing.T) {
 	origClient := utils.Client
 	defer func() { utils.Client = origClient }()

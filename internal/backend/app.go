@@ -28,11 +28,11 @@ type WailsRuntime struct{}
 func (w *WailsRuntime) EventsEmit(ctx context.Context, eventName string, optionalData ...interface{}) {
 	wruntime.EventsEmit(ctx, eventName, optionalData...)
 }
-func (w *WailsRuntime) WindowMinimise(ctx context.Context) { wruntime.WindowMinimise(ctx) } // NOSONAR
-func (w *WailsRuntime) WindowMaximise(ctx context.Context) { wruntime.WindowMaximise(ctx) } // NOSONAR
-func (w *WailsRuntime) WindowUnmaximise(ctx context.Context) { wruntime.WindowUnmaximise(ctx) } // NOSONAR
-func (w *WailsRuntime) WindowExecJS(ctx context.Context, js string) { wruntime.WindowExecJS(ctx, js) } // NOSONAR
-func (w *WailsRuntime) Quit(ctx context.Context) { wruntime.Quit(ctx) } // NOSONAR
+func (w *WailsRuntime) WindowMinimise(ctx context.Context) { wruntime.WindowMinimise(ctx) }
+func (w *WailsRuntime) WindowMaximise(ctx context.Context) { wruntime.WindowMaximise(ctx) }
+func (w *WailsRuntime) WindowUnmaximise(ctx context.Context) { wruntime.WindowUnmaximise(ctx) }
+func (w *WailsRuntime) WindowExecJS(ctx context.Context, js string) { wruntime.WindowExecJS(ctx, js) }
+func (w *WailsRuntime) Quit(ctx context.Context) { wruntime.Quit(ctx) }
 func (w *WailsRuntime) OpenFileDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) {
 	return wruntime.OpenFileDialog(ctx, options)
 }
