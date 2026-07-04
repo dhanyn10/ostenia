@@ -24,7 +24,7 @@ jobs:
           "dummy" | Out-File -FilePath "frontend/dist/index.html"
           go test -v -coverprofile=coverage.out ./...
           go install github.com/AlekSi/gocov-xml@latest
-          gocov-xml < coverage.out > coverage.xml
+          Get-Content coverage.out | gocov-xml | Set-Content coverage.xml
         shell: pwsh
 
       - name: Upload coverage report
