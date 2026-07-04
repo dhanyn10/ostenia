@@ -1,10 +1,60 @@
 package ssl
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"math/big"
 	"os"
+	"os/exec"
+	"ostenia/internal/plugins/utils"
 	"path/filepath"
+	"runtime"
 	"testing"
+	"time"
 )
+
+type mockExecutor struct {
+	utils.CommandExecutor
+	shouldFail bool
+}
+
+func (m *mockExecutor) Command(name string, args ...string) *exec.Cmd {
+	if m.shouldFail {
+		// Return a command that always fails regardless of env override
+		// Use a subtest process with a guaranteed exit code 1
+		cmd := exec.Command(os.Args[0], "-test.run=TestHelperProcessFail", "--")
+		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+		return cmd
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=TestHelperProcessOK", "--")
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	return cmd
+}
+
+func TestHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	os.Exit(0)
+}
+
+func TestHelperProcessOK(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	os.Exit(0)
+}
+
+func TestHelperProcessFail(t *testing.T) {
+	// This function is invoked as a subprocess – always exit with code 1
+	// so that our mock simulates a certutil failure. We do NOT check
+	// GO_WANT_HELPER_PROCESS because SafeEnv() in cert.go strips env vars.
+	if len(os.Args) > 2 && os.Args[2] == "--" {
+		os.Exit(1)
+	}
+}
 
 func TestCertReal(t *testing.T) {
 	tempDir := t.TempDir()
@@ -99,6 +149,42 @@ func TestGetRemainingDaysError(t *testing.T) {
 	}
 }
 
+func TestGetRemainingDaysExpired(t *testing.T) {
+	tempDir := t.TempDir()
+	caCertPath := filepath.Join(tempDir, "expired.crt")
+
+	origKeySize := RSAKeySize
+	RSAKeySize = 1024
+	defer func() { RSAKeySize = origKeySize }()
+
+	priv, err := rsa.GenerateKey(rand.Reader, RSAKeySize)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		NotBefore:    time.Now().Add(-2 * time.Hour),
+		NotAfter:     time.Now().Add(-1 * time.Hour), // Expired!
+	}
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f, _ := os.Create(caCertPath)
+	pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+	f.Close()
+
+	days, err := getRemainingDays(caCertPath)
+	if err != nil {
+		t.Error(err)
+	}
+	if days != 0 {
+		t.Errorf("Expected 0 remaining days for expired certificate, got %d", days)
+	}
+}
+
 func TestSignCertificateError(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -123,23 +209,111 @@ func TestSignCertificateError(t *testing.T) {
 	}
 }
 
+func TestGenerateRootCAWriteError(t *testing.T) {
+	invalidDir := filepath.Join("non-existent-directory-xyz-123", "sub")
+	err := generateRootCA(invalidDir)
+	if err == nil {
+		t.Error("Expected error because directory does not exist, got nil")
+	}
+}
+
+func TestGenerateRootCAKeyWriteError(t *testing.T) {
+	tempDir := t.TempDir()
+	keyPath := filepath.Join(tempDir, "ca.key")
+	if err := os.Mkdir(keyPath, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	err := generateRootCA(tempDir)
+	if err == nil {
+		t.Error("Expected error because ca.key is a directory, got nil")
+	}
+}
+
+func TestSignCertificateWriteError(t *testing.T) {
+	tempDir := t.TempDir()
+
+	origKeySize := RSAKeySize
+	RSAKeySize = 1024
+	defer func() { RSAKeySize = origKeySize }()
+
+	origTrust := TrustRootCAOverride
+	TrustRootCAOverride = func(caPath string) error { return nil }
+	defer func() { TrustRootCAOverride = origTrust }()
+
+	if err := generateRootCA(tempDir); err != nil {
+		t.Fatalf("generateRootCA failed: %v", err)
+	}
+
+	invalidDest := filepath.Join("non-existent-directory-xyz-123", "sub")
+	err := signCertificate(tempDir, "test.local", invalidDest)
+	if err == nil {
+		t.Error("Expected error because destination directory does not exist, got nil")
+	}
+}
+
+func TestSignCertificateKeyWriteError(t *testing.T) {
+	tempDir := t.TempDir()
+
+	origKeySize := RSAKeySize
+	RSAKeySize = 1024
+	defer func() { RSAKeySize = origKeySize }()
+
+	origTrust := TrustRootCAOverride
+	TrustRootCAOverride = func(caPath string) error { return nil }
+	defer func() { TrustRootCAOverride = origTrust }()
+
+	if err := generateRootCA(tempDir); err != nil {
+		t.Fatalf("generateRootCA failed: %v", err)
+	}
+
+	domain := "test.local"
+	keyPath := filepath.Join(tempDir, domain+".key")
+	if err := os.Mkdir(keyPath, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	err := signCertificate(tempDir, domain, tempDir)
+	if err == nil {
+		t.Error("Expected error because domain.key is a directory, got nil")
+	}
+}
+
 func TestTrustRootCA(t *testing.T) {
-	// TrustRootCA is mostly windows specific and already tested via TrustRootCAOverride in TestCertReal
-	// But let's call it without override on non-windows to ensure it doesn't crash
 	origTrust := TrustRootCAOverride
 	TrustRootCAOverride = nil
 	defer func() { TrustRootCAOverride = origTrust }()
 
+	origExecutor := utils.Executor
+	defer func() { utils.Executor = origExecutor }()
+
+	if runtime.GOOS != "windows" {
+		// On non-Windows, TrustRootCA always returns nil (no system trust store interaction)
+		err := TrustRootCA("dummy.crt")
+		if err != nil {
+			t.Errorf("TrustRootCA expected to succeed on non-Windows, got: %v", err)
+		}
+		return
+	}
+
+	// On Windows: test success path (mock succeeds)
+	utils.Executor = &mockExecutor{shouldFail: false}
 	err := TrustRootCA("dummy.crt")
 	if err != nil {
-		t.Errorf("TrustRootCA failed on current OS: %v", err)
+		t.Errorf("TrustRootCA expected to succeed, got error: %v", err)
+	}
+
+	// On Windows: test failure path (mock cmd2 fails)
+	utils.Executor = &mockExecutor{shouldFail: true}
+	err = TrustRootCA("dummy.crt")
+	if err == nil {
+		t.Error("TrustRootCA expected to fail when certutil returns error, got nil")
 	}
 }
 
 func TestPublicFunctions(t *testing.T) {
 	tempDir := t.TempDir()
 
-	// Mock them
 	origGen := GenerateRootCAFunc
 	GenerateRootCAFunc = func(dir string) error { return nil }
 	defer func() { GenerateRootCAFunc = origGen }()
@@ -152,7 +326,14 @@ func TestPublicFunctions(t *testing.T) {
 	SignCertificateFunc = func(caDir, domain, destDir string) error { return nil }
 	defer func() { SignCertificateFunc = origSign }()
 
-	if err := GenerateRootCA(tempDir); err != nil { t.Error(err) }
-	if days, err := GetRemainingDays("dummy"); err != nil || days != 50 { t.Errorf("days: %d, err: %v", days, err) }
-	if err := SignCertificate(tempDir, "dom", tempDir); err != nil { t.Error(err) }
+	if err := GenerateRootCA(tempDir); err != nil {
+		t.Error(err)
+	}
+	if days, err := GetRemainingDays("dummy"); err != nil || days != 50 {
+		t.Errorf("days: %d, err: %v", days, err)
+	}
+	if err := SignCertificate(tempDir, "dom", tempDir); err != nil {
+		t.Error(err)
+	}
 }
+
