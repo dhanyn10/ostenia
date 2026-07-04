@@ -19,6 +19,8 @@ jobs:
           cache: true
 
       - name: Run Backend Tests and Generate Coverage
+        env: # Menambahkan blok env di sini
+          GIT_TERMINAL_PROMPT: 0 # Memberi tahu Git untuk tidak meminta kredensial
         run: |
           mkdir -p frontend/dist
           echo dummy > frontend/dist/index.html
@@ -33,16 +35,14 @@ jobs:
           ls -R
           
           # Install gocov and gocov-xml
-          go install github.com/AlekSi/gocov@latest # Install gocov
+          go install github.com/AlekSi/gocov@latest
           go install github.com/AlekSi/gocov-xml@latest
           
           coverageFile="coverage.out"
           if [ -f "$coverageFile" ]; then
               if [ -s "$coverageFile" ]; then
                   echo "$coverageFile created successfully and is not empty. Converting to JSON then XML..."
-                  # Convert coverage.out to JSON first
                   gocov convert "$coverageFile" > coverage.json
-                  # Then convert JSON to XML
                   cat coverage.json | gocov-xml > coverage.xml
               else
                   echo "WARNING: $coverageFile was created but is empty. Skipping gocov-xml conversion."
