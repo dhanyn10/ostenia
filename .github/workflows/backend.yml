@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest # Changed to ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -20,33 +20,37 @@ jobs:
 
       - name: Run Backend Tests and Generate Coverage
         run: |
-          mkdir -p frontend/dist # Linux equivalent
-          echo dummy > frontend/dist/index.html # Linux equivalent
+          mkdir -p frontend/dist
+          echo dummy > frontend/dist/index.html
           
           echo "Listing all .go files in the repository:"
-          find . -name "*.go" # Linux equivalent
+          find . -name "*.go"
           
           echo "Running Go tests and generating coverage profile..."
-          go test -v -coverprofile=coverage.out -- ./... # This should now work correctly
+          go test -v -coverprofile=coverage.out -- ./...
           
           echo "Listing files in current directory after go test:"
-          ls -R # Linux equivalent for recursive listing
+          ls -R
           
+          # Install gocov and gocov-xml
+          go install github.com/AlekSi/gocov@latest # Install gocov
           go install github.com/AlekSi/gocov-xml@latest
           
           coverageFile="coverage.out"
-          if [ -f "$coverageFile" ]; then # Check if file exists
-              if [ -s "$coverageFile" ]; then # Check if file is not empty
-                  echo "$coverageFile created successfully and is not empty. Converting to XML..."
-                  cat "$coverageFile" | gocov-xml > coverage.xml # Linux equivalent
+          if [ -f "$coverageFile" ]; then
+              if [ -s "$coverageFile" ]; then
+                  echo "$coverageFile created successfully and is not empty. Converting to JSON then XML..."
+                  # Convert coverage.out to JSON first
+                  gocov convert "$coverageFile" > coverage.json
+                  # Then convert JSON to XML
+                  cat coverage.json | gocov-xml > coverage.xml
               else
                   echo "WARNING: $coverageFile was created but is empty. Skipping gocov-xml conversion."
               fi
           else
               echo "ERROR: $coverageFile was NOT created by 'go test'. Cannot generate Go coverage XML."
-              exit 1 # Exit with error code
+              exit 1
           fi
-        # Removed shell: cmd as bash is default for ubuntu-latest
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
