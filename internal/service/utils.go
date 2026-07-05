@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"ostenia/internal/backend/interfaces"
 	"ostenia/internal/network"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
@@ -52,8 +53,8 @@ func ElevateAndExit() {
 	}
 }
 
-func AddHostWithElevation(ip string, hostname string) error {
-	if IsAdmin() {
+func AddHostWithElevation(sys interfaces.System, ip string, hostname string) error {
+	if sys.IsAdmin() {
 		return network.AddHost(ip, hostname)
 	}
 

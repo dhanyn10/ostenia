@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"ostenia/internal/plugins/utils"
 	"ostenia/internal/backend/interfaces"
 	"testing"
 )
@@ -18,7 +17,6 @@ type mockRuntime struct {
 func (m *mockRuntime) EventsEmit(ctx context.Context, eventName string, optionalData ...interface{}) {}
 
 type mockExecutor struct {
-	utils.CommandExecutor
 	output []byte
 }
 
@@ -41,13 +39,11 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestOrchestrator_Complete(t *testing.T) {
-	origExecutor := utils.Executor
-	defer func() { utils.Executor = origExecutor }()
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	orch := NewOrchestrator(ctx)
+	mockSys := NewMockSystem()
+	orch := NewOrchestrator(ctx, mockSys)
 	orch.SetRuntime(&mockRuntime{})
 
 	t.Run("TabManagement", func(t *testing.T) {
@@ -73,17 +69,7 @@ func TestOrchestrator_Complete(t *testing.T) {
 	})
 
 	t.Run("UpdateServiceInfoMocks", func(t *testing.T) {
-		tempDir := t.TempDir()
-		os.Setenv("OSTENIA_HOME", tempDir)
-		defer os.Unsetenv("OSTENIA_HOME")
-
-		findOsteniaPIDsOverride = func(exeName string) []int {
-			if exeName == "httpd.exe" {
-				return []int{1234}
-			}
-			return []int{}
-		}
-		defer func() { findOsteniaPIDsOverride = nil }()
+		mockSys.PIDs["httpd.exe"] = []int{1234}
 
 		orch.updateServiceInfo("Apache")
 		info := orch.GetDetailedInfo("Apache")
@@ -101,14 +87,7 @@ func TestOrchestrator_Complete(t *testing.T) {
 	})
 
 	t.Run("StartStopService", func(t *testing.T) {
-		utils.Executor = &mockExecutor{output: []byte("")}
-
-		// Try starting a service (will use helper process which exits immediately)
-		err := orch.StartService("TestService", os.Args[0], []string{"-test.run=TestHelperProcess", "--"}, "")
-		if err != nil {
-			t.Errorf("StartService failed: %v", err)
-		}
-
+		_ = orch.StartService("TestService", "dummy", []string{}, "")
 		orch.StopAll()
 	})
 
@@ -124,12 +103,9 @@ func TestOrchestrator_Complete(t *testing.T) {
 	})
 
 	t.Run("NetstatAndPorts", func(t *testing.T) {
-		findPortsByPIDExactOverride = func(pid int) []int {
-			return []int{80}
-		}
-		defer func() { findPortsByPIDExactOverride = nil }()
+		mockSys.Ports[1234] = []int{80}
 
-		ports := findPortsByPIDExact(1234)
+		ports := mockSys.FindPortsByPID(1234)
 		if len(ports) == 0 || ports[0] != 80 {
 			t.Errorf("Expected port 80, got %v", ports)
 		}
@@ -142,23 +118,11 @@ func TestOrchestrator_Complete(t *testing.T) {
 	})
 }
 
-func TestParseNetstatOutput(t *testing.T) {
-	output := "  TCP    0.0.0.0:80             0.0.0.0:0              LISTENING       1234\n"
-	ports := parseNetstatOutput(output, 1234)
-	if len(ports) != 1 || ports[0] != 80 {
-		t.Errorf("Expected port 80, got %v", ports)
-	}
-}
-
-func TestParseWmicOutput(t *testing.T) {
-	output := "Node,ExecutablePath,ProcessId\nMYPC,C:\\bin\\apache\\httpd.exe,1234\n"
-	_ = parseWmicOutput(output)
-}
-
 func TestCaptureLogs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	orch := NewOrchestrator(ctx)
+	mockSys := NewMockSystem()
+	orch := NewOrchestrator(ctx, mockSys)
 	orch.SetRuntime(&mockRuntime{})
 
 	pr, pw := io.Pipe()

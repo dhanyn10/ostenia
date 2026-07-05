@@ -26,7 +26,7 @@ func (a *App) ensureEnvironmentStructure() {
 }
 
 // IsAdmin checks if the application is running with administrative privileges
-func (a *App) IsAdmin() bool { return service.IsAdmin() }
+func (a *App) IsAdmin() bool { return a.system.IsAdmin() }
 
 // SetWWWRoot sets the server root directory (www)
 func (a *App) SetWWWRoot(path string) error {

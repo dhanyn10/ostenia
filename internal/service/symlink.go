@@ -3,16 +3,20 @@ package service
 import (
 	"fmt"
 	"os"
+	"ostenia/internal/backend/interfaces"
 	"ostenia/internal/config"
-	"ostenia/internal/plugins/utils"
 	"path/filepath"
-	"runtime"
 )
 
-type SymlinkManager struct{}
+type SymlinkManager struct {
+	system interfaces.System
+}
 
-func NewSymlinkManager() *SymlinkManager {
-	return &SymlinkManager{}
+func NewSymlinkManager(system interfaces.System) *SymlinkManager {
+	if system == nil {
+		system = NewWindowsSystem(nil)
+	}
+	return &SymlinkManager{system: system}
 }
 
 func (s *SymlinkManager) SwitchVersion(category string, targetVersionDir string) error {
@@ -34,13 +38,6 @@ func (s *SymlinkManager) SwitchVersion(category string, targetVersionDir string)
 		os.Remove(currentLink)
 	}
 
-	if runtime.GOOS == "windows" {
-		// Use Directory Junction on Windows (mklink /J)
-		// It doesn't require admin privileges and is very portable.
-		cmd := utils.Executor.Command("cmd", "/c", "mklink", "/J", currentLink, targetPath)
-		return cmd.Run()
-	}
-
-	return os.Symlink(targetPath, currentLink)
+	return s.system.CreateSymlink(targetPath, currentLink)
 }
 

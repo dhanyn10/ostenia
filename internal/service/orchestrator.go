@@ -39,16 +39,21 @@ type Orchestrator struct {
 	needsRefresh bool
 	refreshMu    sync.Mutex
 	runtime      interfaces.Runtime
+	system       interfaces.System
 }
 
 // NewOrchestrator creates a new Orchestrator instance
-func NewOrchestrator(ctx context.Context) *Orchestrator {
+func NewOrchestrator(ctx context.Context, system interfaces.System) *Orchestrator {
+	if system == nil {
+		system = NewWindowsSystem(nil)
+	}
 	return &Orchestrator{
 		ctx:          ctx,
 		services:     make(map[string]*runningService),
 		serviceCache: make(map[string]ServiceDetailedInfo),
 		activeTab:    "activity",
 		needsRefresh: true,
+		system:       system,
 	}
 }
 
@@ -185,7 +190,7 @@ func (o *Orchestrator) updateServiceInfo(name string) ServiceDetailedInfo {
 
 func (o *Orchestrator) updateNodeInfo(info *ServiceDetailedInfo, baseDir string) {
 	currentPath := filepath.Join(baseDir, "bin", "nodejs", "current")
-	if IsPathInSystemPath(currentPath) {
+	if IsPathInSystemPath(o.system, currentPath) {
 		info.Status = "Running"
 	}
 	ver, err := GetNodeVersion(currentPath)
@@ -196,7 +201,7 @@ func (o *Orchestrator) updateNodeInfo(info *ServiceDetailedInfo, baseDir string)
 
 func (o *Orchestrator) updatePythonInfo(info *ServiceDetailedInfo, baseDir string) {
 	currentPath := filepath.Join(baseDir, "bin", "python", "current")
-	if IsPathInSystemPath(currentPath) {
+	if IsPathInSystemPath(o.system, currentPath) {
 		info.Status = "Running"
 	}
 	ver, err := GetPythonVersion(currentPath)
@@ -234,7 +239,7 @@ func (o *Orchestrator) updateGenericServiceInfo(info *ServiceDetailedInfo, name 
 	}
 
 	exeName := exeMap[name]
-	pids := findOsteniaPIDs(exeName)
+	pids := o.system.FindOsteniaPIDs(exeName)
 	if len(pids) > 0 {
 		info.Status = "Running"
 		info.PID = pids[0]
@@ -247,7 +252,7 @@ func (o *Orchestrator) updateGenericServiceInfo(info *ServiceDetailedInfo, name 
 
 func (o *Orchestrator) resolveServiceVersion(info *ServiceDetailedInfo, name, currentPath string) {
 	if name == "PHP" {
-		if IsPathInUserPath(currentPath) {
+		if IsPathInUserPath(o.system, currentPath) {
 			info.Status = "Running"
 		}
 		ver, err := GetPHPVersion(currentPath)
@@ -268,7 +273,7 @@ func (o *Orchestrator) ensureServiceTracked(name string, info *ServiceDetailedIn
 }
 
 func (o *Orchestrator) cleanupUntrackedService(name, baseDir string) {
-	if name != "PHP" || !IsPathInUserPath(filepath.Join(baseDir, "bin", "php", "current")) {
+	if name != "PHP" || !IsPathInUserPath(o.system, filepath.Join(baseDir, "bin", "php", "current")) {
 		o.mu.Lock()
 		delete(o.services, name)
 		o.mu.Unlock()
@@ -278,7 +283,7 @@ func (o *Orchestrator) cleanupUntrackedService(name, baseDir string) {
 func (o *Orchestrator) updateServicePorts(info *ServiceDetailedInfo, pids []int, s *runningService, tracked bool) {
 	foundPorts := make(map[int]bool)
 	for _, pid := range pids {
-		ports := findPortsByPIDExact(pid)
+		ports := o.system.FindPortsByPID(pid)
 		for _, p := range ports {
 			foundPorts[p] = true
 		}
@@ -302,98 +307,7 @@ func (o *Orchestrator) updateCache(name string, info ServiceDetailedInfo) {
 }
 
 
-func parseWmicOutput(output string) []int {
-	pids := []int{}
-	binPath := filepath.Join(config.GetBaseDir(), "bin")
-	lines := strings.Split(output, "\n")
 
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(strings.ToLower(line), "node") {
-			continue
-		}
-
-		parts := strings.Split(line, ",")
-		if len(parts) >= 3 {
-			if pid := extractOsteniaPID(parts[1], parts[2], binPath); pid > 0 {
-				pids = append(pids, pid)
-			}
-		}
-	}
-	return pids
-}
-
-func extractOsteniaPID(execPath, pidStr, binPath string) int {
-	execPath = strings.TrimSpace(execPath)
-	if strings.HasPrefix(strings.ToLower(execPath), strings.ToLower(binPath)) {
-		pid, _ := strconv.Atoi(strings.TrimSpace(pidStr))
-		return pid
-	}
-	return 0
-}
-
-var findPortsByPIDExactOverride func(pid int) []int
-
-func findPortsByPIDExact(pid int) []int {
-	if findPortsByPIDExactOverride != nil {
-		return findPortsByPIDExactOverride(pid)
-	}
-	if pid <= 0 {
-		return []int{}
-	}
-
-	netstatPath := filepath.Join(utils.GetSystemDirectory(), "netstat.exe")
-	cmd := utils.Executor.Command(netstatPath, "-ano")
-	cmd.Env = utils.SafeEnv()
-	utils.SetHideWindow(cmd)
-	out, err := cmd.Output()
-	if err != nil {
-		return []int{}
-	}
-
-	return parseNetstatOutput(string(out), pid)
-}
-
-func parseNetstatOutput(output string, pid int) []int {
-	pidStr := strconv.Itoa(pid)
-	ports := []int{}
-	lines := strings.Split(output, "\n")
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || !strings.Contains(line, "LISTENING") || !strings.Contains(line, pidStr) {
-			continue
-		}
-
-		fields := strings.Fields(line)
-		if len(fields) >= 5 && fields[len(fields)-1] == pidStr && fields[3] == "LISTENING" {
-			if p := extractPortFromNetstatLine(fields[1]); p > 0 {
-				if !containsInt(ports, p) {
-					ports = append(ports, p)
-				}
-			}
-		}
-	}
-	return ports
-}
-
-func extractPortFromNetstatLine(localAddr string) int {
-	lastColon := strings.LastIndex(localAddr, ":")
-	if lastColon != -1 {
-		p, _ := strconv.Atoi(localAddr[lastColon+1:])
-		return p
-	}
-	return 0
-}
-
-func containsInt(slice []int, val int) bool {
-	for _, v := range slice {
-		if v == val {
-			return true
-		}
-	}
-	return false
-}
 
 // StartServiceWithPort launches a service and tracks it by its known port
 func (o *Orchestrator) StartServiceWithPort(name string, binaryPath string, args []string, workingDir string, port int) error {
@@ -429,7 +343,7 @@ func (o *Orchestrator) isServiceAlreadyRunning(name, binaryPath string) bool {
 		return false
 	}
 
-	pids := findOsteniaPIDs(filepath.Base(binaryPath))
+	pids := o.system.FindOsteniaPIDs(filepath.Base(binaryPath))
 	for _, p := range pids {
 		if p == s.cmd.Process.Pid {
 			return true
@@ -473,10 +387,7 @@ func (o *Orchestrator) StartService(name string, binaryPath string, args []strin
 
 // StopService gracefully or forcefully shuts down a running service
 func (o *Orchestrator) StopService(name string) error {
-	if runtime.GOOS == "windows" {
-		o.stopServiceWindows(name)
-		time.Sleep(600 * time.Millisecond)
-	}
+	o.stopServiceOS(name)
 	o.mu.Lock()
 	delete(o.services, name)
 	o.mu.Unlock()
@@ -485,49 +396,41 @@ func (o *Orchestrator) StopService(name string) error {
 	return nil
 }
 
-func (o *Orchestrator) stopServiceWindows(name string) {
+func (o *Orchestrator) stopServiceOS(name string) {
 	if name == "HeidiSQL" {
-		o.stopHeidiSQLWindows()
+		o.stopHeidiSQLOS()
 		return
 	}
 
 	exeMap := map[string][]string{
-		"Apache":   {"httpd.exe"},
-		"MySQL":    {"mysqld.exe"},
-		"Nginx":    {"nginx.exe"},
-		"PHP":      {"php.exe", "php-cgi.exe"},
-		"Node.js":  {"node.exe"},
-		"Python":   {"python.exe"},
+		"Apache":  {"httpd.exe"},
+		"MySQL":   {"mysqld.exe"},
+		"Nginx":   {"nginx.exe"},
+		"PHP":     {"php.exe", "php-cgi.exe"},
+		"Node.js": {"node.exe"},
+		"Python":  {"python.exe"},
 	}
 
-	taskkillPath := filepath.Join(utils.GetSystemDirectory(), "taskkill.exe")
 	for _, exe := range exeMap[name] {
-		pids := findOsteniaPIDs(exe)
+		pids := o.system.FindOsteniaPIDs(exe)
 		for _, pid := range pids {
-			killCmd := utils.Executor.Command(taskkillPath, "/F", "/PID", strconv.Itoa(pid), "/T")
-			killCmd.Env = utils.SafeEnv()
-			utils.SetHideWindow(killCmd)
-			_ = killCmd.Run()
+			_ = o.system.KillProcess(pid)
 		}
 	}
 }
 
-func (o *Orchestrator) stopHeidiSQLWindows() {
+func (o *Orchestrator) stopHeidiSQLOS() {
 	_, uninstaller := utils.DetectHeidiSQLInstallation()
-	if uninstaller != "" {
+	if uninstaller != "" && runtime.GOOS == "windows" {
 		cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
 		cmd := utils.Executor.Command(cmdPath, "/c", "start", "", uninstaller)
 		cmd.Env = utils.SafeEnv()
 		utils.SetHideWindow(cmd)
 		_ = cmd.Run()
 	} else {
-		taskkillPath := filepath.Join(utils.GetSystemDirectory(), "taskkill.exe")
-		pids := findOsteniaPIDs("heidisql.exe")
+		pids := o.system.FindOsteniaPIDs("heidisql.exe")
 		for _, pid := range pids {
-			killCmd := utils.Executor.Command(taskkillPath, "/F", "/PID", strconv.Itoa(pid), "/T")
-			killCmd.Env = utils.SafeEnv()
-			utils.SetHideWindow(killCmd)
-			_ = killCmd.Run()
+			_ = o.system.KillProcess(pid)
 		}
 	}
 }
@@ -545,28 +448,6 @@ func (o *Orchestrator) emitStatus(name string, status string) {
 	o.emitEvent("service_status", info)
 }
 
-var findOsteniaPIDsOverride func(exeName string) []int
-
-func findOsteniaPIDs(exeName string) []int {
-	if findOsteniaPIDsOverride != nil {
-		return findOsteniaPIDsOverride(exeName)
-	}
-	if runtime.GOOS != "windows" {
-		return []int{}
-	}
-
-	wmicPath := filepath.Join(utils.GetSystemDirectory(), "wbem", "wmic.exe")
-	cmd := utils.Executor.Command(wmicPath, "process", "where", fmt.Sprintf("name='%s'", exeName), "get", "ExecutablePath,ProcessId", "/format:csv")
-	cmd.Env = utils.SafeEnv()
-	utils.SetHideWindow(cmd)
-
-	out, err := cmd.Output()
-	if err != nil {
-		return []int{}
-	}
-
-	return parseWmicOutput(string(out))
-}
 
 // StopAll terminates all services currently being tracked by the orchestrator
 func (o *Orchestrator) StopAll() {

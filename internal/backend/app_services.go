@@ -60,15 +60,15 @@ func (a *App) StopService(serviceName string) error {
 		return nil
 	}
 	if serviceName == "PHP" {
-		_ = service.UpdatePHPPath(currentPath, false)
+		_ = service.UpdatePHPPath(a.system, currentPath, false)
 	}
 	if serviceName == "Node.js" {
-		_ = service.UpdateNodePath(currentPath, false)
+		_ = service.UpdateNodePath(a.system, currentPath, false)
 		a.orchestrator.RequestRefresh()
 		return nil
 	}
 	if serviceName == "Python" {
-		_ = service.UpdatePythonPath(currentPath, false)
+		_ = service.UpdatePythonPath(a.system, currentPath, false)
 		a.orchestrator.RequestRefresh()
 		return nil
 	}
@@ -79,7 +79,7 @@ func (a *App) startNodeService(currentPath string) error {
 	if _, err := os.Stat(currentPath); os.IsNotExist(err) {
 		return fmt.Errorf("node.js not installed")
 	}
-	if err := service.UpdateNodePath(currentPath, true); err != nil {
+	if err := service.UpdateNodePath(a.system, currentPath, true); err != nil {
 		return err
 	}
 	a.orchestrator.RequestRefresh()
@@ -90,7 +90,7 @@ func (a *App) startPythonService(currentPath string) error {
 	if _, err := os.Stat(currentPath); os.IsNotExist(err) {
 		return fmt.Errorf("python not installed")
 	}
-	if err := service.UpdatePythonPath(currentPath, true); err != nil {
+	if err := service.UpdatePythonPath(a.system, currentPath, true); err != nil {
 		return err
 	}
 	a.orchestrator.RequestRefresh()
@@ -258,7 +258,7 @@ func (a *App) startPHPService(currentPath string) error {
 		port = p
 	}
 	_ = os.Setenv("PATH", currentPath+";"+os.Getenv("PATH")) // NOSONAR
-	_ = service.UpdatePHPPath(currentPath, true)
+	_ = service.UpdatePHPPath(a.system, currentPath, true)
 	_ = os.Setenv("PHP_FCGI_MAX_REQUESTS", "1000")
 	err := a.orchestrator.StartServiceWithPort("PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, currentPath, port)
 	if err == nil {
@@ -309,7 +309,7 @@ func (a *App) updateApacheConfig(apachePath string, port int) error {
 	sslDir := filepath.Join(config.GetBaseDir(), "ssl")
 	for name, targetPort := range a.cfg.Proxies {
 		vhostsContent += service.GenerateProxyVHost(name, targetPort, port, a.cfg.ApacheHTTPS, sslDir)
-		_ = service.AddHostWithElevation("127.0.0.1", name+".test")
+		_ = service.AddHostWithElevation(a.system, "127.0.0.1", name+".test")
 		if a.cfg.ApacheHTTPS {
 			_ = a.sslManager.SignCertificate(sslDir, name+".test", sslDir)
 		}
@@ -334,7 +334,7 @@ func (a *App) updateNginxConfig(nginxPath string, port int) error {
 	sslDir := filepath.Join(config.GetBaseDir(), "ssl")
 	for name, targetPort := range a.cfg.Proxies {
 		proxies = append(proxies, service.ProxyConfig{Name: name, TargetPort: targetPort})
-		_ = service.AddHostWithElevation("127.0.0.1", name+".test")
+		_ = service.AddHostWithElevation(a.system, "127.0.0.1", name+".test")
 		if a.cfg.NginxHTTPS {
 			_ = a.sslManager.SignCertificate(sslDir, name+".test", sslDir)
 		}

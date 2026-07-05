@@ -21,6 +21,7 @@ type App struct {
 	sslManager   interfaces.SSLManager
 	cfg          *config.Config
 	runtime      interfaces.Runtime
+	system       interfaces.System
 }
 
 type WailsRuntime struct{}
@@ -96,9 +97,12 @@ func (a *App) Startup(ctx context.Context) {
 	if a.runtime == nil {
 		a.runtime = &WailsRuntime{}
 	}
+	if a.system == nil {
+		a.system = service.NewWindowsSystem(nil)
+	}
 	a.downloader = plugins.NewManager(ctx)
-	a.orchestrator = service.NewOrchestrator(ctx)
-	a.symlinkMgr = service.NewSymlinkManager()
+	a.orchestrator = service.NewOrchestrator(ctx, a.system)
+	a.symlinkMgr = service.NewSymlinkManager(a.system)
 	a.sshManager = service.NewSSHManager(ctx)
 	a.sslManager = &DefaultSSLManager{}
 

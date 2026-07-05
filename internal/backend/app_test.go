@@ -4,6 +4,7 @@ import (
 	"context"
 	"ostenia/internal/config"
 	"ostenia/internal/backend/interfaces"
+	"ostenia/internal/service"
 	"testing"
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
     "os"
@@ -114,6 +115,8 @@ func TestApp_Full_Mocked(t *testing.T) {
 		sshManager:   &MockSSHManager{},
 		sslManager:   &MockSSLManager{},
 	}
+
+    app.system = service.NewMockSystem()
 
     // App window
 	app.Minimize()

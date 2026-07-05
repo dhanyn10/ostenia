@@ -5,7 +5,6 @@ import (
 	"os"
 	"ostenia/internal/config"
 	"ostenia/internal/plugins"
-	plugins_utils "ostenia/internal/plugins/utils"
 	"ostenia/internal/plugins/php"
 	"ostenia/internal/plugins/python"
 	"ostenia/internal/service"
@@ -43,9 +42,9 @@ func (a *App) InstallPrerequisite(task plugins.DownloadTask) error {
 		_, _, currentPath := a.getPluginPaths(task.Name)
 
 		if task.Name == "PHP" {
-			_ = service.UpdatePHPPath(currentPath, true)
+			_ = service.UpdatePHPPath(a.system, currentPath, true)
 		} else if task.Name == "Python" {
-			_ = service.UpdatePythonPath(currentPath, true)
+			_ = service.UpdatePythonPath(a.system, currentPath, true)
 		}
 		a.orchestrator.RequestRefresh()
 	}
@@ -72,12 +71,12 @@ func (a *App) InstallPluginModule(parentName string, moduleName string) error {
 	case "PHP":
 		err = php.InstallModule(a.ctx, a.downloader, moduleName, currentPath, emitProgress)
 		if err == nil {
-			_ = service.UpdatePHPPath(currentPath, true)
+			_ = service.UpdatePHPPath(a.system, currentPath, true)
 		}
 	case "Python":
 		err = python.InstallModule(a.ctx, a.downloader, moduleName, currentPath, emitProgress)
 		if err == nil {
-			_ = service.UpdatePythonPath(currentPath, true)
+			_ = service.UpdatePythonPath(a.system, currentPath, true)
 		}
 	default:
 		err = fmt.Errorf("unsupported parent plugin: %s", parentName)
@@ -98,12 +97,12 @@ func (a *App) UninstallPluginModule(parentName string, moduleName string) error 
 	case "PHP":
 		err = php.UninstallModule(moduleName, currentPath)
 		if err == nil {
-			_ = service.UpdatePHPPath(currentPath, true)
+			_ = service.UpdatePHPPath(a.system, currentPath, true)
 		}
 	case "Python":
 		err = python.UninstallModule(moduleName, currentPath)
 		if err == nil {
-			_ = service.UpdatePythonPath(currentPath, true)
+			_ = service.UpdatePythonPath(a.system, currentPath, true)
 		}
 	default:
 		err = fmt.Errorf("unsupported parent plugin: %s", parentName)
@@ -144,22 +143,18 @@ func (a *App) SwitchServiceVersion(serviceName string, version string) error {
 	}
 	_ = os.Remove(currentPath)
 	if _, err := os.Stat(targetDir); err == nil {
-		cmdPath := filepath.Join(plugins_utils.GetSystemDirectory(), "cmd.exe")
-		cmd := plugins_utils.Executor.Command(cmdPath, "/c", "mklink", "/J", currentPath, targetDir)
-		cmd.Env = plugins_utils.SafeEnv()
-		plugins_utils.SetHideWindow(cmd)
-		_ = cmd.Run()
+		_ = a.system.CreateSymlink(targetDir, currentPath)
 	}
 	if category == "php" {
 		_ = os.Setenv("PATH", currentPath+";"+os.Getenv("PATH")) // NOSONAR
 		_ = service.UpdatePHPConfig(currentPath)
-		_ = service.UpdatePHPPath(currentPath, true)
+		_ = service.UpdatePHPPath(a.system, currentPath, true)
 	}
 	if category == "nodejs" {
-		_ = service.UpdateNodePath(currentPath, true)
+		_ = service.UpdateNodePath(a.system, currentPath, true)
 	}
 	if category == "python" {
-		_ = service.UpdatePythonPath(currentPath, true)
+		_ = service.UpdatePythonPath(a.system, currentPath, true)
 	}
 	if wasRunning {
 		return a.StartService(serviceName)

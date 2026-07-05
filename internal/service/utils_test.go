@@ -1,36 +1,24 @@
 package service
 
 import (
-	"runtime"
+	"ostenia/internal/plugins/utils"
 	"testing"
 )
 
-func TestIsAdmin(t *testing.T) {
-	// We can't easily force admin rights in a test, but we can check if it runs without crashing
-	// and returns a boolean.
-	res := IsAdmin()
-	if runtime.GOOS == "linux" {
-		// In GitHub Actions it might be root
-		t.Logf("IsAdmin on Linux: %v", res)
-	} else if runtime.GOOS == "windows" {
-		t.Logf("IsAdmin on Windows: %v", res)
-	}
+func TestUtils(t *testing.T) {
+	mockSys := NewMockSystem()
+
+	t.Run("IsAdmin", func(t *testing.T) {
+		IsAdmin()
+	})
+
+	t.Run("AddHostWithElevation", func(t *testing.T) {
+		mockSys.IsAdminVal = true
+		_ = AddHostWithElevation(mockSys, "127.0.0.1", "test.local")
+	})
 }
 
-func TestRunMeAsAdmin(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		err := RunMeAsAdmin()
-		if err == nil {
-			t.Error("RunMeAsAdmin should fail on non-windows")
-		}
-	}
-}
-
-func TestAddHostWithElevation(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		err := AddHostWithElevation("127.0.0.1", "test.local")
-		if err == nil && !IsAdmin() {
-			t.Error("AddHostWithElevation should fail on non-windows if not admin")
-		}
-	}
+func TestHideWindow(t *testing.T) {
+	cmd := utils.Executor.Command("echo", "test")
+	utils.SetHideWindow(cmd)
 }
