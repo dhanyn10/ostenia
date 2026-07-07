@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -190,13 +191,7 @@ func TestLoadErrors(t *testing.T) {
 }
 
 func TestTrustRootCA(t *testing.T) {
-	// Since we are on Linux, TrustRootCA should just return nil by default
-	err := TrustRootCA("any/path")
-	if err != nil {
-		t.Errorf("TrustRootCA failed on Linux: %v", err)
-	}
-
-	// Test override
+	// Test override (cross-platform)
 	called := false
 	origTrust := TrustRootCAOverride
 	TrustRootCAOverride = func(path string) error {
@@ -208,6 +203,20 @@ func TestTrustRootCA(t *testing.T) {
 	TrustRootCA("some/path")
 	if !called {
 		t.Error("TrustRootCAOverride was not called")
+	}
+
+	// Reset override to test real logic
+	TrustRootCAOverride = nil
+
+	if runtime.GOOS == "windows" {
+		// On real Windows, we don't want to actually modify the system store during unit tests
+		// unless it's a dedicated integration test.
+		// For now, we rely on the manual TrustRootCAOverride in other tests.
+	} else {
+		err := TrustRootCA("any/path")
+		if err != nil {
+			t.Errorf("TrustRootCA failed on non-Windows: %v", err)
+		}
 	}
 }
 
