@@ -1,11 +1,9 @@
 package service
 
 import (
-	"testing"
-)
-
-import (
 	"ostenia/internal/plugins/utils"
+	"ostenia/internal/testutil"
+	"testing"
 )
 
 func TestPathExistsInString(t *testing.T) {
@@ -33,7 +31,7 @@ func TestPathExistsInString(t *testing.T) {
 func TestUpdatePaths(t *testing.T) {
 	origExecutor := utils.Executor
 	defer func() { utils.Executor = origExecutor }()
-	utils.Executor = &mockExecutor{output: ""}
+	utils.Executor = &testutil.MockExecutor{Output: ""}
 
 	getPathOverride = func(target string) (string, error) {
 		return "C:\\some\\path;C:\\ostenia\\old-php", nil
@@ -62,8 +60,19 @@ func TestUpdatePaths(t *testing.T) {
 	})
 
 	t.Run("CheckPaths", func(t *testing.T) {
-		if !IsPathInUserPath("C:\\some\\path") {
+		// Test original implementations
+		getPathOverride = func(target string) (string, error) {
+			if target == "User" {
+				return "C:\\user\\path", nil
+			}
+			return "C:\\machine\\path", nil
+		}
+
+		if !IsPathInUserPath("C:\\user\\path") {
 			t.Error("Expected path in user path")
+		}
+		if !IsPathInSystemPath("C:\\machine\\path") {
+			t.Error("Expected path in system path")
 		}
 		if IsPathInSystemPath("C:\\other\\path") {
 			t.Error("Did not expect other path in system path")

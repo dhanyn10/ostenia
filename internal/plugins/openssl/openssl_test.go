@@ -2,39 +2,13 @@ package openssl
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
 	"ostenia/internal/plugins/utils"
+	"ostenia/internal/testutil"
 	"testing"
 )
 
-type mockExecutor struct {
-	output string
-	err    error
-}
-
-func (m *mockExecutor) Command(name string, arg ...string) *exec.Cmd {
-	argList := []string{"-test.run=TestHelperProcess", "--", name}
-	argList = append(argList, arg...)
-	cmd := exec.Command(os.Args[0], argList...)
-	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "MOCK_OUTPUT="+m.output)
-	if m.err != nil {
-		cmd.Env = append(cmd.Env, "MOCK_EXIT_CODE=1")
-	}
-	return cmd
-}
-
 func TestHelperProcess(t *testing.T) {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
-		return
-	}
-	if os.Getenv("MOCK_OUTPUT") != "" {
-		fmt.Fprint(os.Stdout, os.Getenv("MOCK_OUTPUT"))
-	}
-	if os.Getenv("MOCK_EXIT_CODE") == "1" {
-		os.Exit(1)
-	}
-	os.Exit(0)
+	testutil.HelperProcess(t)
 }
 
 func TestDetectVersions(t *testing.T) {
@@ -57,7 +31,7 @@ func TestDetectInstalledVersion(t *testing.T) {
 	origExecutor := utils.Executor
 	defer func() { utils.Executor = origExecutor }()
 
-	utils.Executor = &mockExecutor{output: "OpenSSL 3.0.7 1 Nov 2022"}
+	utils.Executor = &testutil.MockExecutor{Output: "OpenSSL 3.0.7 1 Nov 2022"}
 
 	version := DetectInstalledVersion()
 	if version != "3.0.7" {
@@ -69,11 +43,7 @@ func TestFindExecutables(t *testing.T) {
 	origExecutor := utils.Executor
 	defer func() { utils.Executor = origExecutor }()
 
-	// Mock 'where openssl' output
-	utils.Executor = &mockExecutor{output: "C:\\bin\\openssl.exe\n"}
-
-	// We can't easily test the full findExecutables because it checks os.Stat
-	// but we can at least run it.
+	utils.Executor = &testutil.MockExecutor{Output: "C:\\bin\\openssl.exe\n"}
 	_ = findExecutables()
 }
 
@@ -82,7 +52,7 @@ func TestVersionFromExecutable(t *testing.T) {
 	defer func() { utils.Executor = origExecutor }()
 
 	t.Run("Success", func(t *testing.T) {
-		utils.Executor = &mockExecutor{output: "OpenSSL 1.1.1q  17 Aug 2022"}
+		utils.Executor = &testutil.MockExecutor{Output: "OpenSSL 1.1.1q  17 Aug 2022"}
 		v := versionFromExecutable("openssl")
 		if v != "1.1.1q" {
 			t.Errorf("Expected 1.1.1q, got %s", v)
@@ -90,7 +60,7 @@ func TestVersionFromExecutable(t *testing.T) {
 	})
 
 	t.Run("Failure", func(t *testing.T) {
-		utils.Executor = &mockExecutor{err: fmt.Errorf("error")}
+		utils.Executor = &testutil.MockExecutor{Err: fmt.Errorf("error")}
 		v := versionFromExecutable("invalid")
 		if v != "" {
 			t.Errorf("Expected empty version on error, got %s", v)
@@ -98,7 +68,7 @@ func TestVersionFromExecutable(t *testing.T) {
 	})
 
 	t.Run("ShortOutput", func(t *testing.T) {
-		utils.Executor = &mockExecutor{output: "OpenSSL"}
+		utils.Executor = &testutil.MockExecutor{Output: "OpenSSL"}
 		v := versionFromExecutable("openssl")
 		if v != "" {
 			t.Errorf("Expected empty version on short output, got %s", v)

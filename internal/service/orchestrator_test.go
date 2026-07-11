@@ -2,12 +2,11 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"ostenia/internal/plugins/utils"
 	"ostenia/internal/backend/interfaces"
+	"ostenia/internal/testutil"
 	"path/filepath"
 	"testing"
 )
@@ -18,34 +17,8 @@ type mockRuntime struct {
 
 func (m *mockRuntime) EventsEmit(ctx context.Context, eventName string, optionalData ...interface{}) {}
 
-type mockExecutor struct {
-	utils.CommandExecutor
-	output string
-	err    error
-}
-
-func (m *mockExecutor) Command(name string, args ...string) *exec.Cmd {
-	argList := []string{"-test.run=TestHelperProcess", "--", name}
-	argList = append(argList, args...)
-	cmd := exec.Command(os.Args[0], argList...)
-	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "MOCK_OUTPUT="+m.output)
-	if m.err != nil {
-		cmd.Env = append(cmd.Env, "MOCK_EXIT_CODE=1")
-	}
-	return cmd
-}
-
 func TestHelperProcess(t *testing.T) {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
-		return
-	}
-	if os.Getenv("MOCK_OUTPUT") != "" {
-		fmt.Fprint(os.Stdout, os.Getenv("MOCK_OUTPUT"))
-	}
-	if os.Getenv("MOCK_EXIT_CODE") == "1" {
-		os.Exit(1)
-	}
-	os.Exit(0)
+	testutil.HelperProcess(t)
 }
 
 func TestOrchestrator_Complete(t *testing.T) {
@@ -109,9 +82,8 @@ func TestOrchestrator_Complete(t *testing.T) {
 	})
 
 	t.Run("StartStopService", func(t *testing.T) {
-		utils.Executor = &mockExecutor{output: ""}
+		utils.Executor = &testutil.MockExecutor{Output: ""}
 
-		// Try starting a service (will use helper process which exits immediately)
 		err := orch.StartService("TestService", os.Args[0], []string{"-test.run=TestHelperProcess", "--"}, "")
 		if err != nil {
 			t.Errorf("StartService failed: %v", err)
@@ -203,10 +175,6 @@ func TestOrchestrator_Additional(t *testing.T) {
 
 		info := &ServiceDetailedInfo{}
 		orch.updateOpenSSLInfo(info, tempDir)
-		// Should be stopped if no ca.crt
-		if info.Status != "" { // default empty if not set
-			// it didn't set Status to Stopped explicitly in updateOpenSSLInfo if file not exists
-		}
 
 		sslDir := filepath.Join(tempDir, "ssl")
 		os.MkdirAll(sslDir, 0755)

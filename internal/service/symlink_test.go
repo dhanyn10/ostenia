@@ -3,6 +3,7 @@ package service
 import (
 	"os"
 	"ostenia/internal/plugins/utils"
+	"ostenia/internal/testutil"
 	"path/filepath"
 	"testing"
 )
@@ -10,7 +11,7 @@ import (
 func TestSymlinkManager(t *testing.T) {
 	origExecutor := utils.Executor
 	defer func() { utils.Executor = origExecutor }()
-	utils.Executor = &mockExecutor{}
+	utils.Executor = &testutil.MockExecutor{}
 
 	tempDir := t.TempDir()
 	binDir := filepath.Join(tempDir, "bin", "php")

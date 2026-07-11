@@ -2,13 +2,14 @@ package service
 
 import (
 	"ostenia/internal/plugins/utils"
+	"ostenia/internal/testutil"
 	"testing"
 )
 
 func TestTerminal(t *testing.T) {
 	origExecutor := utils.Executor
 	defer func() { utils.Executor = origExecutor }()
-	utils.Executor = &mockExecutor{}
+	utils.Executor = &testutil.MockExecutor{}
 
 	term := NewTerminal("/tmp", []string{})
 

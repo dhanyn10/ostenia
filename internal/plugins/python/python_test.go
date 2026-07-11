@@ -1,59 +1,16 @@
 package python
 
 import (
-	"bytes"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
-	"os/exec"
 	"ostenia/internal/plugins/utils"
+	"ostenia/internal/testutil"
 	"path/filepath"
 	"testing"
 )
 
-type mockHTTPClient struct {
-	utils.HTTPClient
-	content string
-}
-
-func (m *mockHTTPClient) Get(url string) (*http.Response, error) {
-	if m.content == "" {
-		return nil, io.EOF
-	}
-	return &http.Response{
-		StatusCode: http.StatusOK,
-		Body:       io.NopCloser(bytes.NewBufferString(m.content)),
-	}, nil
-}
-
-type mockExecutor struct {
-	output string
-	err    error
-}
-
-func (m *mockExecutor) Command(name string, arg ...string) *exec.Cmd {
-	argList := []string{"-test.run=TestHelperProcess", "--", name}
-	argList = append(argList, arg...)
-	cmd := exec.Command(os.Args[0], argList...)
-	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "MOCK_OUTPUT="+m.output)
-	if m.err != nil {
-		cmd.Env = append(cmd.Env, "MOCK_EXIT_CODE=1")
-	}
-	return cmd
-}
-
 func TestHelperProcess(t *testing.T) {
-	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
-		return
-	}
-	if os.Getenv("MOCK_OUTPUT") != "" {
-		fmt.Fprint(os.Stdout, os.Getenv("MOCK_OUTPUT"))
-	}
-	if os.Getenv("MOCK_EXIT_CODE") == "1" {
-		os.Exit(1)
-	}
-	os.Exit(0)
+	testutil.HelperProcess(t)
 }
 
 func TestDetectVersions(t *testing.T) {
@@ -61,7 +18,7 @@ func TestDetectVersions(t *testing.T) {
 	defer func() { utils.Client = origClient }()
 
 	mockJSON := `{"versions": ["3.10.1", "3.10.2", "3.11.0", "3.12.5"]}`
-	utils.Client = &mockHTTPClient{content: mockJSON}
+	utils.Client = &testutil.MockHTTPClient{Content: mockJSON}
 
 	versions, urlMap := DetectVersions()
 	if len(versions) < 3 {
@@ -81,7 +38,7 @@ func TestDetectVersions_Error(t *testing.T) {
 	origClient := utils.Client
 	defer func() { utils.Client = origClient }()
 
-	utils.Client = &mockHTTPClient{content: ""}
+	utils.Client = &testutil.MockHTTPClient{Content: ""}
 
 	versions, _ := DetectVersions()
 	if len(versions) != 1 || versions[0] != "3.13.13" {
@@ -113,7 +70,7 @@ func TestGetInfo(t *testing.T) {
 	os.WriteFile(pythonExe, []byte(""), 0755)
 
 	t.Run("Success", func(t *testing.T) {
-		utils.Executor = &mockExecutor{output: "pip 22.3.1 from ..."}
+		utils.Executor = &testutil.MockExecutor{Output: "pip 22.3.1 from ..."}
 		info := GetInfo(tmpDir)
 		if info != "Pip 22.3.1" {
 			t.Errorf("Expected Pip 22.3.1, got %s", info)
@@ -121,7 +78,7 @@ func TestGetInfo(t *testing.T) {
 	})
 
 	t.Run("Failure", func(t *testing.T) {
-		utils.Executor = &mockExecutor{err: fmt.Errorf("error")}
+		utils.Executor = &testutil.MockExecutor{Err: fmt.Errorf("error")}
 		info := GetInfo(tmpDir)
 		if info != "" {
 			t.Errorf("Expected empty info on error, got %s", info)

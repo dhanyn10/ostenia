@@ -2,6 +2,7 @@ package service
 
 import (
 	"ostenia/internal/plugins/utils"
+	"ostenia/internal/testutil"
 	"testing"
 )
 
@@ -17,7 +18,7 @@ func TestNodeAndPythonVersion(t *testing.T) {
 	tempDir := t.TempDir()
 
 	t.Run("GetNodeVersion", func(t *testing.T) {
-		utils.Executor = &mockExecutor{}
+		utils.Executor = &testutil.MockExecutor{}
 		os.WriteFile(filepath.Join(tempDir, "node.exe"), []byte("#!/bin/sh\necho v1.0.0"), 0755)
 		_, err := GetNodeVersion(tempDir)
 		if err != nil {
@@ -26,7 +27,7 @@ func TestNodeAndPythonVersion(t *testing.T) {
 	})
 
 	t.Run("GetPythonVersion", func(t *testing.T) {
-		utils.Executor = &mockExecutor{}
+		utils.Executor = &testutil.MockExecutor{}
 		os.WriteFile(filepath.Join(tempDir, "python.exe"), []byte("#!/bin/sh\necho 3.12.0"), 0755)
 		_, err := GetPythonVersion(tempDir)
 		if err != nil {
@@ -34,8 +35,8 @@ func TestNodeAndPythonVersion(t *testing.T) {
 		}
 	})
 
-    t.Run("GetPHPVersion", func(t *testing.T) {
-		utils.Executor = &mockExecutor{}
+	t.Run("GetPHPVersion", func(t *testing.T) {
+		utils.Executor = &testutil.MockExecutor{}
 		os.WriteFile(filepath.Join(tempDir, "php.exe"), []byte("#!/bin/sh\necho 8.3.0"), 0755)
 		_, err := GetPHPVersion(tempDir)
 		if err != nil {
