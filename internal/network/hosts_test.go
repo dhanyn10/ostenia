@@ -17,6 +17,13 @@ func TestHosts(t *testing.T) {
 	hostsPathOverride = tmpFile.Name()
 	defer func() { hostsPathOverride = "" }()
 
+	t.Run("GetHostsPath", func(t *testing.T) {
+		path := GetHostsPath()
+		if path != hostsPathOverride {
+			t.Errorf("GetHostsPath() = %v, want %v", path, hostsPathOverride)
+		}
+	})
+
 	t.Run("Add Host", func(t *testing.T) {
 		err := AddHost("127.0.0.1", "test.local")
 		if err != nil {
@@ -52,6 +59,22 @@ func TestHosts(t *testing.T) {
 		content, _ := os.ReadFile(hostsPathOverride)
 		if strings.Contains(string(content), "#WailsManaged") {
 			t.Errorf("Expected content to NOT contain #WailsManaged")
+		}
+	})
+
+	t.Run("AddHost - File not exists", func(t *testing.T) {
+		hostsPathOverride = "/nonexistent/path/to/hosts"
+		err := AddHost("127.0.0.1", "test.local")
+		if err == nil {
+			t.Errorf("AddHost should have failed for nonexistent file")
+		}
+	})
+
+	t.Run("RemoveManagedHosts - File not exists", func(t *testing.T) {
+		hostsPathOverride = "/nonexistent/path/to/hosts"
+		err := RemoveManagedHosts()
+		if err == nil {
+			t.Errorf("RemoveManagedHosts should have failed for nonexistent file")
 		}
 	})
 }

@@ -19,6 +19,7 @@ type Config struct {
 }
 
 var globalConfig *Config
+var configPathOverride string
 
 // GetBaseDir returns the root directory where Ostenia apps and binaries are stored.
 // It prioritizes the explicitly set BaseDir in config, then OSTENIA_HOME environment variable,
@@ -36,18 +37,26 @@ func GetBaseDir() string {
 	return filepath.Dir(exePath)
 }
 
+func getConfigPath() string {
+	if configPathOverride != "" {
+		return configPathOverride
+	}
+	exePath, _ := os.Executable()
+	return filepath.Join(filepath.Dir(exePath), "config.json")
+}
+
 // LoadConfig reads the application configuration from config.json.
 // If the file doesn't exist, it creates a default configuration.
 func LoadConfig() (*Config, error) {
 	// 1. Find the local config.json (relative to executable)
-	exePath, _ := os.Executable()
-	localConfigPath := filepath.Join(filepath.Dir(exePath), "config.json")
+	localConfigPath := getConfigPath()
 
 	if _, err := os.Stat(localConfigPath); os.IsNotExist(err) {
 		// Default config if none exists
+		baseDir := filepath.Dir(localConfigPath)
 		cfg := &Config{
-			BaseDir:     filepath.Dir(exePath),
-			WWWRoot:     filepath.Join(filepath.Dir(exePath), "www"),
+			BaseDir:     baseDir,
+			WWWRoot:     filepath.Join(baseDir, "www"),
 			ApacheHTTPS: false,
 			NginxHTTPS:  false,
 			Proxies:     make(map[string]int),
@@ -76,8 +85,7 @@ func LoadConfig() (*Config, error) {
 
 // SaveConfig persists the provided configuration to config.json
 func SaveConfig(cfg *Config) error {
-	exePath, _ := os.Executable()
-	configPath := filepath.Join(filepath.Dir(exePath), "config.json")
+	configPath := getConfigPath()
 
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
