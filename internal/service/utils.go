@@ -3,7 +3,6 @@ package service
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"ostenia/internal/network"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
@@ -37,7 +36,7 @@ func RunMeAsAdmin() error {
 
 	if runtime.GOOS == "windows" {
 		cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
-		cmd := exec.Command(cmdPath, "/c", "powershell", "Start-Process", "-FilePath", fmt.Sprintf("'%s'", exe), "-ArgumentList", fmt.Sprintf("'%s'", args), "-Verb", verb)
+		cmd := utils.Executor.Command(cmdPath, "/c", "powershell", "Start-Process", "-FilePath", fmt.Sprintf("'%s'", exe), "-ArgumentList", fmt.Sprintf("'%s'", args), "-Verb", verb)
 		cmd.Env = utils.SafeEnv()
 		return cmd.Run()
 	}
@@ -71,7 +70,7 @@ func AddHostWithElevation(ip string, hostname string) error {
 		// We'll call ourselves with a special flag --add-host
 		args := fmt.Sprintf("--add-host %s %s", ip, hostname)
 		cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
-		cmd := exec.Command(cmdPath, "/c", "powershell", "Start-Process", "-FilePath", fmt.Sprintf("'%s'", exe), "-ArgumentList", fmt.Sprintf("'%s'", args), "-Verb", "runas", "-WindowStyle", "Hidden")
+		cmd := utils.Executor.Command(cmdPath, "/c", "powershell", "Start-Process", "-FilePath", fmt.Sprintf("'%s'", exe), "-ArgumentList", fmt.Sprintf("'%s'", args), "-Verb", "runas", "-WindowStyle", "Hidden")
 		cmd.Env = utils.SafeEnv()
 		return cmd.Run()
 	}

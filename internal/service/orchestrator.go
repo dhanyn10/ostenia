@@ -458,7 +458,6 @@ func (o *Orchestrator) setupServiceCommand(name, binaryPath string, args []strin
 
 func (o *Orchestrator) waitForServiceExit(name string, cmd *exec.Cmd) {
 	_ = cmd.Wait()
-	time.Sleep(500 * time.Millisecond)
 	o.mu.Lock()
 	delete(o.services, name)
 	o.mu.Unlock()
@@ -479,12 +478,14 @@ func (o *Orchestrator) StopService(name string) error {
 
 	if exists && s.cmd != nil && s.cmd.Process != nil {
 		_ = s.cmd.Process.Kill()
+		_ = s.cmd.Wait()
 	}
 
 	if runtime.GOOS == "windows" {
 		o.stopServiceWindows(name)
 		time.Sleep(600 * time.Millisecond)
 	}
+
 	o.mu.Lock()
 	delete(o.services, name)
 	o.mu.Unlock()

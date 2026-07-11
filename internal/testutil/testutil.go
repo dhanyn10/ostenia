@@ -7,16 +7,30 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"testing"
 )
 
-// MockExecutor implements utils.CommandExecutor for testing
+// MockExecutor implements utils.CommandExecutor for testing.
 type MockExecutor struct {
 	Output string
 	Err    error
 }
 
 func (m *MockExecutor) Command(name string, arg ...string) *exec.Cmd {
+	// Special Case: On Windows, re-executing os.Args[0] (the test binary)
+	// causes file locking that leads to "Access is denied" when the test runner
+	// tries to clean up the temporary directory.
+
+	// If we don't need output or error code 1, we can use a system command
+	// that doesn't lock our own binary.
+	if m.Output == "" && m.Err == nil {
+		if runtime.GOOS == "windows" {
+			return exec.Command("cmd", "/c", "exit", "0")
+		}
+		return exec.Command("true")
+	}
+
 	argList := []string{"-test.run=TestHelperProcess", "--", name}
 	argList = append(argList, arg...)
 	cmd := exec.Command(os.Args[0], argList...)
@@ -27,7 +41,7 @@ func (m *MockExecutor) Command(name string, arg ...string) *exec.Cmd {
 	return cmd
 }
 
-// MockHTTPClient implements utils.HTTPClient for testing
+// MockHTTPClient implements utils.HTTPClient for testing.
 type MockHTTPClient struct {
 	Content string
 }
@@ -46,7 +60,7 @@ func (m *MockHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	}, nil
 }
 
-// HelperProcess is a generic test helper process
+// HelperProcess is a generic test helper process.
 func HelperProcess(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
 		return
