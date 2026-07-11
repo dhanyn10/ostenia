@@ -3,6 +3,7 @@ package service
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -23,14 +24,31 @@ func TestApacheConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("UpdateApacheConfig", func(t *testing.T) {
-		apachePath := filepath.Join(tempDir, "apache")
+	t.Run("UpdateApacheConfig_Full", func(t *testing.T) {
+		apachePath := filepath.Join(tempDir, "apache_full")
 		os.MkdirAll(filepath.Join(apachePath, "conf", "extra"), 0755)
+		os.WriteFile(filepath.Join(apachePath, "conf", "httpd.conf"), []byte("#LoadModule rewrite_module modules/mod_rewrite.so\nListen 80"), 0644)
 
-		// Create dummy original config
-		os.WriteFile(filepath.Join(apachePath, "conf", "httpd.conf"), []byte("Listen 80"), 0644)
+		err := UpdateApacheConfig(apachePath, "php82.dll", "php", "VHost content", 8080, filepath.Join(tempDir, "www"), 9000, true)
+		if err != nil {
+			t.Errorf("UpdateApacheConfig failed: %v", err)
+		}
 
-		err := UpdateApacheConfig(apachePath, "php82.dll", "php", "VHost content", 80, filepath.Join(tempDir, "www"), 9000, true)
+		conf, _ := os.ReadFile(filepath.Join(apachePath, "conf", "httpd.conf"))
+		if !strings.Contains(string(conf), "LoadModule rewrite_module") {
+			t.Error("Expected rewrite_module to be enabled")
+		}
+		if !strings.Contains(string(conf), "Listen 8080") {
+			t.Error("Expected port 8080")
+		}
+	})
+
+	t.Run("UpdateApacheConfig_Minimal", func(t *testing.T) {
+		apachePath := filepath.Join(tempDir, "apache_min")
+		os.MkdirAll(filepath.Join(apachePath, "conf", "extra"), 0755)
+		os.WriteFile(filepath.Join(apachePath, "conf", "httpd.conf"), []byte(""), 0644)
+
+		err := UpdateApacheConfig(apachePath, "", "", "", 0, "/www", 0, false)
 		if err != nil {
 			t.Errorf("UpdateApacheConfig failed: %v", err)
 		}

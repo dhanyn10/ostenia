@@ -45,6 +45,37 @@ func TestSSHManager_Basic(t *testing.T) {
 		// Should not panic
 		m.Disconnect("invalid")
 	})
+
+	t.Run("ResizeTerminal_Error", func(t *testing.T) {
+		err := m.ResizeTerminal("invalid", 120, 30)
+		if err == nil {
+			t.Error("Expected error for missing session")
+		}
+	})
+
+	t.Run("SendInput_Error", func(t *testing.T) {
+		err := m.SendInput("invalid", "data")
+		if err == nil {
+			t.Error("Expected error for missing session")
+		}
+	})
+}
+
+func TestSSHManager_Editor(t *testing.T) {
+	m := &SSHManager{}
+
+	t.Run("findLinuxEditor", func(t *testing.T) {
+		// This depends on LookPath, so results vary by environment
+		_ = m.findLinuxEditor("/tmp/file")
+	})
+
+	t.Run("getDefaultEditorCmd", func(t *testing.T) {
+		_ = m.getDefaultEditorCmd("/tmp/file")
+	})
+
+	t.Run("getCustomEditorCmd", func(t *testing.T) {
+		_ = m.getCustomEditorCmd("nano", "/tmp/file")
+	})
 }
 
 func TestGetAuth(t *testing.T) {

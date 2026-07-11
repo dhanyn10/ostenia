@@ -473,6 +473,14 @@ func (o *Orchestrator) StartService(name string, binaryPath string, args []strin
 
 // StopService gracefully or forcefully shuts down a running service
 func (o *Orchestrator) StopService(name string) error {
+	o.mu.Lock()
+	s, exists := o.services[name]
+	o.mu.Unlock()
+
+	if exists && s.cmd != nil && s.cmd.Process != nil {
+		_ = s.cmd.Process.Kill()
+	}
+
 	if runtime.GOOS == "windows" {
 		o.stopServiceWindows(name)
 		time.Sleep(600 * time.Millisecond)
