@@ -296,3 +296,66 @@ func TestDefaultSSLManager(t *testing.T) {
     _, _ = s.GetRemainingDays("nonexistent")
     _ = s.SignCertificate("ca", "domain", "dest")
 }
+
+func TestApp_Services_RealIsh(t *testing.T) {
+    tempDir := t.TempDir()
+    oldEnv := os.Getenv("OSTENIA_HOME")
+    os.Setenv("OSTENIA_HOME", tempDir)
+    defer os.Setenv("OSTENIA_HOME", oldEnv)
+
+    // Create dummy binary structure
+    binDir := filepath.Join(tempDir, "bin")
+
+    // PHP
+    phpDir := filepath.Join(binDir, "php", "php-8.2.0")
+    os.MkdirAll(phpDir, 0755)
+    os.WriteFile(filepath.Join(phpDir, "php-cgi.exe"), []byte(""), 0755)
+    os.WriteFile(filepath.Join(phpDir, "php.exe"), []byte(""), 0755)
+
+    // MySQL
+    mysqlDir := filepath.Join(binDir, "mysql", "mysql-8.0.0")
+    os.MkdirAll(filepath.Join(mysqlDir, "bin"), 0755)
+    os.WriteFile(filepath.Join(mysqlDir, "bin", "mysqld.exe"), []byte(""), 0755)
+
+    // Apache
+    apacheDir := filepath.Join(binDir, "apache", "httpd-2.4.0")
+    os.MkdirAll(filepath.Join(apacheDir, "bin"), 0755)
+    os.WriteFile(filepath.Join(apacheDir, "bin", "httpd.exe"), []byte(""), 0755)
+
+    // Nginx
+    nginxDir := filepath.Join(binDir, "nginx", "nginx-1.24.0")
+    os.MkdirAll(nginxDir, 0755)
+    os.WriteFile(filepath.Join(nginxDir, "nginx.exe"), []byte(""), 0755)
+
+    app := &App{
+        ctx: context.Background(),
+        cfg: &config.Config{
+            BaseDir: tempDir,
+            WWWRoot: filepath.Join(tempDir, "www"),
+            Proxies: make(map[string]int),
+        },
+        orchestrator: &MockOrchestrator{Running: make(map[string]bool)},
+        sslManager:   &MockSSLManager{},
+    }
+
+    // Now test starting services
+    // They will walk the binDir to find executables
+    _ = app.StartService("PHP")
+    _ = app.StartService("MySQL")
+    _ = app.StartService("Apache")
+    _ = app.StartService("Nginx")
+
+    // Test with "current" symlink
+    os.MkdirAll(filepath.Join(binDir, "php", "current"), 0755)
+    os.WriteFile(filepath.Join(binDir, "php", "current", "php-cgi.exe"), []byte(""), 0755)
+    _ = app.StartService("PHP")
+
+    // Test SetHTTPS
+    app.orchestrator.StartService("Apache", "", nil, "")
+    _ = app.SetApacheHTTPS(true)
+    app.orchestrator.StartService("Nginx", "", nil, "")
+    _ = app.SetNginxHTTPS(true)
+
+    // Test StartAll
+    _ = app.StartAllServices()
+}

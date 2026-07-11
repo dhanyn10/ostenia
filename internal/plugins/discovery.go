@@ -28,7 +28,10 @@ type pluginDefinition struct {
 	GetModuleVersion func(name string, path string) string
 }
 
-var detectHeidiSQLInstallationOverride func() (string, string)
+var (
+	detectHeidiSQLInstallationOverride func() (string, string)
+	unzipFunc                          = Unzip
+)
 
 func DetectHeidiSQLInstallation() (string, string) {
 	if detectHeidiSQLInstallationOverride != nil {

@@ -201,7 +201,7 @@ func (m *Manager) handleArchive(task DownloadTask, tmpFile, targetDir string) er
 	extractTmp := targetDir + ".tmp"
 	_ = os.RemoveAll(extractTmp)
 
-	if err := Unzip(m.ctx, tmpFile, extractTmp, task.Name, m.emit); err != nil {
+	if err := unzipFunc(m.ctx, tmpFile, extractTmp, task.Name, m.emit); err != nil {
 		fmt.Printf("[Manager] Extraction failed: %v\n", err)
 		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: "Error: " + err.Error()})
 		return err
