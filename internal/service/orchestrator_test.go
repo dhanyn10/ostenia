@@ -9,6 +9,7 @@ import (
 	"ostenia/internal/testutil"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 type mockRuntime struct {
@@ -90,6 +91,8 @@ func TestOrchestrator_Complete(t *testing.T) {
 		}
 
 		orch.StopAll()
+		// Small sleep to allow goroutines to finish and file locks to be released on Windows
+		time.Sleep(100 * time.Millisecond)
 	})
 
 	t.Run("WatcherAndRefresh", func(t *testing.T) {

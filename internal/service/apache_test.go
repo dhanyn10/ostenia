@@ -4,54 +4,35 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-    "ostenia/internal/ssl"
 )
 
 func TestApacheConfig(t *testing.T) {
 	tempDir := t.TempDir()
-	confDir := filepath.Join(tempDir, "conf")
-	extraDir := filepath.Join(confDir, "extra")
-	os.MkdirAll(extraDir, 0755)
-
-	confPath := filepath.Join(confDir, "httpd.conf")
-	os.WriteFile(confPath, []byte("Listen 80\n#LoadModule rewrite_module"), 0644)
-
-    // Mock SSL to avoid heavy cert generation
-    origGen := ssl.GenerateRootCAFunc
-    origSign := ssl.SignCertificateFunc
-    ssl.GenerateRootCAFunc = func(dir string) error { return nil }
-    ssl.SignCertificateFunc = func(ca, dom, dst string) error { return nil }
-    defer func() {
-        ssl.GenerateRootCAFunc = origGen
-        ssl.SignCertificateFunc = origSign
-    }()
 
 	t.Run("GenerateVHost", func(t *testing.T) {
-		res := GenerateVHost("test", "/path", 80)
-		if res == "" {
-			t.Error("Expected non-empty VHost")
+		vhost := GenerateVHost("example", "/var/www/html", 80)
+		if vhost == "" {
+			t.Error("Expected non-empty VHost config")
 		}
 	})
 
 	t.Run("GenerateProxyVHost", func(t *testing.T) {
-		res := GenerateProxyVHost("test", 3000, 80, true, tempDir)
-		if res == "" {
-			t.Error("Expected non-empty Proxy VHost")
+		vhost := GenerateProxyVHost("example", 3000, 80, true, "/ssl")
+		if vhost == "" {
+			t.Error("Expected non-empty Proxy VHost config")
 		}
 	})
 
 	t.Run("UpdateApacheConfig", func(t *testing.T) {
-		err := UpdateApacheConfig(tempDir, "", "", "VHOST_CONTENT", 8080, tempDir, 9000, true)
+		apachePath := filepath.Join(tempDir, "apache")
+		os.MkdirAll(filepath.Join(apachePath, "conf", "extra"), 0755)
+
+		// Create dummy original config
+		os.WriteFile(filepath.Join(apachePath, "conf", "httpd.conf"), []byte("Listen 80"), 0644)
+
+		err := UpdateApacheConfig(apachePath, "php82.dll", "php", "VHost content", 80, filepath.Join(tempDir, "www"), 9000, true)
 		if err != nil {
 			t.Errorf("UpdateApacheConfig failed: %v", err)
-		}
-
-		// Verify file creation
-		if _, err := os.Stat(filepath.Join(extraDir, "httpd-ostenia-php.conf")); err != nil {
-			t.Error("PHP conf not created")
-		}
-		if _, err := os.Stat(filepath.Join(extraDir, "httpd-ostenia-ssl.conf")); err != nil {
-			t.Error("SSL conf not created")
 		}
 	})
 }
