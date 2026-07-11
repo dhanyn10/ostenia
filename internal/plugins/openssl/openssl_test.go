@@ -7,10 +7,6 @@ import (
 	"testing"
 )
 
-func TestHelperProcess(t *testing.T) {
-	testutil.HelperProcess(t)
-}
-
 func TestDetectVersions(t *testing.T) {
 	versions, urlMap := DetectVersions()
 	if len(versions) != 1 || versions[0] != "4.0.0" {

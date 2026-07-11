@@ -63,10 +63,6 @@ func TestAddHostWithElevation(t *testing.T) {
 	})
 }
 
-func TestHelperProcess_Utils(t *testing.T) {
-	testutil.HelperProcess(t)
-}
-
 func TestElevateAndExit(t *testing.T) {
 	// This calls os.Exit, so we can't test it directly easily.
 }

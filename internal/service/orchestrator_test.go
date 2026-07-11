@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"runtime"
 	"ostenia/internal/plugins/utils"
 	"ostenia/internal/backend/interfaces"
 	"ostenia/internal/testutil"
@@ -17,10 +18,6 @@ type mockRuntime struct {
 }
 
 func (m *mockRuntime) EventsEmit(ctx context.Context, eventName string, optionalData ...interface{}) {}
-
-func TestHelperProcess(t *testing.T) {
-	testutil.HelperProcess(t)
-}
 
 func TestOrchestrator_Complete(t *testing.T) {
 	origExecutor := utils.Executor
@@ -85,7 +82,12 @@ func TestOrchestrator_Complete(t *testing.T) {
 	t.Run("StartStopService", func(t *testing.T) {
 		utils.Executor = &testutil.MockExecutor{Output: ""}
 
-		err := orch.StartService("TestService", os.Args[0], []string{"-test.run=TestHelperProcess", "--"}, "")
+		// Using "true" or "cmd /c exit 0" instead of os.Args[0]
+		binary := "true"
+		if runtime.GOOS == "windows" {
+			binary = "cmd"
+		}
+		err := orch.StartService("TestService", binary, []string{}, "")
 		if err != nil {
 			t.Errorf("StartService failed: %v", err)
 		}
