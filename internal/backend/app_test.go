@@ -105,9 +105,12 @@ func TestApp_Full_Mocked(t *testing.T) {
     }
     os.MkdirAll(mockR.SelectedDir, 0755)
 
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
+
 	app := &App{
 		runtime:      mockR,
-		ctx:          context.Background(),
+		ctx:          ctx,
 		cfg:          &config.Config{Proxies: map[string]int{"test": 3000}, BaseDir: tempDir, WWWRoot: filepath.Join(tempDir, "www")},
 		downloader:   &MockPluginManager{},
 		orchestrator: &MockOrchestrator{Running: make(map[string]bool)},
@@ -116,7 +119,7 @@ func TestApp_Full_Mocked(t *testing.T) {
 	}
 
     // Startup
-    app.Startup(context.Background())
+    app.Startup(ctx)
 
     // App window
 	app.Minimize()
