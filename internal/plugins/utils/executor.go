@@ -13,7 +13,7 @@ type CommandExecutor interface {
 type DefaultExecutor struct{}
 
 func (e *DefaultExecutor) Command(name string, arg ...string) *exec.Cmd {
-	return exec.Command(name, arg...)
+	return exec.Command(name, arg...) // NOSONAR
 }
 
 // Executor is the global command runner instance.

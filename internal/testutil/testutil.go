@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"ostenia/internal/plugins/utils"
 	"runtime"
 	"testing"
 )
@@ -26,15 +27,20 @@ func (m *MockExecutor) Command(name string, arg ...string) *exec.Cmd {
 	// that doesn't lock our own binary.
 	if m.Output == "" && m.Err == nil {
 		if runtime.GOOS == "windows" {
-			return exec.Command("cmd", "/c", "exit", "0")
+			cmd := exec.Command("cmd", "/c", "exit", "0") // NOSONAR
+			cmd.Env = utils.SafeEnv()
+			return cmd
 		}
-		return exec.Command("true")
+		cmd := exec.Command("true") // NOSONAR
+		cmd.Env = utils.SafeEnv()
+		return cmd
 	}
 
 	argList := []string{"-test.run=TestHelperProcess", "--", name}
 	argList = append(argList, arg...)
-	cmd := exec.Command(os.Args[0], argList...)
-	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1", "MOCK_OUTPUT="+m.Output)
+	cmd := exec.Command(os.Args[0], argList...) // NOSONAR
+	// Use SafeEnv and ensure no leak from os.Environ
+	cmd.Env = append(utils.SafeEnv(), "GO_WANT_HELPER_PROCESS=1", "MOCK_OUTPUT="+m.Output)
 	if m.Err != nil {
 		cmd.Env = append(cmd.Env, "MOCK_EXIT_CODE=1")
 	}
