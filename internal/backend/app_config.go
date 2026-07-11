@@ -30,6 +30,8 @@ func (a *App) SetDefaultEditor(editor string) error {
 
 // GetConfig returns the current application configuration
 func (a *App) GetConfig() *config.Config {
+	a.cfgMu.RLock()
+	defer a.cfgMu.RUnlock()
 	return a.cfg
 }
 

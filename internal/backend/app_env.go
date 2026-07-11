@@ -31,8 +31,11 @@ func (a *App) IsAdmin() bool { return service.IsAdmin() }
 // SetWWWRoot sets the server root directory (www)
 func (a *App) SetWWWRoot(path string) error {
 	fmt.Printf("[App] Setting Server Root (www) to: %s\n", path)
+	a.cfgMu.Lock()
 	a.cfg.WWWRoot = path
-	err := config.SaveConfig(a.cfg)
+	cfg := a.cfg
+	a.cfgMu.Unlock()
+	err := config.SaveConfig(cfg)
 	if err != nil { return err }
 	_ = os.MkdirAll(path, 0755)
 	if a.orchestrator.IsRunning("Apache") {
@@ -53,9 +56,12 @@ func (a *App) SetServerRoot(rootPath string) error {
 	fmt.Printf("[App] Switching Apps Location to: %s\n", rootPath)
 	a.orchestrator.StopAll()
 	time.Sleep(1 * time.Second)
+	a.cfgMu.Lock()
 	a.cfg.BaseDir = rootPath
 	a.cfg.WWWRoot = filepath.Join(rootPath, "www")
-	err := config.SaveConfig(a.cfg)
+	cfg := a.cfg
+	a.cfgMu.Unlock()
+	err := config.SaveConfig(cfg)
 	if err != nil { return err }
 	a.ensureEnvironmentStructure()
 	a.orchestrator.RequestRefresh()
@@ -80,14 +86,22 @@ func (a *App) SelectWWWRoot() (string, error) {
 }
 
 // OpenServerRootFolder opens the www directory in File Explorer
-func (a *App) OpenServerRootFolder() error { return service.OpenExplorer(a.cfg.WWWRoot) }
+func (a *App) OpenServerRootFolder() error {
+	a.cfgMu.RLock()
+	wwwRoot := a.cfg.WWWRoot
+	a.cfgMu.RUnlock()
+	return service.OpenExplorer(wwwRoot)
+}
 
 // OpenAppsLocationFolder opens the Ostenia base directory in File Explorer
 func (a *App) OpenAppsLocationFolder() error { return service.OpenExplorer(config.GetBaseDir()) }
 
 // OpenTerminal opens a terminal at the current server root directory
 func (a *App) OpenTerminal(terminalType string) {
-	a.OpenTerminalAtPath(terminalType, a.cfg.WWWRoot)
+	a.cfgMu.RLock()
+	wwwRoot := a.cfg.WWWRoot
+	a.cfgMu.RUnlock()
+	a.OpenTerminalAtPath(terminalType, wwwRoot)
 }
 
 // OpenTerminalAtPath opens a terminal at a specific local path with the Ostenia environment variables set

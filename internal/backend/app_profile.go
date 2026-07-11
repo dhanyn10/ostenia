@@ -18,7 +18,9 @@ type ProfileData struct {
 func (a *App) ExportProfile(includeConfig bool, includeSSH bool) error {
 	profile := ProfileData{}
 	if includeConfig {
+		a.cfgMu.RLock()
 		profile.Config = a.cfg
+		a.cfgMu.RUnlock()
 	}
 	if includeSSH {
 		sessions, _ := a.sshManager.GetSessions()
@@ -69,8 +71,11 @@ func (a *App) ImportProfile() error {
 	}
 
 	if profile.Config != nil {
+		a.cfgMu.Lock()
 		a.cfg = profile.Config
-		_ = config.SaveConfig(a.cfg)
+		cfg := a.cfg
+		a.cfgMu.Unlock()
+		_ = config.SaveConfig(cfg)
 	}
 
 	if profile.SSHSessions != nil {

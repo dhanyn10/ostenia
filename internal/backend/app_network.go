@@ -40,7 +40,16 @@ func (a *App) startProxyWatcher() {
 // CheckProxyPorts checks if the configured proxy ports are reachable
 func (a *App) CheckProxyPorts() []ProxyStatusInfo {
 	var statuses []ProxyStatusInfo
-	for name, port := range a.cfg.Proxies {
+	a.cfgMu.RLock()
+	proxies := make(map[string]int)
+	if a.cfg != nil {
+		for k, v := range a.cfg.Proxies {
+			proxies[k] = v
+		}
+	}
+	a.cfgMu.RUnlock()
+
+	for name, port := range proxies {
 		isUp := false
 		if port > 0 {
 			timeout := 500 * time.Millisecond
@@ -57,7 +66,10 @@ func (a *App) CheckProxyPorts() []ProxyStatusInfo {
 
 // OpenProxyTerminal opens a terminal at the directory of a proxy app
 func (a *App) OpenProxyTerminal(name string, terminalType string) error {
-	path := filepath.Join(a.cfg.WWWRoot, name)
+	a.cfgMu.RLock()
+	wwwRoot := a.cfg.WWWRoot
+	a.cfgMu.RUnlock()
+	path := filepath.Join(wwwRoot, name)
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return fmt.Errorf("folder %s not found", name)
 	}
@@ -68,7 +80,17 @@ func (a *App) OpenProxyTerminal(name string, terminalType string) error {
 // GetProxyApps scans the www directory and returns a list of folders and their configured proxy ports
 func (a *App) GetProxyApps() []ProxyAppInfo {
 	var apps []ProxyAppInfo
-	entries, err := os.ReadDir(a.cfg.WWWRoot)
+	a.cfgMu.RLock()
+	wwwRoot := a.cfg.WWWRoot
+	proxies := make(map[string]int)
+	if a.cfg != nil {
+		for k, v := range a.cfg.Proxies {
+			proxies[k] = v
+		}
+	}
+	a.cfgMu.RUnlock()
+
+	entries, err := os.ReadDir(wwwRoot)
 	if err != nil {
 		return apps
 	}
@@ -77,7 +99,7 @@ func (a *App) GetProxyApps() []ProxyAppInfo {
 		if entry.IsDir() {
 			name := entry.Name()
 			port := 0
-			if p, ok := a.cfg.Proxies[name]; ok {
+			if p, ok := proxies[name]; ok {
 				port = p
 			}
 			apps = append(apps, ProxyAppInfo{Name: name, Port: port})
@@ -88,6 +110,7 @@ func (a *App) GetProxyApps() []ProxyAppInfo {
 
 // SaveProxyPort saves the proxy port for a specific folder and reconfigures web servers
 func (a *App) SaveProxyPort(name string, port int) error {
+	a.cfgMu.Lock()
 	if a.cfg.Proxies == nil {
 		a.cfg.Proxies = make(map[string]int)
 	}
@@ -96,7 +119,9 @@ func (a *App) SaveProxyPort(name string, port int) error {
 	} else {
 		a.cfg.Proxies[name] = port
 	}
-	err := config.SaveConfig(a.cfg)
+	cfg := a.cfg
+	a.cfgMu.Unlock()
+	err := config.SaveConfig(cfg)
 	if err != nil {
 		return err
 	}

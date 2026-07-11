@@ -3,6 +3,7 @@ package backend
 import (
 	"context"
 	"fmt"
+	"sync"
 	"ostenia/internal/config"
 	"ostenia/internal/plugins"
 	"ostenia/internal/service"
@@ -20,6 +21,7 @@ type App struct {
 	sshManager   interfaces.SSHManager
 	sslManager   interfaces.SSLManager
 	cfg          *config.Config
+	cfgMu        sync.RWMutex
 	runtime      interfaces.Runtime
 }
 
