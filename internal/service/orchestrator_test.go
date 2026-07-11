@@ -216,4 +216,46 @@ func TestOrchestrator_Additional(t *testing.T) {
 			t.Errorf("Expected Running for Python, got %s", info.Status)
 		}
 	})
+
+	t.Run("resolveServiceVersion", func(t *testing.T) {
+		tempDir := t.TempDir()
+		info := &ServiceDetailedInfo{}
+		orch.resolveServiceVersion(info, "PHP", filepath.Join(tempDir, "nonexistent"))
+		if info.ActiveVersion != "" {
+			t.Errorf("Expected empty version for non-existent path, got %s", info.ActiveVersion)
+		}
+
+		phpDir := filepath.Join(tempDir, "php-8.2.0")
+		os.MkdirAll(phpDir, 0755)
+		// We can't easily mock GetPHPVersion here because it's a regular function in php.go
+		// but we can test the symlink branch
+		targetDir := filepath.Join(tempDir, "target-v1")
+		os.MkdirAll(targetDir, 0755)
+		linkPath := filepath.Join(tempDir, "link")
+		// On non-windows, we can use os.Symlink
+		err := os.Symlink(targetDir, linkPath)
+		if err == nil {
+			info = &ServiceDetailedInfo{}
+			orch.resolveServiceVersion(info, "Other", linkPath)
+			if info.ActiveVersion != "target-v1" {
+				t.Errorf("Expected target-v1, got %s", info.ActiveVersion)
+			}
+		}
+	})
+
+	t.Run("containsInt", func(t *testing.T) {
+		if !containsInt([]int{1, 2, 3}, 2) {
+			t.Error("Expected true")
+		}
+		if containsInt([]int{1, 2, 3}, 4) {
+			t.Error("Expected false")
+		}
+	})
+
+	t.Run("StopService_Error", func(t *testing.T) {
+		err := orch.StopService("NonExistent")
+		if err != nil {
+			t.Errorf("StopService should not return error for non-existent service, got %v", err)
+		}
+	})
 }

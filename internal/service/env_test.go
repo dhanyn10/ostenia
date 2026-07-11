@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"ostenia/internal/plugins/utils"
 	"ostenia/internal/testutil"
 	"testing"
@@ -78,4 +79,29 @@ func TestUpdatePaths(t *testing.T) {
 			t.Error("Did not expect other path in system path")
 		}
 	})
+
+	t.Run("SetPath_Error", func(t *testing.T) {
+		utils.Executor = &testutil.MockExecutor{Output: "", Err:  fmt.Errorf("setx failed")}
+		err := SetPath("User", "C:\\new\\path")
+		if err == nil {
+			t.Error("Expected error from SetPath")
+		}
+	})
+
+	t.Run("GetPath_Machine", func(t *testing.T) {
+		getPathOverride = nil
+		utils.Executor = &testutil.MockExecutor{Output: "C:\\Windows"}
+		p, err := GetPath("Machine")
+		if err != nil {
+			t.Errorf("GetPath Machine failed: %v", err)
+		}
+		if p != "C:\\Windows" {
+			t.Errorf("Expected C:\\Windows, got %s", p)
+		}
+	})
+}
+
+func TestNotifyEnvironmentUpdate(t *testing.T) {
+	// Should not panic
+	NotifyEnvironmentUpdate()
 }

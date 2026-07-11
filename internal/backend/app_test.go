@@ -115,6 +115,9 @@ func TestApp_Full_Mocked(t *testing.T) {
 		sslManager:   &MockSSLManager{},
 	}
 
+    // Startup
+    app.Startup(context.Background())
+
     // App window
 	app.Minimize()
 	app.Maximize()
@@ -145,19 +148,48 @@ func TestApp_Full_Mocked(t *testing.T) {
 	_, _ = app.SelectWWWRoot()
 	_ = app.OpenServerRootFolder()
 	_ = app.OpenAppsLocationFolder()
+    app.OpenTerminal("cmd")
+    app.OpenTerminalAtPath("cmd", tempDir)
+    app.OpenProxyTerminal("test", "cmd")
+    app.OpenHeidiSQL()
+    app.OpenServiceTerminal("Apache", "cmd")
 
     // Plugins
 	_ = app.GetPrerequisites()
 	app.CancelDownload("test")
 	_ = app.OpenPluginFolder("PHP")
 	_ = app.InstallPrerequisite(interfaces.DownloadTask{Name: "OpenSSL"})
+	_ = app.InstallPrerequisite(interfaces.DownloadTask{Name: "PHP"})
+	_ = app.InstallPrerequisite(interfaces.DownloadTask{Name: "Python"})
+
+    phpPath := filepath.Join(tempDir, "bin", "php", "current")
+    os.MkdirAll(phpPath, 0755)
     _ = app.InstallPluginModule("PHP", "Composer")
     _ = app.UninstallPluginModule("PHP", "Composer")
+
+    pythonPath := filepath.Join(tempDir, "bin", "python", "current")
+    os.MkdirAll(pythonPath, 0755)
+    _ = app.InstallPluginModule("Python", "Pip")
+    _ = app.UninstallPluginModule("Python", "Pip")
+
+    _ = app.InstallPluginModule("Unknown", "Module")
+    _ = app.UninstallPluginModule("Unknown", "Module")
+
     _ = app.SwitchServiceVersion("PHP", "8.2.0")
+    app.orchestrator.(*MockOrchestrator).Running["PHP"] = true
+    _ = app.SwitchServiceVersion("PHP", "8.2.0")
+
     _ = app.DeleteVersion("PHP", "8.1.0")
 
     // Services
 	_ = app.GetServiceStatus("Apache")
+    _ = app.GetServiceStatus("MySQL")
+    _ = app.GetServiceStatus("Nginx")
+    _ = app.GetServiceStatus("PHP")
+    _ = app.GetServiceStatus("Node.js")
+    _ = app.GetServiceStatus("Python")
+    _ = app.GetServiceStatus("OpenSSL")
+    _ = app.GetServiceStatus("HeidiSQL")
 	for _, s := range []string{"Apache", "MySQL", "Nginx", "PHP", "Node.js", "Python", "OpenSSL", "HeidiSQL", "Unknown"} {
 		_ = app.StartService(s)
 		_ = app.StopService(s)

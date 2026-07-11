@@ -137,3 +137,32 @@ func TestGetHostKeyCallback(t *testing.T) {
 		t.Error("expected known_hosts file to be created")
 	}
 }
+
+func TestSSHManager_MethodErrors(t *testing.T) {
+	m := NewSSHManager(context.Background())
+	sessionID := "nonexistent"
+
+	if _, err := m.ListFiles(sessionID, ""); err == nil {
+		t.Error("ListFiles: expected error for nonexistent session")
+	}
+
+	if err := m.ExecuteSFTPAction(sessionID, "mkdir", "/path", ""); err == nil {
+		t.Error("ExecuteSFTPAction: expected error for nonexistent session")
+	}
+
+	if err := m.DownloadFile(sessionID, "/remote", "/local"); err == nil {
+		t.Error("DownloadFile: expected error for nonexistent session")
+	}
+
+	if err := m.UploadFile(sessionID, "/local", "/remote"); err == nil {
+		t.Error("UploadFile: expected error for nonexistent session")
+	}
+
+	if err := m.EditFile(sessionID, "/remote", ""); err == nil {
+		t.Error("EditFile: expected error for nonexistent session")
+	}
+
+	if _, err := m.GetCurrentPath(sessionID); err == nil {
+		t.Error("GetCurrentPath: expected error for nonexistent session")
+	}
+}

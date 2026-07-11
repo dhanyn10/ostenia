@@ -58,4 +58,18 @@ func TestUnzip(t *testing.T) {
 	if string(content) != "hello world" {
 		t.Errorf("Expected 'hello world', got '%s'", string(content))
 	}
+
+	t.Run("ZipSlip", func(t *testing.T) {
+		buf := new(bytes.Buffer)
+		zw := zip.NewWriter(buf)
+		_, _ = zw.Create("../dangerous.txt")
+		zw.Close()
+		zipPath := filepath.Join(tempDir, "slip.zip")
+		_ = os.WriteFile(zipPath, buf.Bytes(), 0644)
+
+		err := Unzip(context.Background(), zipPath, destDir, "test", emit)
+		if err == nil {
+			t.Error("Expected error for ZipSlip")
+		}
+	})
 }
