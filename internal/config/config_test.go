@@ -61,11 +61,11 @@ func TestLoadAndSaveConfig(t *testing.T) {
 
 	// Setup override and reset globalConfig
 	oldOverride := configPathOverride
-	configPathOverride = configPath
+	SetConfigFile(configPath)
 	oldGlobalConfig := globalConfig
 	globalConfig = nil
 	defer func() {
-		configPathOverride = oldOverride
+		SetConfigFile(oldOverride)
 		globalConfig = oldGlobalConfig
 	}()
 
@@ -112,11 +112,11 @@ func TestLoadConfig_InvalidJSON(t *testing.T) {
 
 	// Setup override and reset globalConfig
 	oldOverride := configPathOverride
-	configPathOverride = configPath
+	SetConfigFile(configPath)
 	oldGlobalConfig := globalConfig
 	globalConfig = nil
 	defer func() {
-		configPathOverride = oldOverride
+		SetConfigFile(oldOverride)
 		globalConfig = oldGlobalConfig
 	}()
 

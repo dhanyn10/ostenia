@@ -21,6 +21,14 @@ type Config struct {
 var globalConfig *Config
 var configPathOverride string
 
+// SetConfigFile allows overriding the default config.json path for testing purposes.
+// It returns the previous config file path override.
+func SetConfigFile(path string) string {
+	old := configPathOverride
+	configPathOverride = path
+	return old
+}
+
 // GetBaseDir returns the root directory where Ostenia apps and binaries are stored.
 // It prioritizes the explicitly set BaseDir in config, then OSTENIA_HOME environment variable,
 // and finally falls back to the directory of the application executable.
@@ -40,6 +48,9 @@ func GetBaseDir() string {
 func getConfigPath() string {
 	if configPathOverride != "" {
 		return configPathOverride
+	}
+	if envDir := os.Getenv("OSTENIA_HOME"); envDir != "" {
+		return filepath.Join(envDir, "config.json")
 	}
 	exePath, _ := os.Executable()
 	return filepath.Join(filepath.Dir(exePath), "config.json")

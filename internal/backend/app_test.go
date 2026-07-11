@@ -8,7 +8,35 @@ import (
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
     "os"
     "path/filepath"
+	"ostenia/internal/ssl"
+	plugins_utils "ostenia/internal/plugins/utils"
+	"os/exec"
 )
+
+func TestMain(m *testing.M) {
+	// Mock global dependencies to ensure tests are isolated and don't touch the system
+	origTrust := ssl.TrustRootCAOverride
+	ssl.TrustRootCAOverride = func(path string) error { return nil }
+
+	origExecutor := plugins_utils.Executor
+	plugins_utils.Executor = &LocalMockExecutor{Output: "mocked"}
+
+	code := m.Run()
+
+	// Restore originals
+	ssl.TrustRootCAOverride = origTrust
+	plugins_utils.Executor = origExecutor
+
+	os.Exit(code)
+}
+
+type LocalMockExecutor struct {
+	Output string
+}
+
+func (m *LocalMockExecutor) Command(name string, arg ...string) *exec.Cmd {
+	return exec.Command("echo", m.Output) // NOSONAR
+}
 
 type MockRuntime struct {
     SelectedFile string
@@ -214,13 +242,25 @@ func TestNewApp(t *testing.T) {
 
 func TestApp_Startup(t *testing.T) {
 	tempDir := t.TempDir()
+	oldEnv := os.Getenv("OSTENIA_HOME")
 	os.Setenv("OSTENIA_HOME", tempDir)
-	defer os.Unsetenv("OSTENIA_HOME")
+	defer os.Setenv("OSTENIA_HOME", oldEnv)
+
+	configPath := filepath.Join(tempDir, "config.json")
+	oldConfig := config.SetConfigFile(configPath)
+	defer config.SetConfigFile(oldConfig)
 
 	app := NewApp()
-	// Mock runtime to avoid real Wails calls
+	// Inject mocks
 	app.runtime = &MockRuntime{}
-	app.Startup(context.Background())
+	app.orchestrator = &MockOrchestrator{Running: make(map[string]bool)}
+	app.downloader = &MockPluginManager{}
+	app.sshManager = &MockSSHManager{}
+	app.sslManager = &MockSSLManager{}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	app.Startup(ctx)
+	cancel() // Stop background goroutines like startProxyWatcher
 
 	if app.ctx == nil {
 		t.Error("Expected context to be set")
