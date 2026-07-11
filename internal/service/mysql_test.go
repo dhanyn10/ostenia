@@ -23,7 +23,7 @@ func TestMySQLConfig(t *testing.T) {
 
 	t.Run("InitializeMySQLDataDir", func(t *testing.T) {
 		origExecutor := utils.Executor
-		utils.Executor = &mockExecutor{output: []byte("")}
+		utils.Executor = &mockExecutor{output: ""}
 		defer func() { utils.Executor = origExecutor }()
 
 		binDir := filepath.Join(tempDir, "bin")

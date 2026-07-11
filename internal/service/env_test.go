@@ -33,7 +33,7 @@ func TestPathExistsInString(t *testing.T) {
 func TestUpdatePaths(t *testing.T) {
 	origExecutor := utils.Executor
 	defer func() { utils.Executor = origExecutor }()
-	utils.Executor = &mockExecutor{output: []byte("")}
+	utils.Executor = &mockExecutor{output: ""}
 
 	getPathOverride = func(target string) (string, error) {
 		return "C:\\some\\path;C:\\ostenia\\old-php", nil

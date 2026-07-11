@@ -114,13 +114,13 @@ func updateSystemComponentPath(targetPath string, keyword string, add bool) erro
 }
 
 // IsPathInUserPath checks if a path exists in the User PATH.
-func IsPathInUserPath(targetPath string) bool {
+var IsPathInUserPath = func(targetPath string) bool {
 	current, _ := GetPath("User")
 	return pathExistsInString(current, targetPath)
 }
 
 // IsPathInSystemPath checks if a path exists in the Machine (System) PATH.
-func IsPathInSystemPath(targetPath string) bool {
+var IsPathInSystemPath = func(targetPath string) bool {
 	current, _ := GetPath("Machine")
 	return pathExistsInString(current, targetPath)
 }
