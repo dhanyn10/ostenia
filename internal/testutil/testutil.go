@@ -27,22 +27,22 @@ func (m *MockExecutor) Command(name string, arg ...string) *exec.Cmd {
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
 		if m.Output == "" {
-			cmd = exec.Command("cmd", "/c", "exit", strconv.Itoa(exitCode))
+			cmd = exec.Command("cmd", "/c", "exit", strconv.Itoa(exitCode)) // NOSONAR
 		} else {
 			// Powershell is used to ensure exact output without trailing newlines and correct exit code.
 			// [Console]::Out.Write is used instead of Write-Host to avoid unwanted newlines.
 			encodedOutput := strings.ReplaceAll(m.Output, "'", "''")
 			script := fmt.Sprintf("[Console]::Out.Write('%s'); exit %d", encodedOutput, exitCode)
-			cmd = exec.Command("powershell", "-NoProfile", "-Command", script)
+			cmd = exec.Command("powershell", "-NoProfile", "-Command", script) // NOSONAR
 		}
 	} else {
 		if m.Output == "" {
-			cmd = exec.Command("sh", "-c", fmt.Sprintf("exit %d", exitCode))
+			cmd = exec.Command("sh", "-c", fmt.Sprintf("exit %d", exitCode)) // NOSONAR
 		} else {
 			// printf is used to ensure exact output without trailing newlines.
 			encodedOutput := strings.ReplaceAll(m.Output, "'", "'\\''")
 			script := fmt.Sprintf("printf '%%s' '%s'; exit %d", encodedOutput, exitCode)
-			cmd = exec.Command("sh", "-c", script)
+			cmd = exec.Command("sh", "-c", script) // NOSONAR
 		}
 	}
 
