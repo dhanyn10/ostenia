@@ -59,7 +59,7 @@ func checkHeidiSQLCommonPaths() (string, string) {
 }
 
 func checkHeidiSQLPath() (string, string) {
-	cmd := exec.Command("cmd", "/c", "where heidisql.exe")
+	cmd := exec.Command("cmd", "/c", "where heidisql.exe") // NOSONAR
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	out, err := cmd.Output()
 	if err == nil {

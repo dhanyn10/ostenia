@@ -3,6 +3,7 @@ package service
 import (
 	"os"
 	"ostenia/internal/plugins/utils"
+	"ostenia/internal/testutil"
 	"path/filepath"
 	"testing"
 )
@@ -23,13 +24,12 @@ func TestMySQLConfig(t *testing.T) {
 
 	t.Run("InitializeMySQLDataDir", func(t *testing.T) {
 		origExecutor := utils.Executor
-		utils.Executor = &mockExecutor{output: []byte("")}
+		utils.Executor = &testutil.MockExecutor{Output: ""}
 		defer func() { utils.Executor = origExecutor }()
 
 		binDir := filepath.Join(tempDir, "bin")
 		os.MkdirAll(binDir, 0755)
 
-		// Create dummy empty mysqld.exe so Stat succeeds
 		os.WriteFile(filepath.Join(binDir, "mysqld.exe"), []byte(""), 0755)
 
 		err := InitializeMySQLDataDir(binDir, tempDir, filepath.Join(tempDir, "data"), filepath.Join(tempDir, "my.ini"))
@@ -38,4 +38,3 @@ func TestMySQLConfig(t *testing.T) {
 		}
 	})
 }
-

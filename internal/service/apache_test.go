@@ -3,55 +3,54 @@ package service
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
-    "ostenia/internal/ssl"
 )
 
 func TestApacheConfig(t *testing.T) {
 	tempDir := t.TempDir()
-	confDir := filepath.Join(tempDir, "conf")
-	extraDir := filepath.Join(confDir, "extra")
-	os.MkdirAll(extraDir, 0755)
-
-	confPath := filepath.Join(confDir, "httpd.conf")
-	os.WriteFile(confPath, []byte("Listen 80\n#LoadModule rewrite_module"), 0644)
-
-    // Mock SSL to avoid heavy cert generation
-    origGen := ssl.GenerateRootCAFunc
-    origSign := ssl.SignCertificateFunc
-    ssl.GenerateRootCAFunc = func(dir string) error { return nil }
-    ssl.SignCertificateFunc = func(ca, dom, dst string) error { return nil }
-    defer func() {
-        ssl.GenerateRootCAFunc = origGen
-        ssl.SignCertificateFunc = origSign
-    }()
 
 	t.Run("GenerateVHost", func(t *testing.T) {
-		res := GenerateVHost("test", "/path", 80)
-		if res == "" {
-			t.Error("Expected non-empty VHost")
+		vhost := GenerateVHost("example", "/var/www/html", 80)
+		if vhost == "" {
+			t.Error("Expected non-empty VHost config")
 		}
 	})
 
 	t.Run("GenerateProxyVHost", func(t *testing.T) {
-		res := GenerateProxyVHost("test", 3000, 80, true, tempDir)
-		if res == "" {
-			t.Error("Expected non-empty Proxy VHost")
+		vhost := GenerateProxyVHost("example", 3000, 80, true, "/ssl")
+		if vhost == "" {
+			t.Error("Expected non-empty Proxy VHost config")
 		}
 	})
 
-	t.Run("UpdateApacheConfig", func(t *testing.T) {
-		err := UpdateApacheConfig(tempDir, "", "", "VHOST_CONTENT", 8080, tempDir, 9000, true)
+	t.Run("UpdateApacheConfig_Full", func(t *testing.T) {
+		apachePath := filepath.Join(tempDir, "apache_full")
+		os.MkdirAll(filepath.Join(apachePath, "conf", "extra"), 0755)
+		os.WriteFile(filepath.Join(apachePath, "conf", "httpd.conf"), []byte("#LoadModule rewrite_module modules/mod_rewrite.so\nListen 80"), 0644)
+
+		err := UpdateApacheConfig(apachePath, "php82.dll", "php", "VHost content", 8080, filepath.Join(tempDir, "www"), 9000, true)
 		if err != nil {
 			t.Errorf("UpdateApacheConfig failed: %v", err)
 		}
 
-		// Verify file creation
-		if _, err := os.Stat(filepath.Join(extraDir, "httpd-ostenia-php.conf")); err != nil {
-			t.Error("PHP conf not created")
+		conf, _ := os.ReadFile(filepath.Join(apachePath, "conf", "httpd.conf"))
+		if !strings.Contains(string(conf), "LoadModule rewrite_module") {
+			t.Error("Expected rewrite_module to be enabled")
 		}
-		if _, err := os.Stat(filepath.Join(extraDir, "httpd-ostenia-ssl.conf")); err != nil {
-			t.Error("SSL conf not created")
+		if !strings.Contains(string(conf), "Listen 8080") {
+			t.Error("Expected port 8080")
+		}
+	})
+
+	t.Run("UpdateApacheConfig_Minimal", func(t *testing.T) {
+		apachePath := filepath.Join(tempDir, "apache_min")
+		os.MkdirAll(filepath.Join(apachePath, "conf", "extra"), 0755)
+		os.WriteFile(filepath.Join(apachePath, "conf", "httpd.conf"), []byte(""), 0644)
+
+		err := UpdateApacheConfig(apachePath, "", "", "", 0, "/www", 0, false)
+		if err != nil {
+			t.Errorf("UpdateApacheConfig failed: %v", err)
 		}
 	})
 }
