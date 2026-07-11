@@ -9,10 +9,6 @@ import (
 	"testing"
 )
 
-func TestHelperProcess(t *testing.T) {
-	testutil.HelperProcess(t)
-}
-
 func TestDetectVersions(t *testing.T) {
 	origClient := utils.Client
 	defer func() { utils.Client = origClient }()
