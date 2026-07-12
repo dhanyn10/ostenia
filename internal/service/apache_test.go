@@ -53,4 +53,34 @@ func TestApacheConfig(t *testing.T) {
 			t.Errorf("UpdateApacheConfig failed: %v", err)
 		}
 	})
+
+	t.Run("UpdateApacheConfig_WithVHosts", func(t *testing.T) {
+		apachePath := filepath.Join(tempDir, "apache_vhosts")
+		os.MkdirAll(filepath.Join(apachePath, "conf", "extra"), 0755)
+		os.WriteFile(filepath.Join(apachePath, "conf", "httpd.conf"), []byte(""), 0644)
+
+		err := UpdateApacheConfig(apachePath, "", "", "VHosts", 80, "/www", 0, false)
+		if err != nil {
+			t.Errorf("UpdateApacheConfig failed: %v", err)
+		}
+
+		conf, _ := os.ReadFile(filepath.Join(apachePath, "conf", "httpd.conf"))
+		if !strings.Contains(string(conf), "Include conf/extra/httpd-ostenia-vhosts.conf") {
+			t.Error("Expected vhosts include")
+		}
+	})
+
+	t.Run("GenerateVHost_DefaultPort", func(t *testing.T) {
+		vhost := GenerateVHost("example", "/path", 0)
+		if !strings.Contains(vhost, "<VirtualHost *:80>") {
+			t.Error("Expected default port 80")
+		}
+	})
+
+	t.Run("UpdateApacheConfig_Error", func(t *testing.T) {
+		err := UpdateApacheConfig("/invalid/path", "", "", "", 0, "/www", 0, false)
+		if err == nil {
+			t.Error("Expected error for invalid path")
+		}
+	})
 }

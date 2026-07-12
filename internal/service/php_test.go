@@ -2,6 +2,8 @@ package service
 
 import (
 	"os"
+	"ostenia/internal/plugins/utils"
+	"ostenia/internal/testutil"
 	"path/filepath"
 	"testing"
 )
@@ -42,5 +44,30 @@ func TestPHPConfig(t *testing.T) {
 		}
 
 		_ = TogglePHPExtension(tempDir, "curl", true)
+	})
+
+	t.Run("GetPHPVersion", func(t *testing.T) {
+		origExecutor := utils.Executor
+		utils.Executor = &testutil.MockExecutor{Output: "8.2.0"}
+		defer func() { utils.Executor = origExecutor }()
+
+		php82 := filepath.Join(tempDir, "php-8.2.0")
+		os.MkdirAll(php82, 0755)
+		os.WriteFile(filepath.Join(php82, "php.exe"), []byte(""), 0755)
+
+		v, _ := GetPHPVersion(php82)
+		if v != "8.2.0" {
+			t.Errorf("Expected 8.2.0, got %s", v)
+		}
+	})
+
+	t.Run("isPHPExtensionEnabled", func(t *testing.T) {
+		lines := []string{"extension=curl", ";extension=openssl"}
+		if !isPHPExtensionEnabled(lines, "curl") {
+			t.Error("Expected curl to be enabled")
+		}
+		if isPHPExtensionEnabled(lines, "openssl") {
+			t.Error("Expected openssl to be disabled")
+		}
 	})
 }

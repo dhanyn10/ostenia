@@ -16,7 +16,6 @@ import (
 
 	"github.com/melbahja/goph"
 	"github.com/pkg/sftp"
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 	"golang.org/x/crypto/ssh"
 	"path"
 	"runtime"
@@ -26,10 +25,10 @@ type RemoteFile = interfaces.RemoteFile
 
 type SSHConnection struct {
 	SessionID string
-	Client    *goph.Client
-	SFTP      *sftp.Client
+	Client    interfaces.SSHClient
+	SFTP      interfaces.SFTPClient
 	Shell     io.WriteCloser
-	PTY       *ssh.Session
+	PTY       interfaces.SSHSession
 	Context   context.Context
 	Cancel    context.CancelFunc
 	LastSync  time.Time
@@ -39,13 +38,30 @@ type SSHManager struct {
 	ctx         context.Context
 	connections map[string]*SSHConnection
 	mu          sync.RWMutex
+	dialer      SSHDialer
+	runtime     interfaces.Runtime
+}
+
+type SSHDialer func(config *goph.Config) (interfaces.SSHClient, error)
+
+var DefaultSSHDialer SSHDialer = func(config *goph.Config) (interfaces.SSHClient, error) {
+	client, err := goph.NewConn(config)
+	if err != nil {
+		return nil, err
+	}
+	return &gophSSHClient{client}, nil
 }
 
 func NewSSHManager(ctx context.Context) *SSHManager {
 	return &SSHManager{
 		ctx:         ctx,
 		connections: make(map[string]*SSHConnection),
+		dialer:      DefaultSSHDialer,
 	}
+}
+
+func (m *SSHManager) SetRuntime(r interfaces.Runtime) {
+	m.runtime = r
 }
 
 func (m *SSHManager) GetSessions() ([]config.SSHSession, error) {
@@ -62,18 +78,19 @@ func (m *SSHManager) Connect(session config.SSHSession) error {
 	os.Setenv("LC_ALL", "en_US.UTF-8")
 
 	m.mu.Lock()
-	defer m.mu.Unlock()
 
 	if _, ok := m.connections[session.ID]; ok {
+		m.mu.Unlock()
 		return nil
 	}
 
 	auth, err := m.getAuth(session)
 	if err != nil {
+		m.mu.Unlock()
 		return err
 	}
 
-	client, err := goph.NewConn(&goph.Config{
+	client, err := m.dialer(&goph.Config{
 		User:     session.User,
 		Addr:     session.Host,
 		Port:     uint(session.Port),
@@ -83,12 +100,14 @@ func (m *SSHManager) Connect(session config.SSHSession) error {
 	})
 
 	if err != nil {
+		m.mu.Unlock()
 		return err
 	}
 
 	sftpClient, err := client.NewSftp()
 	if err != nil {
 		client.Close()
+		m.mu.Unlock()
 		return err
 	}
 
@@ -102,9 +121,10 @@ func (m *SSHManager) Connect(session config.SSHSession) error {
 	}
 
 	m.connections[session.ID] = conn
+	m.mu.Unlock()
 
 	// Start terminal session
-	go m.startTerminal(conn)
+	m.startTerminal(conn)
 
 	return nil
 }
@@ -115,11 +135,23 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 		fmt.Printf("Failed to create SSH session: %v\n", err)
 		return
 	}
+	m.mu.Lock()
 	conn.PTY = sshSession
+	m.mu.Unlock()
 
-	stdout, _ := sshSession.StdoutPipe()
-	stdin, _ := sshSession.StdinPipe()
+	stdout, err := sshSession.StdoutPipe()
+	if err != nil {
+		fmt.Printf("failed to get stdout pipe: %v\n", err)
+		return
+	}
+	stdin, err := sshSession.StdinPipe()
+	if err != nil {
+		fmt.Printf("failed to get stdin pipe: %v\n", err)
+		return
+	}
+	m.mu.Lock()
 	conn.Shell = stdin
+	m.mu.Unlock()
 
 	if err := m.setupPTY(sshSession); err != nil {
 		fmt.Printf("failed to setup terminal: %v\n", err)
@@ -128,10 +160,10 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 
 	exitChan := make(chan struct{})
 	go m.processTerminalOutput(conn, stdout, exitChan)
-	m.handleTerminalExit(conn, sshSession, exitChan)
+	go m.handleTerminalExit(conn, sshSession, exitChan)
 }
 
-func (m *SSHManager) setupPTY(sshSession *ssh.Session) error {
+func (m *SSHManager) setupPTY(sshSession interfaces.SSHSession) error {
 	modes := ssh.TerminalModes{
 		ssh.ECHO:          1,
 		ssh.TTY_OP_ISPEED: 14400,
@@ -151,8 +183,8 @@ func (m *SSHManager) processTerminalOutput(conn *SSHConnection, stdout io.Reader
 	for {
 		n, err := stdout.Read(buf)
 		if n > 0 {
-			if m.ctx != nil {
-				wruntime.EventsEmit(m.ctx, "ssh_output", map[string]interface{}{
+			if m.runtime != nil {
+				m.runtime.EventsEmit(m.ctx, "ssh_output", map[string]interface{}{
 					"sessionId": conn.SessionID,
 					"data":      string(buf[:n]),
 				})
@@ -169,13 +201,13 @@ func (m *SSHManager) processTerminalOutput(conn *SSHConnection, stdout io.Reader
 	}
 }
 
-func (m *SSHManager) handleTerminalExit(conn *SSHConnection, sshSession *ssh.Session, exitChan chan struct{}) {
+func (m *SSHManager) handleTerminalExit(conn *SSHConnection, sshSession interfaces.SSHSession, exitChan chan struct{}) {
 	select {
 	case <-conn.Context.Done():
 		sshSession.Close()
 	case <-exitChan:
-		if m.ctx != nil {
-			wruntime.EventsEmit(m.ctx, "ssh_disconnected", conn.SessionID)
+		if m.runtime != nil {
+			m.runtime.EventsEmit(m.ctx, "ssh_disconnected", conn.SessionID)
 		}
 		m.mu.Lock()
 		delete(m.connections, conn.SessionID)
@@ -188,8 +220,11 @@ func (m *SSHManager) ResizeTerminal(sessionID string, cols int, rows int) error 
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()
 
-	if !ok || conn.PTY == nil {
+	if !ok {
 		return fmt.Errorf("session not found")
+	}
+	if conn.PTY == nil {
+		return fmt.Errorf("session not connected")
 	}
 
 	// Logging to debug dimension issues in the sandbox
@@ -212,8 +247,11 @@ func (m *SSHManager) SendInput(sessionID string, data string) error {
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()
 
-	if !ok || conn.Shell == nil {
-		return fmt.Errorf("session not found or not connected")
+	if !ok {
+		return fmt.Errorf("session not found")
+	}
+	if conn.Shell == nil {
+		return fmt.Errorf("session not connected")
 	}
 
 	_, err := conn.Shell.Write([]byte(data))
@@ -229,7 +267,9 @@ func (m *SSHManager) Disconnect(sessionID string) {
 		if conn.SFTP != nil {
 			conn.SFTP.Close()
 		}
-		conn.Client.Close()
+		if conn.Client != nil {
+			conn.Client.Close()
+		}
 		delete(m.connections, sessionID)
 	}
 }
@@ -240,8 +280,11 @@ func (m *SSHManager) ListFiles(sessionID string, pathStr string) ([]RemoteFile, 
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()
 
-	if !ok || conn.SFTP == nil {
-		return nil, fmt.Errorf("session not found or SFTP not connected")
+	if !ok {
+		return nil, fmt.Errorf("session not found")
+	}
+	if conn.SFTP == nil {
+		return nil, fmt.Errorf("SFTP not connected")
 	}
 
 	if pathStr == "" {
@@ -272,8 +315,11 @@ func (m *SSHManager) ExecuteSFTPAction(sessionID string, action string, remotePa
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()
 
-	if !ok || conn.SFTP == nil {
-		return fmt.Errorf("session not found or SFTP not connected")
+	if !ok {
+		return fmt.Errorf("session not found")
+	}
+	if conn.SFTP == nil {
+		return fmt.Errorf("SFTP not connected")
 	}
 
 	remotePath = path.Clean(remotePath)
@@ -306,8 +352,11 @@ func (m *SSHManager) DownloadFile(sessionID string, remotePath string, localPath
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()
 
-	if !ok || conn.SFTP == nil {
-		return fmt.Errorf("session not found or SFTP not connected")
+	if !ok {
+		return fmt.Errorf("session not found")
+	}
+	if conn.SFTP == nil {
+		return fmt.Errorf("SFTP not connected")
 	}
 
 	remotePath = path.Clean(remotePath)
@@ -333,8 +382,11 @@ func (m *SSHManager) UploadFile(sessionID string, localPath string, remotePath s
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()
 
-	if !ok || conn.SFTP == nil {
-		return fmt.Errorf("session not found or SFTP not connected")
+	if !ok {
+		return fmt.Errorf("session not found")
+	}
+	if conn.SFTP == nil {
+		return fmt.Errorf("SFTP not connected")
 	}
 
 	// Use path.Join for remote paths
@@ -361,8 +413,11 @@ func (m *SSHManager) EditFile(sessionID string, remotePath string, defaultEditor
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()
 
-	if !ok || conn.SFTP == nil {
-		return fmt.Errorf("session not found or SFTP not connected")
+	if !ok {
+		return fmt.Errorf("session not found")
+	}
+	if conn.SFTP == nil {
+		return fmt.Errorf("SFTP not connected")
 	}
 
 	remotePath = path.Clean(remotePath)
@@ -453,8 +508,11 @@ func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()
 
-	if !ok || conn.SFTP == nil {
-		return "", fmt.Errorf("session not found or SFTP not connected")
+	if !ok {
+		return "", fmt.Errorf("session not found")
+	}
+	if conn.SFTP == nil {
+		return "", fmt.Errorf("SFTP not connected")
 	}
 
 	pathStr, err := conn.SFTP.Getwd()
@@ -505,3 +563,57 @@ func (m *SSHManager) getHostKeyCallback() ssh.HostKeyCallback {
 		return goph.AddKnownHost(host, remote, key, knownHostsPath)
 	}
 }
+
+// Wrappers
+
+type gophSSHClient struct {
+	client *goph.Client
+}
+
+func (c *gophSSHClient) NewSession() (interfaces.SSHSession, error) {
+	s, err := c.client.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	return &sshSessionWrapper{s}, nil
+}
+
+func (c *gophSSHClient) NewSftp(opts ...sftp.ClientOption) (interfaces.SFTPClient, error) {
+	s, err := c.client.NewSftp(opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &sftpClientWrapper{s}, nil
+}
+
+func (c *gophSSHClient) Close() error {
+	return c.client.Close()
+}
+
+type sshSessionWrapper struct {
+	session *ssh.Session
+}
+
+func (sw *sshSessionWrapper) StdoutPipe() (io.Reader, error) { return sw.session.StdoutPipe() }
+func (sw *sshSessionWrapper) StdinPipe() (io.WriteCloser, error) { return sw.session.StdinPipe() }
+func (sw *sshSessionWrapper) RequestPty(term string, h, w int, modes ssh.TerminalModes) error {
+	return sw.session.RequestPty(term, h, w, modes)
+}
+func (sw *sshSessionWrapper) Shell() error { return sw.session.Shell() }
+func (sw *sshSessionWrapper) WindowChange(h, w int) error { return sw.session.WindowChange(h, w) }
+func (sw *sshSessionWrapper) Close() error { return sw.session.Close() }
+
+type sftpClientWrapper struct {
+	client *sftp.Client
+}
+
+func (cw *sftpClientWrapper) ReadDir(p string) ([]os.FileInfo, error) { return cw.client.ReadDir(p) }
+func (cw *sftpClientWrapper) Stat(p string) (os.FileInfo, error) { return cw.client.Stat(p) }
+func (cw *sftpClientWrapper) RemoveAll(p string) error { return cw.client.RemoveAll(p) }
+func (cw *sftpClientWrapper) Remove(p string) error { return cw.client.Remove(p) }
+func (cw *sftpClientWrapper) Rename(oldpath, newpath string) error { return cw.client.Rename(oldpath, newpath) }
+func (cw *sftpClientWrapper) Mkdir(p string) error { return cw.client.Mkdir(p) }
+func (cw *sftpClientWrapper) Open(p string) (interfaces.SFTPFile, error) { return cw.client.Open(p) }
+func (cw *sftpClientWrapper) Create(p string) (interfaces.SFTPFile, error) { return cw.client.Create(p) }
+func (cw *sftpClientWrapper) Getwd() (string, error) { return cw.client.Getwd() }
+func (cw *sftpClientWrapper) Close() error { return cw.client.Close() }

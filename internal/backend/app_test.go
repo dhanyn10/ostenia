@@ -231,6 +231,13 @@ func TestApp_Full_Mocked(t *testing.T) {
     app.OpenTerminal("cmd")
     app.OpenTerminalAtPath("cmd", tempDir)
 
+    // Extra service coverage
+    _ = app.StartService("Unknown")
+    _ = app.StopService("PHP")
+    _ = app.StopService("OpenSSL")
+    _ = app.StopService("Node.js")
+    _ = app.StopService("Python")
+
     // Profile
     _ = app.ExportProfile(true, true)
     _ = app.ImportProfile()
