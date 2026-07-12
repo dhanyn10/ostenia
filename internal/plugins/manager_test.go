@@ -82,6 +82,11 @@ func TestPlugins_Complete(t *testing.T) {
 		os.MkdirAll(verDir, 0755)
 
 		_ = m.DeleteVersion("PHP", "8.1.0")
+
+		// Test with Node.js name mapping
+		nodeDir := filepath.Join(tempDir, "bin", "nodejs", "node-v18.0.0")
+		os.MkdirAll(nodeDir, 0755)
+		_ = m.DeleteVersion("Node.js", "18.0.0")
 	})
 
 	t.Run("GetInstalledVersionPaths", func(t *testing.T) {

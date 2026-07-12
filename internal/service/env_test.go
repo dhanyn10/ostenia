@@ -59,6 +59,16 @@ func TestUpdatePaths(t *testing.T) {
 		}
 	})
 
+	t.Run("SetPath", func(t *testing.T) {
+		err := SetPath("C:\\new\\path", "User")
+		if err != nil {
+			t.Errorf("SetPath User failed: %v", err)
+		}
+
+		// This will trigger elevation code on Windows if not admin
+		_ = SetPath("C:\\new\\path", "Machine")
+	})
+
 	t.Run("CheckPaths", func(t *testing.T) {
 		// Test original implementations
 		getPathOverride = func(target string) (string, error) {
