@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import SSHSessionView from '../components/SSHSessionView';
+import SSHSessionView from './SSHSessionView';
 import * as AppBackend from '../../wailsjs/go/backend/App';
 
 // Mock xterm

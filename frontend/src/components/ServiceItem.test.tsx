@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import ServiceItem from '../components/ServiceItem';
+import ServiceItem from './ServiceItem';
 
 describe('ServiceItem Component', () => {
   const mockProps = {
