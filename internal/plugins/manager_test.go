@@ -74,8 +74,9 @@ func TestPlugins_Complete(t *testing.T) {
 
 	t.Run("DeleteVersion", func(t *testing.T) {
 		tempDir := t.TempDir()
+		oldEnv := os.Getenv("OSTENIA_HOME")
 		os.Setenv("OSTENIA_HOME", tempDir)
-		defer os.Unsetenv("OSTENIA_HOME")
+		defer os.Setenv("OSTENIA_HOME", oldEnv)
 
 		verDir := filepath.Join(tempDir, "bin", "php", "php-8.1.0")
 		os.MkdirAll(verDir, 0755)
@@ -96,7 +97,9 @@ func TestPlugins_Complete(t *testing.T) {
 
     t.Run("Discovery", func(t *testing.T) {
 		tempDir := t.TempDir()
+		oldEnv := os.Getenv("OSTENIA_HOME")
 		os.Setenv("OSTENIA_HOME", tempDir)
+		defer os.Setenv("OSTENIA_HOME", oldEnv)
 
 		// Setup dummy installed versions to test detection
 		phpDir := filepath.Join(tempDir, "bin", "php", "php-8.2.0")
@@ -120,7 +123,9 @@ func TestPlugins_Complete(t *testing.T) {
 
 	t.Run("DownloadAndExtract_Basic", func(t *testing.T) {
 		tempDir := t.TempDir()
+		oldEnv := os.Getenv("OSTENIA_HOME")
 		os.Setenv("OSTENIA_HOME", tempDir)
+		defer os.Setenv("OSTENIA_HOME", oldEnv)
 
 		// Use a mock that provides a body to avoid errors in io.Copy
 		utils.Client = &mockHTTPClientProgress{}
@@ -152,5 +157,68 @@ func TestPlugins_Complete(t *testing.T) {
 	t.Run("ModuleMethods", func(t *testing.T) {
 		_ = m.InstallModule("Composer", "/path", nil)
 		_ = m.UninstallModule("Composer", "/path")
+	})
+
+	t.Run("DownloadFileManual", func(t *testing.T) {
+		tempDir := t.TempDir()
+		dest := filepath.Join(tempDir, "manual.exe")
+		err := m.DownloadFileManual("http://example.com/manual.exe", dest, "Manual")
+		if err != nil {
+			t.Errorf("DownloadFileManual failed: %v", err)
+		}
+	})
+
+	t.Run("handleArchive_Mocked", func(t *testing.T) {
+		tempDir := t.TempDir()
+		oldEnv := os.Getenv("OSTENIA_HOME")
+		os.Setenv("OSTENIA_HOME", tempDir)
+		defer os.Setenv("OSTENIA_HOME", oldEnv)
+
+		oldUnzip := unzipFunc
+		unzipFunc = func(ctx context.Context, src, dest, name string, emit func(context.Context, string, ...interface{})) error {
+			os.MkdirAll(filepath.Join(dest, "sub"), 0755)
+			os.WriteFile(filepath.Join(dest, "sub", "test.txt"), []byte("data"), 0644)
+			return nil
+		}
+		defer func() { unzipFunc = oldUnzip }()
+
+		task := DownloadTask{
+			Name: "TestZip",
+			Version: "1.0.0",
+			Target: "testzip/1.0.0",
+			CheckFile: "sub/test.txt",
+		}
+		targetDir := filepath.Join(tempDir, "bin", task.Target)
+
+		err := m.handleArchive(task, "dummy.zip", targetDir)
+		if err != nil {
+			t.Errorf("handleArchive failed: %v", err)
+		}
+
+		if _, err := os.Stat(filepath.Join(targetDir, "test.txt")); os.IsNotExist(err) {
+			t.Error("Expected test.txt to be moved to targetDir from sub folder")
+		}
+	})
+
+	t.Run("DownloadAndExtract_AlreadyInstalled", func(t *testing.T) {
+		tempDir := t.TempDir()
+		oldEnv := os.Getenv("OSTENIA_HOME")
+		os.Setenv("OSTENIA_HOME", tempDir)
+		defer os.Setenv("OSTENIA_HOME", oldEnv)
+
+		task := DownloadTask{
+			Name: "PHP",
+			Version: "8.2.0",
+			Target: "php/php-8.2.0",
+			CheckFile: "php.exe",
+		}
+		targetDir := filepath.Join(tempDir, "bin", task.Target)
+		os.MkdirAll(targetDir, 0755)
+		os.WriteFile(filepath.Join(targetDir, "php.exe"), []byte(""), 0644)
+
+		err := m.DownloadAndExtract(task)
+		if err != nil {
+			t.Errorf("DownloadAndExtract should have skipped and returned nil, got %v", err)
+		}
 	})
 }

@@ -9,7 +9,7 @@ import (
 func TestTerminal(t *testing.T) {
 	origExecutor := utils.Executor
 	defer func() { utils.Executor = origExecutor }()
-	utils.Executor = &testutil.MockExecutor{}
+	utils.Executor = &testutil.MockExecutor{Output: "mocked"}
 
 	term := NewTerminal("/tmp", []string{})
 

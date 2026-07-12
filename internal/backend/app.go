@@ -96,11 +96,21 @@ func (a *App) Startup(ctx context.Context) {
 	if a.runtime == nil {
 		a.runtime = &WailsRuntime{}
 	}
-	a.downloader = plugins.NewManager(ctx)
-	a.orchestrator = service.NewOrchestrator(ctx)
-	a.symlinkMgr = service.NewSymlinkManager()
-	a.sshManager = service.NewSSHManager(ctx)
-	a.sslManager = &DefaultSSLManager{}
+	if a.downloader == nil {
+		a.downloader = plugins.NewManager(ctx)
+	}
+	if a.orchestrator == nil {
+		a.orchestrator = service.NewOrchestrator(ctx)
+	}
+	if a.symlinkMgr == nil {
+		a.symlinkMgr = service.NewSymlinkManager()
+	}
+	if a.sshManager == nil {
+		a.sshManager = service.NewSSHManager(ctx)
+	}
+	if a.sslManager == nil {
+		a.sslManager = &DefaultSSLManager{}
+	}
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
