@@ -74,8 +74,9 @@ func TestPlugins_Complete(t *testing.T) {
 
 	t.Run("DeleteVersion", func(t *testing.T) {
 		tempDir := t.TempDir()
+		oldEnv := os.Getenv("OSTENIA_HOME")
 		os.Setenv("OSTENIA_HOME", tempDir)
-		defer os.Unsetenv("OSTENIA_HOME")
+		defer os.Setenv("OSTENIA_HOME", oldEnv)
 
 		verDir := filepath.Join(tempDir, "bin", "php", "php-8.1.0")
 		os.MkdirAll(verDir, 0755)
@@ -96,7 +97,9 @@ func TestPlugins_Complete(t *testing.T) {
 
     t.Run("Discovery", func(t *testing.T) {
 		tempDir := t.TempDir()
+		oldEnv := os.Getenv("OSTENIA_HOME")
 		os.Setenv("OSTENIA_HOME", tempDir)
+		defer os.Setenv("OSTENIA_HOME", oldEnv)
 
 		// Setup dummy installed versions to test detection
 		phpDir := filepath.Join(tempDir, "bin", "php", "php-8.2.0")
@@ -120,7 +123,9 @@ func TestPlugins_Complete(t *testing.T) {
 
 	t.Run("DownloadAndExtract_Basic", func(t *testing.T) {
 		tempDir := t.TempDir()
+		oldEnv := os.Getenv("OSTENIA_HOME")
 		os.Setenv("OSTENIA_HOME", tempDir)
+		defer os.Setenv("OSTENIA_HOME", oldEnv)
 
 		// Use a mock that provides a body to avoid errors in io.Copy
 		utils.Client = &mockHTTPClientProgress{}
@@ -165,7 +170,9 @@ func TestPlugins_Complete(t *testing.T) {
 
 	t.Run("handleArchive_Mocked", func(t *testing.T) {
 		tempDir := t.TempDir()
+		oldEnv := os.Getenv("OSTENIA_HOME")
 		os.Setenv("OSTENIA_HOME", tempDir)
+		defer os.Setenv("OSTENIA_HOME", oldEnv)
 
 		oldUnzip := unzipFunc
 		unzipFunc = func(ctx context.Context, src, dest, name string, emit func(context.Context, string, ...interface{})) error {
@@ -195,7 +202,9 @@ func TestPlugins_Complete(t *testing.T) {
 
 	t.Run("DownloadAndExtract_AlreadyInstalled", func(t *testing.T) {
 		tempDir := t.TempDir()
+		oldEnv := os.Getenv("OSTENIA_HOME")
 		os.Setenv("OSTENIA_HOME", tempDir)
+		defer os.Setenv("OSTENIA_HOME", oldEnv)
 
 		task := DownloadTask{
 			Name: "PHP",
