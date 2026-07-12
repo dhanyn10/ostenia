@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import PluginItem from '../components/PluginItem';
+import PluginItem from './PluginItem';
 
 describe('PluginItem Component', () => {
   const mockProps = {

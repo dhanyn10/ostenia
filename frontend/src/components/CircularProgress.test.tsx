@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
-import CircularProgress from '../components/CircularProgress'
+import CircularProgress from './CircularProgress'
 import React from 'react'
 
 describe('CircularProgress Component', () => {

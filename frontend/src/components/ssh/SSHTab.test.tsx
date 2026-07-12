@@ -1,25 +1,25 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
-import SSHTab from '../components/ssh/SSHTab'
+import SSHTab from './SSHTab'
 import React from 'react'
 
 // Mock AppBackend
-vi.mock('../../wailsjs/go/backend/App', () => ({
+vi.mock('../../../wailsjs/go/backend/App', () => ({
   GetSSHSessions: vi.fn(),
   ConnectSSH: vi.fn(),
   DisconnectSSH: vi.fn(),
   DeleteSSHSession: vi.fn(),
 }))
 
-import * as AppBackendRaw from '../../wailsjs/go/backend/App'
+import * as AppBackendRaw from '../../../wailsjs/go/backend/App'
 const AppBackend = AppBackendRaw as any;
 
 // Mock sub-components to focus on SSHTab logic
-vi.mock('../components/SSHSessionView', () => ({
+vi.mock('../SSHSessionView', () => ({
   default: () => <div data-testid="ssh-session-view" />
 }))
 
-vi.mock('../components/ssh/SSHSessionForm', () => ({
+vi.mock('./SSHSessionForm', () => ({
   default: ({ onClose }) => (
     <div data-testid="ssh-session-form">
       <button onClick={onClose}>Close</button>

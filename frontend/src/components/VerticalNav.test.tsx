@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
-import VerticalNav from '../components/VerticalNav'
+import VerticalNav from './VerticalNav'
 import React from 'react'
 
 // Mock Icons because it might use things that need complex setup

@@ -1,10 +1,10 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import App from '../App';
-import * as AppBackend from '../../wailsjs/go/backend/App';
+import App from './App';
+import * as AppBackend from '../wailsjs/go/backend/App';
 
 // Mock Wails backend functions
-vi.mock('../../wailsjs/go/backend/App', () => ({
+vi.mock('../wailsjs/go/backend/App', () => ({
   GetPrerequisites: vi.fn().mockResolvedValue([]),
   GetConfig: vi.fn().mockResolvedValue({
     wwwRoot: '/var/www',
@@ -40,7 +40,7 @@ vi.mock('../../wailsjs/go/backend/App', () => ({
   GetSSHSessions: vi.fn().mockResolvedValue([]),
 }));
 
-vi.mock('../../wailsjs/runtime/runtime', () => ({
+vi.mock('../wailsjs/runtime/runtime', () => ({
   EventsOn: vi.fn(),
   EventsOff: vi.fn(),
   EventsOnMultiple: vi.fn(),
