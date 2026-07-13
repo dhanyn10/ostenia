@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"os"
+	"ostenia/internal/plugins/utils"
+	"ostenia/internal/testutil"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -213,6 +215,15 @@ func TestTrustRootCA(t *testing.T) {
 		// unless it's a dedicated integration test.
 		// For now, we rely on the manual TrustRootCAOverride in other tests.
 	} else {
+		// Test mocked Windows branch on Linux
+		origGOOS := RuntimeGOOS
+		defer func() { RuntimeGOOS = origGOOS }()
+		RuntimeGOOS = "windows"
+
+		origExecutor := utils.Executor
+		defer func() { utils.Executor = origExecutor }()
+		utils.Executor = &testutil.MockExecutor{Output: ""}
+
 		err := TrustRootCA("any/path")
 		if err != nil {
 			t.Errorf("TrustRootCA failed on non-Windows: %v", err)

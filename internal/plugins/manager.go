@@ -65,8 +65,10 @@ func (m *Manager) CancelDownload(name string) {
 }
 
 // DeleteVersion removes a specific version directory and kills any related processes on Windows
+var RuntimeGOOS = runtime.GOOS
+
 func (m *Manager) DeleteVersion(taskName, version string) error {
-	if runtime.GOOS == "windows" {
+	if RuntimeGOOS == "windows" {
 		exeMap := map[string]string{
 			"apache": "httpd.exe", "mysql": "mysqld.exe", "php": "php.exe",
 			"heidisql": "heidisql.exe", "nginx": "nginx.exe", "openssl": "openssl.exe",

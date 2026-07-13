@@ -181,8 +181,13 @@ func TestApp_Full_Mocked(t *testing.T) {
 	app.CancelDownload("test")
 	_ = app.OpenPluginFolder("PHP")
 	_ = app.InstallPrerequisite(interfaces.DownloadTask{Name: "OpenSSL"})
+	_ = app.InstallPrerequisite(interfaces.DownloadTask{Name: "Python"})
     _ = app.InstallPluginModule("PHP", "Composer")
+    _ = app.InstallPluginModule("Python", "Pip")
+    _ = app.InstallPluginModule("Unknown", "Mod")
     _ = app.UninstallPluginModule("PHP", "Composer")
+    _ = app.UninstallPluginModule("Python", "Pip")
+    _ = app.UninstallPluginModule("Unknown", "Mod")
     _ = app.SwitchServiceVersion("PHP", "8.2.0")
     _ = app.DeleteVersion("PHP", "8.1.0")
 
@@ -218,6 +223,7 @@ func TestApp_Full_Mocked(t *testing.T) {
     _ = app.CheckProxyPorts()
     _ = app.GetProxyApps()
     _ = app.SaveProxyPort("myapp", 4000)
+    _ = app.SaveProxyPort("myapp", 0) // Test deletion
     app.OpenProxyTerminal("myapp", "cmd")
 
     // PHP
@@ -237,6 +243,10 @@ func TestApp_Full_Mocked(t *testing.T) {
     _ = app.StopService("OpenSSL")
     _ = app.StopService("Node.js")
     _ = app.StopService("Python")
+
+    plugins.DetectHeidiSQLInstallationOverride = func() (string, string) { return "path", "" }
+    _ = app.OpenHeidiSQL()
+    plugins.DetectHeidiSQLInstallationOverride = nil
 
     // Profile
     _ = app.ExportProfile(true, true)
@@ -415,8 +425,11 @@ func TestApp_Services_RealIsh(t *testing.T) {
     _, _ = app.GetInstalledApps()
     _, _ = app.checkStandardExePath(apacheFallbackDir, "httpd.exe")
     _, _ = app.checkStandardExePath(nginxDir, "nginx.exe")
+    _, _ = app.walkForExecutable(nginxDir, "nginx.exe")
 
     // Test app_network.go
+    app.orchestrator.StartService("Apache", "", nil, "")
+    app.orchestrator.StartService("Nginx", "", nil, "")
     _ = app.SaveProxyPort("mysite", 8080)
     _ = app.GetProxyApps()
     _ = app.CheckProxyPorts()
@@ -428,6 +441,12 @@ func TestApp_Services_RealIsh(t *testing.T) {
     _ = app.InstallPluginModule("PHP", "Composer")
     _ = app.UninstallPluginModule("PHP", "Composer")
     _ = app.DeleteVersion("PHP", "8.1.0")
+
+    // Coverage for getServiceTargetDir
+    _ = app.getServiceTargetDir("nginx", nginxDir)
+    _ = app.getServiceTargetDir("apache", apacheDir)
+    _ = app.getServiceTargetDir("mysql", mysqlDir)
+    _ = app.getServiceTargetDir("unknown", tempDir)
 
     // Test app_profile.go
     // Create some files to export

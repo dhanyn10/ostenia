@@ -59,3 +59,24 @@ func TestUnzip(t *testing.T) {
 		t.Errorf("Expected 'hello world', got '%s'", string(content))
 	}
 }
+
+func TestUnzip_Security(t *testing.T) {
+	tempDir := t.TempDir()
+	zipPath := filepath.Join(tempDir, "malicious.zip")
+	destDir := filepath.Join(tempDir, "dest")
+
+	buf := new(bytes.Buffer)
+	zw := zip.NewWriter(buf)
+
+	// Malicious path: directory traversal
+	f, _ := zw.Create("../outside.txt")
+	f.Write([]byte("malicious"))
+	zw.Close()
+	os.WriteFile(zipPath, buf.Bytes(), 0644)
+
+	emit := func(ctx context.Context, eventName string, optionalData ...interface{}) {}
+	err := Unzip(context.Background(), zipPath, destDir, "test", emit)
+	if err == nil {
+		t.Error("Expected error for directory traversal")
+	}
+}

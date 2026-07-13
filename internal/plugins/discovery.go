@@ -29,13 +29,13 @@ type pluginDefinition struct {
 }
 
 var (
-	detectHeidiSQLInstallationOverride func() (string, string)
+	DetectHeidiSQLInstallationOverride func() (string, string)
 	unzipFunc                          = Unzip
 )
 
 func DetectHeidiSQLInstallation() (string, string) {
-	if detectHeidiSQLInstallationOverride != nil {
-		return detectHeidiSQLInstallationOverride()
+	if DetectHeidiSQLInstallationOverride != nil {
+		return DetectHeidiSQLInstallationOverride()
 	}
 	return utils.DetectHeidiSQLInstallation()
 }
