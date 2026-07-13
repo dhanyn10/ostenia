@@ -183,11 +183,13 @@ func getRemainingDays(certPath string) (int, error) {
 
 var TrustRootCAOverride func(caPath string) error
 
+var RuntimeGOOS = runtime.GOOS
+
 func TrustRootCA(caPath string) error {
 	if TrustRootCAOverride != nil {
 		return TrustRootCAOverride(caPath)
 	}
-	if runtime.GOOS == "windows" {
+	if RuntimeGOOS == "windows" {
 		certutilPath := filepath.Join(utils.GetSystemDirectory(), "certutil.exe")
 		cmd1 := utils.Executor.Command(certutilPath, "-addstore", "-f", "Root", caPath)
 		cmd1.Env = utils.SafeEnv()

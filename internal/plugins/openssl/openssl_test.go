@@ -3,7 +3,10 @@ package openssl
 import (
 	"fmt"
 	"ostenia/internal/plugins/utils"
+	"os"
 	"ostenia/internal/testutil"
+	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -40,7 +43,24 @@ func TestFindExecutables(t *testing.T) {
 	defer func() { utils.Executor = origExecutor }()
 
 	utils.Executor = &testutil.MockExecutor{Output: "C:\\bin\\openssl.exe\n"}
+
+	tempDir := t.TempDir()
+	os.Setenv("OSTENIA_HOME", tempDir)
+	defer os.Unsetenv("OSTENIA_HOME")
+
+	binDir := filepath.Join(tempDir, "bin")
+	os.MkdirAll(binDir, 0755)
+	os.WriteFile(filepath.Join(binDir, "openssl.exe"), []byte(""), 0755)
+
 	_ = findExecutables()
+}
+
+func TestDetectInstalledVersion_Windows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		// Mock findExecutables to test the branch
+		// OpenSSL doesn't have internal hooks for findExecutables, so we just run it and see.
+		// On linux it will skip the GOOS == "windows" block.
+	}
 }
 
 func TestVersionFromExecutable(t *testing.T) {

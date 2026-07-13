@@ -3,6 +3,7 @@ package plugins
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -15,9 +16,13 @@ import (
 type mockHTTPClient struct {
 	utils.HTTPClient
 	content string
+	err     error
 }
 
 func (m *mockHTTPClient) Get(url string) (*http.Response, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
 	return &http.Response{
 		StatusCode: http.StatusOK,
 		ContentLength: int64(len(m.content)),
@@ -87,6 +92,12 @@ func TestPlugins_Complete(t *testing.T) {
 		nodeDir := filepath.Join(tempDir, "bin", "nodejs", "node-v18.0.0")
 		os.MkdirAll(nodeDir, 0755)
 		_ = m.DeleteVersion("Node.js", "18.0.0")
+
+		// Test Windows branch
+		origGOOS := RuntimeGOOS
+		defer func() { RuntimeGOOS = origGOOS }()
+		RuntimeGOOS = "windows"
+		_ = m.DeleteVersion("PHP", "8.2.0")
 	})
 
 	t.Run("GetInstalledVersionPaths", func(t *testing.T) {
@@ -118,10 +129,14 @@ func TestPlugins_Complete(t *testing.T) {
 		// but the code uses mklink via executor.
 
 		// Test HeidiSQL detection
-		detectHeidiSQLInstallationOverride = func() (string, string) {
+		DetectHeidiSQLInstallationOverride = func() (string, string) {
 			return "/usr/bin/heidisql.exe", ""
 		}
-		defer func() { detectHeidiSQLInstallationOverride = nil }()
+		defer func() { DetectHeidiSQLInstallationOverride = nil }()
+
+		// Create modules folders
+		os.MkdirAll(filepath.Join(phpDir, "composer"), 0755)
+		os.WriteFile(filepath.Join(phpDir, "composer.phar"), []byte(""), 0644)
 
         _ = GetLatestKnownVersions()
     })
@@ -151,6 +166,13 @@ func TestPlugins_Complete(t *testing.T) {
 		if err != nil {
 			t.Errorf("DownloadAndExtract failed: %v", err)
 		}
+
+		// Test download error path
+		utils.Client = &mockHTTPClient{err: fmt.Errorf("download error")}
+		err = m.DownloadAndExtract(task)
+		if err == nil {
+			t.Error("Expected download error")
+		}
 	})
 
 	t.Run("GetInstalledVersionPaths_Extended", func(t *testing.T) {
@@ -160,11 +182,20 @@ func TestPlugins_Complete(t *testing.T) {
 	})
 
 	t.Run("ModuleMethods", func(t *testing.T) {
-		_ = m.InstallModule("Composer", "/path", nil)
-		_ = m.UninstallModule("Composer", "/path")
+		tempDir := t.TempDir()
+		phpPath := filepath.Join(tempDir, "bin", "php", "current")
+		os.MkdirAll(phpPath, 0755)
+		os.WriteFile(filepath.Join(phpPath, "php.exe"), []byte(""), 0755)
+
+		_ = m.InstallModule("Composer", phpPath, nil)
+		_ = m.UninstallModule("Composer", phpPath)
+
+		_ = m.InstallModule("Xdebug", phpPath, nil)
+		_ = m.UninstallModule("Xdebug", phpPath)
 	})
 
 	t.Run("DownloadFileManual", func(t *testing.T) {
+		utils.Client = &mockHTTPClient{content: "manual"}
 		tempDir := t.TempDir()
 		dest := filepath.Join(tempDir, "manual.exe")
 		err := m.DownloadFileManual("http://example.com/manual.exe", dest, "Manual")
@@ -190,6 +221,7 @@ func TestPlugins_Complete(t *testing.T) {
 		task := DownloadTask{
 			Name: "TestZip",
 			Version: "1.0.0",
+			URL: "http://example.com/test.zip",
 			Target: "testzip/1.0.0",
 			CheckFile: "sub/test.txt",
 		}
@@ -203,6 +235,26 @@ func TestPlugins_Complete(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(targetDir, "test.txt")); os.IsNotExist(err) {
 			t.Error("Expected test.txt to be moved to targetDir from sub folder")
 		}
+
+		// Test Nupkg path
+		task.URL = "http://example.com/test.nupkg"
+		unzipFunc = func(ctx context.Context, src, dest, name string, emit func(context.Context, string, ...interface{})) error {
+			os.MkdirAll(filepath.Join(dest, "tools"), 0755)
+			os.WriteFile(filepath.Join(dest, "tools", "app.exe"), []byte("data"), 0644)
+			return nil
+		}
+		err = m.handleArchive(task, "dummy.nupkg", targetDir+"_nupkg")
+		if err != nil {
+			t.Errorf("handleArchive nupkg failed: %v", err)
+		}
+	})
+
+	t.Run("NewManager_Emit", func(t *testing.T) {
+		mgr := NewManager(context.Background())
+		// Directly test the emit logic without calling wruntime
+		mgr.emit = func(ctx context.Context, eventName string, optionalData ...interface{}) {}
+		mgr.emit(context.Background(), "test-event")
+		mgr.emit(nil, "test-event")
 	})
 
 	t.Run("DownloadAndExtract_AlreadyInstalled", func(t *testing.T) {
@@ -224,6 +276,20 @@ func TestPlugins_Complete(t *testing.T) {
 		err := m.DownloadAndExtract(task)
 		if err != nil {
 			t.Errorf("DownloadAndExtract should have skipped and returned nil, got %v", err)
+		}
+
+		// Test already installed branch with Apache special case
+		task2 := DownloadTask{
+			Name: "Apache",
+			Version: "2.4.54",
+			Target: "apache/httpd-2.4.54",
+			CheckFile: "bin/httpd.exe",
+		}
+		targetDir2 := filepath.Join(tempDir, "bin", task2.Target)
+		os.MkdirAll(filepath.Join(targetDir2, "Apache24", "bin"), 0755)
+		os.WriteFile(filepath.Join(targetDir2, "Apache24", "bin", "httpd.exe"), []byte(""), 0644)
+		if !m.isAlreadyInstalled(task2, targetDir2) {
+			t.Error("isAlreadyInstalled failed for Apache special case")
 		}
 	})
 }

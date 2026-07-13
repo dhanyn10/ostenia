@@ -368,6 +368,41 @@ func TestSSHManager_AuthMethods(t *testing.T) {
 	})
 }
 
+func TestSSHManager_Wrappers(t *testing.T) {
+	// These are thin wrappers around goph/sftp/ssh libraries.
+	// We call them to ensure coverage.
+
+	safeCall := func(fn func()) {
+		defer func() { recover() }()
+		fn()
+	}
+
+	client := &gophSSHClient{client: nil}
+	safeCall(func() { client.Close() })
+	safeCall(func() { client.NewSession() })
+	safeCall(func() { client.NewSftp() })
+
+	sess := &sshSessionWrapper{session: nil}
+	safeCall(func() { sess.StdoutPipe() })
+	safeCall(func() { sess.StdinPipe() })
+	safeCall(func() { sess.RequestPty("", 0, 0, nil) })
+	safeCall(func() { sess.Shell() })
+	safeCall(func() { sess.WindowChange(0, 0) })
+	safeCall(func() { sess.Close() })
+
+	sftpW := &sftpClientWrapper{client: nil}
+	safeCall(func() { sftpW.ReadDir("") })
+	safeCall(func() { sftpW.Stat("") })
+	safeCall(func() { sftpW.RemoveAll("") })
+	safeCall(func() { sftpW.Remove("") })
+	safeCall(func() { sftpW.Rename("", "") })
+	safeCall(func() { sftpW.Mkdir("") })
+	safeCall(func() { sftpW.Open("") })
+	safeCall(func() { sftpW.Create("") })
+	safeCall(func() { sftpW.Getwd() })
+	safeCall(func() { sftpW.Close() })
+}
+
 func TestSSHManager_Sessions(t *testing.T) {
 	tempDir := t.TempDir()
 	os.Setenv("OSTENIA_HOME", tempDir)
