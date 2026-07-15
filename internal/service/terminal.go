@@ -8,6 +8,8 @@ import (
 	"runtime"
 )
 
+var RuntimeGOOS = runtime.GOOS
+
 type Terminal struct {
 	WorkingDir string
 	Env        []string
@@ -23,7 +25,7 @@ func NewTerminal(workingDir string, env []string) *Terminal {
 func (t *Terminal) Open(terminalType string) error {
 	var cmd *exec.Cmd
 
-	if runtime.GOOS != "windows" {
+	if RuntimeGOOS != "windows" {
 		cmd = utils.Executor.Command("bash")
 		cmd.Dir = t.WorkingDir
 		cmd.Env = t.Env
@@ -69,10 +71,10 @@ func (t *Terminal) Start() error {
 // OpenExplorer opens the given path in the system's file explorer.
 func OpenExplorer(path string) error {
 	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
+	if RuntimeGOOS == "windows" {
 		// Using 'start' instead of 'explorer' directly to avoid the "exit status 1" quirk of explorer.exe
 		cmd = utils.Executor.Command("cmd", "/c", "start", "", filepath.FromSlash(path))
-	} else if runtime.GOOS == "darwin" {
+	} else if RuntimeGOOS == "darwin" {
 		cmd = utils.Executor.Command("open", path)
 	} else {
 		cmd = utils.Executor.Command("xdg-open", path)

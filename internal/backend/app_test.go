@@ -244,6 +244,10 @@ func TestApp_Full_Mocked(t *testing.T) {
     _ = app.StopService("Node.js")
     _ = app.StopService("Python")
 
+    // Node and Python Start Service fail cases
+    _ = app.startNodeService("/nonexistent")
+    _ = app.startPythonService("/nonexistent")
+
     plugins.DetectHeidiSQLInstallationOverride = func() (string, string) { return "path", "" }
     _ = app.OpenHeidiSQL()
     plugins.DetectHeidiSQLInstallationOverride = nil
