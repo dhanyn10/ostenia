@@ -10,7 +10,8 @@ ostenia.exe
 # Wails
 build/bin/*
 !build/bin/*.md
-frontend/wailsjs/
+frontend/wailsjs/*
+!frontend/wailsjs/.gitkeep
 frontend/dist
 !frontend/dist/.gitkeep
 frontend/package-lock.json

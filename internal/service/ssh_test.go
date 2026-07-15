@@ -332,9 +332,9 @@ func TestSSHManager_TerminalLoop(t *testing.T) {
 	pr, pw := io.Pipe()
 	conn := &SSHConnection{
 		SessionID: "loop-id",
-		PTY: &mockSSHSession{},
-		Context: ctx,
-		Cancel: cancel,
+		PTY:       &mockSSHSession{},
+		Context:   ctx,
+		Cancel:    cancel,
 	}
 
 	go func() {
@@ -349,6 +349,48 @@ func TestSSHManager_TerminalLoop(t *testing.T) {
 	if len(rt.emittedEvents) == 0 {
 		t.Error("Expected events to be emitted")
 	}
+
+	t.Run("handleTerminalExit Context Done", func(t *testing.T) {
+		m.mu.Lock()
+		m.connections[conn.SessionID] = conn
+		m.mu.Unlock()
+
+		exitChan2 := make(chan struct{})
+		sess := &mockSSHSession{}
+
+		// Trigger context cancel
+		cancel()
+
+		m.handleTerminalExit(conn, sess, exitChan2)
+		if !sess.closed {
+			t.Error("Expected session to be closed")
+		}
+	})
+
+	t.Run("handleTerminalExit exitChan", func(t *testing.T) {
+		ctx3, cancel3 := context.WithCancel(context.Background())
+		defer cancel3()
+		conn3 := &SSHConnection{
+			SessionID: "exit-id",
+			Context:   ctx3,
+			Cancel:    cancel3,
+		}
+		m.mu.Lock()
+		m.connections[conn3.SessionID] = conn3
+		m.mu.Unlock()
+
+		exitChan3 := make(chan struct{})
+		close(exitChan3)
+
+		m.handleTerminalExit(conn3, &mockSSHSession{}, exitChan3)
+
+		m.mu.RLock()
+		_, ok := m.connections["exit-id"]
+		m.mu.RUnlock()
+		if ok {
+			t.Error("Expected connection to be removed")
+		}
+	})
 }
 
 func TestSSHManager_AuthMethods(t *testing.T) {
