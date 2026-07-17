@@ -33,9 +33,7 @@ describe('GlobalConfigCategory Component', () => {
   });
 
   it('renders initial config values and loads installed apps', async () => {
-    await act(async () => {
-      render(<GlobalConfigCategory appConfig={mockConfig} initApp={vi.fn()} />);
-    });
+    render(<GlobalConfigCategory appConfig={mockConfig} initApp={vi.fn()} />);
 
     expect(screen.getByDisplayValue('/path/to/ostenia')).toBeInTheDocument();
     expect(screen.getByDisplayValue('/path/to/www')).toBeInTheDocument();
@@ -50,9 +48,7 @@ describe('GlobalConfigCategory Component', () => {
 
   it('handles empty apps response', async () => {
     AppBackend.GetInstalledApps.mockRejectedValue(new Error('Failed to load apps'));
-    await act(async () => {
-      render(<GlobalConfigCategory appConfig={mockConfig} initApp={vi.fn()} />);
-    });
+    render(<GlobalConfigCategory appConfig={mockConfig} initApp={vi.fn()} />);
 
     await waitFor(() => {
       expect(AppBackend.GetInstalledApps).toHaveBeenCalled();
@@ -63,15 +59,11 @@ describe('GlobalConfigCategory Component', () => {
     const initAppMock = vi.fn();
     AppBackend.SelectServerRoot.mockResolvedValue('/new/path');
 
-    await act(async () => {
-      render(<GlobalConfigCategory appConfig={mockConfig} initApp={initAppMock} />);
-    });
+    render(<GlobalConfigCategory appConfig={mockConfig} initApp={initAppMock} />);
 
     const browseButtons = screen.getAllByRole('button', { name: /browse/i });
     // First browse button is for Apps Location
-    await act(async () => {
-      fireEvent.click(browseButtons[0]);
-    });
+    fireEvent.click(browseButtons[0]);
 
     expect(AppBackend.SelectServerRoot).toHaveBeenCalled();
     await waitFor(() => {
@@ -83,15 +75,11 @@ describe('GlobalConfigCategory Component', () => {
     const initAppMock = vi.fn();
     AppBackend.SelectWWWRoot.mockResolvedValue('/new/www');
 
-    await act(async () => {
-      render(<GlobalConfigCategory appConfig={mockConfig} initApp={initAppMock} />);
-    });
+    render(<GlobalConfigCategory appConfig={mockConfig} initApp={initAppMock} />);
 
     const browseButtons = screen.getAllByRole('button', { name: /browse/i });
     // Second browse button is for Server Root
-    await act(async () => {
-      fireEvent.click(browseButtons[1]);
-    });
+    fireEvent.click(browseButtons[1]);
 
     expect(AppBackend.SelectWWWRoot).toHaveBeenCalled();
     await waitFor(() => {
@@ -103,18 +91,14 @@ describe('GlobalConfigCategory Component', () => {
     const initAppMock = vi.fn();
     AppBackend.SetDefaultEditor.mockResolvedValue(true);
 
-    await act(async () => {
-      render(<GlobalConfigCategory appConfig={mockConfig} initApp={initAppMock} />);
-    });
+    render(<GlobalConfigCategory appConfig={mockConfig} initApp={initAppMock} />);
 
     await waitFor(() => {
       expect(screen.getByText('VS Code')).toBeInTheDocument();
     });
 
     const select = screen.getByRole('combobox');
-    await act(async () => {
-      fireEvent.change(select, { target: { value: '/usr/bin/subl' } });
-    });
+    fireEvent.change(select, { target: { value: '/usr/bin/subl' } });
 
     expect(AppBackend.SetDefaultEditor).toHaveBeenCalledWith('/usr/bin/subl');
     await waitFor(() => {
@@ -126,14 +110,10 @@ describe('GlobalConfigCategory Component', () => {
     const initAppMock = vi.fn();
     AppBackend.SelectDefaultEditor.mockResolvedValue(true);
 
-    await act(async () => {
-      render(<GlobalConfigCategory appConfig={mockConfig} initApp={initAppMock} />);
-    });
+    render(<GlobalConfigCategory appConfig={mockConfig} initApp={initAppMock} />);
 
     const customBrowseBtn = screen.getByRole('button', { name: /custom browse/i });
-    await act(async () => {
-      fireEvent.click(customBrowseBtn);
-    });
+    fireEvent.click(customBrowseBtn);
 
     expect(AppBackend.SelectDefaultEditor).toHaveBeenCalled();
     await waitFor(() => {
@@ -145,9 +125,7 @@ describe('GlobalConfigCategory Component', () => {
     const initAppMock = vi.fn();
     AppBackend.SetDefaultEditor.mockResolvedValue(true);
 
-    await act(async () => {
-      render(<GlobalConfigCategory appConfig={mockConfig} initApp={initAppMock} />);
-    });
+    render(<GlobalConfigCategory appConfig={mockConfig} initApp={initAppMock} />);
 
     // The trash icon is inside a button. Since it has Trash2 icon, let's find the button.
     // The button has classes: "p-1.5 hover:bg-rose-500/10 rounded text-mui-grey-400 hover:text-rose-500 transition-colors"
@@ -155,9 +133,7 @@ describe('GlobalConfigCategory Component', () => {
     const trashBtn = screen.getByRole('button', { name: '' }); // and containing Trash2
     expect(trashBtn).toBeInTheDocument();
 
-    await act(async () => {
-      fireEvent.click(trashBtn);
-    });
+    fireEvent.click(trashBtn);
 
     expect(AppBackend.SetDefaultEditor).toHaveBeenCalledWith('');
     await waitFor(() => {
