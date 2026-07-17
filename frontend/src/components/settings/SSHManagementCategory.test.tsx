@@ -30,9 +30,7 @@ describe('SSHManagementCategory Component', () => {
   it('renders masked passwords by default', async () => {
     AppBackend.GetSSHSessions.mockResolvedValue(mockSessions);
 
-    await act(async () => {
-      render(<SSHManagementCategory />);
-    });
+    render(<SSHManagementCategory />);
 
     await waitFor(() => {
       expect(AppBackend.GetSSHSessions).toHaveBeenCalled();
@@ -50,9 +48,7 @@ describe('SSHManagementCategory Component', () => {
   it('unmasks passwords when toggle button is clicked', async () => {
     AppBackend.GetSSHSessions.mockResolvedValue(mockSessions);
 
-    await act(async () => {
-      render(<SSHManagementCategory />);
-    });
+    render(<SSHManagementCategory />);
 
     await waitFor(() => {
       expect(AppBackend.GetSSHSessions).toHaveBeenCalled();
@@ -60,12 +56,12 @@ describe('SSHManagementCategory Component', () => {
 
     const toggleBtn = screen.getByRole('button', { name: /show passwords/i });
 
-    await act(async () => {
-      fireEvent.click(toggleBtn);
-    });
+    fireEvent.click(toggleBtn);
 
     // Should now show actual password and passphrase, and label should change to "Mask Passwords"
-    expect(screen.getByRole('button', { name: /mask passwords/i })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /mask passwords/i })).toBeInTheDocument();
+    });
 
     const preElement = screen.getByText((content, element) => {
       return element?.tagName.toLowerCase() === 'pre' && content.includes('"password": "supersecretpassword"');
@@ -77,9 +73,7 @@ describe('SSHManagementCategory Component', () => {
   it('handles empty response or failure in loading sessions', async () => {
     AppBackend.GetSSHSessions.mockRejectedValue(new Error('Failed to load sessions'));
 
-    await act(async () => {
-      render(<SSHManagementCategory />);
-    });
+    render(<SSHManagementCategory />);
 
     await waitFor(() => {
       expect(AppBackend.GetSSHSessions).toHaveBeenCalled();

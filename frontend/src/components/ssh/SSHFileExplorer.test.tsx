@@ -25,30 +25,28 @@ describe('SSHFileExplorer Component', () => {
     vi.clearAllMocks();
   });
 
-  it('renders correctly with remote path and file list', async () => {
-    await act(async () => {
-      render(
-        <SSHFileExplorer
-          remotePath="/var/www"
-          editingPath="/var/www"
-          setEditingPath={setEditingPathMock}
-          onNavigateUp={onNavigateUpMock}
-          onSync={onSyncMock}
-          searchQuery=""
-          setSearchQuery={setSearchQueryMock}
-          onUpload={onUploadMock}
-          onNewFolder={onNewFolderMock}
-          loadingFiles={false}
-          sortedFiles={mockFiles}
-          onFileDoubleClick={onFileDoubleClickMock}
-          onFileContextMenu={onFileContextMenuMock}
-          formatSize={formatSizeMock}
-          toggleSort={toggleSortMock}
-          sortConfig={{ key: 'name', direction: 'asc' }}
-          onManualNavigation={onManualNavigationMock}
-        />
-      );
-    });
+  it('renders correctly with remote path and file list', () => {
+    render(
+      <SSHFileExplorer
+        remotePath="/var/www"
+        editingPath="/var/www"
+        setEditingPath={setEditingPathMock}
+        onNavigateUp={onNavigateUpMock}
+        onSync={onSyncMock}
+        searchQuery=""
+        setSearchQuery={setSearchQueryMock}
+        onUpload={onUploadMock}
+        onNewFolder={onNewFolderMock}
+        loadingFiles={false}
+        sortedFiles={mockFiles}
+        onFileDoubleClick={onFileDoubleClickMock}
+        onFileContextMenu={onFileContextMenuMock}
+        formatSize={formatSizeMock}
+        toggleSort={toggleSortMock}
+        sortConfig={{ key: 'name', direction: 'asc' }}
+        onManualNavigation={onManualNavigationMock}
+      />
+    );
 
     expect(screen.getByDisplayValue('/var/www')).toBeInTheDocument();
     expect(screen.getByText('folder-1')).toBeInTheDocument();
@@ -56,30 +54,28 @@ describe('SSHFileExplorer Component', () => {
     expect(screen.getByText('1024 B')).toBeInTheDocument();
   });
 
-  it('handles custom input for editing path and Enter/Escape actions', async () => {
-    await act(async () => {
-      render(
-        <SSHFileExplorer
-          remotePath="/var/www"
-          editingPath="/var/www"
-          setEditingPath={setEditingPathMock}
-          onNavigateUp={onNavigateUpMock}
-          onSync={onSyncMock}
-          searchQuery=""
-          setSearchQuery={setSearchQueryMock}
-          onUpload={onUploadMock}
-          onNewFolder={onNewFolderMock}
-          loadingFiles={false}
-          sortedFiles={mockFiles}
-          onFileDoubleClick={onFileDoubleClickMock}
-          onFileContextMenu={onFileContextMenuMock}
-          formatSize={formatSizeMock}
-          toggleSort={toggleSortMock}
-          sortConfig={{ key: 'name', direction: 'asc' }}
-          onManualNavigation={onManualNavigationMock}
-        />
-      );
-    });
+  it('handles custom input for editing path and Enter/Escape actions', () => {
+    render(
+      <SSHFileExplorer
+        remotePath="/var/www"
+        editingPath="/var/www"
+        setEditingPath={setEditingPathMock}
+        onNavigateUp={onNavigateUpMock}
+        onSync={onSyncMock}
+        searchQuery=""
+        setSearchQuery={setSearchQueryMock}
+        onUpload={onUploadMock}
+        onNewFolder={onNewFolderMock}
+        loadingFiles={false}
+        sortedFiles={mockFiles}
+        onFileDoubleClick={onFileDoubleClickMock}
+        onFileContextMenu={onFileContextMenuMock}
+        formatSize={formatSizeMock}
+        toggleSort={toggleSortMock}
+        sortConfig={{ key: 'name', direction: 'asc' }}
+        onManualNavigation={onManualNavigationMock}
+      />
+    );
 
     const pathInput = screen.getByDisplayValue('/var/www');
 
@@ -92,30 +88,28 @@ describe('SSHFileExplorer Component', () => {
     expect(setEditingPathMock).toHaveBeenCalledWith('/var/www');
   });
 
-  it('triggers onUpload and onNewFolder click events', async () => {
-    await act(async () => {
-      render(
-        <SSHFileExplorer
-          remotePath="/var/www"
-          editingPath="/var/www"
-          setEditingPath={setEditingPathMock}
-          onNavigateUp={onNavigateUpMock}
-          onSync={onSyncMock}
-          searchQuery=""
-          setSearchQuery={setSearchQueryMock}
-          onUpload={onUploadMock}
-          onNewFolder={onNewFolderMock}
-          loadingFiles={false}
-          sortedFiles={mockFiles}
-          onFileDoubleClick={onFileDoubleClickMock}
-          onFileContextMenu={onFileContextMenuMock}
-          formatSize={formatSizeMock}
-          toggleSort={toggleSortMock}
-          sortConfig={{ key: 'name', direction: 'asc' }}
-          onManualNavigation={onManualNavigationMock}
-        />
-      );
-    });
+  it('triggers onUpload and onNewFolder click events', () => {
+    render(
+      <SSHFileExplorer
+        remotePath="/var/www"
+        editingPath="/var/www"
+        setEditingPath={setEditingPathMock}
+        onNavigateUp={onNavigateUpMock}
+        onSync={onSyncMock}
+        searchQuery=""
+        setSearchQuery={setSearchQueryMock}
+        onUpload={onUploadMock}
+        onNewFolder={onNewFolderMock}
+        loadingFiles={false}
+        sortedFiles={mockFiles}
+        onFileDoubleClick={onFileDoubleClickMock}
+        onFileContextMenu={onFileContextMenuMock}
+        formatSize={formatSizeMock}
+        toggleSort={toggleSortMock}
+        sortConfig={{ key: 'name', direction: 'asc' }}
+        onManualNavigation={onManualNavigationMock}
+      />
+    );
 
     const uploadBtn = screen.getByRole('button', { name: /upload/i });
     fireEvent.click(uploadBtn);
@@ -126,30 +120,28 @@ describe('SSHFileExplorer Component', () => {
     expect(onNewFolderMock).toHaveBeenCalled();
   });
 
-  it('triggers sorting toggle actions on headers', async () => {
-    await act(async () => {
-      render(
-        <SSHFileExplorer
-          remotePath="/var/www"
-          editingPath="/var/www"
-          setEditingPath={setEditingPathMock}
-          onNavigateUp={onNavigateUpMock}
-          onSync={onSyncMock}
-          searchQuery=""
-          setSearchQuery={setSearchQueryMock}
-          onUpload={onUploadMock}
-          onNewFolder={onNewFolderMock}
-          loadingFiles={false}
-          sortedFiles={mockFiles}
-          onFileDoubleClick={onFileDoubleClickMock}
-          onFileContextMenu={onFileContextMenuMock}
-          formatSize={formatSizeMock}
-          toggleSort={toggleSortMock}
-          sortConfig={{ key: 'name', direction: 'asc' }}
-          onManualNavigation={onManualNavigationMock}
-        />
-      );
-    });
+  it('triggers sorting toggle actions on headers', () => {
+    render(
+      <SSHFileExplorer
+        remotePath="/var/www"
+        editingPath="/var/www"
+        setEditingPath={setEditingPathMock}
+        onNavigateUp={onNavigateUpMock}
+        onSync={onSyncMock}
+        searchQuery=""
+        setSearchQuery={setSearchQueryMock}
+        onUpload={onUploadMock}
+        onNewFolder={onNewFolderMock}
+        loadingFiles={false}
+        sortedFiles={mockFiles}
+        onFileDoubleClick={onFileDoubleClickMock}
+        onFileContextMenu={onFileContextMenuMock}
+        formatSize={formatSizeMock}
+        toggleSort={toggleSortMock}
+        sortConfig={{ key: 'name', direction: 'asc' }}
+        onManualNavigation={onManualNavigationMock}
+      />
+    );
 
     const nameHeader = screen.getByRole('button', { name: /name/i });
     fireEvent.click(nameHeader);
@@ -160,30 +152,28 @@ describe('SSHFileExplorer Component', () => {
     expect(toggleSortMock).toHaveBeenCalledWith('size');
   });
 
-  it('renders loading indicator state', async () => {
-    await act(async () => {
-      render(
-        <SSHFileExplorer
-          remotePath="/var/www"
-          editingPath="/var/www"
-          setEditingPath={setEditingPathMock}
-          onNavigateUp={onNavigateUpMock}
-          onSync={onSyncMock}
-          searchQuery=""
-          setSearchQuery={setSearchQueryMock}
-          onUpload={onUploadMock}
-          onNewFolder={onNewFolderMock}
-          loadingFiles={true}
-          sortedFiles={[]}
-          onFileDoubleClick={onFileDoubleClickMock}
-          onFileContextMenu={onFileContextMenuMock}
-          formatSize={formatSizeMock}
-          toggleSort={toggleSortMock}
-          sortConfig={{ key: 'name', direction: 'asc' }}
-          onManualNavigation={onManualNavigationMock}
-        />
-      );
-    });
+  it('renders loading indicator state', () => {
+    render(
+      <SSHFileExplorer
+        remotePath="/var/www"
+        editingPath="/var/www"
+        setEditingPath={setEditingPathMock}
+        onNavigateUp={onNavigateUpMock}
+        onSync={onSyncMock}
+        searchQuery=""
+        setSearchQuery={setSearchQueryMock}
+        onUpload={onUploadMock}
+        onNewFolder={onNewFolderMock}
+        loadingFiles={true}
+        sortedFiles={[]}
+        onFileDoubleClick={onFileDoubleClickMock}
+        onFileContextMenu={onFileContextMenuMock}
+        formatSize={formatSizeMock}
+        toggleSort={toggleSortMock}
+        sortConfig={{ key: 'name', direction: 'asc' }}
+        onManualNavigation={onManualNavigationMock}
+      />
+    );
 
     // Check that files are not rendered, but loading indicator is present
     expect(screen.queryByText('folder-1')).not.toBeInTheDocument();

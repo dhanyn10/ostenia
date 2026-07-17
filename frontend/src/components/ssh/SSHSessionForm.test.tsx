@@ -34,17 +34,15 @@ describe('SSHSessionForm Component', () => {
     vi.clearAllMocks();
   });
 
-  it('renders in New Connection mode by default', async () => {
-    await act(async () => {
-      render(
-        <SSHSessionForm
-          session={null}
-          onClose={onCloseMock}
-          onSave={onSaveMock}
-          addToast={addToastMock}
-        />
-      );
-    });
+  it('renders in New Connection mode by default', () => {
+    render(
+      <SSHSessionForm
+        session={null}
+        onClose={onCloseMock}
+        onSave={onSaveMock}
+        addToast={addToastMock}
+      />
+    );
 
     expect(screen.getByText('New Connection')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('e.g. Production Web')).toHaveValue('');
@@ -53,17 +51,15 @@ describe('SSHSessionForm Component', () => {
     expect(screen.getByPlaceholderText('root')).toHaveValue('root');
   });
 
-  it('renders with loaded session data in Edit Connection mode', async () => {
-    await act(async () => {
-      render(
-        <SSHSessionForm
-          session={mockSession}
-          onClose={onCloseMock}
-          onSave={onSaveMock}
-          addToast={addToastMock}
-        />
-      );
-    });
+  it('renders with loaded session data in Edit Connection mode', () => {
+    render(
+      <SSHSessionForm
+        session={mockSession}
+        onClose={onCloseMock}
+        onSave={onSaveMock}
+        addToast={addToastMock}
+      />
+    );
 
     expect(screen.getByText('Edit Connection')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('e.g. Production Web')).toHaveValue('Production Server');
@@ -74,31 +70,25 @@ describe('SSHSessionForm Component', () => {
   });
 
   it('allows toggling auth methods between Password and Key File', async () => {
-    await act(async () => {
-      render(
-        <SSHSessionForm
-          session={null}
-          onClose={onCloseMock}
-          onSave={onSaveMock}
-          addToast={addToastMock}
-        />
-      );
-    });
+    render(
+      <SSHSessionForm
+        session={null}
+        onClose={onCloseMock}
+        onSave={onSaveMock}
+        addToast={addToastMock}
+      />
+    );
 
     // Toggle to Key File
     const keyFileBtn = screen.getByRole('button', { name: 'Key File' });
-    await act(async () => {
-      fireEvent.click(keyFileBtn);
-    });
+    fireEvent.click(keyFileBtn);
 
     expect(screen.getByPlaceholderText('e.g. /home/user/.ssh/id_rsa')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('optional')).toBeInTheDocument(); // passphrase field
 
     // Toggle back to Password
     const passwordBtn = screen.getByRole('button', { name: 'Password' });
-    await act(async () => {
-      fireEvent.click(passwordBtn);
-    });
+    fireEvent.click(passwordBtn);
 
     expect(screen.getByPlaceholderText('••••••••')).toBeInTheDocument();
   });
@@ -106,16 +96,14 @@ describe('SSHSessionForm Component', () => {
   it('submits a new connection successfully', async () => {
     AppBackend.AddSSHSession.mockResolvedValue(true);
 
-    await act(async () => {
-      render(
-        <SSHSessionForm
-          session={null}
-          onClose={onCloseMock}
-          onSave={onSaveMock}
-          addToast={addToastMock}
-        />
-      );
-    });
+    render(
+      <SSHSessionForm
+        session={null}
+        onClose={onCloseMock}
+        onSave={onSaveMock}
+        addToast={addToastMock}
+      />
+    );
 
     fireEvent.change(screen.getByPlaceholderText('e.g. Production Web'), { target: { value: 'My Test Server' } });
     fireEvent.change(screen.getByPlaceholderText('1.2.3.4 or example.com'), { target: { value: '10.0.0.1' } });
@@ -124,61 +112,57 @@ describe('SSHSessionForm Component', () => {
     fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'secret' } });
 
     const saveBtn = screen.getByRole('button', { name: 'Save' });
-    await act(async () => {
-      fireEvent.click(saveBtn);
-    });
+    fireEvent.click(saveBtn);
 
     expect(AppBackend.AddSSHSession).toHaveBeenCalled();
-    expect(addToastMock).toHaveBeenCalledWith('Success', expect.stringContaining('created successfully'), 'success');
+    await waitFor(() => {
+      expect(addToastMock).toHaveBeenCalledWith('Success', expect.stringContaining('created successfully'), 'success');
+    });
     expect(onSaveMock).toHaveBeenCalled();
   });
 
   it('submits update successfully for an existing connection', async () => {
     AppBackend.UpdateSSHSession.mockResolvedValue(true);
 
-    await act(async () => {
-      render(
-        <SSHSessionForm
-          session={mockSession}
-          onClose={onCloseMock}
-          onSave={onSaveMock}
-          addToast={addToastMock}
-        />
-      );
-    });
+    render(
+      <SSHSessionForm
+        session={mockSession}
+        onClose={onCloseMock}
+        onSave={onSaveMock}
+        addToast={addToastMock}
+      />
+    );
 
     const updateBtn = screen.getByRole('button', { name: 'Update' });
-    await act(async () => {
-      fireEvent.click(updateBtn);
-    });
+    fireEvent.click(updateBtn);
 
     expect(AppBackend.UpdateSSHSession).toHaveBeenCalledWith(expect.objectContaining({
       id: 'session-123',
       name: 'Production Server'
     }));
-    expect(addToastMock).toHaveBeenCalledWith('Success', expect.stringContaining('updated successfully'), 'success');
+    await waitFor(() => {
+      expect(addToastMock).toHaveBeenCalledWith('Success', expect.stringContaining('updated successfully'), 'success');
+    });
     expect(onSaveMock).toHaveBeenCalled();
   });
 
   it('displays a toast message on form submission error', async () => {
     AppBackend.UpdateSSHSession.mockRejectedValue(new Error('Backend offline'));
 
-    await act(async () => {
-      render(
-        <SSHSessionForm
-          session={mockSession}
-          onClose={onCloseMock}
-          onSave={onSaveMock}
-          addToast={addToastMock}
-        />
-      );
-    });
+    render(
+      <SSHSessionForm
+        session={mockSession}
+        onClose={onCloseMock}
+        onSave={onSaveMock}
+        addToast={addToastMock}
+      />
+    );
 
     const updateBtn = screen.getByRole('button', { name: 'Update' });
-    await act(async () => {
-      fireEvent.click(updateBtn);
-    });
+    fireEvent.click(updateBtn);
 
-    expect(addToastMock).toHaveBeenCalledWith('Error', expect.stringContaining('Failed to save session: Error: Backend offline'), 'error');
+    await waitFor(() => {
+      expect(addToastMock).toHaveBeenCalledWith('Error', expect.stringContaining('Failed to save session: Error: Backend offline'), 'error');
+    });
   });
 });

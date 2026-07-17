@@ -17,17 +17,13 @@ describe('ProfileCategory Component', () => {
     vi.clearAllMocks();
   });
 
-  it('handles Export All action on click', async () => {
+  it('handles Export All action on click', () => {
     AppBackend.ExportProfile.mockResolvedValue(true);
 
-    await act(async () => {
-      render(<ProfileCategory initApp={vi.fn()} />);
-    });
+    render(<ProfileCategory initApp={vi.fn()} />);
 
     const exportBtn = screen.getByRole('button', { name: /export all/i });
-    await act(async () => {
-      fireEvent.click(exportBtn);
-    });
+    fireEvent.click(exportBtn);
 
     expect(AppBackend.ExportProfile).toHaveBeenCalledWith(true, true);
   });
@@ -36,14 +32,10 @@ describe('ProfileCategory Component', () => {
     const initAppMock = vi.fn();
     AppBackend.ImportProfile.mockResolvedValue(true);
 
-    await act(async () => {
-      render(<ProfileCategory initApp={initAppMock} />);
-    });
+    render(<ProfileCategory initApp={initAppMock} />);
 
     const importBtn = screen.getByRole('button', { name: /import profile/i });
-    await act(async () => {
-      fireEvent.click(importBtn);
-    });
+    fireEvent.click(importBtn);
 
     expect(AppBackend.ImportProfile).toHaveBeenCalled();
     await waitFor(() => {
@@ -51,23 +43,17 @@ describe('ProfileCategory Component', () => {
     });
   });
 
-  it('handles granular exports (Config Only, SSH Sessions Only) on click', async () => {
+  it('handles granular exports (Config Only, SSH Sessions Only) on click', () => {
     AppBackend.ExportProfile.mockResolvedValue(true);
 
-    await act(async () => {
-      render(<ProfileCategory initApp={vi.fn()} />);
-    });
+    render(<ProfileCategory initApp={vi.fn()} />);
 
     const configBtn = screen.getByRole('button', { name: /config only/i });
-    await act(async () => {
-      fireEvent.click(configBtn);
-    });
+    fireEvent.click(configBtn);
     expect(AppBackend.ExportProfile).toHaveBeenCalledWith(true, false);
 
     const sshBtn = screen.getByRole('button', { name: /ssh sessions only/i });
-    await act(async () => {
-      fireEvent.click(sshBtn);
-    });
+    fireEvent.click(sshBtn);
     expect(AppBackend.ExportProfile).toHaveBeenCalledWith(false, true);
   });
 
@@ -76,21 +62,19 @@ describe('ProfileCategory Component', () => {
     AppBackend.ImportProfile.mockRejectedValue(new Error('Import error'));
     AppBackend.ExportProfile.mockRejectedValue(new Error('Export error'));
 
-    await act(async () => {
-      render(<ProfileCategory initApp={vi.fn()} />);
-    });
+    render(<ProfileCategory initApp={vi.fn()} />);
 
     const importBtn = screen.getByRole('button', { name: /import profile/i });
-    await act(async () => {
-      fireEvent.click(importBtn);
+    fireEvent.click(importBtn);
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalled();
     });
-    expect(consoleErrorSpy).toHaveBeenCalled();
 
     const exportBtn = screen.getByRole('button', { name: /export all/i });
-    await act(async () => {
-      fireEvent.click(exportBtn);
+    fireEvent.click(exportBtn);
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalled();
     });
-    expect(consoleErrorSpy).toHaveBeenCalled();
 
     consoleErrorSpy.mockRestore();
   });
