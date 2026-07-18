@@ -69,7 +69,7 @@ func GenerateProxyVHost(projectName string, targetPort int, listenPort int, http
 }
 
 // UpdateApacheConfig modifies the main httpd.conf and related extra configurations to align with Ostenia's environment
-func UpdateApacheConfig(apachePath string, phpDllPath string, phpIniDir string, vhostsContent string, port int, wwwRoot string, phpPort int, httpsEnabled bool) error {
+func UpdateApacheConfig(apachePath string, vhostsContent string, port int, wwwRoot string, phpPort int, httpsEnabled bool) error {
 	confPath := filepath.Join(apachePath, "conf", "httpd.conf")
 	phpConfPath := filepath.Join(apachePath, "conf", "extra", "httpd-ostenia-php.conf")
 	sslConfPath := filepath.Join(apachePath, "conf", "extra", "httpd-ostenia-ssl.conf")
