@@ -14,6 +14,8 @@ import (
 //go:embed php.svg
 var iconSVG string
 
+const composerPhar = "composer.phar"
+
 func DetectVersions() ([]string, map[string]string) {
 	baseURL := "https://windows.php.net/downloads/releases/archives/"
 	content := utils.FetchContent(baseURL)
@@ -65,16 +67,16 @@ func GetIcon() string {
 
 func GetModules() []utils.ModuleDefinition {
 	return []utils.ModuleDefinition{
-		{Name: "Composer", CheckFile: "composer.phar"},
+		{Name: "Composer", CheckFile: composerPhar},
 	}
 }
 
 func GetModuleVersion(moduleName, phpPath string) string {
 	if moduleName == "Composer" {
-		composerPhar := filepath.Join(phpPath, "composer.phar")
-		if _, err := os.Stat(composerPhar); err != nil { return "" }
+		composerPharPath := filepath.Join(phpPath, composerPhar)
+		if _, err := os.Stat(composerPharPath); err != nil { return "" }
 		phpExe := filepath.Join(phpPath, "php.exe")
-		cmd := utils.Executor.Command(phpExe, composerPhar, "--version")
+		cmd := utils.Executor.Command(phpExe, composerPharPath, "--version")
 		utils.SetHideWindow(cmd)
 		out, err := cmd.Output()
 		if err != nil { return "" }
@@ -87,7 +89,7 @@ func GetModuleVersion(moduleName, phpPath string) string {
 
 func UninstallModule(moduleName, phpPath string) error {
 	if moduleName == "Composer" {
-		os.Remove(filepath.Join(phpPath, "composer.phar"))
+		os.Remove(filepath.Join(phpPath, composerPhar))
 		os.Remove(filepath.Join(phpPath, "composer.bat"))
 		return nil
 	}
@@ -97,11 +99,11 @@ func UninstallModule(moduleName, phpPath string) error {
 func InstallModule(ctx, m interface{}, moduleName, phpPath string, emitProgress func(string, float64, string)) error {
 	if moduleName == "Composer" {
 		emitProgress("Composer", 10, "Downloading...")
-		composerPhar := filepath.Join(phpPath, "composer.phar")
+		composerPharPath := filepath.Join(phpPath, composerPhar)
 
 		// We need a way to download. Let's assume manager provides it or we do it here.
 		// To keep it clean, let's use a helper.
-		err := utils.DownloadFile(context.Background(), "https://getcomposer.org/composer.phar", composerPhar, "Composer", func(pct float64, status, speed, downloaded string) {
+		err := utils.DownloadFile(context.Background(), "https://getcomposer.org/composer.phar", composerPharPath, "Composer", func(pct float64, status, speed, downloaded string) {
 			emitProgress("Composer", pct, status)
 		})
 		if err != nil { return err }

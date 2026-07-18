@@ -18,6 +18,11 @@ import (
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
+const (
+	nupkgExt  = ".nupkg"
+	errPrefix = "Error: "
+)
+
 // Manager coordinates the download, extraction, and management of plugin versions
 type Manager struct {
 	ctx       context.Context
@@ -153,12 +158,12 @@ func (m *Manager) downloadPlugin(task DownloadTask) (string, bool, error) {
 	}()
 
 	isZip := strings.HasSuffix(strings.ToLower(task.URL), ".zip")
-	isNupkg := strings.HasSuffix(strings.ToLower(task.URL), ".nupkg")
+	isNupkg := strings.HasSuffix(strings.ToLower(task.URL), nupkgExt)
 	ext := ".exe"
 	if isZip {
 		ext = ".zip"
 	} else if isNupkg {
-		ext = ".nupkg"
+		ext = nupkgExt
 	}
 	tmp := filepath.Join(os.TempDir(), "ostenia_"+task.Name+ext)
 
@@ -168,7 +173,7 @@ func (m *Manager) downloadPlugin(task DownloadTask) (string, bool, error) {
 
 	if err != nil {
 		fmt.Printf("[Manager] Download failed: %v\n", err)
-		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: "Error: " + err.Error()})
+		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: errPrefix + err.Error()})
 		return "", false, err
 	}
 
@@ -205,13 +210,13 @@ func (m *Manager) handleArchive(task DownloadTask, tmpFile, targetDir string) er
 
 	if err := unzipFunc(m.ctx, tmpFile, extractTmp, task.Name, m.emit); err != nil {
 		fmt.Printf("[Manager] Extraction failed: %v\n", err)
-		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: "Error: " + err.Error()})
+		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: errPrefix + err.Error()})
 		return err
 	}
 
 	if err := m.postProcessExtraction(task, extractTmp, targetDir); err != nil {
 		fmt.Printf("[Manager] Post-processing failed: %v\n", err)
-		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: "Error: " + err.Error()})
+		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: errPrefix + err.Error()})
 		return err
 	}
 
@@ -223,7 +228,7 @@ func (m *Manager) handleArchive(task DownloadTask, tmpFile, targetDir string) er
 
 func (m *Manager) postProcessExtraction(task DownloadTask, extractTmp, targetDir string) error {
 	// Handle Nuget package structure
-	if strings.HasSuffix(strings.ToLower(task.URL), ".nupkg") {
+	if strings.HasSuffix(strings.ToLower(task.URL), nupkgExt) {
 		toolsDir := filepath.Join(extractTmp, "tools")
 		if _, err := os.Stat(toolsDir); err == nil {
 			es, _ := os.ReadDir(toolsDir)

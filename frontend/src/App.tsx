@@ -119,7 +119,12 @@ function App() {
    try {
      const time = new Date().toLocaleTimeString();
      const id = crypto.randomUUID();
-     const prefix = type === 'error' ? 'ERR' : type === 'warn' ? 'WRN' : 'SYS';
+     let prefix = 'SYS';
+     if (type === 'error') {
+       prefix = 'ERR';
+     } else if (type === 'warn') {
+       prefix = 'WRN';
+     }
      setLogs(prev => [{ id, time, msg: `[${prefix}] ${msg}` }, ...prev].slice(0, 1000));
    } finally {
      isLogging = false;

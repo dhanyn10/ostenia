@@ -22,6 +22,7 @@ const VersionDropdown: React.FC<VersionDropdownProps> = ({ current, options, onC
  return (
  <div className="relative">
  <button
+   type="button"
  onClick={(e) => { e.stopPropagation(); onToggle(); }}
  className="flex items-center gap-1.5 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-sm px-1.5 py-0.5 hover:border-blue-500/30 transition-colors group cursor-pointer"
  >
@@ -52,6 +53,7 @@ const VersionDropdown: React.FC<VersionDropdownProps> = ({ current, options, onC
  {allowCustom && (
  <div className="border-t border-slate-100 dark:border-white/5 mt-1 pt-1">
  <button
+   type="button"
  onClick={(e) => { e.stopPropagation(); onCustomClick?.(); onToggle(); }}
  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-[9px] font-bold text-slate-500 dark:text-slate-400 hover:bg-blue-500/10 hover:text-blue-600 transition-all text-left"
  >
