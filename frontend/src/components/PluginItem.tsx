@@ -96,6 +96,7 @@ function PluginItem({
 
  {task.modules && task.modules.length > 0 && (
  <button
+   type="button"
  onClick={() => setIsModulesExpanded(!isModulesExpanded)}
  className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-sm transition-all text-slate-400 hover:text-slate-900 dark:hover:text-white"
  >
@@ -118,6 +119,7 @@ function PluginItem({
 
  {!isActive && (
  <button
+   type="button"
  disabled={isSelectedInstalled}
  onClick={() => !isSelectedInstalled && onInstall(task)}
  className={cn(
@@ -181,6 +183,7 @@ function PluginItem({
  <div className="flex items-center gap-2">
  {isModInstalled && (
  <button
+   type="button"
  onClick={() => onUninstallModule(task.name, mod.name)}
  className="p-1.5 bg-slate-100 dark:bg-white/5 hover:bg-rose-500/10 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-sm transition-all border border-slate-200 dark:border-white/5"
  title={`Uninstall ${mod.name}`}
@@ -203,6 +206,7 @@ function PluginItem({
 
                    return (
                      <button
+                       type="button"
                        disabled={isModInstalled || !task.isInstalled}
                        onClick={() => onInstallModule(task.name, mod.name)}
                        className={cn("p-2 rounded-sm transition-all", buttonClass)}

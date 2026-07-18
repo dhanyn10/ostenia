@@ -8,6 +8,8 @@ import (
 	"runtime"
 )
 
+const cmdExe = "cmd.exe"
+
 var RuntimeGOOS = runtime.GOOS
 
 type Terminal struct {
@@ -34,7 +36,7 @@ func (t *Terminal) Open(terminalType string) error {
 
 	switch terminalType {
 	case "powershell":
-		cmd = utils.Executor.Command("cmd.exe", "/C", "start", "powershell.exe", "-NoExit", "-Command", "Set-Location '"+t.WorkingDir+"'; $Host.UI.RawUI.WindowTitle = 'Ostenia PowerShell'")
+		cmd = utils.Executor.Command(cmdExe, "/C", "start", "powershell.exe", "-NoExit", "-Command", "Set-Location '"+t.WorkingDir+"'; $Host.UI.RawUI.WindowTitle = 'Ostenia PowerShell'")
 	case "gitbash":
 		bashPaths := []string{
 			`C:\Program Files\Git\bin\bash.exe`,
@@ -51,12 +53,12 @@ func (t *Terminal) Open(terminalType string) error {
 		}
 
 		if bashPath != "" {
-			cmd = utils.Executor.Command("cmd.exe", "/C", "start", "", bashPath, "--login", "-i")
+			cmd = utils.Executor.Command(cmdExe, "/C", "start", "", bashPath, "--login", "-i")
 		} else {
-			cmd = utils.Executor.Command("cmd.exe", "/C", "start", "cmd.exe", "/K", "title Ostenia Terminal (Git Bash not found)")
+			cmd = utils.Executor.Command(cmdExe, "/C", "start", cmdExe, "/K", "title Ostenia Terminal (Git Bash not found)")
 		}
 	default: // cmd
-		cmd = utils.Executor.Command("cmd.exe", "/C", "start", "cmd.exe", "/K", "title Ostenia Terminal")
+		cmd = utils.Executor.Command(cmdExe, "/C", "start", cmdExe, "/K", "title Ostenia Terminal")
 	}
 
 	cmd.Dir = t.WorkingDir

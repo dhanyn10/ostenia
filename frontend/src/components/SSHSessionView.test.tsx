@@ -68,9 +68,7 @@ describe('SSHSessionView Component', () => {
   });
 
   it('renders and connects to SSH', async () => {
-    await act(async () => {
-      render(<SSHSessionView {...mockProps} />);
-    });
+    render(<SSHSessionView {...mockProps} />);
 
     expect(AppBackend.ConnectSSH).toHaveBeenCalledWith(mockSession);
 
@@ -80,9 +78,7 @@ describe('SSHSessionView Component', () => {
   });
 
   it('lists remote files after connection', async () => {
-    await act(async () => {
-      render(<SSHSessionView {...mockProps} />);
-    });
+    render(<SSHSessionView {...mockProps} />);
 
     await waitFor(() => {
       expect(AppBackend.GetRemoteFiles).toHaveBeenCalled();
@@ -93,9 +89,7 @@ describe('SSHSessionView Component', () => {
   });
 
   it('handles toolbar actions', async () => {
-    await act(async () => {
-      render(<SSHSessionView {...mockProps} />);
-    });
+    render(<SSHSessionView {...mockProps} />);
 
     await waitFor(() => {
         expect(screen.queryByText(/Connecting\.\.\./i)).not.toBeInTheDocument();
@@ -111,9 +105,7 @@ describe('SSHSessionView Component', () => {
   });
 
   it('handles file deletion', async () => {
-    await act(async () => {
-      render(<SSHSessionView {...mockProps} />);
-    });
+    render(<SSHSessionView {...mockProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('test.txt')).toBeInTheDocument();
@@ -123,9 +115,7 @@ describe('SSHSessionView Component', () => {
     fireEvent.contextMenu(fileItem);
 
     const deleteBtn = screen.getByText(/Delete/i);
-    await act(async () => {
-      fireEvent.click(deleteBtn);
-    });
+    fireEvent.click(deleteBtn);
 
     expect(window.confirm).toHaveBeenCalled();
     expect(AppBackend.ExecuteSFTPAction).toHaveBeenCalledWith(
@@ -134,18 +124,14 @@ describe('SSHSessionView Component', () => {
   });
 
   it('handles directory navigation', async () => {
-    await act(async () => {
-      render(<SSHSessionView {...mockProps} />);
-    });
+    render(<SSHSessionView {...mockProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('folder')).toBeInTheDocument();
     });
 
     const folderItem = screen.getByText('folder');
-    await act(async () => {
-        fireEvent.doubleClick(folderItem);
-    });
+    fireEvent.doubleClick(folderItem);
 
     expect(AppBackend.GetRemoteFiles).toHaveBeenCalledWith(mockSession.id, expect.stringContaining('folder'));
   });
