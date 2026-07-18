@@ -13,19 +13,17 @@ describe('SSHToolbar Component', () => {
     vi.clearAllMocks();
   });
 
-  it('renders toolbar correctly', async () => {
-    await act(async () => {
-      render(
-        <SSHToolbar
-          explorerVisible={true}
-          setExplorerVisible={setExplorerVisibleMock}
-          onFit={onFitMock}
-          onReconnect={onReconnectMock}
-          onClose={onCloseMock}
-          connecting={false}
-        />
-      );
-    });
+  it('renders toolbar correctly', () => {
+    render(
+      <SSHToolbar
+        explorerVisible={true}
+        setExplorerVisible={setExplorerVisibleMock}
+        onFit={onFitMock}
+        onReconnect={onReconnectMock}
+        onClose={onCloseMock}
+        connecting={false}
+      />
+    );
 
     expect(screen.getByTitle('Toggle Explorer')).toBeInTheDocument();
     expect(screen.getByTitle('Fit Terminal')).toBeInTheDocument();
@@ -33,19 +31,17 @@ describe('SSHToolbar Component', () => {
     expect(screen.getByTitle('Close')).toBeInTheDocument();
   });
 
-  it('triggers events when clicking buttons', async () => {
-    await act(async () => {
-      render(
-        <SSHToolbar
-          explorerVisible={false}
-          setExplorerVisible={setExplorerVisibleMock}
-          onFit={onFitMock}
-          onReconnect={onReconnectMock}
-          onClose={onCloseMock}
-          connecting={false}
-        />
-      );
-    });
+  it('triggers events when clicking buttons', () => {
+    render(
+      <SSHToolbar
+        explorerVisible={false}
+        setExplorerVisible={setExplorerVisibleMock}
+        onFit={onFitMock}
+        onReconnect={onReconnectMock}
+        onClose={onCloseMock}
+        connecting={false}
+      />
+    );
 
     // Toggle explorer
     fireEvent.click(screen.getByTitle('Toggle Explorer'));
@@ -64,19 +60,17 @@ describe('SSHToolbar Component', () => {
     expect(onCloseMock).toHaveBeenCalled();
   });
 
-  it('disables reconnect button when connecting', async () => {
-    await act(async () => {
-      render(
-        <SSHToolbar
-          explorerVisible={false}
-          setExplorerVisible={setExplorerVisibleMock}
-          onFit={onFitMock}
-          onReconnect={onReconnectMock}
-          onClose={onCloseMock}
-          connecting={true}
-        />
-      );
-    });
+  it('disables reconnect button when connecting', () => {
+    render(
+      <SSHToolbar
+        explorerVisible={false}
+        setExplorerVisible={setExplorerVisibleMock}
+        onFit={onFitMock}
+        onReconnect={onReconnectMock}
+        onClose={onCloseMock}
+        connecting={true}
+      />
+    );
 
     const reconnectBtn = screen.getByTitle('Reconnect');
     expect(reconnectBtn).toBeDisabled();
