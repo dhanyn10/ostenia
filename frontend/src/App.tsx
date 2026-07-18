@@ -35,6 +35,19 @@ interface ServiceInfo {
 
 let isLogging = false;
 
+function formatLogArgs(args: any[]): string {
+  return args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
+}
+
+async function fetchServiceStatus(service: ServiceInfo): Promise<ServiceInfo> {
+  try {
+    const detail = await AppBackend.GetServiceStatus(service.name);
+    return detail ? { ...service, ...detail, status: detail.status ?? 'Stopped' } : service;
+  } catch (e) {
+    return service;
+  }
+}
+
 function App() {
  const [activeTab, setActiveTab] = useState('activity');
  const [theme, setTheme] = useState(() => {
@@ -83,7 +96,15 @@ function App() {
  const handleOpenSettings = (category: string) => setSettingsModal({ isOpen: true, category });
  const handleCloseSettings = () => setSettingsModal(prev => ({ ...prev, isOpen: false }));
  const handleCloseConfirmModal = () => setConfirmModal(prev => ({ ...prev, isOpen: false }));
- const handleRemoveFromHome = (name: string) => setServices(prev => prev.filter(s => s.name !== name));
+ const handleRemoveFromHome = (name: string) => setServices(prev => {
+   const next = [];
+   for (const s of prev) {
+     if (s.name !== name) {
+       next.push(s);
+     }
+   }
+   return next;
+ });
  const handleStartAll = () => AppBackend.StartAllServices();
  const handleStopAll = () => AppBackend.StopAllServices();
  const handleTerminal = (type: string) => { AppBackend.OpenTerminal(type); setIsTerminalOpen(false); };
@@ -105,13 +126,23 @@ function App() {
    }
  }, []);
 
+ const removeToast = (id: string) => setToasts(prev => {
+   const next = [];
+   for (const t of prev) {
+     if (t.id !== id) {
+       next.push(t);
+     }
+   }
+   return next;
+ });
+
  const addToast = (title: string, message: string, type: 'info' | 'success' | 'warn' | 'error' = 'info') => {
    const id = crypto.randomUUID();
    setToasts(prev => [...prev, { id, title, message, type }]);
-   setTimeout(() => setToasts(curr => curr.filter(t => t.id !== id)), 5000);
+   setTimeout(() => {
+     removeToast(id);
+   }, 5000);
  };
-
- const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
  const handleConfirmHeidiSQLUninstall = useCallback(async (name: string) => {
    setTransitioningServices(prev => new Set(prev).add(name));
@@ -172,14 +203,7 @@ function App() {
      setDefaultEditor(cfg?.defaultEditor ?? '');
 
      if (AppBackend.GetServiceStatus) {
-       const updatedServices = await Promise.all(
-         services.map(async (service) => {
-           try {
-             const detail = await AppBackend.GetServiceStatus(service.name);
-             return detail ? { ...service, ...detail, status: detail.status ?? 'Stopped' } : service;
-           } catch (e) { return service; }
-         })
-       );
+       const updatedServices = await Promise.all(services.map(fetchServiceStatus));
        setServices(updatedServices as ServiceInfo[]);
      }
    } catch (err) { console.error(err); }
@@ -203,7 +227,17 @@ function App() {
  };
 
  const handleServiceStatus = (data: any) => {
-   setServices(prev => prev.map(s => s.name === data.name ? { ...s, ...data } : s));
+   setServices(prev => {
+     const next = [];
+     for (const s of prev) {
+       if (s.name === data.name) {
+         next.push({ ...s, ...data });
+       } else {
+         next.push(s);
+       }
+     }
+     return next;
+   });
  };
 
  const handleDownloadProgress = (data: any) => {
@@ -219,15 +253,15 @@ function App() {
 
  const setupConsoleOverrides = useCallback((originalLog: any, originalWarn: any, originalError: any) => {
    console.log = (...args: any[]) => {
-     addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'info');
+     addLog(formatLogArgs(args), 'info');
      originalLog.apply(console, args);
    };
    console.warn = (...args: any[]) => {
-     addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'warn');
+     addLog(formatLogArgs(args), 'warn');
      originalWarn.apply(console, args);
    };
    console.error = (...args: any[]) => {
-     addLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'error');
+     addLog(formatLogArgs(args), 'error');
      originalError.apply(console, args);
    };
  }, [addLog]);
@@ -277,7 +311,14 @@ function App() {
 
  const handleAddToHome = (task: any) => {
    setServices(prev => {
-     if (prev.find(s => s.name === task.name)) return prev;
+     let exists = false;
+     for (const s of prev) {
+       if (s.name === task.name) {
+         exists = true;
+         break;
+       }
+     }
+     if (exists) return prev;
      return [...prev, { name: task.name, status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '', remainingDays: 0 }];
    });
    setIsAddingPlugin(false);

@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+const serviceNodeJS = "Node.js"
+
 // GetServiceStatus returns detailed information about a specific service
 func (a *App) GetServiceStatus(serviceName string) interfaces.ServiceDetailedInfo {
 	return a.orchestrator.GetDetailedInfo(serviceName)
@@ -24,7 +26,7 @@ func (a *App) StartService(serviceName string) error {
 	fmt.Printf("[App] Starting service: %s\n", serviceName)
 
 	switch serviceName {
-	case "Node.js":
+	case serviceNodeJS:
 		return a.startNodeService(currentPath)
 	case "Python":
 		return a.startPythonService(currentPath)
@@ -62,7 +64,7 @@ func (a *App) StopService(serviceName string) error {
 	if serviceName == "PHP" {
 		_ = service.UpdatePHPPath(currentPath, false)
 	}
-	if serviceName == "Node.js" {
+	if serviceName == serviceNodeJS {
 		_ = service.UpdateNodePath(currentPath, false)
 		a.orchestrator.RequestRefresh()
 		return nil
@@ -197,7 +199,7 @@ func (a *App) startApacheService(binDir string) error {
 		port = p
 	}
 	_, _, phpPath := a.getPluginPaths("PHP")
-	_, _, nodePath := a.getPluginPaths("Node.js")
+	_, _, nodePath := a.getPluginPaths(serviceNodeJS)
 	_ = os.Setenv("PATH", phpPath+";"+os.Getenv("PATH")+";"+nodePath) // NOSONAR
 	if err := a.updateApacheConfig(apacheBase, port); err != nil {
 		return err

@@ -28,64 +28,82 @@ func TestPathExistsInString(t *testing.T) {
 	}
 }
 
-func TestUpdatePaths(t *testing.T) {
+func setupEnvTest(t *testing.T) func() {
 	origExecutor := utils.Executor
-	defer func() { utils.Executor = origExecutor }()
 	utils.Executor = &testutil.MockExecutor{Output: ""}
 
 	getPathOverride = func(target string) (string, error) {
 		return "C:\\some\\path;C:\\ostenia\\old-php", nil
 	}
-	defer func() { getPathOverride = nil }()
 
-	t.Run("UpdatePHPPath", func(t *testing.T) {
-		err := UpdatePHPPath("C:\\ostenia\\new-php", true)
-		if err != nil {
-			t.Errorf("UpdatePHPPath failed: %v", err)
-		}
-	})
+	return func() {
+		utils.Executor = origExecutor
+		getPathOverride = nil
+	}
+}
 
-	t.Run("UpdateNodePath", func(t *testing.T) {
-		err := UpdateNodePath("C:\\ostenia\\node", true)
-		if err != nil {
-			t.Errorf("UpdateNodePath failed: %v", err)
-		}
-	})
+func TestUpdatePHPPath(t *testing.T) {
+	cleanup := setupEnvTest(t)
+	defer cleanup()
 
-	t.Run("UpdatePythonPath", func(t *testing.T) {
-		err := UpdatePythonPath("C:\\ostenia\\python", true)
-		if err != nil {
-			t.Errorf("UpdatePythonPath failed: %v", err)
-		}
-	})
+	err := UpdatePHPPath("C:\\ostenia\\new-php", true)
+	if err != nil {
+		t.Errorf("UpdatePHPPath failed: %v", err)
+	}
+}
 
-	t.Run("SetPath", func(t *testing.T) {
-		err := SetPath("C:\\new\\path", "User")
-		if err != nil {
-			t.Errorf("SetPath User failed: %v", err)
-		}
+func TestUpdateNodePath(t *testing.T) {
+	cleanup := setupEnvTest(t)
+	defer cleanup()
 
-		// This will trigger elevation code on Windows if not admin
-		_ = SetPath("C:\\new\\path", "Machine")
-	})
+	err := UpdateNodePath("C:\\ostenia\\node", true)
+	if err != nil {
+		t.Errorf("UpdateNodePath failed: %v", err)
+	}
+}
 
-	t.Run("CheckPaths", func(t *testing.T) {
-		// Test original implementations
-		getPathOverride = func(target string) (string, error) {
-			if target == "User" {
-				return "C:\\user\\path", nil
-			}
-			return "C:\\machine\\path", nil
-		}
+func TestUpdatePythonPath(t *testing.T) {
+	cleanup := setupEnvTest(t)
+	defer cleanup()
 
-		if !IsPathInUserPath("C:\\user\\path") {
-			t.Error("Expected path in user path")
+	err := UpdatePythonPath("C:\\ostenia\\python", true)
+	if err != nil {
+		t.Errorf("UpdatePythonPath failed: %v", err)
+	}
+}
+
+func TestSetPath(t *testing.T) {
+	cleanup := setupEnvTest(t)
+	defer cleanup()
+
+	err := SetPath("C:\\new\\path", "User")
+	if err != nil {
+		t.Errorf("SetPath User failed: %v", err)
+	}
+
+	// This will trigger elevation code on Windows if not admin
+	_ = SetPath("C:\\new\\path", "Machine")
+}
+
+func TestCheckPaths(t *testing.T) {
+	cleanup := setupEnvTest(t)
+	defer cleanup()
+
+	// Test original implementations
+	getPathOverride = func(target string) (string, error) {
+		if target == "User" {
+			return "C:\\user\\path", nil
 		}
-		if !IsPathInSystemPath("C:\\machine\\path") {
-			t.Error("Expected path in system path")
-		}
-		if IsPathInSystemPath("C:\\other\\path") {
-			t.Error("Did not expect other path in system path")
-		}
-	})
+		return "C:\\machine\\path", nil
+	}
+
+	if !IsPathInUserPath("C:\\user\\path") {
+		t.Error("Expected path in user path")
+	}
+	if !IsPathInSystemPath("C:\\machine\\path") {
+		t.Error("Expected path in system path")
+	}
+	if IsPathInSystemPath("C:\\other\\path") {
+		t.Error("Did not expect other path in system path")
+	}
 }

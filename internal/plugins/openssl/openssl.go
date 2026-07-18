@@ -43,48 +43,63 @@ func DetectInstalledVersion() string {
 	return versionFromExecutable("openssl")
 }
 
-func findExecutables() []string {
-	paths := []string{}
-	seen := map[string]bool{}
+type pathCollector struct {
+	paths []string
+	seen  map[string]bool
+}
 
-	addPath := func(path string) {
-		path = strings.Trim(path, " \t\r\n\"")
-		if path == "" {
-			return
-		}
-		key := strings.ToLower(path)
-		if seen[key] {
-			return
-		}
-		if _, err := os.Stat(path); err == nil {
-			seen[key] = true
-			paths = append(paths, path)
-		}
+func (c *pathCollector) addPath(path string) {
+	path = strings.Trim(path, " \t\r\n\"")
+	if path == "" {
+		return
 	}
+	key := strings.ToLower(path)
+	if c.seen[key] {
+		return
+	}
+	if _, err := os.Stat(path); err == nil {
+		c.seen[key] = true
+		c.paths = append(c.paths, path)
+	}
+}
 
+func (c *pathCollector) querySystemWhere() {
 	for _, cmd := range []*exec.Cmd{
 		utils.Executor.Command("cmd", "/d", "/c", "where openssl"),
 		utils.Executor.Command("where.exe", "openssl"),
 	} {
 		utils.SetHideWindow(cmd)
-		if out, err := cmd.Output(); err == nil {
-			for _, line := range strings.Split(string(out), "\n") {
-				addPath(line)
-			}
+		out, err := cmd.Output()
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(out), "\n") {
+			c.addPath(line)
 		}
 	}
+}
 
-	filepath.Walk(filepath.Join(config.GetBaseDir(), "bin"), func(path string, info os.FileInfo, err error) error {
+func (c *pathCollector) walkBinDirectory() {
+	binDir := filepath.Join(config.GetBaseDir(), "bin")
+	_ = filepath.Walk(binDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info == nil || info.IsDir() {
 			return nil
 		}
 		if strings.EqualFold(info.Name(), "openssl.exe") {
-			addPath(path)
+			c.addPath(path)
 		}
 		return nil
 	})
+}
 
-	return paths
+func findExecutables() []string {
+	collector := &pathCollector{
+		paths: []string{},
+		seen:  map[string]bool{},
+	}
+	collector.querySystemWhere()
+	collector.walkBinDirectory()
+	return collector.paths
 }
 
 func versionFromExecutable(exePath string) string {
