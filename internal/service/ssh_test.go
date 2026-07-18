@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"sync"
 	"ostenia/internal/backend/interfaces"
 	"ostenia/internal/config"
 	"ostenia/internal/plugins/utils"
@@ -119,11 +120,22 @@ func (m *mockWriteCloser) Write(p []byte) (n int, err error) {
 func (m *mockWriteCloser) Close() error { return nil }
 
 type mockSSHRuntime struct {
+	mu            sync.Mutex
 	emittedEvents []string
 }
 
 func (m *mockSSHRuntime) EventsEmit(ctx context.Context, eventName string, optionalData ...interface{}) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.emittedEvents = append(m.emittedEvents, eventName)
+}
+
+func (m *mockSSHRuntime) getEvents() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	copied := make([]string, len(m.emittedEvents))
+	copy(copied, m.emittedEvents)
+	return copied
 }
 func (m *mockSSHRuntime) WindowMinimise(ctx context.Context) {}
 func (m *mockSSHRuntime) WindowMaximise(ctx context.Context) {}
@@ -375,7 +387,7 @@ func TestSSHManager_TerminalLoop(t *testing.T) {
 	go m.processTerminalOutput(conn, pr, exitChan)
 
 	time.Sleep(100 * time.Millisecond)
-	if len(rt.emittedEvents) == 0 {
+	if len(rt.getEvents()) == 0 {
 		t.Error("Expected events to be emitted")
 	}
 

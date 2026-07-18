@@ -24,8 +24,19 @@ import (
 type ServiceDetailedInfo = interfaces.ServiceDetailedInfo
 
 type runningService struct {
-	cmd  *exec.Cmd
-	port int
+	cmd      *exec.Cmd
+	port     int
+	waitOnce sync.Once
+	waitErr  error
+}
+
+func (s *runningService) Wait() error {
+	s.waitOnce.Do(func() {
+		if s.cmd != nil {
+			s.waitErr = s.cmd.Wait()
+		}
+	})
+	return s.waitErr
 }
 
 // Orchestrator manages the lifecycle, monitoring, and state of background services
@@ -410,13 +421,14 @@ func (o *Orchestrator) StartServiceWithPort(name string, binaryPath string, args
 		return err
 	}
 
+	s := &runningService{cmd: cmd, port: port}
 	o.mu.Lock()
-	o.services[name] = &runningService{cmd: cmd, port: port}
+	o.services[name] = s
 	o.mu.Unlock()
 	o.RequestRefresh()
 	o.emitStatus(name, "Running")
 
-	go o.waitForServiceExit(name, cmd)
+	go o.waitForServiceExit(name, s)
 	return nil
 }
 
@@ -456,10 +468,12 @@ func (o *Orchestrator) setupServiceCommand(name, binaryPath string, args []strin
 	return cmd, nil
 }
 
-func (o *Orchestrator) waitForServiceExit(name string, cmd *exec.Cmd) {
-	_ = cmd.Wait()
+func (o *Orchestrator) waitForServiceExit(name string, s *runningService) {
+	_ = s.Wait()
 	o.mu.Lock()
-	delete(o.services, name)
+	if o.services[name] == s {
+		delete(o.services, name)
+	}
 	o.mu.Unlock()
 	o.RequestRefresh()
 	o.emitStatus(name, "Stopped")
@@ -478,7 +492,7 @@ func (o *Orchestrator) StopService(name string) error {
 
 	if exists && s.cmd != nil && s.cmd.Process != nil {
 		_ = s.cmd.Process.Kill()
-		_ = s.cmd.Wait()
+		_ = s.Wait()
 	}
 
 	if runtime.GOOS == "windows" {
