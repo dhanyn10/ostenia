@@ -91,6 +91,8 @@ const mockApp = {
   GetProxyApps: vi.fn().mockResolvedValue([]),
   SaveProxyPort: vi.fn().mockResolvedValue(null),
   OpenProxyTerminal: vi.fn().mockResolvedValue(null),
+  GetPHPExtensions: vi.fn().mockResolvedValue([]),
+  TogglePHPExtension: vi.fn().mockResolvedValue(null),
   GetRemoteFiles: vi.fn().mockResolvedValue([]),
   GetRemoteCurrentPath: vi.fn().mockResolvedValue(""),
   SendSSHInput: vi.fn().mockResolvedValue(null),

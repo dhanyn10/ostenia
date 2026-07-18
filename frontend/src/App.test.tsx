@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import App from './App';
 import * as AppBackend from '../wailsjs/go/backend/App';
@@ -45,6 +45,8 @@ vi.mock('../wailsjs/go/backend/App', () => ({
   ToggleDevTools: vi.fn(),
   GetProxyApps: vi.fn().mockResolvedValue([]),
   GetSSHSessions: vi.fn().mockResolvedValue([]),
+  GetPHPExtensions: vi.fn().mockResolvedValue([]),
+  TogglePHPExtension: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock('../wailsjs/runtime/runtime', () => ({
@@ -346,6 +348,7 @@ describe('App Component', () => {
         installedVers: [],
         status: 'Not Installed',
         versions: ['18.0.0'],
+        versionUrls: { '18.0.0': 'http://example.com/node.zip' }
       }
     ]);
 
@@ -481,5 +484,51 @@ describe('App Component', () => {
     // Toggle button should call StopService and fail
     fireEvent.click(apacheToggleButton!);
     expect(await screen.findByText(/Failed to stop Apache/i)).toBeInTheDocument();
+  });
+
+  it('handles adding and removing plugins to/from home list', async () => {
+    (AppBackend.GetPrerequisites as any).mockResolvedValue([
+      { name: 'PHP', version: '8.2', installedVers: ['8.2'], status: 'Ready' }
+    ]);
+
+    render(<App />);
+    await waitForLoadingToFinish();
+
+    // Find PHP card and heading
+    const phpHeading = screen.getAllByRole('heading', { name: /PHP/i })[0];
+    const phpCard = phpHeading.closest('.shadow-sm');
+    expect(phpCard).not.toBeNull();
+
+    // Find the remove button using class and click it (always visible on main row!)
+    let removeBtn = Array.from(phpCard!.querySelectorAll('button')).find(b => b.className.includes('hover:bg-rose-500/10') || b.innerHTML.includes('trash'));
+    expect(removeBtn).toBeDefined();
+    fireEvent.click(removeBtn!);
+
+    // Find the ActivityTab container specifically to verify PHP is removed only from home list
+    const appsLocationLabel = screen.getByText(/Apps Location/i);
+    const activityContainer = appsLocationLabel.closest('.h-full');
+    expect(activityContainer).not.toBeNull();
+
+    // Check that PHP is removed from home list inside ActivityTab container
+    await waitFor(() => {
+      const homePhpHeading = within(activityContainer!).queryByRole('heading', { name: /PHP/i });
+      expect(homePhpHeading).toBeNull();
+    });
+
+    // Add PHP back to home list
+    const addPluginBtn = screen.getByRole('button', { name: /Add Plugin/i });
+    fireEvent.click(addPluginBtn);
+
+    const addPhpBtn = screen.getByRole('button', { name: /PHP/i });
+    expect(addPhpBtn).toBeDefined();
+
+    // Click add button
+    fireEvent.click(addPhpBtn);
+
+    // Verify it is back
+    await waitFor(() => {
+      const homePhpHeading = within(activityContainer!).queryByRole('heading', { name: /PHP/i });
+      expect(homePhpHeading).not.toBeNull();
+    });
   });
 });
