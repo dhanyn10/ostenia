@@ -41,6 +41,7 @@ const GlobalConfigCategory: React.FC<GlobalConfigCategoryProps> = ({ appConfig, 
               className="flex-1 bg-mui-grey-50 dark:bg-white/5 border border-mui-grey-200 dark:border-white/10 rounded px-3 py-2 text-sm outline-none text-mui-grey-700 dark:text-mui-grey-200"
             />
             <button
+              type="button"
               onClick={async () => {
                 const selected = await AppBackend.SelectServerRoot();
                 if (selected && initApp) initApp();
@@ -64,6 +65,7 @@ const GlobalConfigCategory: React.FC<GlobalConfigCategoryProps> = ({ appConfig, 
               className="flex-1 bg-mui-grey-50 dark:bg-white/5 border border-mui-grey-200 dark:border-white/10 rounded px-3 py-2 text-sm outline-none text-mui-grey-700 dark:text-mui-grey-200"
             />
             <button
+              type="button"
               onClick={async () => {
                 const selected = await AppBackend.SelectWWWRoot();
                 if (selected && initApp) initApp();
@@ -101,6 +103,7 @@ const GlobalConfigCategory: React.FC<GlobalConfigCategoryProps> = ({ appConfig, 
                   OR
                 </div>
                 <button
+                  type="button"
                   onClick={async () => {
                     await AppBackend.SelectDefaultEditor();
                     if (initApp) initApp();
@@ -118,6 +121,7 @@ const GlobalConfigCategory: React.FC<GlobalConfigCategoryProps> = ({ appConfig, 
                     <span className="text-xs text-mui-grey-700 dark:text-mui-grey-200 truncate max-md:max-w-xs">{appConfig.defaultEditor}</span>
                   </div>
                   <button
+                    type="button"
                     onClick={async () => {
                       await AppBackend.SetDefaultEditor("");
                       if (initApp) initApp();

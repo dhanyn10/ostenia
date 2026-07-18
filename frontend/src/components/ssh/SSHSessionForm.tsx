@@ -52,7 +52,7 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({ session, onClose, onSav
  {session ? 'Edit Connection' : 'New Connection'}
  </h3>
  </div>
- <button onClick={onClose} className="p-1.5 hover:bg-mui-grey-200 dark:hover:bg-white/10 rounded text-mui-grey-500 transition-colors">
+ <button type="button" onClick={onClose} className="p-1.5 hover:bg-mui-grey-200 dark:hover:bg-white/10 rounded text-mui-grey-500 transition-colors">
  <X size={18} />
  </button>
  </div>
@@ -189,6 +189,7 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({ session, onClose, onSav
  Cancel
  </button>
  <button
+ type="submit"
  onClick={handleSubmit}
  disabled={saving}
  className="flex-1 py-2 bg-mui-blue-600 hover:bg-mui-blue-700 text-white text-xs font-bold rounded-md flex items-center justify-center gap-2 transition-all disabled:opacity-50"

@@ -45,7 +45,7 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
     <div className="w-72 flex flex-col border-r border-mui-grey-200 dark:border-mui-grey-800 bg-white dark:bg-mui-dark-bg shrink-0">
       <div className="p-3 border-b border-mui-grey-100 dark:border-mui-grey-800 space-y-3 bg-mui-grey-50 dark:bg-mui-grey-900">
         <div className="flex items-center gap-1 bg-white dark:bg-mui-dark-bg rounded px-1 py-0.5 border border-mui-grey-200 dark:border-mui-grey-800">
-          <button onClick={onNavigateUp} className="p-1 text-mui-grey-500 dark:text-mui-grey-400 hover:text-mui-blue-600 dark:hover:text-white transition-colors shrink-0" title="Back">
+          <button type="button" onClick={onNavigateUp} className="p-1 text-mui-grey-500 dark:text-mui-grey-400 hover:text-mui-blue-600 dark:hover:text-white transition-colors shrink-0" title="Back">
             <ChevronLeft size={16} />
           </button>
           <input
@@ -61,7 +61,7 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
               }
             }}
           />
-          <button onClick={onSync} className="p-1 text-mui-grey-500 dark:text-mui-grey-400 hover:text-mui-blue-500 transition-colors shrink-0" title="Sync with terminal">
+          <button type="button" onClick={onSync} className="p-1 text-mui-grey-500 dark:text-mui-grey-400 hover:text-mui-blue-500 transition-colors shrink-0" title="Sync with terminal">
             <RefreshCw size={12} />
           </button>
         </div>
@@ -78,10 +78,11 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
         </div>
 
         <div className="flex gap-1.5">
-          <button onClick={onUpload} className="flex-1 flex items-center justify-center gap-1.5 py-1 bg-mui-blue-600 hover:bg-mui-blue-700 rounded text-[10px] font-bold text-white transition-colors shadow-sm">
+          <button type="button" onClick={onUpload} className="flex-1 flex items-center justify-center gap-1.5 py-1 bg-mui-blue-600 hover:bg-mui-blue-700 rounded text-[10px] font-bold text-white transition-colors shadow-sm">
             <Upload size={12} /> Upload
           </button>
           <button
+            type="button"
             onClick={onNewFolder}
             className="flex-1 flex items-center justify-center gap-1.5 py-1 bg-mui-grey-100 dark:bg-mui-grey-800 hover:bg-mui-grey-200 dark:hover:bg-mui-grey-700 rounded text-[10px] font-bold text-mui-grey-700 dark:text-mui-grey-200 transition-colors"
           >
@@ -93,6 +94,7 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
       {/* Column Headers */}
       <div className="flex items-center px-3 py-2 border-b border-mui-grey-100 dark:border-white/5 bg-mui-grey-50 dark:bg-mui-grey-900 select-none">
         <button
+          type="button"
           onClick={() => toggleSort('name')}
           className="flex-1 flex items-center gap-1 text-[10px] font-black uppercase tracking-tighter text-mui-grey-400 hover:text-mui-grey-900 dark:hover:text-white transition-colors"
         >
@@ -102,6 +104,7 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
           )}
         </button>
         <button
+          type="button"
           onClick={() => toggleSort('size')}
           className="w-16 flex items-center justify-end gap-1 text-[10px] font-black uppercase tracking-tighter text-mui-grey-400 hover:text-mui-grey-900 dark:hover:text-white transition-colors"
         >
@@ -157,6 +160,7 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
 
                 <div className="flex items-center gap-1">
                   <button
+                    type="button"
                     onClick={(e) => { e.stopPropagation(); onFileContextMenu(e, file); }}
                     className="p-1 text-mui-grey-400 hover:text-mui-blue-600 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
                   >
