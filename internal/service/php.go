@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+const phpIniFileName = "php.ini"
+
 // PHPExtensionInfo contains the name and enabled status of a PHP extension
 type PHPExtensionInfo struct {
 	Name    string `json:"name"`
@@ -33,7 +35,7 @@ func GetPHPVersion(currentPath string) (string, error) {
 // UpdatePHPConfig ensures required extensions and paths are set in php.ini.
 // It initializes php.ini from development/production templates if it doesn't exist.
 func UpdatePHPConfig(phpPath string) error {
-	iniPath := filepath.Join(phpPath, "php.ini")
+	iniPath := filepath.Join(phpPath, phpIniFileName)
 	if err := initializePHPIni(phpPath, iniPath); err != nil {
 		return err
 	}
@@ -102,7 +104,7 @@ func enableCorePHPExtensions(content string) string {
 
 // GetPHPExtensions reads php.ini and returns list of extensions with their status
 func GetPHPExtensions(phpPath string) ([]PHPExtensionInfo, error) {
-	iniPath := filepath.Join(phpPath, "php.ini")
+	iniPath := filepath.Join(phpPath, phpIniFileName)
 	if _, err := os.Stat(iniPath); os.IsNotExist(err) {
 		_ = UpdatePHPConfig(phpPath)
 	}
@@ -145,7 +147,7 @@ func isPHPExtensionEnabled(lines []string, extName string) bool {
 
 // TogglePHPExtension enables or disables an extension in php.ini
 func TogglePHPExtension(phpPath string, extName string, enable bool) error {
-	iniPath := filepath.Join(phpPath, "php.ini")
+	iniPath := filepath.Join(phpPath, phpIniFileName)
 	data, err := os.ReadFile(iniPath)
 	if err != nil {
 		return err

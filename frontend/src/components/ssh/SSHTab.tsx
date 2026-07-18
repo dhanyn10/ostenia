@@ -100,6 +100,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
  </div>
  {!showForm && (
  <button
+   type="button"
  onClick={() => {
  setEditingSession(null);
  setShowForm(true);
@@ -159,6 +160,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
  </span>
  </button>
  <button
+   type="button"
  onClick={(e) => {
  e.stopPropagation();
  handleCloseSession(id);
@@ -216,6 +218,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
  Add your first SSH connection to start managing remote servers and files.
  </p>
  <button
+   type="button"
  onClick={() => setShowForm(true)}
  className="mt-6 text-mui-blue-500 hover:text-mui-blue-600 font-medium flex items-center gap-1"
  >
@@ -253,6 +256,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
 
  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
  <button
+   type="button"
  onClick={(e) => {
  e.stopPropagation();
  setEditingSession(session);
@@ -293,6 +297,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
  style={{ top: contextMenu.y, left: contextMenu.x }}
  >
  <button
+   type="button"
  onClick={() => {
  handleDelete(contextMenu.sessionId);
  setContextMenu(null);

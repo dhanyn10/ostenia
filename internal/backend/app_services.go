@@ -317,7 +317,7 @@ func (a *App) updateApacheConfig(apachePath string, port int) error {
 		}
 	}
 
-	return service.UpdateApacheConfig(apachePath, "", "", vhostsContent, port, wwwDir, phpPort, a.cfg.ApacheHTTPS)
+	return service.UpdateApacheConfig(apachePath, vhostsContent, port, wwwDir, phpPort, a.cfg.ApacheHTTPS)
 }
 
 func (a *App) updateNginxConfig(nginxPath string, port int) error {

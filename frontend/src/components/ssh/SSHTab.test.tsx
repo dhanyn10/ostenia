@@ -48,6 +48,7 @@ describe('SSHTab Component', () => {
     await act(async () => {
       render(<SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />)
     })
+    expect(AppBackend.GetSSHSessions).toHaveBeenCalled()
   })
 
   it('renders sessions after loading', async () => {

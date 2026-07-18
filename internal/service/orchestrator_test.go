@@ -19,158 +19,171 @@ type mockRuntime struct {
 
 func (m *mockRuntime) EventsEmit(ctx context.Context, eventName string, optionalData ...interface{}) {}
 
-func TestOrchestrator_Complete(t *testing.T) {
-	origExecutor := utils.Executor
-	defer func() { utils.Executor = origExecutor }()
-
+func newTestOrchestrator() (context.Context, context.CancelFunc, *Orchestrator) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	orch := NewOrchestrator(ctx)
 	orch.SetRuntime(&mockRuntime{})
+	return ctx, cancel, orch
+}
 
-	t.Run("TabManagement", func(t *testing.T) {
-		orch.SetActiveTab("plugins")
-		orch.SetActiveTab("activity")
-		orch.RequestRefresh()
-	})
+func TestOrchestrator_TabManagement(t *testing.T) {
+	_, cancel, orch := newTestOrchestrator()
+	defer cancel()
 
-	t.Run("ServiceStatus", func(t *testing.T) {
-		orch.updateCache("Apache", ServiceDetailedInfo{Status: "Running", PID: 123, Port: 80})
-		if !orch.IsRunning("Apache") {
-			t.Error("Expected Apache to be running")
+	orch.SetActiveTab("plugins")
+	orch.SetActiveTab("activity")
+	orch.RequestRefresh()
+}
+
+func TestOrchestrator_ServiceStatus(t *testing.T) {
+	_, cancel, orch := newTestOrchestrator()
+	defer cancel()
+
+	orch.updateCache("Apache", ServiceDetailedInfo{Status: "Running", PID: 123, Port: 80})
+	if !orch.IsRunning("Apache") {
+		t.Error("Expected Apache to be running")
+	}
+	info := orch.GetDetailedInfo("Apache")
+	if info.PID != 123 {
+		t.Errorf("Expected PID 123, got %d", info.PID)
+	}
+
+	info = orch.GetDetailedInfo("Unknown")
+	if info.Status != "Stopped" {
+		t.Errorf("Expected Stopped for unknown service, got %s", info.Status)
+	}
+}
+
+func TestOrchestrator_UpdateServiceInfoMocks(t *testing.T) {
+	_, cancel, orch := newTestOrchestrator()
+	defer cancel()
+
+	tempDir := t.TempDir()
+	os.Setenv("OSTENIA_HOME", tempDir)
+	defer os.Unsetenv("OSTENIA_HOME")
+
+	findOsteniaPIDsOverride = func(exeName string) []int {
+		if exeName == "httpd.exe" {
+			return []int{1234}
 		}
-		info := orch.GetDetailedInfo("Apache")
-		if info.PID != 123 {
-			t.Errorf("Expected PID 123, got %d", info.PID)
-		}
+		return []int{}
+	}
+	defer func() { findOsteniaPIDsOverride = nil }()
 
-		info = orch.GetDetailedInfo("Unknown")
-		if info.Status != "Stopped" {
-			t.Errorf("Expected Stopped for unknown service, got %s", info.Status)
-		}
-	})
+	orch.updateServiceInfo("Apache")
+	info := orch.GetDetailedInfo("Apache")
+	if info.Status != "Running" || info.PID != 1234 {
+		t.Errorf("Expected Apache to be Running with PID 1234, got %s (PID %d)", info.Status, info.PID)
+	}
 
-	t.Run("UpdateServiceInfoMocks", func(t *testing.T) {
-		tempDir := t.TempDir()
-		os.Setenv("OSTENIA_HOME", tempDir)
-		defer os.Unsetenv("OSTENIA_HOME")
+	orch.updateServiceInfo(serviceNodeJS)
+	orch.updateServiceInfo("MySQL")
+	orch.updateServiceInfo("Nginx")
+	orch.updateServiceInfo("PHP")
+	orch.updateServiceInfo("Python")
+	orch.updateServiceInfo("HeidiSQL")
+	orch.updateServiceInfo("OpenSSL")
+}
 
-		findOsteniaPIDsOverride = func(exeName string) []int {
-			if exeName == "httpd.exe" {
-				return []int{1234}
-			}
-			return []int{}
-		}
-		defer func() { findOsteniaPIDsOverride = nil }()
+func TestOrchestrator_StartStopService(t *testing.T) {
+	origExecutor := utils.Executor
+	defer func() { utils.Executor = origExecutor }()
+	utils.Executor = &testutil.MockExecutor{Output: ""}
 
-		orch.updateServiceInfo("Apache")
-		info := orch.GetDetailedInfo("Apache")
-		if info.Status != "Running" || info.PID != 1234 {
-			t.Errorf("Expected Apache to be Running with PID 1234, got %s (PID %d)", info.Status, info.PID)
-		}
+	_, cancel, orch := newTestOrchestrator()
+	defer cancel()
 
-		orch.updateServiceInfo("Node.js")
-		orch.updateServiceInfo("MySQL")
-		orch.updateServiceInfo("Nginx")
-		orch.updateServiceInfo("PHP")
-		orch.updateServiceInfo("Python")
-		orch.updateServiceInfo("HeidiSQL")
-		orch.updateServiceInfo("OpenSSL")
-	})
+	binary := "true"
+	if runtime.GOOS == "windows" {
+		binary = "cmd"
+	}
+	err := orch.StartService("TestService", binary, []string{}, "")
+	if err != nil {
+		t.Errorf("StartService failed: %v", err)
+	}
 
-	t.Run("StartStopService", func(t *testing.T) {
-		utils.Executor = &testutil.MockExecutor{Output: ""}
+	orch.StopAll()
+	time.Sleep(100 * time.Millisecond)
+}
 
-		// Using "true" or "cmd /c exit 0" instead of os.Args[0]
-		binary := "true"
-		if runtime.GOOS == "windows" {
-			binary = "cmd"
-		}
-		err := orch.StartService("TestService", binary, []string{}, "")
-		if err != nil {
-			t.Errorf("StartService failed: %v", err)
-		}
+func TestOrchestrator_WatcherAndRefresh(t *testing.T) {
+	_, cancel, orch := newTestOrchestrator()
+	defer cancel()
 
-		orch.StopAll()
-		// Small sleep to allow goroutines to finish and file locks to be released on Windows
-		time.Sleep(100 * time.Millisecond)
-	})
+	orch.RequestRefresh()
+	orch.performWatcherCheck([]string{"Apache"})
 
-	t.Run("WatcherAndRefresh", func(t *testing.T) {
-		orch.RequestRefresh()
-		orch.performWatcherCheck([]string{"Apache"})
+	ctx2, cancel2 := context.WithCancel(context.Background())
+	orch2 := NewOrchestrator(ctx2)
+	orch2.StartWatcher()
+	time.Sleep(100 * time.Millisecond)
+	cancel2()
+}
 
-		ctx2, cancel2 := context.WithCancel(context.Background())
-		orch2 := NewOrchestrator(ctx2)
-		orch2.StartWatcher()
-		time.Sleep(100 * time.Millisecond) // Give goroutine a chance to start
-		cancel2() // Ensure it stops on context done
-	})
+func TestOrchestrator_ServiceTrackingAndCleanup(t *testing.T) {
+	_, cancel, orch := newTestOrchestrator()
+	defer cancel()
 
-	t.Run("ServiceTrackingAndCleanup", func(t *testing.T) {
-		info := &ServiceDetailedInfo{Name: "Apache", Status: "Running", Port: 80}
-		orch.ensureServiceTracked("Apache", info, nil, false)
-		orch.cleanupUntrackedService("Apache", "/tmp")
-	})
+	info := &ServiceDetailedInfo{Name: "Apache", Status: "Running", Port: 80}
+	orch.ensureServiceTracked("Apache", info, nil, false)
+	orch.cleanupUntrackedService("Apache", "/tmp")
+}
 
-	t.Run("NetstatAndPorts", func(t *testing.T) {
-		findPortsByPIDExactOverride = func(pid int) []int {
-			return []int{80}
-		}
-		defer func() { findPortsByPIDExactOverride = nil }()
+func TestOrchestrator_NetstatAndPorts(t *testing.T) {
+	_, cancel, orch := newTestOrchestrator()
+	defer cancel()
 
-		ports := findPortsByPIDExact(1234)
-		if len(ports) == 0 || ports[0] != 80 {
-			t.Errorf("Expected port 80, got %v", ports)
-		}
+	findPortsByPIDExactOverride = func(pid int) []int {
+		return []int{80}
+	}
+	defer func() { findPortsByPIDExactOverride = nil }()
 
-		info := &ServiceDetailedInfo{Name: "Apache"}
-		orch.updateServicePorts(info, []int{1234}, nil, false)
-		if info.Port != 80 {
-			t.Errorf("Expected port 80, got %d", info.Port)
-		}
-	})
+	ports := findPortsByPIDExact(1234)
+	if len(ports) == 0 || ports[0] != 80 {
+		t.Errorf("Expected port 80, got %v", ports)
+	}
 
-	t.Run("StopService_Windows", func(t *testing.T) {
-		// Mock runtime.GOOS to test windows-specific StopService branch on Linux
-		// Since we can't easily mock runtime.GOOS, we can just call stopServiceWindows directly if exported,
-		// or trigger it by ensuring GOOS == "windows" logic is reachable.
-		// Actually, let's just call it directly to gain coverage since we can.
-		orch.stopServiceWindows("Apache")
-		orch.stopServiceWindows("HeidiSQL")
-	})
+	info := &ServiceDetailedInfo{Name: "Apache"}
+	orch.updateServicePorts(info, []int{1234}, nil, false)
+	if info.Port != 80 {
+		t.Errorf("Expected port 80, got %d", info.Port)
+	}
+}
 
-	t.Run("resolveServiceVersion", func(t *testing.T) {
-		tempDir := t.TempDir()
-		target := filepath.Join(tempDir, "v1.0.0")
-		os.MkdirAll(target, 0755)
+func TestOrchestrator_StopService_Windows(t *testing.T) {
+	_, cancel, orch := newTestOrchestrator()
+	defer cancel()
 
-		link := filepath.Join(tempDir, "current")
-		// On non-windows we can use real symlinks
-		if runtime.GOOS != "windows" {
-			os.Symlink(target, link)
-		} else {
-			// On windows we just mock the result by creating a dir named "v1.0.0" and passing its path
-			link = target
-		}
+	orch.stopServiceWindows("Apache")
+	orch.stopServiceWindows("HeidiSQL")
+}
 
-		info := &ServiceDetailedInfo{}
-		orch.resolveServiceVersion(info, "apache", link)
-		if info.ActiveVersion == "" {
-			// EvalSymlinks might fail if link is not a real symlink,
-			// but we want to cover the branch.
-		}
-	})
+func TestOrchestrator_ResolveServiceVersion(t *testing.T) {
+	_, cancel, orch := newTestOrchestrator()
+	defer cancel()
 
-	t.Run("containsInt", func(t *testing.T) {
-		if !containsInt([]int{1, 2, 3}, 2) {
-			t.Error("Expected true")
-		}
-		if containsInt([]int{1, 2, 3}, 4) {
-			t.Error("Expected false")
-		}
-	})
+	tempDir := t.TempDir()
+	target := filepath.Join(tempDir, "v1.0.0")
+	os.MkdirAll(target, 0755)
+
+	link := filepath.Join(tempDir, "current")
+	if runtime.GOOS != "windows" {
+		os.Symlink(target, link)
+	} else {
+		link = target
+	}
+
+	info := &ServiceDetailedInfo{}
+	orch.resolveServiceVersion(info, "apache", link)
+}
+
+func TestOrchestrator_ContainsInt(t *testing.T) {
+	if !containsInt([]int{1, 2, 3}, 2) {
+		t.Error("Expected true")
+	}
+	if containsInt([]int{1, 2, 3}, 4) {
+		t.Error("Expected false")
+	}
 }
 
 func TestParseNetstatOutput(t *testing.T) {

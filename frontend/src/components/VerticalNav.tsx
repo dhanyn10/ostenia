@@ -20,6 +20,7 @@ const VerticalNav: React.FC<VerticalNavProps> = ({ activeTab, setActiveTab, togg
  <aside className="w-16 flex flex-col items-center py-6 gap-5 bg-white dark:bg-[#1e293b] border-r border-slate-200 dark:border-white/5 z-20 shrink-0 shadow-sm">
  {/* Activity Center */}
  <button
+   type="button"
  onClick={() => setActiveTab('activity')}
  title="Activity Center"
  className={cn(
@@ -35,6 +36,7 @@ const VerticalNav: React.FC<VerticalNavProps> = ({ activeTab, setActiveTab, togg
 
  {/* Proxy Management */}
  <button
+   type="button"
  onClick={() => setActiveTab('proxy')}
  title="Proxy Management"
  className={cn(
@@ -50,6 +52,7 @@ const VerticalNav: React.FC<VerticalNavProps> = ({ activeTab, setActiveTab, togg
 
  {/* SSH Management */}
  <button
+   type="button"
  onClick={() => setActiveTab('ssh')}
  title="SSH & Remote Files"
  className={cn(
@@ -65,6 +68,7 @@ const VerticalNav: React.FC<VerticalNavProps> = ({ activeTab, setActiveTab, togg
 
  {/* Plugin Management */}
  <button
+   type="button"
  onClick={() => setActiveTab('plugins')}
  title="Plugin Management"
  className={cn(
@@ -80,6 +84,7 @@ const VerticalNav: React.FC<VerticalNavProps> = ({ activeTab, setActiveTab, togg
 
  {/* System Logs Tab */}
  <button
+   type="button"
  onClick={() => setActiveTab('logs')}
  title="System Activity Logs"
  className={cn(
@@ -95,6 +100,7 @@ const VerticalNav: React.FC<VerticalNavProps> = ({ activeTab, setActiveTab, togg
 
  {/* Theme Toggle */}
  <button
+   type="button"
  onClick={toggleTheme}
  title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
  className="p-3 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all rounded-sm"

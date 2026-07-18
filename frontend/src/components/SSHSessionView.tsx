@@ -377,6 +377,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
  style={{ top: fileContextMenu.y, left: fileContextMenu.x }}
  >
  <button
+   type="button"
  onClick={async () => {
  const name = prompt('Rename:', fileContextMenu.file.name);
  if (name && name !== fileContextMenu.file.name) {
@@ -394,7 +395,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
 
  {!fileContextMenu?.file?.isDir && (
  <>
- <button onClick={() => { handleEdit(fileContextMenu.file); setFileContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2">
+ <button type="button" onClick={() => { handleEdit(fileContextMenu.file); setFileContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2">
  <Edit3 size={14} /> Edit File
  </button>
  {(() => {
@@ -403,6 +404,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
     if (!isArchive) {
       return (
         <button
+          type="button"
           onClick={() => {
             onOpenSettings('config');
             setFileContextMenu(null);
@@ -415,13 +417,13 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
     }
     return null;
   })()}
- <button onClick={() => { handleDownload(fileContextMenu.file); setFileContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2">
+ <button type="button" onClick={() => { handleDownload(fileContextMenu.file); setFileContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2">
  <Download size={14} /> Download
  </button>
  </>
  )}
  <div className="h-px bg-mui-grey-100 dark:bg-white/5 my-1" />
- <button onClick={() => { handleDelete(fileContextMenu.file); setFileContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2 transition-all">
+ <button type="button" onClick={() => { handleDelete(fileContextMenu.file); setFileContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2 transition-all">
  <Trash2 size={14} /> Delete
  </button>
  </div>

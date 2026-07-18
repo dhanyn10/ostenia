@@ -27,7 +27,7 @@ func TestUpdateApacheConfig_Full(t *testing.T) {
 	os.MkdirAll(filepath.Join(apachePath, "conf", "extra"), 0755)
 	os.WriteFile(filepath.Join(apachePath, "conf", "httpd.conf"), []byte("#LoadModule rewrite_module modules/mod_rewrite.so\nListen 80"), 0644)
 
-	err := UpdateApacheConfig(apachePath, "php82.dll", "php", "VHost content", 8080, filepath.Join(tempDir, "www"), 9000, true)
+	err := UpdateApacheConfig(apachePath, "VHost content", 8080, filepath.Join(tempDir, "www"), 9000, true)
 	if err != nil {
 		t.Errorf("UpdateApacheConfig failed: %v", err)
 	}
@@ -47,7 +47,7 @@ func TestUpdateApacheConfig_Minimal(t *testing.T) {
 	os.MkdirAll(filepath.Join(apachePath, "conf", "extra"), 0755)
 	os.WriteFile(filepath.Join(apachePath, "conf", "httpd.conf"), []byte(""), 0644)
 
-	err := UpdateApacheConfig(apachePath, "", "", "", 0, "/www", 0, false)
+	err := UpdateApacheConfig(apachePath, "", 0, "/www", 0, false)
 	if err != nil {
 		t.Errorf("UpdateApacheConfig failed: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestUpdateApacheConfig_WithVHosts(t *testing.T) {
 	os.MkdirAll(filepath.Join(apachePath, "conf", "extra"), 0755)
 	os.WriteFile(filepath.Join(apachePath, "conf", "httpd.conf"), []byte(""), 0644)
 
-	err := UpdateApacheConfig(apachePath, "", "", "VHosts", 80, "/www", 0, false)
+	err := UpdateApacheConfig(apachePath, "VHosts", 80, "/www", 0, false)
 	if err != nil {
 		t.Errorf("UpdateApacheConfig failed: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestGenerateVHost_DefaultPort(t *testing.T) {
 }
 
 func TestUpdateApacheConfig_Error(t *testing.T) {
-	err := UpdateApacheConfig("/invalid/path", "", "", "", 0, "/www", 0, false)
+	err := UpdateApacheConfig("/invalid/path", "", 0, "/www", 0, false)
 	if err == nil {
 		t.Error("Expected error for invalid path")
 	}
