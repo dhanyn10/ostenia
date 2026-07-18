@@ -81,8 +81,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         onClick={onClose}
       />
       <div
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
         className={cn(
           "relative w-full max-w-5xl h-[80vh] flex flex-col rounded-xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] border overflow-hidden",
           "bg-white dark:bg-mui-dark-bg border-mui-grey-200 dark:border-white/10"
