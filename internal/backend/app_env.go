@@ -51,7 +51,7 @@ func (a *App) SetWWWRoot(path string) error {
 // SetServerRoot changes the base directory for all Ostenia apps and binaries
 func (a *App) SetServerRoot(rootPath string) error {
 	fmt.Printf("[App] Switching Apps Location to: %s\n", rootPath)
-	a.orchestrator.StopAll()
+	a.orchestrator.StopAll(a.ctx)
 	time.Sleep(1 * time.Second)
 	a.cfg.BaseDir = rootPath
 	a.cfg.WWWRoot = filepath.Join(rootPath, "www")
@@ -91,7 +91,7 @@ func (a *App) OpenTerminal(terminalType string) {
 }
 
 // OpenTerminalAtPath opens a terminal at a specific local path with the Ostenia environment variables set
-func (a *App) OpenTerminalAtPath(terminalType string, path string) {
+func (a *App) OpenTerminalAtPath(terminalType, path string) {
 	_, _, phpPath := a.getPluginPaths("PHP")
 	_, mysqlBinDir, mysqlCurrentPath := a.getPluginPaths("MySQL")
 	mysqlPath := filepath.Join(mysqlCurrentPath, "bin")

@@ -56,7 +56,7 @@ func (a *App) CheckProxyPorts() []ProxyStatusInfo {
 }
 
 // OpenProxyTerminal opens a terminal at the directory of a proxy app
-func (a *App) OpenProxyTerminal(name string, terminalType string) error {
+func (a *App) OpenProxyTerminal(name, terminalType string) error {
 	path := filepath.Join(a.cfg.WWWRoot, name)
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return fmt.Errorf("folder %s not found", name)

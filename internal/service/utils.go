@@ -51,7 +51,7 @@ func ElevateAndExit() {
 	}
 }
 
-func AddHostWithElevation(ip string, hostname string) error {
+func AddHostWithElevation(ip, hostname string) error {
 	if IsAdmin() {
 		return network.AddHost(ip, hostname)
 	}

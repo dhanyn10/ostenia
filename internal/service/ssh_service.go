@@ -35,7 +35,6 @@ type SSHConnection struct {
 }
 
 type SSHManager struct {
-	ctx         context.Context
 	connections map[string]*SSHConnection
 	mu          sync.RWMutex
 	dialer      SSHDialer
@@ -52,9 +51,8 @@ var DefaultSSHDialer SSHDialer = func(config *goph.Config) (interfaces.SSHClient
 	return &gophSSHClient{client}, nil
 }
 
-func NewSSHManager(ctx context.Context) *SSHManager {
+func NewSSHManager() *SSHManager {
 	return &SSHManager{
-		ctx:         ctx,
 		connections: make(map[string]*SSHConnection),
 		dialer:      DefaultSSHDialer,
 	}
@@ -72,7 +70,7 @@ func (m *SSHManager) SaveSessions(sessions []config.SSHSession) error {
 	return config.SaveSSHSessions(sessions)
 }
 
-func (m *SSHManager) Connect(session config.SSHSession) error {
+func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) error {
 	// Set UTF-8 environment for the session
 	os.Setenv("LANG", "en_US.UTF-8")
 	os.Setenv("LC_ALL", "en_US.UTF-8")
@@ -111,12 +109,12 @@ func (m *SSHManager) Connect(session config.SSHSession) error {
 		return err
 	}
 
-	ctx, cancel := context.WithCancel(m.ctx)
+	cCtx, cancel := context.WithCancel(ctx)
 	conn := &SSHConnection{
 		SessionID: session.ID,
 		Client:    client,
 		SFTP:      sftpClient,
-		Context:   ctx,
+		Context:   cCtx,
 		Cancel:    cancel,
 	}
 
@@ -124,12 +122,12 @@ func (m *SSHManager) Connect(session config.SSHSession) error {
 	m.mu.Unlock()
 
 	// Start terminal session
-	m.startTerminal(conn)
+	m.startTerminal(ctx, conn)
 
 	return nil
 }
 
-func (m *SSHManager) startTerminal(conn *SSHConnection) {
+func (m *SSHManager) startTerminal(ctx context.Context, conn *SSHConnection) {
 	sshSession, err := conn.Client.NewSession()
 	if err != nil {
 		fmt.Printf("Failed to create SSH session: %v\n", err)
@@ -159,8 +157,8 @@ func (m *SSHManager) startTerminal(conn *SSHConnection) {
 	}
 
 	exitChan := make(chan struct{})
-	go m.processTerminalOutput(conn, stdout, exitChan)
-	go m.handleTerminalExit(conn, sshSession, exitChan)
+	go m.processTerminalOutput(ctx, conn, stdout, exitChan)
+	go m.handleTerminalExit(ctx, conn, sshSession, exitChan)
 }
 
 func (m *SSHManager) setupPTY(sshSession interfaces.SSHSession) error {
@@ -178,13 +176,13 @@ func (m *SSHManager) setupPTY(sshSession interfaces.SSHSession) error {
 	return sshSession.Shell()
 }
 
-func (m *SSHManager) processTerminalOutput(conn *SSHConnection, stdout io.Reader, exitChan chan struct{}) {
+func (m *SSHManager) processTerminalOutput(ctx context.Context, conn *SSHConnection, stdout io.Reader, exitChan chan struct{}) {
 	buf := make([]byte, 2048)
 	for {
 		n, err := stdout.Read(buf)
 		if n > 0 {
 			if m.runtime != nil {
-				m.runtime.EventsEmit(m.ctx, "ssh_output", map[string]interface{}{
+				m.runtime.EventsEmit(ctx, "ssh_output", map[string]interface{}{
 					"sessionId": conn.SessionID,
 					"data":      string(buf[:n]),
 				})
@@ -201,13 +199,13 @@ func (m *SSHManager) processTerminalOutput(conn *SSHConnection, stdout io.Reader
 	}
 }
 
-func (m *SSHManager) handleTerminalExit(conn *SSHConnection, sshSession interfaces.SSHSession, exitChan chan struct{}) {
+func (m *SSHManager) handleTerminalExit(ctx context.Context, conn *SSHConnection, sshSession interfaces.SSHSession, exitChan chan struct{}) {
 	select {
 	case <-conn.Context.Done():
 		sshSession.Close()
 	case <-exitChan:
 		if m.runtime != nil {
-			m.runtime.EventsEmit(m.ctx, "ssh_disconnected", conn.SessionID)
+			m.runtime.EventsEmit(ctx, "ssh_disconnected", conn.SessionID)
 		}
 		m.mu.Lock()
 		delete(m.connections, conn.SessionID)

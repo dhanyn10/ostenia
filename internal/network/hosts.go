@@ -20,7 +20,7 @@ func GetHostsPath() string {
 	return "/etc/hosts"
 }
 
-func AddHost(ip string, hostname string) error {
+func AddHost(ip, hostname string) error {
 	hostsPath := GetHostsPath()
 
 	// Check if already exists

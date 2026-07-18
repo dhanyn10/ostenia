@@ -168,14 +168,14 @@ func TestDownloadAndExtract_Basic(t *testing.T) {
 		CheckFile: "test.exe",
 	}
 
-	err := m.DownloadAndExtract(task)
+	err := m.DownloadAndExtract(context.Background(), task)
 	if err != nil {
 		t.Errorf("DownloadAndExtract failed: %v", err)
 	}
 
 	// Test download error path
 	utils.Client = &mockHTTPClient{err: fmt.Errorf("download error")}
-	err = m.DownloadAndExtract(task)
+	err = m.DownloadAndExtract(context.Background(), task)
 	if err == nil {
 		t.Error("Expected download error")
 	}
@@ -213,7 +213,7 @@ func TestDownloadFileManual(t *testing.T) {
 	utils.Client = &mockHTTPClient{content: "manual"}
 	tempDir := t.TempDir()
 	dest := filepath.Join(tempDir, "manual.exe")
-	err := m.DownloadFileManual("http://example.com/manual.exe", dest, "Manual")
+	err := m.DownloadFileManual(context.Background(), "http://example.com/manual.exe", dest, "Manual")
 	if err != nil {
 		t.Errorf("DownloadFileManual failed: %v", err)
 	}
@@ -245,7 +245,7 @@ func TestHandleArchive_Mocked(t *testing.T) {
 	}
 	targetDir := filepath.Join(tempDir, "bin", task.Target)
 
-	err := m.handleArchive(task, "dummy.zip", targetDir)
+	err := m.handleArchive(context.Background(), task, "dummy.zip", targetDir)
 	if err != nil {
 		t.Errorf("handleArchive failed: %v", err)
 	}
@@ -261,7 +261,7 @@ func TestHandleArchive_Mocked(t *testing.T) {
 		os.WriteFile(filepath.Join(dest, "tools", "app.exe"), []byte("data"), 0644)
 		return nil
 	}
-	err = m.handleArchive(task, "dummy.nupkg", targetDir+"_nupkg")
+	err = m.handleArchive(context.Background(), task, "dummy.nupkg", targetDir+"_nupkg")
 	if err != nil {
 		t.Errorf("handleArchive nupkg failed: %v", err)
 	}
@@ -294,7 +294,7 @@ func TestDownloadAndExtract_AlreadyInstalled(t *testing.T) {
 	os.MkdirAll(targetDir, 0755)
 	os.WriteFile(filepath.Join(targetDir, "php.exe"), []byte(""), 0644)
 
-	err := m.DownloadAndExtract(task)
+	err := m.DownloadAndExtract(context.Background(), task)
 	if err != nil {
 		t.Errorf("DownloadAndExtract should have skipped and returned nil, got %v", err)
 	}
@@ -309,7 +309,7 @@ func TestDownloadAndExtract_AlreadyInstalled(t *testing.T) {
 	targetDir2 := filepath.Join(tempDir, "bin", task2.Target)
 	os.MkdirAll(filepath.Join(targetDir2, "Apache24", "bin"), 0755)
 	os.WriteFile(filepath.Join(targetDir2, "Apache24", "bin", "httpd.exe"), []byte(""), 0644)
-	if !m.isAlreadyInstalled(task2, targetDir2) {
+	if !m.isAlreadyInstalled(context.Background(), task2, targetDir2) {
 		t.Error("isAlreadyInstalled failed for Apache special case")
 	}
 }

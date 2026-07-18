@@ -25,7 +25,6 @@ const (
 
 // Manager coordinates the download, extraction, and management of plugin versions
 type Manager struct {
-	ctx       context.Context
 	cancels   map[string]context.CancelFunc
 	cancelsMu sync.Mutex
 	emit      func(ctx context.Context, eventName string, optionalData ...interface{})
@@ -35,21 +34,20 @@ func (m *Manager) GetInstalledVersionPaths(category, checkFile string) map[strin
 	return utils.GetInstalledVersionPaths(config.GetBaseDir(), category, checkFile)
 }
 
-func (m *Manager) InstallModule(moduleName string, phpPath string, emitProgress func(string, float64, string)) error {
+func (m *Manager) InstallModule(moduleName, phpPath string, emitProgress func(string, float64, string)) error {
 	// Actual implementation is in subpackages, but Manager provides the entry point for the interface
 	// This is a bit tricky because the interface expects it here.
 	// For now, the App calls subpackages directly, so we just satisfy the interface.
 	return nil
 }
 
-func (m *Manager) UninstallModule(moduleName string, phpPath string) error {
+func (m *Manager) UninstallModule(moduleName, phpPath string) error {
 	return nil
 }
 
 // NewManager creates a new plugin Manager instance
 func NewManager(ctx context.Context) *Manager {
 	return &Manager{
-		ctx:     ctx,
 		cancels: make(map[string]context.CancelFunc),
 		emit: func(ctx context.Context, eventName string, optionalData ...interface{}) {
 			if ctx != nil {
@@ -106,28 +104,28 @@ func (m *Manager) DeleteVersion(taskName, version string) error {
 }
 
 // DownloadAndExtract handles the full lifecycle of installing a plugin task
-func (m *Manager) DownloadAndExtract(task DownloadTask) error {
+func (m *Manager) DownloadAndExtract(ctx context.Context, task DownloadTask) error {
 	targetDir := filepath.Join(config.GetBaseDir(), "bin", task.Target)
 	fmt.Printf("[Manager] Request to install %s version %s to %s\n", task.Name, task.Version, targetDir)
 
-	if m.isAlreadyInstalled(task, targetDir) {
+	if m.isAlreadyInstalled(ctx, task, targetDir) {
 		return nil
 	}
 
-	tmpFile, isArchive, err := m.downloadPlugin(task)
+	tmpFile, isArchive, err := m.downloadPlugin(ctx, task)
 	if err != nil {
 		return err
 	}
 	defer os.Remove(tmpFile)
 
 	if !isArchive {
-		return m.handleInstaller(task, tmpFile, targetDir)
+		return m.handleInstaller(ctx, task, tmpFile, targetDir)
 	}
 
-	return m.handleArchive(task, tmpFile, targetDir)
+	return m.handleArchive(ctx, task, tmpFile, targetDir)
 }
 
-func (m *Manager) isAlreadyInstalled(task DownloadTask, targetDir string) bool {
+func (m *Manager) isAlreadyInstalled(ctx context.Context, task DownloadTask, targetDir string) bool {
 	checkFile := filepath.Join(targetDir, task.CheckFile)
 	if task.Name == "Apache" {
 		if _, err := os.Stat(checkFile); os.IsNotExist(err) {
@@ -138,15 +136,15 @@ func (m *Manager) isAlreadyInstalled(task DownloadTask, targetDir string) bool {
 	if _, err := os.Stat(checkFile); err == nil {
 		fmt.Printf("[Manager] %s v%s already exists. Linking only.\n", task.Name, task.Version)
 		_ = m.ensureCurrentLink(task)
-		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Ready"})
+		m.emit(ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Ready"})
 		return true
 	}
 	return false
 }
 
-func (m *Manager) downloadPlugin(task DownloadTask) (string, bool, error) {
+func (m *Manager) downloadPlugin(ctx context.Context, task DownloadTask) (string, bool, error) {
 	fmt.Printf("[Manager] Downloading %s from %s\n", task.Name, task.URL)
-	ctx, cancel := context.WithCancel(m.ctx)
+	cCtx, cancel := context.WithCancel(ctx)
 	m.cancelsMu.Lock()
 	m.cancels[task.Name] = cancel
 	m.cancelsMu.Unlock()
@@ -167,20 +165,20 @@ func (m *Manager) downloadPlugin(task DownloadTask) (string, bool, error) {
 	}
 	tmp := filepath.Join(os.TempDir(), "ostenia_"+task.Name+ext)
 
-	err := utils.DownloadFile(ctx, task.URL, tmp, task.Name, func(pct float64, status, speed, downloaded string) {
-		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: pct, Status: status, Speed: speed, Downloaded: downloaded})
+	err := utils.DownloadFile(cCtx, task.URL, tmp, task.Name, func(pct float64, status, speed, downloaded string) {
+		m.emit(ctx, "download_progress", Progress{Name: task.Name, Percentage: pct, Status: status, Speed: speed, Downloaded: downloaded})
 	})
 
 	if err != nil {
 		fmt.Printf("[Manager] Download failed: %v\n", err)
-		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: errPrefix + err.Error()})
+		m.emit(ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: errPrefix + err.Error()})
 		return "", false, err
 	}
 
 	return tmp, isZip || isNupkg, nil
 }
 
-func (m *Manager) handleInstaller(task DownloadTask, tmpFile, targetDir string) error {
+func (m *Manager) handleInstaller(ctx context.Context, task DownloadTask, tmpFile, targetDir string) error {
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return err
 	}
@@ -197,32 +195,32 @@ func (m *Manager) handleInstaller(task DownloadTask, tmpFile, targetDir string) 
 		return fmt.Errorf("failed to launch installer: %w", err)
 	}
 
-	m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Completed"})
+	m.emit(ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Completed"})
 	return nil
 }
 
-func (m *Manager) handleArchive(task DownloadTask, tmpFile, targetDir string) error {
+func (m *Manager) handleArchive(ctx context.Context, task DownloadTask, tmpFile, targetDir string) error {
 	fmt.Printf("[Manager] Extracting %s to %s\n", task.Name, targetDir)
-	m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 99, Status: "Extracting..."})
+	m.emit(ctx, "download_progress", Progress{Name: task.Name, Percentage: 99, Status: "Extracting..."})
 
 	extractTmp := targetDir + ".tmp"
 	_ = os.RemoveAll(extractTmp)
 
-	if err := unzipFunc(m.ctx, tmpFile, extractTmp, task.Name, m.emit); err != nil {
+	if err := unzipFunc(ctx, tmpFile, extractTmp, task.Name, m.emit); err != nil {
 		fmt.Printf("[Manager] Extraction failed: %v\n", err)
-		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: errPrefix + err.Error()})
+		m.emit(ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: errPrefix + err.Error()})
 		return err
 	}
 
 	if err := m.postProcessExtraction(task, extractTmp, targetDir); err != nil {
 		fmt.Printf("[Manager] Post-processing failed: %v\n", err)
-		m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: errPrefix + err.Error()})
+		m.emit(ctx, "download_progress", Progress{Name: task.Name, Percentage: 0, Status: errPrefix + err.Error()})
 		return err
 	}
 
 	_ = m.ensureCurrentLink(task)
 	fmt.Printf("[Manager] %s v%s installation complete.\n", task.Name, task.Version)
-	m.emit(m.ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Completed"})
+	m.emit(ctx, "download_progress", Progress{Name: task.Name, Percentage: 100, Status: "Completed"})
 	return nil
 }
 
@@ -255,9 +253,9 @@ func (m *Manager) postProcessExtraction(task DownloadTask, extractTmp, targetDir
 }
 
 // DownloadFileManual downloads a file without context-based cancellation
-func (m *Manager) DownloadFileManual(url, path, name string) error {
-	return utils.DownloadFile(m.ctx, url, path, name, func(pct float64, status, speed, downloaded string) {
-		m.emit(m.ctx, "download_progress", Progress{Name: name, Percentage: pct, Status: status, Speed: speed, Downloaded: downloaded})
+func (m *Manager) DownloadFileManual(ctx context.Context, url, path, name string) error {
+	return utils.DownloadFile(ctx, url, path, name, func(pct float64, status, speed, downloaded string) {
+		m.emit(ctx, "download_progress", Progress{Name: name, Percentage: pct, Status: status, Speed: speed, Downloaded: downloaded})
 	})
 }
 

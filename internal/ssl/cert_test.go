@@ -192,6 +192,28 @@ func TestLoadErrors(t *testing.T) {
 	}
 }
 
+func TestGenerateAndSignErrors(t *testing.T) {
+	// Test generateRootCA with an unwritable/invalid path
+	err := generateRootCA("/invalid-path-foo-bar/baz")
+	if err == nil {
+		t.Error("Expected error for unwritable root CA destination path")
+	}
+
+	// Test signCertificate with non-existent CA dir
+	err = signCertificate("/invalid-ca-dir", "dummy.com", t.TempDir())
+	if err == nil {
+		t.Error("Expected error for non-existent CA directory in signCertificate")
+	}
+
+	// Test signCertificate with valid CA dir but missing ca.key
+	tempDir := t.TempDir()
+	os.WriteFile(filepath.Join(tempDir, "ca.crt"), []byte("dummy-ca-cert"), 0644)
+	err = signCertificate(tempDir, "dummy.com", tempDir)
+	if err == nil {
+		t.Error("Expected error for missing ca.key in signCertificate")
+	}
+}
+
 func TestTrustRootCA(t *testing.T) {
 	// Test override (cross-platform)
 	called := false

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import SSHTab from './SSHTab'
 import React from 'react'
@@ -45,17 +45,13 @@ describe('SSHTab Component', () => {
 
   it('renders loading state initially', async () => {
     AppBackend.GetSSHSessions.mockImplementation(() => Promise.resolve([]))
-    await act(async () => {
-      render(<SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />)
-    })
+    render(<SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />)
     expect(AppBackend.GetSSHSessions).toHaveBeenCalled()
   })
 
   it('renders sessions after loading', async () => {
     AppBackend.GetSSHSessions.mockImplementation(() => Promise.resolve(mockSessions))
-    await act(async () => {
-      render(<SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />)
-    })
+    render(<SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />)
 
     await waitFor(() => {
       expect(screen.getByText(TEST_IP_1)).toBeInTheDocument()
@@ -65,9 +61,7 @@ describe('SSHTab Component', () => {
 
   it('opens new connection form', async () => {
     AppBackend.GetSSHSessions.mockImplementation(() => Promise.resolve([]))
-    await act(async () => {
-      render(<SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />)
-    })
+    render(<SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />)
 
     const newBtn = screen.getByText('New Connection')
     fireEvent.click(newBtn)
@@ -77,9 +71,7 @@ describe('SSHTab Component', () => {
 
   it('connects on double click', async () => {
     AppBackend.GetSSHSessions.mockImplementation(() => Promise.resolve(mockSessions))
-    await act(async () => {
-      render(<SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />)
-    })
+    render(<SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />)
 
     await waitFor(() => screen.getByText(TEST_IP_1))
 

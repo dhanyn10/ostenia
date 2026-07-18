@@ -38,7 +38,7 @@ func (a *App) OpenPluginFolder(serviceName string) error {
 
 // InstallPrerequisite downloads and installs a plugin prerequisite
 func (a *App) InstallPrerequisite(task plugins.DownloadTask) error {
-	err := a.downloader.DownloadAndExtract(task)
+	err := a.downloader.DownloadAndExtract(a.ctx, task)
 	if err == nil {
 		_, _, currentPath := a.getPluginPaths(task.Name)
 
@@ -56,7 +56,7 @@ func (a *App) InstallPrerequisite(task plugins.DownloadTask) error {
 func (a *App) CancelDownload(taskName string) { a.downloader.CancelDownload(taskName) }
 
 // InstallPluginModule installs a sub-module for a parent plugin (e.g., Composer for PHP)
-func (a *App) InstallPluginModule(parentName string, moduleName string) error {
+func (a *App) InstallPluginModule(parentName, moduleName string) error {
 	_, _, currentPath := a.getPluginPaths(parentName)
 
 	if _, err := os.Stat(currentPath); os.IsNotExist(err) {
@@ -90,7 +90,7 @@ func (a *App) InstallPluginModule(parentName string, moduleName string) error {
 }
 
 // UninstallPluginModule removes a sub-module from a parent plugin
-func (a *App) UninstallPluginModule(parentName string, moduleName string) error {
+func (a *App) UninstallPluginModule(parentName, moduleName string) error {
 	_, _, currentPath := a.getPluginPaths(parentName)
 
 	var err error
@@ -116,7 +116,7 @@ func (a *App) UninstallPluginModule(parentName string, moduleName string) error 
 }
 
 // SwitchServiceVersion changes the active version of a service using directory junctions
-func (a *App) SwitchServiceVersion(serviceName string, version string) error {
+func (a *App) SwitchServiceVersion(serviceName, version string) error {
 	category, binDir, currentPath := a.getPluginPaths(serviceName)
 	prefix := ""
 	switch category {
@@ -169,11 +169,11 @@ func (a *App) SwitchServiceVersion(serviceName string, version string) error {
 }
 
 // DeleteVersion deletes a specific version folder of a plugin
-func (a *App) DeleteVersion(serviceName string, version string) error {
+func (a *App) DeleteVersion(serviceName, version string) error {
 	return a.downloader.DeleteVersion(serviceName, version)
 }
 
-func (a *App) getServiceTargetDir(category string, binDir string) string {
+func (a *App) getServiceTargetDir(category, binDir string) string {
 	exeMap := map[string]string{
 		"nginx":  exeNginx,
 		"apache": exeApache,

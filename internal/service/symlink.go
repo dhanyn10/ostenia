@@ -15,7 +15,7 @@ func NewSymlinkManager() *SymlinkManager {
 	return &SymlinkManager{}
 }
 
-func (s *SymlinkManager) SwitchVersion(category string, targetVersionDir string) error {
+func (s *SymlinkManager) SwitchVersion(category, targetVersionDir string) error {
 	baseDir := config.GetBaseDir()
 	binDir := filepath.Join(baseDir, "bin", category)
 	currentLink := filepath.Join(binDir, "current")

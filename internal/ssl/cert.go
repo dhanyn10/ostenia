@@ -33,7 +33,7 @@ func GetRemainingDays(certPath string) (int, error) {
 	return GetRemainingDaysFunc(certPath)
 }
 
-func SignCertificate(caDir string, domain string, destDir string) error {
+func SignCertificate(caDir, domain, destDir string) error {
 	return SignCertificateFunc(caDir, domain, destDir)
 }
 
@@ -201,7 +201,7 @@ func TrustRootCA(caPath string) error {
 	return nil
 }
 
-func signCertificate(caDir string, domain string, destDir string) error {
+func signCertificate(caDir, domain, destDir string) error {
 	certPath := filepath.Join(destDir, domain+".crt")
 	keyPath := filepath.Join(destDir, domain+".key")
 	if _, err := os.Stat(certPath); err == nil {

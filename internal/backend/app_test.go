@@ -65,55 +65,55 @@ type MockOrchestrator struct {
     Running map[string]bool
 }
 func (m *MockOrchestrator) SetRuntime(r interfaces.Runtime) {}
-func (m *MockOrchestrator) StartWatcher()                  {}
+func (m *MockOrchestrator) StartWatcher(ctx context.Context)                  {}
 func (m *MockOrchestrator) SetActiveTab(tab string)        {}
 func (m *MockOrchestrator) RequestRefresh()                {}
 func (m *MockOrchestrator) IsRunning(name string) bool     { return m.Running[name] }
 func (m *MockOrchestrator) GetDetailedInfo(name string) interfaces.ServiceDetailedInfo {
     return interfaces.ServiceDetailedInfo{Name: name, Status: "Stopped", Port: 80}
 }
-func (m *MockOrchestrator) StartServiceWithPort(name string, binaryPath string, args []string, workingDir string, port int) error {
+func (m *MockOrchestrator) StartServiceWithPort(ctx context.Context, name, binaryPath string, args []string, workingDir string, port int) error {
     m.Running[name] = true
     return nil
 }
-func (m *MockOrchestrator) StartService(name string, binaryPath string, args []string, workingDir string) error {
+func (m *MockOrchestrator) StartService(ctx context.Context, name, binaryPath string, args []string, workingDir string) error {
     m.Running[name] = true
     return nil
 }
-func (m *MockOrchestrator) StopService(name string) error {
+func (m *MockOrchestrator) StopService(ctx context.Context, name string) error {
     m.Running[name] = false
     return nil
 }
-func (m *MockOrchestrator) StopAll() {
+func (m *MockOrchestrator) StopAll(ctx context.Context) {
     m.Running = make(map[string]bool)
 }
 
 type MockPluginManager struct {
     interfaces.PluginManager
 }
-func (m *MockPluginManager) DownloadAndExtract(task interfaces.DownloadTask) error { return nil }
+func (m *MockPluginManager) DownloadAndExtract(ctx context.Context, task interfaces.DownloadTask) error { return nil }
 func (m *MockPluginManager) DeleteVersion(category, version string) error { return nil }
 func (m *MockPluginManager) CancelDownload(category string) {}
 func (m *MockPluginManager) GetInstalledVersionPaths(category, checkFile string) map[string]string {
     return map[string]string{"8.2.0": "/path/to/8.2.0"}
 }
-func (m *MockPluginManager) InstallModule(moduleName string, phpPath string, emitProgress func(string, float64, string)) error { return nil }
-func (m *MockPluginManager) UninstallModule(moduleName string, phpPath string) error { return nil }
+func (m *MockPluginManager) InstallModule(moduleName, phpPath string, emitProgress func(string, float64, string)) error { return nil }
+func (m *MockPluginManager) UninstallModule(moduleName, phpPath string) error { return nil }
 
 type MockSSHManager struct {
     interfaces.SSHManager
 }
 func (m *MockSSHManager) GetSessions() ([]config.SSHSession, error) { return []config.SSHSession{}, nil }
 func (m *MockSSHManager) SaveSessions(sessions []config.SSHSession) error { return nil }
-func (m *MockSSHManager) Connect(session config.SSHSession) error { return nil }
+func (m *MockSSHManager) Connect(ctx context.Context, session config.SSHSession) error { return nil }
 func (m *MockSSHManager) Disconnect(sessionID string) {}
 func (m *MockSSHManager) SendInput(sessionID string, input string) error { return nil }
 func (m *MockSSHManager) ResizeTerminal(sessionID string, cols, rows int) error { return nil }
 func (m *MockSSHManager) ListFiles(sessionID string, path string) ([]interfaces.RemoteFile, error) { return []interfaces.RemoteFile{}, nil }
-func (m *MockSSHManager) ExecuteSFTPAction(sessionID string, action, path, newPath string) error { return nil }
-func (m *MockSSHManager) DownloadFile(sessionID string, remotePath, localPath string) error { return nil }
-func (m *MockSSHManager) UploadFile(sessionID string, localPath, remotePath string) error { return nil }
-func (m *MockSSHManager) EditFile(sessionID string, remotePath, editor string) error { return nil }
+func (m *MockSSHManager) ExecuteSFTPAction(sessionID, action, path, newPath string) error { return nil }
+func (m *MockSSHManager) DownloadFile(sessionID, remotePath, localPath string) error { return nil }
+func (m *MockSSHManager) UploadFile(sessionID, localPath, remotePath string) error { return nil }
+func (m *MockSSHManager) EditFile(sessionID, remotePath, editor string) error { return nil }
 func (m *MockSSHManager) GetCurrentPath(sessionID string) (string, error) { return "/", nil }
 
 type MockSSLManager struct {
@@ -168,7 +168,7 @@ func TestApp_Full_Mocked(t *testing.T) {
 	_ = app.IsAdmin()
 
     // Env
-    app.orchestrator.StartService("Apache", "", nil, "")
+    app.orchestrator.StartService(app.ctx, "Apache", "", nil, "")
 	_ = app.SetWWWRoot(filepath.Join(tempDir, "www2"))
 	_ = app.SetServerRoot(tempDir)
 	_, _ = app.SelectServerRoot()
@@ -227,7 +227,7 @@ func TestApp_Full_Mocked(t *testing.T) {
     app.OpenProxyTerminal("myapp", "cmd")
 
     // PHP
-    app.orchestrator.StartService("PHP", "", nil, "")
+    app.orchestrator.StartService(app.ctx, "PHP", "", nil, "")
     _, _ = app.GetPHPExtensions()
     _ = app.TogglePHPExtension("openssl", true)
 
@@ -401,13 +401,13 @@ func TestApp_Services_RealIsh(t *testing.T) {
     _ = app.StartService("Nginx")
 
     // Test SetHTTPS with running services to trigger restart
-    app.orchestrator.StartService("Apache", "", nil, "")
+    app.orchestrator.StartService(app.ctx, "Apache", "", nil, "")
     _ = app.SetApacheHTTPS(true)
-    app.orchestrator.StartService("Nginx", "", nil, "")
+    app.orchestrator.StartService(app.ctx, "Nginx", "", nil, "")
     _ = app.SetNginxHTTPS(true)
 
     // Ensure dependent web servers restart when PHP starts
-    app.orchestrator.StartService("Apache", "", nil, "")
+    app.orchestrator.StartService(app.ctx, "Apache", "", nil, "")
     app.cfg.Proxies["mysite"] = 8080
     _ = app.StartService("PHP")
 
@@ -432,8 +432,8 @@ func TestApp_Services_RealIsh(t *testing.T) {
     _, _ = app.walkForExecutable(nginxDir, "nginx.exe")
 
     // Test app_network.go
-    app.orchestrator.StartService("Apache", "", nil, "")
-    app.orchestrator.StartService("Nginx", "", nil, "")
+    app.orchestrator.StartService(app.ctx, "Apache", "", nil, "")
+    app.orchestrator.StartService(app.ctx, "Nginx", "", nil, "")
     _ = app.SaveProxyPort("mysite", 8080)
     _ = app.GetProxyApps()
     _ = app.CheckProxyPorts()
