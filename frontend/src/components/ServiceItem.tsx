@@ -42,7 +42,7 @@ const VersionSwitcher: React.FC<any> = ({ service, task, handleSwitchVersion }) 
   if (!show) return null;
 
   return (
-    <div className="flex items-center gap-1 ml-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+    <div className="flex items-center gap-1 ml-1">
       {installedVersions.map((ver: string) => {
         const systemString = (service.activeVersion || "").toString().toLowerCase().trim();
         const cleanVer = ver.toString().replace(/^v/, "").replace(/^[a-z. ]+-/, "").trim();
@@ -52,7 +52,7 @@ const VersionSwitcher: React.FC<any> = ({ service, task, handleSwitchVersion }) 
           <button
             key={ver}
             type="button"
-            onClick={() => handleSwitchVersion(service.name, ver)}
+            onClick={(e) => { e.stopPropagation(); handleSwitchVersion(service.name, ver); }}
             className={cn(
               "px-1.5 py-0.5 rounded-sm text-[8px] font-black uppercase tracking-widest border transition-all",
               isActive
@@ -113,14 +113,14 @@ const ServiceStatus: React.FC<any> = ({ service }) => {
 };
 
 const MainActions: React.FC<any> = ({ isInstalled, service, handleToggleService, handleRemoveFromHome, setActiveTab, isTransitioning }) => (
-  <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+  <div className="flex items-center gap-3">
     {!isInstalled && service.name !== 'OpenSSL' ? (
-      <button type="button" onClick={() => setActiveTab('plugins')} className="px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
+      <button type="button" onClick={(e) => { e.stopPropagation(); setActiveTab('plugins'); }} className="px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20">Install First</button>
     ) : (
       <button
         type="button"
         disabled={isTransitioning}
-        onClick={() => handleToggleService(service.name, service.status)}
+        onClick={(e) => { e.stopPropagation(); handleToggleService(service.name, service.status); }}
         className={cn(
           "w-12 h-6 rounded-sm p-0.5 transition-all duration-300 ease-in-out relative ring-1 ring-inset",
           service.status === 'Running'
@@ -144,7 +144,7 @@ const MainActions: React.FC<any> = ({ isInstalled, service, handleToggleService,
 
     <button
       type="button"
-      onClick={() => handleRemoveFromHome(service.name)}
+      onClick={(e) => { e.stopPropagation(); handleRemoveFromHome(service.name); }}
       className="h-6 px-3 bg-slate-100 dark:bg-white/5 hover:bg-rose-500/10 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-white/5"
     >
       <Trash2 size={12} />
@@ -173,8 +173,6 @@ const ServiceExtraActions: React.FC<any> = ({
       "transition-all duration-300 ease-in-out overflow-visible",
       isExpanded ? "max-h-24 opacity-100 mt-4" : "max-h-0 opacity-0 mt-0 overflow-hidden"
     )}
-    onClick={(e) => e.stopPropagation()}
-    onKeyDown={(e) => e.stopPropagation()}
   >
     <div className="flex items-center flex-wrap gap-4 px-1 pb-2">
       {hasPhpExtManager && (
