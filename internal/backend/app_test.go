@@ -193,7 +193,7 @@ func TestApp_Full_Mocked(t *testing.T) {
 
     // Services
 	_ = app.GetServiceStatus("Apache")
-	for _, s := range []string{"Apache", "MySQL", "Nginx", "PHP", "Node.js", "Python", "OpenSSL", "HeidiSQL", "Unknown"} {
+	for _, s := range []string{"Apache", "MySQL", "Nginx", "PHP", serviceNodeJS, "Python", "OpenSSL", "HeidiSQL", "Unknown"} {
 		_ = app.StartService(s)
 		_ = app.StopService(s)
 	}
@@ -241,7 +241,7 @@ func TestApp_Full_Mocked(t *testing.T) {
     _ = app.StartService("Unknown")
     _ = app.StopService("PHP")
     _ = app.StopService("OpenSSL")
-    _ = app.StopService("Node.js")
+    _ = app.StopService(serviceNodeJS)
     _ = app.StopService("Python")
 
     // Node and Python Start Service fail cases
@@ -412,8 +412,8 @@ func TestApp_Services_RealIsh(t *testing.T) {
     _ = app.StartService("PHP")
 
     // Node & Python
-    _ = app.SwitchServiceVersion("Node.js", "18.0.0")
-    _ = app.StartService("Node.js")
+    _ = app.SwitchServiceVersion(serviceNodeJS, "18.0.0")
+    _ = app.StartService(serviceNodeJS)
     _ = app.SwitchServiceVersion("Python", "3.10.0")
     _ = app.StartService("Python")
 
@@ -421,7 +421,7 @@ func TestApp_Services_RealIsh(t *testing.T) {
     _ = app.StartAllServices()
 
     // Test StopService for all
-    for _, s := range []string{"Apache", "MySQL", "Nginx", "PHP", "Node.js", "Python", "OpenSSL"} {
+    for _, s := range []string{"Apache", "MySQL", "Nginx", "PHP", serviceNodeJS, "Python", "OpenSSL"} {
         _ = app.StopService(s)
     }
 
