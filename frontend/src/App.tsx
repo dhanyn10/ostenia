@@ -33,6 +33,8 @@ interface ServiceInfo {
   remainingDays?: number;
 }
 
+let isLogging = false;
+
 function App() {
  const [activeTab, setActiveTab] = useState('activity');
  const [theme, setTheme] = useState(() => {
@@ -91,10 +93,16 @@ function App() {
  const handleOpenPluginFolder = (name: string) => AppBackend.OpenPluginFolder(name);
 
  const addLog = useCallback((msg: string, type = 'info') => {
-   const time = new Date().toLocaleTimeString();
-   const id = crypto.randomUUID();
-   const prefix = type === 'error' ? 'ERR' : type === 'warn' ? 'WRN' : 'SYS';
-   setLogs(prev => [{ id, time, msg: `[${prefix}] ${msg}` }, ...prev].slice(0, 1000));
+   if (isLogging) return;
+   isLogging = true;
+   try {
+     const time = new Date().toLocaleTimeString();
+     const id = crypto.randomUUID();
+     const prefix = type === 'error' ? 'ERR' : type === 'warn' ? 'WRN' : 'SYS';
+     setLogs(prev => [{ id, time, msg: `[${prefix}] ${msg}` }, ...prev].slice(0, 1000));
+   } finally {
+     isLogging = false;
+   }
  }, []);
 
  const addToast = (title: string, message: string, type: 'info' | 'success' | 'warn' | 'error' = 'info') => {
