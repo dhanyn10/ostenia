@@ -100,13 +100,13 @@ func (a *App) Startup(ctx context.Context) {
 		a.downloader = plugins.NewManager(ctx)
 	}
 	if a.orchestrator == nil {
-		a.orchestrator = service.NewOrchestrator(ctx)
+		a.orchestrator = service.NewOrchestrator()
 	}
 	if a.symlinkMgr == nil {
 		a.symlinkMgr = service.NewSymlinkManager()
 	}
 	if a.sshManager == nil {
-		a.sshManager = service.NewSSHManager(ctx)
+		a.sshManager = service.NewSSHManager()
 	}
 	if a.sslManager == nil {
 		a.sslManager = &DefaultSSLManager{}
@@ -123,7 +123,7 @@ func (a *App) Startup(ctx context.Context) {
 	a.ensureEnvironmentStructure()
 
 	// Start the periodic watcher for services
-	a.orchestrator.StartWatcher()
+	a.orchestrator.StartWatcher(ctx)
 
 	// Start proxy port watcher
 	go a.startProxyWatcher()

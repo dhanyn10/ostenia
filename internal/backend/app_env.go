@@ -51,7 +51,7 @@ func (a *App) SetWWWRoot(path string) error {
 // SetServerRoot changes the base directory for all Ostenia apps and binaries
 func (a *App) SetServerRoot(rootPath string) error {
 	fmt.Printf("[App] Switching Apps Location to: %s\n", rootPath)
-	a.orchestrator.StopAll()
+	a.orchestrator.StopAll(a.ctx)
 	time.Sleep(1 * time.Second)
 	a.cfg.BaseDir = rootPath
 	a.cfg.WWWRoot = filepath.Join(rootPath, "www")

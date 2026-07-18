@@ -148,7 +148,7 @@ func (m *mockSSHRuntime) SaveFileDialog(ctx context.Context, options wruntime.Sa
 
 func setupSSHTest(t *testing.T) (*SSHManager, string, *mockSSHClient, func()) {
 	ctx := context.Background()
-	m := NewSSHManager(ctx)
+	m := NewSSHManager()
 	rt := &mockSSHRuntime{}
 	m.SetRuntime(rt)
 
@@ -178,7 +178,7 @@ func setupSSHTest(t *testing.T) (*SSHManager, string, *mockSSHClient, func()) {
 		Password:   "pass",
 	}
 
-	err := m.Connect(session)
+	err := m.Connect(ctx, session)
 	if err != nil {
 		t.Fatalf("Connect failed: %v", err)
 	}
@@ -314,13 +314,13 @@ func TestSSHManager_Disconnect(t *testing.T) {
 }
 
 func TestSSHManager_Errors(t *testing.T) {
-	m := NewSSHManager(context.Background())
+	m := NewSSHManager()
 	m.dialer = func(cfg *goph.Config) (interfaces.SSHClient, error) {
 		return nil, errors.New("dial error")
 	}
 
 	t.Run("Connect Error", func(t *testing.T) {
-		err := m.Connect(config.SSHSession{ID: "err-id"})
+		err := m.Connect(context.Background(), config.SSHSession{ID: "err-id"})
 		if err == nil {
 			t.Error("Expected dial error")
 		}
@@ -366,7 +366,7 @@ func TestSSHManager_Editor_Mocked(t *testing.T) {
 func TestSSHManager_TerminalLoop(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	m := NewSSHManager(ctx)
+	m := NewSSHManager()
 	rt := &mockSSHRuntime{}
 	m.SetRuntime(rt)
 
@@ -384,7 +384,7 @@ func TestSSHManager_TerminalLoop(t *testing.T) {
 	}()
 
 	exitChan := make(chan struct{})
-	go m.processTerminalOutput(conn, pr, exitChan)
+	go m.processTerminalOutput(ctx, conn, pr, exitChan)
 
 	time.Sleep(100 * time.Millisecond)
 	if len(rt.getEvents()) == 0 {
@@ -402,7 +402,7 @@ func TestSSHManager_TerminalLoop(t *testing.T) {
 		// Trigger context cancel
 		cancel()
 
-		m.handleTerminalExit(conn, sess, exitChan2)
+		m.handleTerminalExit(ctx, conn, sess, exitChan2)
 		if !sess.closed {
 			t.Error("Expected session to be closed")
 		}
@@ -423,7 +423,7 @@ func TestSSHManager_TerminalLoop(t *testing.T) {
 		exitChan3 := make(chan struct{})
 		close(exitChan3)
 
-		m.handleTerminalExit(conn3, &mockSSHSession{}, exitChan3)
+		m.handleTerminalExit(ctx3, conn3, &mockSSHSession{}, exitChan3)
 
 		m.mu.RLock()
 		_, ok := m.connections["exit-id"]
@@ -435,7 +435,7 @@ func TestSSHManager_TerminalLoop(t *testing.T) {
 }
 
 func TestSSHManager_AuthMethods(t *testing.T) {
-	m := NewSSHManager(context.Background())
+	m := NewSSHManager()
 
 	t.Run("getAuth password", func(t *testing.T) {
 		sess := config.SSHSession{AuthMethod: "password", Password: "p"}
@@ -491,7 +491,7 @@ func TestSSHManager_Sessions(t *testing.T) {
 	os.Setenv("OSTENIA_HOME", tempDir)
 	defer os.Unsetenv("OSTENIA_HOME")
 
-	m := NewSSHManager(context.Background())
+	m := NewSSHManager()
 
 	t.Run("SaveAndGet", func(t *testing.T) {
 		sessions := []config.SSHSession{{ID: "s1", Host: "h1"}}

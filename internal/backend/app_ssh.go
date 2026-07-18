@@ -35,7 +35,7 @@ func (a *App) DeleteSSHSession(id string) error {
 
 // ConnectSSH initiates an SSH connection
 func (a *App) ConnectSSH(session config.SSHSession) error {
-	return a.sshManager.Connect(session)
+	return a.sshManager.Connect(a.ctx, session)
 }
 
 // DisconnectSSH closes an SSH connection

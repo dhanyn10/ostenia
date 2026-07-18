@@ -38,7 +38,7 @@ func (a *App) OpenPluginFolder(serviceName string) error {
 
 // InstallPrerequisite downloads and installs a plugin prerequisite
 func (a *App) InstallPrerequisite(task plugins.DownloadTask) error {
-	err := a.downloader.DownloadAndExtract(task)
+	err := a.downloader.DownloadAndExtract(a.ctx, task)
 	if err == nil {
 		_, _, currentPath := a.getPluginPaths(task.Name)
 

@@ -74,7 +74,7 @@ func (a *App) StopService(serviceName string) error {
 		a.orchestrator.RequestRefresh()
 		return nil
 	}
-	return a.orchestrator.StopService(serviceName)
+	return a.orchestrator.StopService(a.ctx, serviceName)
 }
 
 func (a *App) startNodeService(currentPath string) error {
@@ -178,7 +178,7 @@ func (a *App) startMySQLService(binDir string) error {
 		return err
 	}
 	iniPath := filepath.Join(mysqlBase, "my.ini")
-	return a.orchestrator.StartServiceWithPort("MySQL", mysqlBin, []string{"--defaults-file=" + iniPath, "--console"}, filepath.Dir(mysqlBin), port)
+	return a.orchestrator.StartServiceWithPort(a.ctx, "MySQL", mysqlBin, []string{"--defaults-file=" + iniPath, "--console"}, filepath.Dir(mysqlBin), port)
 }
 
 func (a *App) startApacheService(binDir string) error {
@@ -204,7 +204,7 @@ func (a *App) startApacheService(binDir string) error {
 	if err := a.updateApacheConfig(apacheBase, port); err != nil {
 		return err
 	}
-	return a.orchestrator.StartServiceWithPort("Apache", apacheBin, []string{}, apacheBase, port)
+	return a.orchestrator.StartServiceWithPort(a.ctx, "Apache", apacheBin, []string{}, apacheBase, port)
 }
 
 func (a *App) startNginxService(binDir string) error {
@@ -227,7 +227,7 @@ func (a *App) startNginxService(binDir string) error {
 	if err := a.updateNginxConfig(nginxBase, port); err != nil {
 		return err
 	}
-	return a.orchestrator.StartServiceWithPort("Nginx", nginxBin, []string{"-p", nginxBase}, nginxBase, port)
+	return a.orchestrator.StartServiceWithPort(a.ctx, "Nginx", nginxBin, []string{"-p", nginxBase}, nginxBase, port)
 }
 
 func (a *App) startHeidiSQLService() error {
@@ -239,7 +239,7 @@ func (a *App) startHeidiSQLService() error {
 	tasks := plugins.GetLatestKnownVersions()
 	for _, t := range tasks {
 		if t.Name == "HeidiSQL" {
-			return a.downloader.DownloadAndExtract(t)
+			return a.downloader.DownloadAndExtract(a.ctx, t)
 		}
 	}
 	return fmt.Errorf("HeidiSQL task not found")
@@ -262,7 +262,7 @@ func (a *App) startPHPService(currentPath string) error {
 	_ = os.Setenv("PATH", currentPath+";"+os.Getenv("PATH")) // NOSONAR
 	_ = service.UpdatePHPPath(currentPath, true)
 	_ = os.Setenv("PHP_FCGI_MAX_REQUESTS", "1000")
-	err := a.orchestrator.StartServiceWithPort("PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, currentPath, port)
+	err := a.orchestrator.StartServiceWithPort(a.ctx, "PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, currentPath, port)
 	if err == nil {
 		a.restartDependentWebServers()
 	}
@@ -287,7 +287,7 @@ func (a *App) StartAllServices() error {
 }
 
 // StopAllServices stops all currently running background services
-func (a *App) StopAllServices() { a.orchestrator.StopAll() }
+func (a *App) StopAllServices() { a.orchestrator.StopAll(a.ctx) }
 
 func (a *App) updateMySQLConfig(mysqlPath string, port int) error {
 	dataDir := filepath.Join(mysqlPath, "data"); tmpDir := filepath.Join(mysqlPath, "tmp"); binDir := filepath.Join(mysqlPath, "bin"); iniPath := filepath.Join(mysqlPath, "my.ini")

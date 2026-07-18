@@ -21,7 +21,7 @@ func (m *mockRuntime) EventsEmit(ctx context.Context, eventName string, optional
 
 func newTestOrchestrator() (context.Context, context.CancelFunc, *Orchestrator) {
 	ctx, cancel := context.WithCancel(context.Background())
-	orch := NewOrchestrator(ctx)
+	orch := NewOrchestrator()
 	orch.SetRuntime(&mockRuntime{})
 	return ctx, cancel, orch
 }
@@ -90,32 +90,32 @@ func TestOrchestrator_StartStopService(t *testing.T) {
 	defer func() { utils.Executor = origExecutor }()
 	utils.Executor = &testutil.MockExecutor{Output: ""}
 
-	_, cancel, orch := newTestOrchestrator()
+	ctx, cancel, orch := newTestOrchestrator()
 	defer cancel()
 
 	binary := "true"
 	if runtime.GOOS == "windows" {
 		binary = "cmd"
 	}
-	err := orch.StartService("TestService", binary, []string{}, "")
+	err := orch.StartService(ctx, "TestService", binary, []string{}, "")
 	if err != nil {
 		t.Errorf("StartService failed: %v", err)
 	}
 
-	orch.StopAll()
+	orch.StopAll(ctx)
 	time.Sleep(100 * time.Millisecond)
 }
 
 func TestOrchestrator_WatcherAndRefresh(t *testing.T) {
-	_, cancel, orch := newTestOrchestrator()
+	ctx, cancel, orch := newTestOrchestrator()
 	defer cancel()
 
 	orch.RequestRefresh()
-	orch.performWatcherCheck([]string{"Apache"})
+	orch.performWatcherCheck(ctx, []string{"Apache"})
 
 	ctx2, cancel2 := context.WithCancel(context.Background())
-	orch2 := NewOrchestrator(ctx2)
-	orch2.StartWatcher()
+	orch2 := NewOrchestrator()
+	orch2.StartWatcher(ctx2)
 	time.Sleep(100 * time.Millisecond)
 	cancel2()
 }
@@ -202,7 +202,7 @@ func TestParseWmicOutput(t *testing.T) {
 func TestCaptureLogs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	orch := NewOrchestrator(ctx)
+	orch := NewOrchestrator()
 	orch.SetRuntime(&mockRuntime{})
 
 	pr, pw := io.Pipe()
@@ -211,13 +211,11 @@ func TestCaptureLogs(t *testing.T) {
 		pw.Close()
 	}()
 
-	orch.captureLogs("Test", pr)
+	orch.captureLogs(ctx, "Test", pr)
 }
 
 func TestOrchestrator_Additional(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	orch := NewOrchestrator(ctx)
+	orch := NewOrchestrator()
 	orch.SetRuntime(&mockRuntime{})
 
 	t.Run("shouldRefresh", func(t *testing.T) {

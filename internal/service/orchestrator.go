@@ -43,7 +43,6 @@ const serviceNodeJS = "Node.js"
 
 // Orchestrator manages the lifecycle, monitoring, and state of background services
 type Orchestrator struct {
-	ctx          context.Context
 	services     map[string]*runningService
 	serviceCache map[string]ServiceDetailedInfo
 	mu           sync.Mutex
@@ -55,9 +54,8 @@ type Orchestrator struct {
 }
 
 // NewOrchestrator creates a new Orchestrator instance
-func NewOrchestrator(ctx context.Context) *Orchestrator {
+func NewOrchestrator() *Orchestrator {
 	return &Orchestrator{
-		ctx:          ctx,
 		services:     make(map[string]*runningService),
 		serviceCache: make(map[string]ServiceDetailedInfo),
 		activeTab:    "activity",
@@ -70,9 +68,9 @@ func (o *Orchestrator) SetRuntime(r interfaces.Runtime) {
 	o.runtime = r
 }
 
-func (o *Orchestrator) emitEvent(eventName string, optionalData ...interface{}) {
-	if o.runtime != nil && o.ctx != nil {
-		o.runtime.EventsEmit(o.ctx, eventName, optionalData...)
+func (o *Orchestrator) emitEvent(ctx context.Context, eventName string, optionalData ...interface{}) {
+	if o.runtime != nil && ctx != nil {
+		o.runtime.EventsEmit(ctx, eventName, optionalData...)
 	}
 }
 
@@ -95,23 +93,23 @@ func (o *Orchestrator) RequestRefresh() {
 }
 
 // StartWatcher begins a background ticker that periodically updates service statuses
-func (o *Orchestrator) StartWatcher() {
+func (o *Orchestrator) StartWatcher(ctx context.Context) {
 	go func() {
 		ticker := time.NewTicker(3 * time.Second)
 		defer ticker.Stop()
 		servicesToWatch := []string{"Apache", "Nginx", "MySQL", "PHP", serviceNodeJS, "Python", "HeidiSQL", "OpenSSL"}
 		for {
 			select {
-			case <-o.ctx.Done():
+			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				o.performWatcherCheck(servicesToWatch)
+				o.performWatcherCheck(ctx, servicesToWatch)
 			}
 		}
 	}()
 }
 
-func (o *Orchestrator) performWatcherCheck(services []string) {
+func (o *Orchestrator) performWatcherCheck(ctx context.Context, services []string) {
 	o.tabMu.RLock()
 	currentTab := o.activeTab
 	o.tabMu.RUnlock()
@@ -123,7 +121,7 @@ func (o *Orchestrator) performWatcherCheck(services []string) {
 	if o.shouldRefresh(services) {
 		for _, name := range services {
 			info := o.updateServiceInfo(name)
-			o.emitEvent("service_status", info)
+			o.emitEvent(ctx, "service_status", info)
 		}
 	}
 }
@@ -409,12 +407,12 @@ func containsInt(slice []int, val int) bool {
 }
 
 // StartServiceWithPort launches a service and tracks it by its known port
-func (o *Orchestrator) StartServiceWithPort(name string, binaryPath string, args []string, workingDir string, port int) error {
+func (o *Orchestrator) StartServiceWithPort(ctx context.Context, name, binaryPath string, args []string, workingDir string, port int) error {
 	if o.isServiceAlreadyRunning(name, binaryPath) {
 		return fmt.Errorf("service %s is already running", name)
 	}
 
-	cmd, err := o.setupServiceCommand(name, binaryPath, args, workingDir)
+	cmd, err := o.setupServiceCommand(ctx, name, binaryPath, args, workingDir)
 	if err != nil {
 		return err
 	}
@@ -428,9 +426,9 @@ func (o *Orchestrator) StartServiceWithPort(name string, binaryPath string, args
 	o.services[name] = s
 	o.mu.Unlock()
 	o.RequestRefresh()
-	o.emitStatus(name, "Running")
+	o.emitStatus(ctx, name, "Running")
 
-	go o.waitForServiceExit(name, s)
+	go o.waitForServiceExit(ctx, name, s)
 	return nil
 }
 
@@ -452,7 +450,7 @@ func (o *Orchestrator) isServiceAlreadyRunning(name, binaryPath string) bool {
 	return false
 }
 
-func (o *Orchestrator) setupServiceCommand(name, binaryPath string, args []string, workingDir string) (*exec.Cmd, error) {
+func (o *Orchestrator) setupServiceCommand(ctx context.Context, name, binaryPath string, args []string, workingDir string) (*exec.Cmd, error) {
 	absPath, _ := filepath.Abs(binaryPath)
 	cmd := utils.Executor.Command(absPath, args...)
 	if workingDir != "" {
@@ -461,16 +459,16 @@ func (o *Orchestrator) setupServiceCommand(name, binaryPath string, args []strin
 	utils.SetHideWindow(cmd)
 
 	if stdout, err := cmd.StdoutPipe(); err == nil {
-		go o.captureLogs(name, stdout)
+		go o.captureLogs(ctx, name, stdout)
 	}
 	if stderr, err := cmd.StderrPipe(); err == nil {
-		go o.captureLogs(name, stderr)
+		go o.captureLogs(ctx, name, stderr)
 	}
 
 	return cmd, nil
 }
 
-func (o *Orchestrator) waitForServiceExit(name string, s *runningService) {
+func (o *Orchestrator) waitForServiceExit(ctx context.Context, name string, s *runningService) {
 	_ = s.Wait()
 	o.mu.Lock()
 	if o.services[name] == s {
@@ -478,16 +476,16 @@ func (o *Orchestrator) waitForServiceExit(name string, s *runningService) {
 	}
 	o.mu.Unlock()
 	o.RequestRefresh()
-	o.emitStatus(name, "Stopped")
+	o.emitStatus(ctx, name, "Stopped")
 }
 
 // StartService launches a service without a specific port requirement
-func (o *Orchestrator) StartService(name string, binaryPath string, args []string, workingDir string) error {
-	return o.StartServiceWithPort(name, binaryPath, args, workingDir, 0)
+func (o *Orchestrator) StartService(ctx context.Context, name, binaryPath string, args []string, workingDir string) error {
+	return o.StartServiceWithPort(ctx, name, binaryPath, args, workingDir, 0)
 }
 
 // StopService gracefully or forcefully shuts down a running service
-func (o *Orchestrator) StopService(name string) error {
+func (o *Orchestrator) StopService(ctx context.Context, name string) error {
 	o.mu.Lock()
 	s, exists := o.services[name]
 	o.mu.Unlock()
@@ -506,7 +504,7 @@ func (o *Orchestrator) StopService(name string) error {
 	delete(o.services, name)
 	o.mu.Unlock()
 	o.RequestRefresh()
-	o.emitStatus(name, "Stopped")
+	o.emitStatus(ctx, name, "Stopped")
 	return nil
 }
 
@@ -557,17 +555,17 @@ func (o *Orchestrator) stopHeidiSQLWindows() {
 	}
 }
 
-func (o *Orchestrator) captureLogs(name string, reader io.ReadCloser) {
+func (o *Orchestrator) captureLogs(ctx context.Context, name string, reader io.ReadCloser) {
 	defer reader.Close()
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
-		o.emitEvent("service_log", map[string]string{"service": name, "message": scanner.Text()})
+		o.emitEvent(ctx, "service_log", map[string]string{"service": name, "message": scanner.Text()})
 	}
 }
 
-func (o *Orchestrator) emitStatus(name string, status string) {
+func (o *Orchestrator) emitStatus(ctx context.Context, name, status string) {
 	info := o.updateServiceInfo(name)
-	o.emitEvent("service_status", info)
+	o.emitEvent(ctx, "service_status", info)
 }
 
 var findOsteniaPIDsOverride func(exeName string) []int
@@ -594,7 +592,7 @@ func findOsteniaPIDs(exeName string) []int {
 }
 
 // StopAll terminates all services currently being tracked by the orchestrator
-func (o *Orchestrator) StopAll() {
+func (o *Orchestrator) StopAll(ctx context.Context) {
 	o.mu.Lock()
 	names := make([]string, 0, len(o.services))
 	for name := range o.services {
@@ -602,6 +600,6 @@ func (o *Orchestrator) StopAll() {
 	}
 	o.mu.Unlock()
 	for _, name := range names {
-		_ = o.StopService(name)
+		_ = o.StopService(ctx, name)
 	}
 }

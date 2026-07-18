@@ -1,6 +1,7 @@
 package interfaces
 
 import (
+	"context"
 	"ostenia/internal/config"
 )
 
@@ -18,13 +19,13 @@ type Orchestrator interface {
 	SetRuntime(r Runtime)
 	SetActiveTab(tab string)
 	RequestRefresh()
-	StartWatcher()
+	StartWatcher(ctx context.Context)
 	IsRunning(name string) bool
 	GetDetailedInfo(name string) ServiceDetailedInfo
-	StartServiceWithPort(name, binaryPath string, args []string, workingDir string, port int) error
-	StartService(name, binaryPath string, args []string, workingDir string) error
-	StopService(name string) error
-	StopAll()
+	StartServiceWithPort(ctx context.Context, name, binaryPath string, args []string, workingDir string, port int) error
+	StartService(ctx context.Context, name, binaryPath string, args []string, workingDir string) error
+	StopService(ctx context.Context, name string) error
+	StopAll(ctx context.Context)
 }
 
 // DownloadTask represents a plugin's metadata and state.
@@ -61,7 +62,7 @@ type Progress struct {
 }
 
 type PluginManager interface {
-	DownloadAndExtract(task DownloadTask) error
+	DownloadAndExtract(ctx context.Context, task DownloadTask) error
 	DeleteVersion(category, version string) error
 	CancelDownload(category string)
 	GetInstalledVersionPaths(category, checkFile string) map[string]string
@@ -86,7 +87,7 @@ type SSLManager interface {
 type SSHManager interface {
 	GetSessions() ([]config.SSHSession, error)
 	SaveSessions(sessions []config.SSHSession) error
-	Connect(session config.SSHSession) error
+	Connect(ctx context.Context, session config.SSHSession) error
 	Disconnect(sessionID string)
 	SendInput(sessionID, input string) error
 	ResizeTerminal(sessionID string, cols, rows int) error
