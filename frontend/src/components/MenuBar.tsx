@@ -51,6 +51,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ label, children, isOpen, onOpen, on
  return (
  <div className="relative h-full" ref={containerRef}>
  <button
+ type="button"
  onClick={onOpen}
  onMouseEnter={onHover}
  className={cn(
@@ -84,6 +85,7 @@ interface SubMenuItemProps {
 
 const SubMenuItem: React.FC<SubMenuItemProps> = ({ label, icon: Icon, onClick, shortcut, hasSubmenu }) => (
  <button
+ type="button"
  onClick={onClick}
  onKeyDown={handleActionKey(onClick)}
  className={cn(
@@ -200,18 +202,21 @@ const MenuBar: React.FC<MenuBarProps> = ({ theme, setTheme, onOpenSettings }) =>
 
  <div className="flex h-full no-drag" style={{ "--wails-draggable": "no-drag" } as React.CSSProperties}>
  <button
+ type="button"
  onClick={handleMinimize}
  className="w-12 h-full flex items-center justify-center hover:bg-mui-grey-200 dark:hover:bg-white/10 transition-colors"
  >
  <Minus size={14} />
  </button>
  <button
+ type="button"
  onClick={handleMaximize}
  className="w-12 h-full flex items-center justify-center hover:bg-mui-grey-200 dark:hover:bg-white/10 transition-colors"
  >
  <Square size={12} />
  </button>
  <button
+ type="button"
  onClick={handleClose}
  className="w-12 h-full flex items-center justify-center hover:bg-rose-600 hover:text-white transition-colors"
  >

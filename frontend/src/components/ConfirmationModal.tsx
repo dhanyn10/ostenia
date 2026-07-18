@@ -31,6 +31,7 @@ function ConfirmationModal({ isOpen, title, message, onConfirm, onCancel, confir
  {title}
  </h3>
  <button
+ type="button"
  onClick={onCancel}
  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
  >
@@ -48,12 +49,14 @@ function ConfirmationModal({ isOpen, title, message, onConfirm, onCancel, confir
  {/* Footer */}
  <div className="px-6 py-4 bg-slate-50 dark:bg-white/5 flex items-center justify-end gap-3">
  <button
+ type="button"
  onClick={onCancel}
  className="px-4 py-2 rounded-sm text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-all"
  >
  {cancelText}
  </button>
  <button
+ type="button"
  onClick={onConfirm}
  className={cn(
  "px-5 py-2 rounded-sm text-[10px] font-black uppercase tracking-widest text-white shadow-lg transition-all hover:scale-105 active:scale-95",
