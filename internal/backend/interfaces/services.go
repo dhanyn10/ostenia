@@ -21,8 +21,8 @@ type Orchestrator interface {
 	StartWatcher()
 	IsRunning(name string) bool
 	GetDetailedInfo(name string) ServiceDetailedInfo
-	StartServiceWithPort(name string, binaryPath string, args []string, workingDir string, port int) error
-	StartService(name string, binaryPath string, args []string, workingDir string) error
+	StartServiceWithPort(name, binaryPath string, args []string, workingDir string, port int) error
+	StartService(name, binaryPath string, args []string, workingDir string) error
 	StopService(name string) error
 	StopAll()
 }
@@ -65,8 +65,8 @@ type PluginManager interface {
 	DeleteVersion(category, version string) error
 	CancelDownload(category string)
 	GetInstalledVersionPaths(category, checkFile string) map[string]string
-	InstallModule(moduleName string, phpPath string, emitProgress func(string, float64, string)) error
-	UninstallModule(moduleName string, phpPath string) error
+	InstallModule(moduleName, phpPath string, emitProgress func(string, float64, string)) error
+	UninstallModule(moduleName, phpPath string) error
 }
 
 type RemoteFile struct {
@@ -80,7 +80,7 @@ type RemoteFile struct {
 type SSLManager interface {
 	GenerateRootCA(destDir string) error
 	GetRemainingDays(certPath string) (int, error)
-	SignCertificate(caDir string, domain string, destDir string) error
+	SignCertificate(caDir, domain, destDir string) error
 }
 
 type SSHManager interface {
@@ -88,12 +88,12 @@ type SSHManager interface {
 	SaveSessions(sessions []config.SSHSession) error
 	Connect(session config.SSHSession) error
 	Disconnect(sessionID string)
-	SendInput(sessionID string, input string) error
+	SendInput(sessionID, input string) error
 	ResizeTerminal(sessionID string, cols, rows int) error
-	ListFiles(sessionID string, path string) ([]RemoteFile, error)
+	ListFiles(sessionID, path string) ([]RemoteFile, error)
 	ExecuteSFTPAction(sessionID string, action, path, newPath string) error
-	DownloadFile(sessionID string, remotePath string, localPath string) error
-	UploadFile(sessionID string, localPath string, remotePath string) error
-	EditFile(sessionID string, remotePath string, editor string) error
+	DownloadFile(sessionID, remotePath, localPath string) error
+	UploadFile(sessionID, localPath, remotePath string) error
+	EditFile(sessionID, remotePath, editor string) error
 	GetCurrentPath(sessionID string) (string, error)
 }

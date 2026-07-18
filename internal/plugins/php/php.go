@@ -69,7 +69,7 @@ func GetModules() []utils.ModuleDefinition {
 	}
 }
 
-func GetModuleVersion(moduleName string, phpPath string) string {
+func GetModuleVersion(moduleName, phpPath string) string {
 	if moduleName == "Composer" {
 		composerPhar := filepath.Join(phpPath, "composer.phar")
 		if _, err := os.Stat(composerPhar); err != nil { return "" }
@@ -85,7 +85,7 @@ func GetModuleVersion(moduleName string, phpPath string) string {
 	return ""
 }
 
-func UninstallModule(moduleName string, phpPath string) error {
+func UninstallModule(moduleName, phpPath string) error {
 	if moduleName == "Composer" {
 		os.Remove(filepath.Join(phpPath, "composer.phar"))
 		os.Remove(filepath.Join(phpPath, "composer.bat"))
@@ -94,7 +94,7 @@ func UninstallModule(moduleName string, phpPath string) error {
 	return fmt.Errorf("unknown module: %s", moduleName)
 }
 
-func InstallModule(ctx interface{}, m interface{}, moduleName string, phpPath string, emitProgress func(string, float64, string)) error {
+func InstallModule(ctx, m interface{}, moduleName, phpPath string, emitProgress func(string, float64, string)) error {
 	if moduleName == "Composer" {
 		emitProgress("Composer", 10, "Downloading...")
 		composerPhar := filepath.Join(phpPath, "composer.phar")
