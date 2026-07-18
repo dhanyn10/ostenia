@@ -215,7 +215,7 @@ func (m *SSHManager) handleTerminalExit(conn *SSHConnection, sshSession interfac
 	}
 }
 
-func (m *SSHManager) ResizeTerminal(sessionID string, cols int, rows int) error {
+func (m *SSHManager) ResizeTerminal(sessionID string, cols, rows int) error {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()
@@ -242,7 +242,7 @@ func (m *SSHManager) ResizeTerminal(sessionID string, cols int, rows int) error 
 	return conn.PTY.WindowChange(rows, cols)
 }
 
-func (m *SSHManager) SendInput(sessionID string, data string) error {
+func (m *SSHManager) SendInput(sessionID, data string) error {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()
@@ -275,7 +275,7 @@ func (m *SSHManager) Disconnect(sessionID string) {
 }
 
 
-func (m *SSHManager) ListFiles(sessionID string, pathStr string) ([]RemoteFile, error) {
+func (m *SSHManager) ListFiles(sessionID, pathStr string) ([]RemoteFile, error) {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()
@@ -310,7 +310,7 @@ func (m *SSHManager) ListFiles(sessionID string, pathStr string) ([]RemoteFile, 
 	return files, nil
 }
 
-func (m *SSHManager) ExecuteSFTPAction(sessionID string, action string, remotePath string, target string) error {
+func (m *SSHManager) ExecuteSFTPAction(sessionID, action, remotePath, target string) error {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()
@@ -347,7 +347,7 @@ func (m *SSHManager) ExecuteSFTPAction(sessionID string, action string, remotePa
 	}
 }
 
-func (m *SSHManager) DownloadFile(sessionID string, remotePath string, localPath string) error {
+func (m *SSHManager) DownloadFile(sessionID, remotePath, localPath string) error {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()
@@ -377,7 +377,7 @@ func (m *SSHManager) DownloadFile(sessionID string, remotePath string, localPath
 	return err
 }
 
-func (m *SSHManager) UploadFile(sessionID string, localPath string, remotePath string) error {
+func (m *SSHManager) UploadFile(sessionID, localPath, remotePath string) error {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()
@@ -408,7 +408,7 @@ func (m *SSHManager) UploadFile(sessionID string, localPath string, remotePath s
 	return err
 }
 
-func (m *SSHManager) EditFile(sessionID string, remotePath string, defaultEditor string) error {
+func (m *SSHManager) EditFile(sessionID, remotePath, defaultEditor string) error {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
 	m.mu.RUnlock()

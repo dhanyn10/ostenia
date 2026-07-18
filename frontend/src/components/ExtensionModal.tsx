@@ -41,6 +41,7 @@ function ExtensionModal({ isOpen, onClose, extensions, onToggle, serviceName }) 
  </div>
  </div>
  <button
+ type="button"
  onClick={onClose}
  className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-sm transition-all"
  >
@@ -98,6 +99,7 @@ function ExtensionModal({ isOpen, onClose, extensions, onToggle, serviceName }) 
  {/* Footer */}
  <div className="p-4 border-t border-slate-200 dark:border-white/5 shrink-0 bg-slate-50/50 dark:bg-black/10 flex justify-end">
  <button
+ type="button"
  onClick={onClose}
  className="px-6 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-sm text-[10px] font-black uppercase tracking-[0.2em] hover:opacity-90 transition-all shadow-lg"
  >

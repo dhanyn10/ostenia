@@ -63,8 +63,8 @@ function ActivityTab({
  </h3>
  <div className="flex items-center gap-2">
  <input type="text" readOnly value={appsLocation || ''} className="flex-1 bg-slate-100 dark:bg-black/20 border border-slate-200 dark:border-white/5 rounded-sm px-3 py-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate" />
- <button onClick={handleBrowseAppsLocation} title="Browse Directory" className="px-2 py-1.5 bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-600 dark:text-slate-300 rounded-sm text-[10px] font-bold uppercase tracking-wider transition-all">Browse</button>
- <button onClick={handleOpenAppsLocationFolder} title="Open in Explorer" className="p-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 rounded-sm transition-all border border-blue-500/20"><FolderOpen size={14} /></button>
+ <button type="button" onClick={handleBrowseAppsLocation} title="Browse Directory" className="px-2 py-1.5 bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-600 dark:text-slate-300 rounded-sm text-[10px] font-bold uppercase tracking-wider transition-all">Browse</button>
+ <button type="button" onClick={handleOpenAppsLocationFolder} title="Open in Explorer" className="p-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 rounded-sm transition-all border border-blue-500/20"><FolderOpen size={14} /></button>
  </div>
  </div>
 
@@ -74,8 +74,8 @@ function ActivityTab({
  </h3>
  <div className="flex items-center gap-2">
  <input type="text" readOnly value={serverRoot || ''} className="flex-1 bg-slate-100 dark:bg-black/20 border border-slate-200 dark:border-white/5 rounded-sm px-3 py-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate" />
- <button onClick={handleBrowseServerRoot} title="Browse Directory" className="px-2 py-1.5 bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-600 dark:text-slate-300 rounded-sm text-[10px] font-bold uppercase tracking-wider transition-all">Browse</button>
- <button onClick={handleOpenServerRootFolder} title="Open in Explorer" className="p-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-600 rounded-sm transition-all border border-emerald-500/20"><FolderOpen size={14} /></button>
+ <button type="button" onClick={handleBrowseServerRoot} title="Browse Directory" className="px-2 py-1.5 bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-600 dark:text-slate-300 rounded-sm text-[10px] font-bold uppercase tracking-wider transition-all">Browse</button>
+ <button type="button" onClick={handleOpenServerRootFolder} title="Open in Explorer" className="p-1.5 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-600 rounded-sm transition-all border border-emerald-500/20"><FolderOpen size={14} /></button>
  </div>
  </div>
  </div>

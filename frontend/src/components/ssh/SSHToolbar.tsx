@@ -28,6 +28,7 @@ const SSHToolbar: React.FC<SSHToolbarProps> = ({
     <div className="h-10 flex items-center justify-between px-3 bg-white dark:bg-mui-dark-bg border-b border-mui-grey-100 dark:border-white/5 shrink-0">
       <div className="flex items-center gap-2">
         <button
+          type="button"
           onClick={() => setExplorerVisible(!explorerVisible)}
           className={cn(
             "p-1 rounded text-mui-grey-500 dark:text-mui-grey-400 hover:text-mui-blue-600 dark:hover:text-white transition-colors",
@@ -41,6 +42,7 @@ const SSHToolbar: React.FC<SSHToolbarProps> = ({
 
       <div className="flex items-center gap-1">
         <button
+          type="button"
           onClick={onFit}
           className="p-1 text-mui-grey-500 hover:text-mui-blue-600 dark:hover:text-white transition-colors"
           title="Fit Terminal"
@@ -48,6 +50,7 @@ const SSHToolbar: React.FC<SSHToolbarProps> = ({
           <Maximize2 size={14} />
         </button>
         <button
+          type="button"
           onClick={onReconnect}
           disabled={connecting}
           className="p-1 text-mui-grey-500 hover:text-mui-blue-600 dark:hover:text-white transition-colors disabled:opacity-30"
@@ -56,6 +59,7 @@ const SSHToolbar: React.FC<SSHToolbarProps> = ({
           <RefreshCw size={14} className={connecting ? "animate-spin" : ""} />
         </button>
         <button
+          type="button"
           onClick={onClose}
           className="p-1 text-mui-grey-500 hover:text-red-500 transition-colors"
           title="Close"

@@ -61,8 +61,8 @@ const ProfileCategory: React.FC<ProfileCategoryProps> = ({ initApp }) => {
       <div className="pt-4 border-t border-mui-grey-100 dark:border-white/5">
         <h4 className="text-xs font-black text-mui-grey-400 uppercase tracking-[0.2em] mb-4">Granular Export</h4>
         <div className="flex gap-3">
-          <button onClick={() => handleExport('config')} className="px-4 py-2 rounded border border-mui-grey-200 dark:border-white/10 text-xs font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-50 dark:hover:bg-white/5 transition-colors">Config Only</button>
-          <button onClick={() => handleExport('ssh')} className="px-4 py-2 rounded border border-mui-grey-200 dark:border-white/10 text-xs font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-50 dark:hover:bg-white/5 transition-colors">SSH Sessions Only</button>
+          <button type="button" onClick={() => handleExport('config')} className="px-4 py-2 rounded border border-mui-grey-200 dark:border-white/10 text-xs font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-50 dark:hover:bg-white/5 transition-colors">Config Only</button>
+          <button type="button" onClick={() => handleExport('ssh')} className="px-4 py-2 rounded border border-mui-grey-200 dark:border-white/10 text-xs font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-50 dark:hover:bg-white/5 transition-colors">SSH Sessions Only</button>
         </div>
       </div>
     </div>

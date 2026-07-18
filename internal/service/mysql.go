@@ -10,7 +10,7 @@ import (
 )
 
 // UpdateMySQLConfig generates or updates the my.ini file for MySQL.
-func UpdateMySQLConfig(mysqlBaseDir string, dataDir string, tmpDir string, port int) error {
+func UpdateMySQLConfig(mysqlBaseDir, dataDir, tmpDir string, port int) error {
 	iniPath := filepath.Join(mysqlBaseDir, "my.ini")
 
 	// Ensure data and tmp directories exist
@@ -60,7 +60,7 @@ default-character-set=utf8mb4
 }
 
 // InitializeMySQLDataDir runs mysql_install_db (or equivalent) if the data directory is empty.
-func InitializeMySQLDataDir(mysqlBinDir string, mysqlBaseDir string, dataDir string, iniPath string) error {
+func InitializeMySQLDataDir(mysqlBinDir, mysqlBaseDir, dataDir, iniPath string) error {
 	// Check if data directory is empty
 	entries, err := os.ReadDir(dataDir)
 	if err != nil && !os.IsNotExist(err) {

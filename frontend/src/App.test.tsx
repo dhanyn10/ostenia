@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import App from './App';
 import * as AppBackend from '../wailsjs/go/backend/App';
@@ -63,9 +63,7 @@ describe('App Component', () => {
   };
 
   it('renders and initializes with data', async () => {
-    await act(async () => {
-      render(<App />);
-    });
+    render(<App />);
 
     await waitForLoadingToFinish();
 
@@ -78,62 +76,46 @@ describe('App Component', () => {
       { name: 'PHP', version: '8.2', isInstalled: true }
     ]);
 
-    await act(async () => {
-      render(<App />);
-    });
+    render(<App />);
 
     await waitForLoadingToFinish();
 
     const pluginsTabButton = screen.getByTitle(/Plugin Management/i);
-    await act(async () => {
-      fireEvent.click(pluginsTabButton);
-    });
+    fireEvent.click(pluginsTabButton);
 
     expect(screen.getByRole('heading', { name: /Plugin Management/i })).toBeInTheDocument();
     expect(screen.getAllByText('PHP').length).toBeGreaterThan(0);
   });
 
   it('toggles theme', async () => {
-    await act(async () => {
-      render(<App />);
-    });
+    render(<App />);
 
     await waitForLoadingToFinish();
 
     const themeToggle = screen.getByTitle(/Switch to Dark Mode/i);
     expect(document.documentElement.classList.contains('dark')).toBe(false);
 
-    await act(async () => {
-      fireEvent.click(themeToggle);
-    });
+    fireEvent.click(themeToggle);
 
     expect(document.documentElement.classList.contains('dark')).toBe(true);
     expect(localStorage.getItem('theme')).toBe('dark');
   });
 
   it('opens and closes settings modal', async () => {
-    await act(async () => {
-      render(<App />);
-    });
+    render(<App />);
 
     await waitForLoadingToFinish();
 
     const settingsMenuButton = screen.getByRole('button', { name: /^Settings$/ });
-    await act(async () => {
-      fireEvent.click(settingsMenuButton);
-    });
+    fireEvent.click(settingsMenuButton);
 
     const profileButton = screen.getByRole('button', { name: /^Profile$/ });
-    await act(async () => {
-      fireEvent.click(profileButton);
-    });
+    fireEvent.click(profileButton);
 
     expect(screen.getByRole('heading', { name: /^Settings$/i })).toBeInTheDocument();
 
     const closeButton = screen.getByRole('button', { name: /^Close$/i });
-    await act(async () => {
-      fireEvent.click(closeButton);
-    });
+    fireEvent.click(closeButton);
 
     await waitFor(() => {
       expect(screen.queryByRole('heading', { name: /^Settings$/i })).not.toBeInTheDocument();
@@ -145,9 +127,7 @@ describe('App Component', () => {
       { name: 'Apache', version: '2.4', installedVers: ['2.4'], status: 'Ready' }
     ]);
 
-    await act(async () => {
-      render(<App />);
-    });
+    render(<App />);
 
     await waitForLoadingToFinish();
 
@@ -156,9 +136,7 @@ describe('App Component', () => {
 
     expect(toggleButton).toBeInTheDocument();
 
-    await act(async () => {
-      fireEvent.click(toggleButton!);
-    });
+    fireEvent.click(toggleButton!);
 
     expect(AppBackend.StartService).toHaveBeenCalled();
   });
@@ -169,18 +147,14 @@ describe('App Component', () => {
         { name: 'Apache', version: '2.4', installedVers: ['2.4'], status: 'Ready' }
       ]);
 
-     await act(async () => {
-       render(<App />);
-     });
+     render(<App />);
 
      await waitForLoadingToFinish();
 
      const buttons = screen.getAllByRole('button');
      const toggleButton = buttons.find(b => b.className.includes('w-12 h-6'));
 
-     await act(async () => {
-       fireEvent.click(toggleButton!);
-     });
+     fireEvent.click(toggleButton!);
 
      expect(await screen.findByText(/Failed to start Apache/i)).toBeInTheDocument();
   });

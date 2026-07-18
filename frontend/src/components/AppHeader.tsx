@@ -30,10 +30,10 @@ function AppHeader({ activeTab, handleStartAll, handleStopAll, handleTerminal, i
 
  {activeTab === 'activity' && (
  <div className="flex items-center gap-2.5">
- <button onClick={handleStartAll} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-sm transition-all text-[9px] font-black uppercase tracking-widest border border-emerald-500/20 group">
+ <button type="button" onClick={handleStartAll} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-sm transition-all text-[9px] font-black uppercase tracking-widest border border-emerald-500/20 group">
  <Play size={12} fill="currentColor" className="group-hover:scale-110 transition-transform" /> Start All
  </button>
- <button onClick={handleStopAll} className="flex items-center gap-1.5 px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-sm transition-all text-[9px] font-black uppercase tracking-widest border border-rose-500/20 group">
+ <button type="button" onClick={handleStopAll} className="flex items-center gap-1.5 px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-sm transition-all text-[9px] font-black uppercase tracking-widest border border-rose-500/20 group">
  <Square size={12} fill="currentColor" className="group-hover:scale-110 transition-transform" /> Stop All
  </button>
  <div className="w-px h-5 bg-slate-200 dark:bg-white/10 mx-1" />
@@ -41,6 +41,7 @@ function AppHeader({ activeTab, handleStartAll, handleStopAll, handleTerminal, i
  {/* Integrated Terminal Dropdown */}
  <div className="relative">
  <button
+ type="button"
  onClick={() => setIsTerminalOpen(!isTerminalOpen)}
  className={cn(
  "flex items-center gap-1.5 p-2 rounded-sm transition-all border border-slate-200 dark:border-white/5",
@@ -59,18 +60,21 @@ function AppHeader({ activeTab, handleStartAll, handleStopAll, handleTerminal, i
  <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-sm shadow-2xl z-[70] animate-in fade-in zoom-in-95 duration-200">
  <div className="p-1">
  <button
+ type="button"
  onClick={() => handleTerminal('cmd')}
  className="w-full flex items-center gap-3 px-3 py-2 rounded-sm text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"
  >
  <Monitor size={14} className="text-blue-500" /> Command Prompt (CMD)
  </button>
  <button
+ type="button"
  onClick={() => handleTerminal('powershell')}
  className="w-full flex items-center gap-3 px-3 py-2 rounded-sm text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"
  >
  <Monitor size={14} className="text-blue-600" /> PowerShell
  </button>
  <button
+ type="button"
  onClick={() => handleTerminal('gitbash')}
  className="w-full flex items-center gap-3 px-3 py-2 rounded-sm text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"
  >

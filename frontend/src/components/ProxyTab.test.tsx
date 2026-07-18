@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import ProxyTab from './ProxyTab';
 import * as AppBackend from '../../wailsjs/go/backend/App';
@@ -23,9 +23,7 @@ describe('ProxyTab Component', () => {
   });
 
   it('renders and lists apps', async () => {
-    await act(async () => {
-      render(<ProxyTab {...mockProps} />);
-    });
+    render(<ProxyTab {...mockProps} />);
 
     expect(AppBackend.GetProxyApps).toHaveBeenCalled();
 
@@ -36,9 +34,7 @@ describe('ProxyTab Component', () => {
   });
 
   it('filters apps by search term', async () => {
-    await act(async () => {
-      render(<ProxyTab {...mockProps} />);
-    });
+    render(<ProxyTab {...mockProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('app1')).toBeInTheDocument();
@@ -52,9 +48,7 @@ describe('ProxyTab Component', () => {
   });
 
   it('handles port change and saving', async () => {
-    await act(async () => {
-      render(<ProxyTab {...mockProps} />);
-    });
+    render(<ProxyTab {...mockProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('app1')).toBeInTheDocument();
@@ -64,18 +58,16 @@ describe('ProxyTab Component', () => {
     fireEvent.change(input, { target: { value: '4000' } });
 
     const saveBtn = screen.getAllByRole('button', { name: /Save/i })[0];
-    await act(async () => {
-      fireEvent.click(saveBtn);
-    });
+    fireEvent.click(saveBtn);
 
-    expect(AppBackend.SaveProxyPort).toHaveBeenCalledWith('app1', 4000);
-    expect(mockProps.addToast).toHaveBeenCalledWith('Success', expect.any(String), 'info');
+    await waitFor(() => {
+      expect(AppBackend.SaveProxyPort).toHaveBeenCalledWith('app1', 4000);
+      expect(mockProps.addToast).toHaveBeenCalledWith('Success', expect.any(String), 'info');
+    });
   });
 
   it('opens terminal dropdown', async () => {
-    await act(async () => {
-      render(<ProxyTab {...mockProps} />);
-    });
+    render(<ProxyTab {...mockProps} />);
 
     await waitFor(() => {
       expect(screen.getByText('app1')).toBeInTheDocument();

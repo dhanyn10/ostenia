@@ -110,6 +110,7 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
 
  <div className="relative">
  <button
+ type="button"
  onClick={() => setOpenTerminalDropdown(openTerminalDropdown === app.name ? null : app.name)}
  className={`w-10 h-8 flex items-center justify-center gap-1 rounded-lg border border-slate-200 dark:border-white/10 transition-all ${
  openTerminalDropdown === app.name ? "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white" : "bg-slate-50 dark:bg-white/5 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10"
@@ -125,12 +126,14 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
  <div className="absolute top-full right-0 mt-1 w-40 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg shadow-xl z-20 animate-in fade-in slide-in-from-top-1 duration-200 overflow-hidden">
  <div className="p-1">
  <button
+ type="button"
  onClick={() => { AppBackend.OpenProxyTerminal(app.name, 'cmd'); setOpenTerminalDropdown(null); }}
  className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"
  >
  <Monitor size={14} className="text-blue-500" /> CMD
  </button>
  <button
+ type="button"
  onClick={() => { AppBackend.OpenProxyTerminal(app.name, 'powershell'); setOpenTerminalDropdown(null); }}
  className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"
  >
@@ -155,6 +158,7 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
  onChange={(e) => handlePortChange(app.name, e.target.value)}
  />
  <button
+ type="button"
  onClick={() => handleSave(app.name, app.port)}
  disabled={savingMap[app.name]}
  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-blue-900/20 disabled:opacity-50"

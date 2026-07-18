@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import ActivityTab from './ActivityTab';
 import React from 'react';
@@ -74,11 +74,11 @@ describe('ActivityTab Component', () => {
     render(<ActivityTab {...defaultProps} />);
 
     const phpItem = screen.getByText('PHP');
-    await act(async () => {
-        fireEvent.click(phpItem);
-    });
+    fireEvent.click(phpItem);
 
-    expect(AppBackend.GetPHPExtensions).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(AppBackend.GetPHPExtensions).toHaveBeenCalled();
+    });
   });
 
   it('shows loading state', () => {
