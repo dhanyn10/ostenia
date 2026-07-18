@@ -39,6 +39,8 @@ func (s *runningService) Wait() error {
 	return s.waitErr
 }
 
+const serviceNodeJS = "Node.js"
+
 // Orchestrator manages the lifecycle, monitoring, and state of background services
 type Orchestrator struct {
 	ctx          context.Context
@@ -97,7 +99,7 @@ func (o *Orchestrator) StartWatcher() {
 	go func() {
 		ticker := time.NewTicker(3 * time.Second)
 		defer ticker.Stop()
-		servicesToWatch := []string{"Apache", "Nginx", "MySQL", "PHP", "Node.js", "Python", "HeidiSQL", "OpenSSL"}
+		servicesToWatch := []string{"Apache", "Nginx", "MySQL", "PHP", serviceNodeJS, "Python", "HeidiSQL", "OpenSSL"}
 		for {
 			select {
 			case <-o.ctx.Done():
@@ -139,7 +141,7 @@ func (o *Orchestrator) shouldRefresh(services []string) bool {
 	defer o.mu.Unlock()
 	for _, name := range services {
 		cached := o.serviceCache[name]
-		if cached.Status == "Running" && name != "OpenSSL" && name != "Node.js" && name != "Python" {
+		if cached.Status == "Running" && name != "OpenSSL" && name != serviceNodeJS && name != "Python" {
 			if cached.PID == 0 || len(cached.Ports) == 0 {
 				return true
 			}
@@ -178,7 +180,7 @@ func (o *Orchestrator) updateServiceInfo(name string) ServiceDetailedInfo {
 	baseDir := config.GetBaseDir()
 
 	switch name {
-	case "Node.js":
+	case serviceNodeJS:
 		o.updateNodeInfo(&info, baseDir)
 	case "Python":
 		o.updatePythonInfo(&info, baseDir)
@@ -518,9 +520,9 @@ func (o *Orchestrator) stopServiceWindows(name string) {
 		"Apache":   {"httpd.exe"},
 		"MySQL":    {"mysqld.exe"},
 		"Nginx":    {"nginx.exe"},
-		"PHP":      {"php.exe", "php-cgi.exe"},
-		"Node.js":  {"node.exe"},
-		"Python":   {"python.exe"},
+		"PHP":         {"php.exe", "php-cgi.exe"},
+		serviceNodeJS: {"node.exe"},
+		"Python":      {"python.exe"},
 	}
 
 	taskkillPath := filepath.Join(utils.GetSystemDirectory(), "taskkill.exe")
