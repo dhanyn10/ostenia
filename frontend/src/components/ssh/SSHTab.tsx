@@ -66,6 +66,86 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
  }
  };
 
+  const renderDashboardContent = () => {
+    if (loading) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <RefreshCw className="animate-spin text-mui-grey-400" size={32} />
+        </div>
+      );
+    }
+
+    if (sessions.length === 0) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-mui-grey-200 dark:border-white/5 rounded-xl p-12 text-center">
+          <div className="bg-mui-grey-100 dark:bg-white/5 p-4 rounded-full mb-4">
+            <Server size={32} className="text-mui-grey-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-mui-grey-900 dark:text-white">No sessions found</h3>
+          <p className="text-mui-grey-600 dark:text-mui-grey-400 mt-1 max-w-sm">
+            Add your first SSH connection to start managing remote servers and files.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowForm(true)}
+            className="mt-6 text-mui-blue-500 hover:text-mui-blue-600 font-medium flex items-center gap-1"
+          >
+            Create session now <ChevronRight size={18} />
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex-1 overflow-y-auto pr-2 pb-4 custom-scrollbar">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+          {sessions.map((session) => (
+            <div
+              key={session.id}
+              className="group bg-mui-grey-50 dark:bg-mui-dark-paper border border-mui-grey-200 dark:border-white/10 rounded-lg p-3 hover:border-mui-blue-500/50 hover:shadow-md transition-all relative overflow-hidden flex items-center gap-3 select-none"
+            >
+              <button
+                type="button"
+                onDoubleClick={() => handleConnect(session)}
+                onKeyDown={handleActionKey(() => handleConnect(session))}
+                onContextMenu={(e) => handleContextMenu(e, session)}
+                className="flex-1 flex items-center gap-3 outline-none text-left min-w-0 bg-transparent border-none p-0"
+              >
+                <div className="bg-mui-blue-600 text-white p-2 rounded-md shrink-0">
+                  <Server size={18} />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-mui-grey-900 dark:text-white truncate text-sm leading-tight">{session.host}</h4>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[9px] font-black text-mui-blue-500 uppercase tracking-tighter">SSH</span>
+                    <div className="w-1 h-1 bg-mui-grey-300 dark:bg-mui-grey-600 rounded-full" />
+                    <span className="text-[9px] font-medium text-mui-grey-400 uppercase">{session.authMethod}</span>
+                  </div>
+                </div>
+              </button>
+
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingSession(session);
+                    setShowForm(true);
+                  }}
+                  className="p-1.5 hover:bg-mui-grey-200 dark:hover:bg-white/10 rounded-md text-mui-grey-500"
+                  title="Edit"
+                >
+                  <Edit2 size={12} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
  const [contextMenu, setContextMenu] = useState<any>(null);
 
  useEffect(() => {
@@ -204,75 +284,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
  </div>
  ) : (
  <div className="flex flex-col h-full">
- {loading ? (
- <div className="flex-1 flex items-center justify-center">
- <RefreshCw className="animate-spin text-mui-grey-400" size={32} />
- </div>
- ) : sessions.length === 0 ? (
- <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-mui-grey-200 dark:border-white/5 rounded-xl p-12 text-center">
- <div className="bg-mui-grey-100 dark:bg-white/5 p-4 rounded-full mb-4">
- <Server size={32} className="text-mui-grey-400" />
- </div>
- <h3 className="text-lg font-semibold text-mui-grey-900 dark:text-white">No sessions found</h3>
- <p className="text-mui-grey-600 dark:text-mui-grey-400 mt-1 max-w-sm">
- Add your first SSH connection to start managing remote servers and files.
- </p>
- <button
-   type="button"
- onClick={() => setShowForm(true)}
- className="mt-6 text-mui-blue-500 hover:text-mui-blue-600 font-medium flex items-center gap-1"
- >
- Create session now <ChevronRight size={18} />
- </button>
- </div>
- ) : (
- <div className="flex-1 overflow-y-auto pr-2 pb-4 custom-scrollbar">
- <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
- {sessions.map((session) => (
- <div
- key={session.id}
- className="group bg-mui-grey-50 dark:bg-mui-dark-paper border border-mui-grey-200 dark:border-white/10 rounded-lg p-3 hover:border-mui-blue-500/50 hover:shadow-md transition-all relative overflow-hidden flex items-center gap-3 select-none"
- >
- <button
-   type="button"
- onDoubleClick={() => handleConnect(session)}
- onKeyDown={handleActionKey(() => handleConnect(session))}
- onContextMenu={(e) => handleContextMenu(e, session)}
- className="flex-1 flex items-center gap-3 outline-none text-left min-w-0 bg-transparent border-none p-0"
- >
- <div className="bg-mui-blue-600 text-white p-2 rounded-md shrink-0">
- <Server size={18} />
- </div>
-
- <div className="flex-1 min-w-0">
- <h4 className="font-bold text-mui-grey-900 dark:text-white truncate text-sm leading-tight">{session.host}</h4>
- <div className="flex items-center gap-2 mt-0.5">
- <span className="text-[9px] font-black text-mui-blue-500 uppercase tracking-tighter">SSH</span>
- <div className="w-1 h-1 bg-mui-grey-300 dark:bg-mui-grey-600 rounded-full" />
- <span className="text-[9px] font-medium text-mui-grey-400 uppercase">{session.authMethod}</span>
- </div>
- </div>
- </button>
-
- <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
- <button
-   type="button"
- onClick={(e) => {
- e.stopPropagation();
- setEditingSession(session);
- setShowForm(true);
- }}
- className="p-1.5 hover:bg-mui-grey-200 dark:hover:bg-white/10 rounded-md text-mui-grey-500"
- title="Edit"
- >
- <Edit2 size={12} />
- </button>
- </div>
- </div>
- ))}
- </div>
- </div>
- )}
+   {renderDashboardContent()}
  </div>
  )}
  </div>

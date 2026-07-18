@@ -108,7 +108,7 @@ func (a *App) startOpenSSLService() error {
 	return nil
 }
 
-func (a *App) findExecutable(binDir string, exeName string) (string, string) {
+func (a *App) findExecutable(binDir, exeName string) (string, string) {
 	currentPath := filepath.Join(binDir, "current")
 
 	// 1. Try "current" link first for efficiency
@@ -122,7 +122,7 @@ func (a *App) findExecutable(binDir string, exeName string) (string, string) {
 	return a.walkForExecutable(binDir, exeName)
 }
 
-func (a *App) checkStandardExePath(resolved string, exeName string) (string, string) {
+func (a *App) checkStandardExePath(resolved, exeName string) (string, string) {
 	// Standard bin path
 	path := filepath.Join(resolved, "bin", exeName)
 	if exeName == exeNginx {
@@ -144,7 +144,7 @@ func (a *App) checkStandardExePath(resolved string, exeName string) (string, str
 	return "", ""
 }
 
-func (a *App) walkForExecutable(binDir string, exeName string) (string, string) {
+func (a *App) walkForExecutable(binDir, exeName string) (string, string) {
 	var binPath, basePath string
 	_ = filepath.Walk(binDir, func(path string, info os.FileInfo, err error) error {
 		if info != nil && !info.IsDir() && info.Name() == exeName {
@@ -381,7 +381,7 @@ func (a *App) OpenHeidiSQL() error {
 }
 
 // OpenServiceTerminal opens a terminal at the binary directory of a specific service
-func (a *App) OpenServiceTerminal(serviceName string, terminalType string) error {
+func (a *App) OpenServiceTerminal(serviceName, terminalType string) error {
 	category, binDir, _ := a.getPluginPaths(serviceName)
 	targetDir := a.getServiceTargetDir(category, binDir)
 

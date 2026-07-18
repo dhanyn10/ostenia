@@ -35,14 +35,14 @@ func (m *Manager) GetInstalledVersionPaths(category, checkFile string) map[strin
 	return utils.GetInstalledVersionPaths(config.GetBaseDir(), category, checkFile)
 }
 
-func (m *Manager) InstallModule(moduleName string, phpPath string, emitProgress func(string, float64, string)) error {
+func (m *Manager) InstallModule(moduleName, phpPath string, emitProgress func(string, float64, string)) error {
 	// Actual implementation is in subpackages, but Manager provides the entry point for the interface
 	// This is a bit tricky because the interface expects it here.
 	// For now, the App calls subpackages directly, so we just satisfy the interface.
 	return nil
 }
 
-func (m *Manager) UninstallModule(moduleName string, phpPath string) error {
+func (m *Manager) UninstallModule(moduleName, phpPath string) error {
 	return nil
 }
 

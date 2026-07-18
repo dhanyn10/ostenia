@@ -15,7 +15,7 @@ type ProfileData struct {
 }
 
 // ExportProfile exports the application configuration and/or SSH sessions to a JSON file
-func (a *App) ExportProfile(includeConfig bool, includeSSH bool) error {
+func (a *App) ExportProfile(includeConfig, includeSSH bool) error {
 	profile := ProfileData{}
 	if includeConfig {
 		profile.Config = a.cfg

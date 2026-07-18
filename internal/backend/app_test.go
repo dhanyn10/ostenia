@@ -72,11 +72,11 @@ func (m *MockOrchestrator) IsRunning(name string) bool     { return m.Running[na
 func (m *MockOrchestrator) GetDetailedInfo(name string) interfaces.ServiceDetailedInfo {
     return interfaces.ServiceDetailedInfo{Name: name, Status: "Stopped", Port: 80}
 }
-func (m *MockOrchestrator) StartServiceWithPort(name string, binaryPath string, args []string, workingDir string, port int) error {
+func (m *MockOrchestrator) StartServiceWithPort(name, binaryPath string, args []string, workingDir string, port int) error {
     m.Running[name] = true
     return nil
 }
-func (m *MockOrchestrator) StartService(name string, binaryPath string, args []string, workingDir string) error {
+func (m *MockOrchestrator) StartService(name, binaryPath string, args []string, workingDir string) error {
     m.Running[name] = true
     return nil
 }
@@ -97,8 +97,8 @@ func (m *MockPluginManager) CancelDownload(category string) {}
 func (m *MockPluginManager) GetInstalledVersionPaths(category, checkFile string) map[string]string {
     return map[string]string{"8.2.0": "/path/to/8.2.0"}
 }
-func (m *MockPluginManager) InstallModule(moduleName string, phpPath string, emitProgress func(string, float64, string)) error { return nil }
-func (m *MockPluginManager) UninstallModule(moduleName string, phpPath string) error { return nil }
+func (m *MockPluginManager) InstallModule(moduleName, phpPath string, emitProgress func(string, float64, string)) error { return nil }
+func (m *MockPluginManager) UninstallModule(moduleName, phpPath string) error { return nil }
 
 type MockSSHManager struct {
     interfaces.SSHManager
@@ -110,10 +110,10 @@ func (m *MockSSHManager) Disconnect(sessionID string) {}
 func (m *MockSSHManager) SendInput(sessionID string, input string) error { return nil }
 func (m *MockSSHManager) ResizeTerminal(sessionID string, cols, rows int) error { return nil }
 func (m *MockSSHManager) ListFiles(sessionID string, path string) ([]interfaces.RemoteFile, error) { return []interfaces.RemoteFile{}, nil }
-func (m *MockSSHManager) ExecuteSFTPAction(sessionID string, action, path, newPath string) error { return nil }
-func (m *MockSSHManager) DownloadFile(sessionID string, remotePath, localPath string) error { return nil }
-func (m *MockSSHManager) UploadFile(sessionID string, localPath, remotePath string) error { return nil }
-func (m *MockSSHManager) EditFile(sessionID string, remotePath, editor string) error { return nil }
+func (m *MockSSHManager) ExecuteSFTPAction(sessionID, action, path, newPath string) error { return nil }
+func (m *MockSSHManager) DownloadFile(sessionID, remotePath, localPath string) error { return nil }
+func (m *MockSSHManager) UploadFile(sessionID, localPath, remotePath string) error { return nil }
+func (m *MockSSHManager) EditFile(sessionID, remotePath, editor string) error { return nil }
 func (m *MockSSHManager) GetCurrentPath(sessionID string) (string, error) { return "/", nil }
 
 type MockSSLManager struct {

@@ -58,7 +58,7 @@ func GetModules() []utils.ModuleDefinition {
 	return nil
 }
 
-func GetModuleVersion(moduleName string, pythonPath string) string {
+func GetModuleVersion(moduleName, pythonPath string) string {
 	return ""
 }
 
@@ -81,11 +81,11 @@ func GetInfo(pythonPath string) string {
 	return ""
 }
 
-func UninstallModule(moduleName string, pythonPath string) error {
+func UninstallModule(moduleName, pythonPath string) error {
 	return fmt.Errorf("unknown module: %s", moduleName)
 }
 
-func InstallModule(ctx interface{}, m interface{}, moduleName string, pythonPath string, emitProgress func(string, float64, string)) error {
+func InstallModule(ctx, m interface{}, moduleName, pythonPath string, emitProgress func(string, float64, string)) error {
 	return fmt.Errorf("unknown module: %s", moduleName)
 }
 

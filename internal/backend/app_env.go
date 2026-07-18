@@ -91,7 +91,7 @@ func (a *App) OpenTerminal(terminalType string) {
 }
 
 // OpenTerminalAtPath opens a terminal at a specific local path with the Ostenia environment variables set
-func (a *App) OpenTerminalAtPath(terminalType string, path string) {
+func (a *App) OpenTerminalAtPath(terminalType, path string) {
 	_, _, phpPath := a.getPluginPaths("PHP")
 	_, mysqlBinDir, mysqlCurrentPath := a.getPluginPaths("MySQL")
 	mysqlPath := filepath.Join(mysqlCurrentPath, "bin")
