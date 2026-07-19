@@ -13,6 +13,8 @@ import {
   ExternalLink,
   ArrowLeft,
   Check,
+  Copy,
+  Clipboard,
 } from "lucide-react";
 import SSHToolbar from "./ssh/SSHToolbar";
 import SSHFileExplorer from "./ssh/SSHFileExplorer";
@@ -54,6 +56,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const [fileContextMenu, setFileContextMenu] = useState<any>(null);
   const [showHiddenFiles, setShowHiddenFiles] = useState(false);
   const [explorerContextMenu, setExplorerContextMenu] = useState<any>(null);
+  const [terminalContextMenu, setTerminalContextMenu] = useState<any>(null);
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: "asc" | "desc";
@@ -82,6 +85,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       }
       setFileContextMenu(null);
       setExplorerContextMenu(null);
+      setTerminalContextMenu(null);
     };
     window.addEventListener("click", handleClick);
     return () => window.removeEventListener("click", handleClick);
@@ -103,6 +107,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       file: file,
     });
     setExplorerContextMenu(null);
+    setTerminalContextMenu(null);
   };
 
   const handleExplorerContextMenu = (e: React.MouseEvent) => {
@@ -119,6 +124,53 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       y: y,
     });
     setFileContextMenu(null);
+    setTerminalContextMenu(null);
+  };
+
+  const handleTerminalContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+
+    const menuHeight = 140;
+    let y = e.clientY;
+    if (y + menuHeight > window.innerHeight) {
+      y = Math.max(10, y - menuHeight);
+    }
+
+    setTerminalContextMenu({
+      x: e.clientX,
+      y: y,
+    });
+    setFileContextMenu(null);
+    setExplorerContextMenu(null);
+  };
+
+  const handleTerminalCopy = async () => {
+    if (xterm.current) {
+      const selection = xterm.current.getSelection();
+      if (selection) {
+        await navigator.clipboard.writeText(selection);
+        addToast("SSH", "Text copied to clipboard", "success");
+      }
+    }
+  };
+
+  const handleTerminalPaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        AppBackend.SendSSHInput(session.id, text);
+      }
+    } catch (e: any) {
+      addToast("Error", "Clipboard permission denied", "error");
+    }
+  };
+
+  const handleTerminalRefresh = () => {
+    performFit();
+  };
+
+  const handleTerminalToggleExplorer = () => {
+    setExplorerVisible(!explorerVisible);
   };
 
   const performFit = () => {
@@ -477,7 +529,11 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         )}
 
         <div className="flex-1 bg-white dark:bg-mui-dark-bg relative overflow-hidden">
-          <div ref={terminalRef} className="absolute inset-0 px-2 pt-2" />
+          <div
+            ref={terminalRef}
+            className="absolute inset-0 px-2 pt-2"
+            onContextMenu={handleTerminalContextMenu}
+          />
           {connecting && (
             <div className="absolute inset-0 bg-white dark:bg-mui-dark-bg flex items-center justify-center">
               <div className="flex items-center gap-3">
@@ -631,6 +687,63 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
               {showHiddenFiles && <Check size={14} />}
             </span>
             View hidden files/folder
+          </button>
+        </div>
+      )}
+
+      {terminalContextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="fixed z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg py-1 min-w-[180px] animate-in fade-in zoom-in-95 duration-100 cursor-default p-0"
+          style={{ top: terminalContextMenu.y, left: terminalContextMenu.x }}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              handleTerminalCopy();
+              setTerminalContextMenu(null);
+            }}
+            className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+          >
+            <Copy size={14} /> Copy
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              handleTerminalPaste();
+              setTerminalContextMenu(null);
+            }}
+            className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+          >
+            <Clipboard size={14} /> Paste
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              handleTerminalRefresh();
+              setTerminalContextMenu(null);
+            }}
+            className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+          >
+            <RefreshCw size={14} /> Refresh
+          </button>
+
+          <div className="h-px bg-mui-grey-100 dark:bg-white/5 my-1" />
+
+          <button
+            type="button"
+            onClick={() => {
+              handleTerminalToggleExplorer();
+              setTerminalContextMenu(null);
+            }}
+            className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+          >
+            <span className="w-3.5 flex items-center justify-center">
+              {explorerVisible && <Check size={14} />}
+            </span>
+            Toggle view files/folder
           </button>
         </div>
       )}

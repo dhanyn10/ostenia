@@ -21,6 +21,7 @@ vi.mock("@xterm/xterm", () => {
       write: vi.fn(),
       options: { theme: {} },
       focus: vi.fn(),
+      getSelection: vi.fn().mockReturnValue("selected terminal text"),
     })),
   };
 });
@@ -82,6 +83,16 @@ describe("SSHSessionView Component", () => {
     vi.clearAllMocks();
     window.confirm = vi.fn().mockReturnValue(true);
     window.prompt = vi.fn().mockReturnValue("new-name");
+
+    // Mock navigator.clipboard
+    Object.defineProperty(navigator, "clipboard", {
+      writable: true,
+      configurable: true,
+      value: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+        readText: vi.fn().mockResolvedValue("pasted text"),
+      },
+    });
   });
 
   it("renders and connects to SSH", async () => {
@@ -272,7 +283,9 @@ describe("SSHSessionView Component", () => {
     // 1. Download
     const downloadBtn = screen.getByText("Download");
     fireEvent.click(downloadBtn);
-    expect(AppBackend.DownloadRemoteFile).toHaveBeenCalledWith(mockSession.id, "/home/user/test.txt");
+    await waitFor(() => {
+      expect(AppBackend.DownloadRemoteFile).toHaveBeenCalledWith(mockSession.id, "/home/user/test.txt");
+    });
 
     // 2. Open With
     fireEvent.contextMenu(fileItem);
@@ -284,11 +297,16 @@ describe("SSHSessionView Component", () => {
     fireEvent.contextMenu(fileItem);
     const editBtn = screen.getByText("Edit File");
     fireEvent.click(editBtn);
-    expect(AppBackend.EditRemoteFile).toHaveBeenCalledWith(mockSession.id, "/home/user/test.txt");
+    await waitFor(() => {
+      expect(AppBackend.EditRemoteFile).toHaveBeenCalledWith(mockSession.id, "/home/user/test.txt");
+      expect(mockProps.addToast).toHaveBeenCalledWith("Success", "File saved and uploaded", "success");
+    });
 
     // 4. Edit (via double click on file)
     fireEvent.doubleClick(fileItem);
-    expect(AppBackend.EditRemoteFile).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(AppBackend.EditRemoteFile).toHaveBeenCalled();
+    });
   });
 
   it("handles Upload and New Folder buttons", async () => {
@@ -301,13 +319,18 @@ describe("SSHSessionView Component", () => {
     // 1. Upload
     const uploadBtn = screen.getByText("Upload");
     fireEvent.click(uploadBtn);
-    expect(AppBackend.UploadRemoteFile).toHaveBeenCalledWith(mockSession.id, "/home/user");
+    await waitFor(() => {
+      expect(AppBackend.UploadRemoteFile).toHaveBeenCalledWith(mockSession.id, "/home/user");
+      expect(mockProps.addToast).toHaveBeenCalledWith("Success", "File uploaded successfully", "success");
+    });
 
     // 2. New Folder
     window.prompt = vi.fn().mockReturnValue("new_folder_name");
     const newBtn = screen.getByText("New");
     fireEvent.click(newBtn);
-    expect(AppBackend.ExecuteSFTPAction).toHaveBeenCalledWith(mockSession.id, "mkdir", "/home/user/new_folder_name", "");
+    await waitFor(() => {
+      expect(AppBackend.ExecuteSFTPAction).toHaveBeenCalledWith(mockSession.id, "mkdir", "/home/user/new_folder_name", "");
+    });
   });
 
   it("handles incoming Wails events", async () => {
@@ -479,5 +502,92 @@ describe("SSHSessionView Component", () => {
     await waitFor(() => {
       expect(AppBackend.GetRemoteFiles).toHaveBeenCalledWith(mockSession.id, "/home/user/manual");
     });
+  });
+
+  it("handles navigation edge cases with trailing slashes", async () => {
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test.txt")).toBeInTheDocument();
+    });
+
+    const pathInput = screen.getByDisplayValue("/home/user");
+    fireEvent.change(pathInput, { target: { value: "/home/user/" } });
+    fireEvent.keyDown(pathInput, { key: "Enter", code: "Enter" });
+
+    await waitFor(() => {
+      expect(AppBackend.GetRemoteFiles).toHaveBeenCalledWith(mockSession.id, "/home/user/");
+    });
+
+    const backBtn = screen.getByTitle("Back");
+    fireEvent.click(backBtn);
+  });
+
+  it("handles terminal context menu actions", async () => {
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test.txt")).toBeInTheDocument();
+    });
+
+    const terminalDiv = document.querySelector(".absolute.inset-0.px-2.pt-2");
+    if (terminalDiv) {
+      fireEvent.contextMenu(terminalDiv);
+
+      // Verify menu rendering
+      expect(screen.getByText("Copy")).toBeInTheDocument();
+      expect(screen.getByText("Paste")).toBeInTheDocument();
+      expect(screen.getByText("Refresh")).toBeInTheDocument();
+      expect(screen.getByText("Toggle view files/folder")).toBeInTheDocument();
+
+      // 2. Click Copy
+      const copyBtn = screen.getByText("Copy");
+      fireEvent.click(copyBtn);
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith("selected terminal text");
+
+      // 3. Click Paste
+      fireEvent.contextMenu(terminalDiv);
+      const pasteBtn = screen.getByText("Paste");
+      fireEvent.click(pasteBtn);
+      expect(navigator.clipboard.readText).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(AppBackend.SendSSHInput).toHaveBeenCalledWith(mockSession.id, "pasted text");
+      });
+
+      // 4. Click Refresh
+      fireEvent.contextMenu(terminalDiv);
+      const refreshBtn = screen.getByText("Refresh");
+      fireEvent.click(refreshBtn);
+
+      // 5. Click Toggle view files/folder
+      fireEvent.contextMenu(terminalDiv);
+      const toggleExplorerBtn = screen.getByText("Toggle view files/folder");
+      fireEvent.click(toggleExplorerBtn);
+      // Explorer should be hidden now!
+      expect(screen.queryByText("test.txt")).not.toBeInTheDocument();
+
+      // Open terminal context menu again near the bottom to test position adjustment
+      const originalInnerHeight = window.innerHeight;
+      Object.defineProperty(window, "innerHeight", {
+        writable: true,
+        configurable: true,
+        value: 600,
+      });
+
+      fireEvent.contextMenu(terminalDiv, { clientY: 550, clientX: 200 });
+      const termMenuElement = screen.getByText("Copy").closest("div");
+      expect(termMenuElement).toBeInTheDocument();
+      // Expected Y: 550 - 140 = 410
+      expect(termMenuElement?.style.top).toBe("410px");
+
+      // Restore innerHeight
+      Object.defineProperty(window, "innerHeight", {
+        writable: true,
+        configurable: true,
+        value: originalInnerHeight,
+      });
+    } else {
+      expect(terminalDiv).not.toBeNull();
+    }
   });
 });
