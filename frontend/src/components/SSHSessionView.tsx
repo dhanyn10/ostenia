@@ -90,9 +90,16 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const handleFileContextMenu = (e: React.MouseEvent, file: any) => {
     e.preventDefault();
     e.stopPropagation();
+
+    const menuHeight = 180;
+    let y = e.clientY;
+    if (y + menuHeight > window.innerHeight) {
+      y = Math.max(10, y - menuHeight);
+    }
+
     setFileContextMenu({
       x: e.clientX,
-      y: e.clientY,
+      y: y,
       file: file,
     });
     setExplorerContextMenu(null);
@@ -100,9 +107,16 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
 
   const handleExplorerContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
+
+    const menuHeight = 130;
+    let y = e.clientY;
+    if (y + menuHeight > window.innerHeight) {
+      y = Math.max(10, y - menuHeight);
+    }
+
     setExplorerContextMenu({
       x: e.clientX,
-      y: e.clientY,
+      y: y,
     });
     setFileContextMenu(null);
   };
