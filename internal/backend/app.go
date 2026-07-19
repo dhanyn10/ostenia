@@ -112,6 +112,9 @@ func (a *App) Startup(ctx context.Context) {
 		a.sslManager = &DefaultSSLManager{}
 	}
 
+	a.orchestrator.SetRuntime(a.runtime)
+	a.sshManager.SetRuntime(a.runtime)
+
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		// Log error if config fails to load

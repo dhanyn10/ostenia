@@ -103,6 +103,7 @@ func (m *MockPluginManager) UninstallModule(moduleName, phpPath string) error { 
 type MockSSHManager struct {
     interfaces.SSHManager
 }
+func (m *MockSSHManager) SetRuntime(r interfaces.Runtime) {}
 func (m *MockSSHManager) GetSessions() ([]config.SSHSession, error) { return []config.SSHSession{}, nil }
 func (m *MockSSHManager) SaveSessions(sessions []config.SSHSession) error { return nil }
 func (m *MockSSHManager) Connect(ctx context.Context, session config.SSHSession) error { return nil }

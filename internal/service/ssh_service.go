@@ -82,8 +82,11 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 		return nil
 	}
 
+	fmt.Printf("[SSH] Connecting to %s@%s:%d...\n", session.User, session.Host, session.Port)
+
 	auth, err := m.getAuth(session)
 	if err != nil {
+		fmt.Printf("[SSH] Authentication retrieval failed: %v\n", err)
 		m.mu.Unlock()
 		return err
 	}
@@ -98,12 +101,14 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 	})
 
 	if err != nil {
+		fmt.Printf("[SSH] Dial connection failed: %v\n", err)
 		m.mu.Unlock()
 		return err
 	}
 
 	sftpClient, err := client.NewSftp()
 	if err != nil {
+		fmt.Printf("[SSH] SFTP initialization failed: %v\n", err)
 		client.Close()
 		m.mu.Unlock()
 		return err
@@ -121,6 +126,8 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 	m.connections[session.ID] = conn
 	m.mu.Unlock()
 
+	fmt.Printf("[SSH] Connected successfully to %s@%s:%d. Initializing terminal session.\n", session.User, session.Host, session.Port)
+
 	// Start terminal session
 	m.startTerminal(ctx, conn)
 
@@ -128,9 +135,10 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 }
 
 func (m *SSHManager) startTerminal(ctx context.Context, conn *SSHConnection) {
+	fmt.Printf("[SSH] Requesting new SSH session for terminal (SessionID: %s)...\n", conn.SessionID)
 	sshSession, err := conn.Client.NewSession()
 	if err != nil {
-		fmt.Printf("Failed to create SSH session: %v\n", err)
+		fmt.Printf("[SSH] Failed to create SSH session: %v\n", err)
 		return
 	}
 	m.mu.Lock()
@@ -139,12 +147,12 @@ func (m *SSHManager) startTerminal(ctx context.Context, conn *SSHConnection) {
 
 	stdout, err := sshSession.StdoutPipe()
 	if err != nil {
-		fmt.Printf("failed to get stdout pipe: %v\n", err)
+		fmt.Printf("[SSH] Failed to get stdout pipe: %v\n", err)
 		return
 	}
 	stdin, err := sshSession.StdinPipe()
 	if err != nil {
-		fmt.Printf("failed to get stdin pipe: %v\n", err)
+		fmt.Printf("[SSH] Failed to get stdin pipe: %v\n", err)
 		return
 	}
 	m.mu.Lock()
@@ -152,7 +160,7 @@ func (m *SSHManager) startTerminal(ctx context.Context, conn *SSHConnection) {
 	m.mu.Unlock()
 
 	if err := m.setupPTY(sshSession); err != nil {
-		fmt.Printf("failed to setup terminal: %v\n", err)
+		fmt.Printf("[SSH] Failed to setup terminal PTY: %v\n", err)
 		return
 	}
 
@@ -202,8 +210,10 @@ func (m *SSHManager) processTerminalOutput(ctx context.Context, conn *SSHConnect
 func (m *SSHManager) handleTerminalExit(ctx context.Context, conn *SSHConnection, sshSession interfaces.SSHSession, exitChan chan struct{}) {
 	select {
 	case <-conn.Context.Done():
+		fmt.Printf("[SSH] Context done, closing terminal session %s\n", conn.SessionID)
 		sshSession.Close()
 	case <-exitChan:
+		fmt.Printf("[SSH] Terminal output channel closed, disconnecting terminal session %s\n", conn.SessionID)
 		if m.runtime != nil {
 			m.runtime.EventsEmit(ctx, "ssh_disconnected", conn.SessionID)
 		}
@@ -260,6 +270,7 @@ func (m *SSHManager) Disconnect(sessionID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	fmt.Printf("[SSH] Disconnecting session ID: %s...\n", sessionID)
 	if conn, ok := m.connections[sessionID]; ok {
 		conn.Cancel()
 		if conn.SFTP != nil {
@@ -269,6 +280,9 @@ func (m *SSHManager) Disconnect(sessionID string) {
 			conn.Client.Close()
 		}
 		delete(m.connections, sessionID)
+		fmt.Printf("[SSH] Session ID %s successfully disconnected.\n", sessionID)
+	} else {
+		fmt.Printf("[SSH] Session ID %s not found for disconnection.\n", sessionID)
 	}
 }
 
