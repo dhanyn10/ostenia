@@ -170,7 +170,7 @@ describe("SSHSessionView Component", () => {
     );
   });
 
-  it("filters hidden files by default and shows them after toggling", async () => {
+  it("shows hidden files by default and filters them after toggling", async () => {
     render(<SSHSessionView {...mockProps} />);
 
     // Wait for file listing to load
@@ -178,8 +178,8 @@ describe("SSHSessionView Component", () => {
       expect(screen.getByText("test.txt")).toBeInTheDocument();
     });
 
-    // Hidden files should not be visible by default
-    expect(screen.queryByText(".env")).not.toBeInTheDocument();
+    // Hidden files should be visible by default
+    expect(screen.getByText(".env")).toBeInTheDocument();
 
     // Right click on the file explorer background to open the context menu
     const nameHeader = screen.getByText("Name");
@@ -192,9 +192,9 @@ describe("SSHSessionView Component", () => {
     // Click "View hidden files/folder"
     fireEvent.click(toggleHiddenBtn);
 
-    // Hidden files should now be visible!
+    // Hidden files should now be hidden!
     await waitFor(() => {
-      expect(screen.getByText(".env")).toBeInTheDocument();
+      expect(screen.queryByText(".env")).not.toBeInTheDocument();
     });
   });
 
