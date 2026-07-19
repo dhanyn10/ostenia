@@ -10,6 +10,7 @@ import (
 	"ostenia/internal/plugins/utils"
 	"ostenia/internal/testutil"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -227,13 +228,183 @@ func TestSSHManager_PathAndFiles(t *testing.T) {
 	}
 }
 
+func TestSSHManager_ListFiles_EOF(t *testing.T) {
+	m, sessionID, mockClient, cleanup := setupSSHTest(t)
+	defer cleanup()
+
+	// 1. Test standard io.EOF error
+	mockClient.sftp.err = io.EOF
+	files, err := m.ListFiles(sessionID, "/home/user")
+	if err != nil {
+		t.Errorf("ListFiles should have succeeded on io.EOF, but got error: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("Expected 0 files on io.EOF, got %d", len(files))
+	}
+
+	// 2. Test custom error containing "EOF"
+	mockClient.sftp.err = errors.New("SFTP connection closed: EOF")
+	files, err = m.ListFiles(sessionID, "/home/user")
+	if err != nil {
+		t.Errorf("ListFiles should have succeeded on EOF-containing error, but got error: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("Expected 0 files on EOF-containing error, got %d", len(files))
+	}
+
+	// 3. Test os.ErrNotExist error
+	mockClient.sftp.err = os.ErrNotExist
+	files, err = m.ListFiles(sessionID, "/home/user")
+	if err != nil {
+		t.Errorf("ListFiles should have succeeded on os.ErrNotExist, but got error: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("Expected 0 files on os.ErrNotExist, got %d", len(files))
+	}
+
+	// 4. Test custom "file does not exist" error
+	mockClient.sftp.err = errors.New("file does not exist")
+	files, err = m.ListFiles(sessionID, "/home/user")
+	if err != nil {
+		t.Errorf("ListFiles should have succeeded on 'file does not exist' error, but got error: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("Expected 0 files on 'file does not exist' error, got %d", len(files))
+	}
+
+	// 5. Test custom "no such file" error
+	mockClient.sftp.err = errors.New("no such file or directory")
+	files, err = m.ListFiles(sessionID, "/home/user")
+	if err != nil {
+		t.Errorf("ListFiles should have succeeded on 'no such file' error, but got error: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("Expected 0 files on 'no such file' error, got %d", len(files))
+	}
+
+	// 6. Test custom "not found" error
+	mockClient.sftp.err = errors.New("directory not found")
+	files, err = m.ListFiles(sessionID, "/home/user")
+	if err != nil {
+		t.Errorf("ListFiles should have succeeded on 'not found' error, but got error: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("Expected 0 files on 'not found' error, got %d", len(files))
+	}
+
+	// 7. Test custom "not exist" error
+	mockClient.sftp.err = errors.New("path does not exist")
+	files, err = m.ListFiles(sessionID, "/home/user")
+	if err != nil {
+		t.Errorf("ListFiles should have succeeded on 'not exist' error, but got error: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("Expected 0 files on 'not exist' error, got %d", len(files))
+	}
+
+	// 8. Test a real other error (e.g. permission denied)
+	mockClient.sftp.err = errors.New("permission denied")
+	_, err = m.ListFiles(sessionID, "/home/user")
+	if err == nil {
+		t.Errorf("Expected error on permission denied, but got nil")
+	}
+}
+
+func TestSSHManager_ResolveRemotePath(t *testing.T) {
+	m, sessionID, mockClient, cleanup := setupSSHTest(t)
+	defer cleanup()
+
+	m.mu.RLock()
+	conn := m.connections[sessionID]
+	m.mu.RUnlock()
+
+	mockClient.sftp.wd = "/home/testuser"
+
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"~", "/home/testuser"},
+		{"~/", "/home/testuser"},
+		{"~/subfolder", "/home/testuser/subfolder"},
+		{"/absolute/path", "/absolute/path"},
+		{"relative/path", "relative/path"},
+	}
+
+	for _, tt := range tests {
+		result := m.resolveRemotePath(conn, tt.input)
+		if result != tt.expected {
+			t.Errorf("resolveRemotePath(%q) = %q; expected %q", tt.input, result, tt.expected)
+		}
+	}
+}
+
+func TestSSHManager_ListFiles_EdgeCases(t *testing.T) {
+	m, sessionID, mockClient, cleanup := setupSSHTest(t)
+	defer cleanup()
+
+	// 1. Test when SFTP is nil / not connected
+	m.mu.Lock()
+	conn := m.connections[sessionID]
+	oldSFTP := conn.SFTP
+	conn.SFTP = nil
+	m.mu.Unlock()
+
+	_, err := m.ListFiles(sessionID, "/home/user")
+	if err == nil || !strings.Contains(err.Error(), "SFTP not connected") {
+		t.Errorf("Expected 'SFTP not connected' error, got %v", err)
+	}
+
+	// Restore SFTP
+	m.mu.Lock()
+	conn.SFTP = oldSFTP
+	m.mu.Unlock()
+
+	// 2. Test empty pathStr which triggers Getwd success
+	mockClient.sftp.wd = "/home/defaultwd"
+	mockClient.sftp.files = []os.FileInfo{
+		mockFileInfo{name: "file_in_wd", size: 10, isDir: false},
+	}
+	mockClient.sftp.err = nil
+
+	files, err := m.ListFiles(sessionID, "")
+	if err != nil {
+		t.Errorf("Expected ListFiles with empty path to succeed, got %v", err)
+	}
+	if len(files) != 1 || files[0].Name != "file_in_wd" {
+		t.Errorf("Expected file_in_wd from default working dir, got %v", files)
+	}
+
+	// 3. Test empty pathStr when Getwd fails, which defaults to "."
+	mockClient.sftp.wd = "" // triggers default to "."
+	mockClient.sftp.files = []os.FileInfo{
+		mockFileInfo{name: "file_in_dot", size: 5, isDir: false},
+	}
+
+	files, err = m.ListFiles(sessionID, "")
+	if err != nil {
+		t.Errorf("Expected ListFiles with empty path and failed Getwd to succeed, got %v", err)
+	}
+	if len(files) != 1 || files[0].Name != "file_in_dot" {
+		t.Errorf("Expected file_in_dot from dot folder, got %v", files)
+	}
+}
+
 func TestSSHManager_SFTP_Actions(t *testing.T) {
 	m, sessionID, mockClient, cleanup := setupSSHTest(t)
 	defer cleanup()
 
+	// Test Stat error in delete action
+	mockClient.sftp.err = errors.New("stat error")
+	err := m.ExecuteSFTPAction(sessionID, "delete", "dir1", "")
+	if err == nil {
+		t.Error("Expected ExecuteSFTPAction to fail when Stat fails")
+	}
+	mockClient.sftp.err = nil
+
 	// ExecuteSFTPAction
 	mockClient.sftp.stat = mockFileInfo{name: "file1", isDir: false}
-	err := m.ExecuteSFTPAction(sessionID, "delete", "file1", "")
+	err = m.ExecuteSFTPAction(sessionID, "delete", "file1", "")
 	if err != nil {
 		t.Errorf("Delete file failed: %v", err)
 	}
@@ -269,6 +440,12 @@ func TestSSHManager_Terminal_Ops(t *testing.T) {
 		t.Errorf("ResizeTerminal failed: %v", err)
 	}
 
+	// Test hard guards for low cols and rows
+	err = m.ResizeTerminal(sessionID, 50, 5)
+	if err != nil {
+		t.Errorf("ResizeTerminal failed on hard guards: %v", err)
+	}
+
 	err = m.SendInput(sessionID, "ls\n")
 	if err != nil {
 		t.Errorf("SendInput failed: %v", err)
@@ -283,17 +460,54 @@ func TestSSHManager_File_Ops(t *testing.T) {
 	tempFile := filepath.Join(tempDir, "local")
 	os.WriteFile(tempFile, []byte("data"), 0644)
 
+	// 1. Success case
 	mockClient.sftp.openFile = &mockSFTPFile{Reader: io.LimitReader(nil, 0), Closer: io.NopCloser(nil)}
 	err := m.DownloadFile(sessionID, "remote", tempFile)
 	if err != nil {
 		t.Errorf("DownloadFile failed: %v", err)
 	}
 
+	// 2. Download open error
+	mockClient.sftp.openFile = nil
+	mockClient.sftp.err = errors.New("open error")
+	err = m.DownloadFile(sessionID, "remote", tempFile)
+	if err == nil {
+		t.Error("Expected DownloadFile to fail when SFTP.Open fails")
+	}
+
+	// 3. Download os.Create error
+	mockClient.sftp.openFile = &mockSFTPFile{Reader: io.LimitReader(nil, 0), Closer: io.NopCloser(nil)}
+	err = m.DownloadFile(sessionID, "remote", "/nonexistent_folder_abc/local")
+	if err == nil {
+		t.Error("Expected DownloadFile to fail when local file creation fails")
+	}
+
+	// Reset mock err
+	mockClient.sftp.err = nil
+
+	// 4. Upload success case
 	mockClient.sftp.createFile = &mockSFTPFile{Writer: io.Discard, Closer: io.NopCloser(nil)}
 	err = m.UploadFile(sessionID, tempFile, "remote")
 	if err != nil {
 		t.Errorf("UploadFile failed: %v", err)
 	}
+
+	// 5. Upload local open error
+	err = m.UploadFile(sessionID, "nonexistent_local_file_abc", "remote")
+	if err == nil {
+		t.Error("Expected UploadFile to fail when local file doesn't exist")
+	}
+
+	// 6. Upload remote create error
+	mockClient.sftp.createFile = nil
+	mockClient.sftp.err = errors.New("create error")
+	err = m.UploadFile(sessionID, tempFile, "remote")
+	if err == nil {
+		t.Error("Expected UploadFile to fail when SFTP.Create fails")
+	}
+
+	// Reset mock err
+	mockClient.sftp.err = nil
 
 	// EditFile
 	origExecutor := utils.Executor
@@ -305,6 +519,31 @@ func TestSSHManager_File_Ops(t *testing.T) {
 	err = m.EditFile(sessionID, "remote.txt", "nano")
 	if err != nil {
 		t.Errorf("EditFile failed: %v", err)
+	}
+
+	// EditFile download error
+	mockClient.sftp.openFile = nil
+	mockClient.sftp.err = errors.New("download error")
+	err = m.EditFile(sessionID, "remote.txt", "nano")
+	if err == nil {
+		t.Error("Expected EditFile to fail when download fails")
+	}
+
+	// EditFile runEditor error
+	utils.Executor = &testutil.MockExecutor{Err: errors.New("editor error")}
+	mockClient.sftp.openFile = &mockSFTPFile{Reader: io.LimitReader(nil, 0), Closer: io.NopCloser(nil)}
+	mockClient.sftp.err = nil
+	err = m.EditFile(sessionID, "remote.txt", "nano")
+	if err == nil {
+		t.Error("Expected EditFile to fail when runEditor fails")
+	}
+
+	// EditFile with empty default editor
+	utils.Executor = &testutil.MockExecutor{Output: ""}
+	mockClient.sftp.openFile = &mockSFTPFile{Reader: io.LimitReader(nil, 0), Closer: io.NopCloser(nil)}
+	err = m.EditFile(sessionID, "remote.txt", "")
+	if err != nil {
+		t.Logf("EditFile with empty editor result (expected if no editor found on system): %v", err)
 	}
 }
 
@@ -346,6 +585,102 @@ func TestSSHManager_Errors(t *testing.T) {
 		}
 		if err := m.UploadFile("none", "l", "r"); err == nil {
 			t.Error("Expected error for missing session")
+		}
+		if err := m.ExecuteSFTPAction("none", "mkdir", "p", ""); err == nil {
+			t.Error("Expected error for missing session")
+		}
+		if err := m.EditFile("none", "p", "editor"); err == nil {
+			t.Error("Expected error for missing session")
+		}
+		if err := m.ResizeTerminal("none", 80, 24); err == nil {
+			t.Error("Expected error for missing session")
+		}
+		if err := m.SendInput("none", "abc"); err == nil {
+			t.Error("Expected error for missing session")
+		}
+	})
+
+	t.Run("SFTP Not Connected Errors", func(t *testing.T) {
+		mgr, sessionID, _, cleanup := setupSSHTest(t)
+		defer cleanup()
+
+		mgr.mu.Lock()
+		conn := mgr.connections[sessionID]
+		conn.SFTP = nil
+		mgr.mu.Unlock()
+
+		if _, err := mgr.GetCurrentPath(sessionID); err == nil {
+			t.Error("Expected error for nil SFTP")
+		}
+		if err := mgr.DownloadFile(sessionID, "r", "l"); err == nil {
+			t.Error("Expected error for nil SFTP")
+		}
+		if err := mgr.UploadFile(sessionID, "l", "r"); err == nil {
+			t.Error("Expected error for nil SFTP")
+		}
+		if err := mgr.ExecuteSFTPAction(sessionID, "mkdir", "p", ""); err == nil {
+			t.Error("Expected error for nil SFTP")
+		}
+		if err := mgr.EditFile(sessionID, "p", "editor"); err == nil {
+			t.Error("Expected error for nil SFTP")
+		}
+	})
+
+	t.Run("Terminal Ops Nil PTY Shell", func(t *testing.T) {
+		mgr, sessionID, _, cleanup := setupSSHTest(t)
+		defer cleanup()
+
+		mgr.mu.Lock()
+		conn := mgr.connections[sessionID]
+		conn.PTY = nil
+		conn.Shell = nil
+		mgr.mu.Unlock()
+
+		if err := mgr.ResizeTerminal(sessionID, 80, 24); err == nil {
+			t.Error("Expected error for nil PTY")
+		}
+		if err := mgr.SendInput(sessionID, "abc"); err == nil {
+			t.Error("Expected error for nil Shell")
+		}
+	})
+
+	t.Run("ExecuteSFTPAction Unknown Action", func(t *testing.T) {
+		mgr, sessionID, _, cleanup := setupSSHTest(t)
+		defer cleanup()
+
+		err := mgr.ExecuteSFTPAction(sessionID, "unknown_action", "p", "")
+		if err == nil || !strings.Contains(err.Error(), "unknown action") {
+			t.Errorf("Expected 'unknown action' error, got %v", err)
+		}
+	})
+
+	t.Run("Connect NewSftp Error", func(t *testing.T) {
+		mgr := NewSSHManager()
+		mgr.dialer = func(cfg *goph.Config) (interfaces.SSHClient, error) {
+			return &mockSSHClient{sftp: nil}, nil
+		}
+		err := mgr.Connect(context.Background(), config.SSHSession{ID: "newsftp-err-id", AuthMethod: "password"})
+		if err == nil {
+			t.Error("Expected Connect to fail when NewSftp fails")
+		}
+	})
+
+	t.Run("startTerminal NewSession Error", func(t *testing.T) {
+		mgr := NewSSHManager()
+		mgr.dialer = func(cfg *goph.Config) (interfaces.SSHClient, error) {
+			return &mockSSHClient{session: nil, sftp: &mockSFTPClient{}}, nil
+		}
+		_ = mgr.Connect(context.Background(), config.SSHSession{ID: "newsession-err-id", AuthMethod: "password"})
+	})
+
+	t.Run("DefaultSSHDialer error", func(t *testing.T) {
+		_, err := DefaultSSHDialer(&goph.Config{
+			User: "user",
+			Addr: "127.0.0.1",
+			Port: 9999,
+		})
+		if err == nil {
+			t.Error("Expected DefaultSSHDialer to return error")
 		}
 	})
 }
@@ -457,6 +792,46 @@ func TestSSHManager_AuthMethods(t *testing.T) {
 		sess := config.SSHSession{AuthMethod: "agent"}
 		_, _ = m.getAuth(sess)
 	})
+
+	t.Run("getAuth key", func(t *testing.T) {
+		tempDir := t.TempDir()
+		keyFile := filepath.Join(tempDir, "id_rsa")
+		os.WriteFile(keyFile, []byte("mock private key content"), 0600)
+
+		sess := config.SSHSession{AuthMethod: "key", KeyPath: keyFile, Passphrase: "pass"}
+		_, _ = m.getAuth(sess)
+	})
+
+	t.Run("getAuth key without passphrase", func(t *testing.T) {
+		tempDir := t.TempDir()
+		keyFile := filepath.Join(tempDir, "id_rsa")
+		os.WriteFile(keyFile, []byte("mock private key content"), 0600)
+
+		sess := config.SSHSession{AuthMethod: "key", KeyPath: keyFile, Passphrase: ""}
+		_, _ = m.getAuth(sess)
+	})
+}
+
+type mockAddr struct{}
+func (mockAddr) Network() string { return "tcp" }
+func (mockAddr) String() string  { return "127.0.0.1:22" }
+
+type mockPublicKey struct{}
+func (mockPublicKey) Type() string { return "ssh-rsa" }
+func (mockPublicKey) Marshal() []byte { return []byte("mock-key-bytes") }
+func (mockPublicKey) Verify(data []byte, sig *ssh.Signature) error { return nil }
+
+func TestSSHManager_HostKeyCallback(t *testing.T) {
+	m := NewSSHManager()
+	cb := m.getHostKeyCallback()
+	if cb == nil {
+		t.Fatal("Expected non-nil host key callback")
+	}
+
+	// Invoke callback to cover all internal paths
+	_ = cb("localhost", mockAddr{}, mockPublicKey{})
+	// Call it again so it is found in known_hosts
+	_ = cb("localhost", mockAddr{}, mockPublicKey{})
 }
 
 func TestSSHManager_Wrappers(t *testing.T) {

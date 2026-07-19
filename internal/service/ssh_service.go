@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -11,6 +12,7 @@ import (
 	"ostenia/internal/config"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -286,6 +288,20 @@ func (m *SSHManager) Disconnect(sessionID string) {
 	}
 }
 
+func (m *SSHManager) resolveRemotePath(conn *SSHConnection, p string) string {
+	if strings.HasPrefix(p, "~") {
+		wd, err := conn.SFTP.Getwd()
+		if err == nil && wd != "" {
+			if p == "~" || p == "~/" {
+				return wd
+			} else if strings.HasPrefix(p, "~/") {
+				return path.Join(wd, p[2:])
+			}
+		}
+	}
+	return p
+}
+
 func (m *SSHManager) ListFiles(sessionID, pathStr string) ([]RemoteFile, error) {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
@@ -298,6 +314,8 @@ func (m *SSHManager) ListFiles(sessionID, pathStr string) ([]RemoteFile, error) 
 		return nil, fmt.Errorf("SFTP not connected")
 	}
 
+	pathStr = m.resolveRemotePath(conn, pathStr)
+
 	if pathStr == "" {
 		wd, err := conn.SFTP.Getwd()
 		if err == nil && wd != "" {
@@ -309,10 +327,21 @@ func (m *SSHManager) ListFiles(sessionID, pathStr string) ([]RemoteFile, error) 
 
 	entries, err := conn.SFTP.ReadDir(pathStr)
 	if err != nil {
+		errStr := err.Error()
+		if err == io.EOF || os.IsNotExist(err) ||
+			strings.Contains(errStr, "EOF") ||
+			strings.Contains(errStr, "does not exist") ||
+			strings.Contains(errStr, "no such file") ||
+			strings.Contains(errStr, "not found") ||
+			strings.Contains(errStr, "not exist") {
+			log.Printf("[SSH] ReadDir ignored empty/missing/EOF path %s: %v", pathStr, err)
+			fmt.Printf("[SSH] ReadDir ignored empty/missing/EOF path %s: %v\n", pathStr, err)
+			return []RemoteFile{}, nil
+		}
 		return nil, err
 	}
 
-	var files []RemoteFile
+	files := []RemoteFile{}
 	for _, entry := range entries {
 		files = append(files, RemoteFile{
 			Name:    entry.Name(),
@@ -338,8 +367,10 @@ func (m *SSHManager) ExecuteSFTPAction(sessionID, action, remotePath, target str
 		return fmt.Errorf("SFTP not connected")
 	}
 
+	remotePath = m.resolveRemotePath(conn, remotePath)
 	remotePath = path.Clean(remotePath)
 	if target != "" {
+		target = m.resolveRemotePath(conn, target)
 		target = path.Clean(target)
 	}
 
@@ -375,6 +406,7 @@ func (m *SSHManager) DownloadFile(sessionID, remotePath, localPath string) error
 		return fmt.Errorf("SFTP not connected")
 	}
 
+	remotePath = m.resolveRemotePath(conn, remotePath)
 	remotePath = path.Clean(remotePath)
 
 	src, err := conn.SFTP.Open(remotePath)
@@ -406,6 +438,7 @@ func (m *SSHManager) UploadFile(sessionID, localPath, remotePath string) error {
 	}
 
 	// Use path.Join for remote paths
+	remotePath = m.resolveRemotePath(conn, remotePath)
 	remotePath = path.Clean(remotePath)
 
 	src, err := os.Open(localPath)
@@ -436,6 +469,7 @@ func (m *SSHManager) EditFile(sessionID, remotePath, defaultEditor string) error
 		return fmt.Errorf("SFTP not connected")
 	}
 
+	remotePath = m.resolveRemotePath(conn, remotePath)
 	remotePath = path.Clean(remotePath)
 
 	tempDir, err := os.MkdirTemp("", "ostenia-ssh-edit-*")
