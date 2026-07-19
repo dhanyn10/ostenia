@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -11,6 +12,7 @@ import (
 	"ostenia/internal/config"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -309,6 +311,11 @@ func (m *SSHManager) ListFiles(sessionID, pathStr string) ([]RemoteFile, error) 
 
 	entries, err := conn.SFTP.ReadDir(pathStr)
 	if err != nil {
+		if err == io.EOF || strings.Contains(err.Error(), "EOF") {
+			log.Printf("[SSH] ReadDir empty/EOF for path %s: %v", pathStr, err)
+			fmt.Printf("[SSH] ReadDir empty/EOF for path %s: %v\n", pathStr, err)
+			return []RemoteFile{}, nil
+		}
 		return nil, err
 	}
 

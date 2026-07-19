@@ -227,6 +227,38 @@ func TestSSHManager_PathAndFiles(t *testing.T) {
 	}
 }
 
+func TestSSHManager_ListFiles_EOF(t *testing.T) {
+	m, sessionID, mockClient, cleanup := setupSSHTest(t)
+	defer cleanup()
+
+	// 1. Test standard io.EOF error
+	mockClient.sftp.err = io.EOF
+	files, err := m.ListFiles(sessionID, "/home/user")
+	if err != nil {
+		t.Errorf("ListFiles should have succeeded on io.EOF, but got error: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("Expected 0 files on io.EOF, got %d", len(files))
+	}
+
+	// 2. Test custom error containing "EOF"
+	mockClient.sftp.err = errors.New("SFTP connection closed: EOF")
+	files, err = m.ListFiles(sessionID, "/home/user")
+	if err != nil {
+		t.Errorf("ListFiles should have succeeded on EOF-containing error, but got error: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("Expected 0 files on EOF-containing error, got %d", len(files))
+	}
+
+	// 3. Test a non-EOF error (real error)
+	mockClient.sftp.err = errors.New("permission denied")
+	_, err = m.ListFiles(sessionID, "/home/user")
+	if err == nil {
+		t.Errorf("Expected error on permission denied, but got nil")
+	}
+}
+
 func TestSSHManager_SFTP_Actions(t *testing.T) {
 	m, sessionID, mockClient, cleanup := setupSSHTest(t)
 	defer cleanup()
