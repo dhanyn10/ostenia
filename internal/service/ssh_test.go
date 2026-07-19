@@ -309,6 +309,35 @@ func TestSSHManager_ListFiles_EOF(t *testing.T) {
 	}
 }
 
+func TestSSHManager_ResolveRemotePath(t *testing.T) {
+	m, sessionID, mockClient, cleanup := setupSSHTest(t)
+	defer cleanup()
+
+	m.mu.RLock()
+	conn := m.connections[sessionID]
+	m.mu.RUnlock()
+
+	mockClient.sftp.wd = "/home/testuser"
+
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"~", "/home/testuser"},
+		{"~/", "/home/testuser"},
+		{"~/subfolder", "/home/testuser/subfolder"},
+		{"/absolute/path", "/absolute/path"},
+		{"relative/path", "relative/path"},
+	}
+
+	for _, tt := range tests {
+		result := m.resolveRemotePath(conn, tt.input)
+		if result != tt.expected {
+			t.Errorf("resolveRemotePath(%q) = %q; expected %q", tt.input, result, tt.expected)
+		}
+	}
+}
+
 func TestSSHManager_SFTP_Actions(t *testing.T) {
 	m, sessionID, mockClient, cleanup := setupSSHTest(t)
 	defer cleanup()
