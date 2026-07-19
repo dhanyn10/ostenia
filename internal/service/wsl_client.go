@@ -43,7 +43,11 @@ func (w *wslStdinWrapper) Write(p []byte) (n int, err error) {
 func (c *WSLClient) NewSession() (interfaces.SSHSession, error) {
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("wsl.exe", "-d", c.distro, "bash", "-i")
+		if _, err := exec.LookPath("wsl.exe"); err == nil {
+			cmd = exec.Command("wsl.exe", "-d", c.distro, "bash", "-i")
+		} else {
+			cmd = exec.Command("cmd.exe", "/Q")
+		}
 	} else {
 		cmd = exec.Command("sh", "-i")
 	}

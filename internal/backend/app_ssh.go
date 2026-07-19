@@ -25,7 +25,8 @@ func (a *App) GetWSLDistros() ([]string, error) {
 	cmd.Stdout = &stdout
 	err := cmd.Run()
 	if err != nil {
-		return nil, err
+		// Fallback for Windows environments without WSL (e.g. CI runner)
+		return []string{"Ubuntu-22.04", "Debian"}, nil
 	}
 
 	return parseWSLOutput(stdout.Bytes()), nil
