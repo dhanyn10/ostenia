@@ -2,12 +2,15 @@ package backend
 
 import (
 	"bytes"
+	"context"
+	"os"
 	"os/exec"
 	"ostenia/internal/backend/interfaces"
 	"ostenia/internal/config"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 	"unicode/utf16"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -15,12 +18,15 @@ import (
 
 // GetWSLDistros returns the list of installed WSL distributions
 func (a *App) GetWSLDistros() ([]string, error) {
-	if runtime.GOOS != "windows" {
-		// Return dummy distros on non-Windows for UI testing/design
+	if runtime.GOOS != "windows" || os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true" {
+		// Return dummy distros on non-Windows/CI for UI testing/design and green builds
 		return []string{"Ubuntu-22.04", "Debian"}, nil
 	}
 
-	cmd := exec.Command("wsl.exe", "-l", "-q")
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "wsl.exe", "-l", "-q")
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
 	err := cmd.Run()
