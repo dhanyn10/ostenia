@@ -53,10 +53,12 @@ func SetPath(path string, target string) error {
 		}
 	} else {
 		script := fmt.Sprintf("[Environment]::SetEnvironmentVariable('Path', '%s', [EnvironmentVariableTarget]::%s)", escapedPath, target) // NOSONAR
-		cmd := utils.Executor.Command("powershell", "-NoProfile", "-Command", script)                            // NOSONAR
+		cmd := utils.Executor.Command("powershell", "-NoProfile", "-Command", script)                                                      // NOSONAR
 		utils.SetHideWindow(cmd)
 		err := cmd.Run()
-		if err != nil { return fmt.Errorf("failed to set %s path: %w", target, err) }
+		if err != nil {
+			return fmt.Errorf("failed to set %s path: %w", target, err)
+		}
 	}
 	NotifyEnvironmentUpdate()
 	return nil
@@ -65,19 +67,27 @@ func SetPath(path string, target string) error {
 // UpdatePHPPath manages PHP entries in the USER PATH.
 func UpdatePHPPath(phpPath string, add bool) error {
 	currentPath, err := GetPath("User")
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	paths := strings.Split(currentPath, ";")
 	var newPaths []string
 	normalizedTarget := filepath.Clean(strings.ToLower(phpPath))
 	for _, p := range paths {
 		trimmed := strings.TrimSpace(p)
-		if trimmed == "" { continue }
+		if trimmed == "" {
+			continue
+		}
 		cleanP := filepath.Clean(strings.ToLower(trimmed))
 		// Identify and remove existing Ostenia PHP paths
-		if cleanP == normalizedTarget || (strings.Contains(cleanP, "ostenia") && strings.Contains(cleanP, "php")) { continue }
+		if cleanP == normalizedTarget || (strings.Contains(cleanP, "ostenia") && strings.Contains(cleanP, "php")) {
+			continue
+		}
 		newPaths = append(newPaths, trimmed)
 	}
-	if add { newPaths = append([]string{phpPath}, newPaths...) }
+	if add {
+		newPaths = append([]string{phpPath}, newPaths...)
+	}
 	return SetPath(strings.Join(newPaths, ";"), "User")
 }
 
@@ -89,7 +99,9 @@ func UpdateNodePath(nodePath string, add bool) error {
 // UpdatePythonPath manages Python entries in the SYSTEM (Machine) PATH.
 func UpdatePythonPath(pythonPath string, add bool) error {
 	err := updateSystemComponentPath(pythonPath, "python", add)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	scriptsPath := filepath.Join(pythonPath, "Scripts")
 	return updateSystemComponentPath(scriptsPath, "python-scripts", add)
 }
@@ -97,19 +109,27 @@ func UpdatePythonPath(pythonPath string, add bool) error {
 // updateSystemComponentPath handles generic system-level PATH management for components.
 func updateSystemComponentPath(targetPath string, keyword string, add bool) error {
 	currentPath, err := GetPath("Machine")
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	paths := strings.Split(currentPath, ";")
 	var newPaths []string
 	normalizedTarget := filepath.Clean(strings.ToLower(targetPath))
 	for _, p := range paths {
 		trimmed := strings.TrimSpace(p)
-		if trimmed == "" { continue }
+		if trimmed == "" {
+			continue
+		}
 		cleanP := filepath.Clean(strings.ToLower(trimmed))
 		// Identify Ostenia component path and filter it out
-		if cleanP == normalizedTarget || (strings.Contains(cleanP, "ostenia") && strings.Contains(cleanP, keyword)) { continue }
+		if cleanP == normalizedTarget || (strings.Contains(cleanP, "ostenia") && strings.Contains(cleanP, keyword)) {
+			continue
+		}
 		newPaths = append(newPaths, trimmed)
 	}
-	if add { newPaths = append([]string{targetPath}, newPaths...) }
+	if add {
+		newPaths = append([]string{targetPath}, newPaths...)
+	}
 	return SetPath(strings.Join(newPaths, ";"), "Machine")
 }
 
@@ -127,11 +147,15 @@ var IsPathInSystemPath = func(targetPath string) bool {
 
 // pathExistsInString verifies if a specific targetPath is present in a semicolon-separated string.
 func pathExistsInString(pathString, targetPath string) bool {
-	if pathString == "" { return false }
+	if pathString == "" {
+		return false
+	}
 	normalizedTarget := filepath.Clean(strings.ToLower(targetPath))
 	paths := strings.Split(pathString, ";")
 	for _, p := range paths {
-		if filepath.Clean(strings.ToLower(strings.TrimSpace(p))) == normalizedTarget { return true }
+		if filepath.Clean(strings.ToLower(strings.TrimSpace(p))) == normalizedTarget {
+			return true
+		}
 	}
 	return false
 }

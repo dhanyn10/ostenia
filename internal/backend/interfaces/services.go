@@ -85,6 +85,7 @@ type SSLManager interface {
 }
 
 type SSHManager interface {
+	SetRuntime(r Runtime)
 	GetSessions() ([]config.SSHSession, error)
 	SaveSessions(sessions []config.SSHSession) error
 	Connect(ctx context.Context, session config.SSHSession) error

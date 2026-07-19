@@ -7,9 +7,9 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"ostenia/internal/backend/interfaces"
 	"ostenia/internal/config"
 	"ostenia/internal/plugins/utils"
-	"ostenia/internal/backend/interfaces"
 	"path/filepath"
 	"sync"
 	"time"
@@ -82,8 +82,11 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 		return nil
 	}
 
+	fmt.Printf("[SSH] Connecting to %s@%s:%d...\n", session.User, session.Host, session.Port)
+
 	auth, err := m.getAuth(session)
 	if err != nil {
+		fmt.Printf("[SSH] Authentication retrieval failed: %v\n", err)
 		m.mu.Unlock()
 		return err
 	}
@@ -98,12 +101,14 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 	})
 
 	if err != nil {
+		fmt.Printf("[SSH] Dial connection failed: %v\n", err)
 		m.mu.Unlock()
 		return err
 	}
 
 	sftpClient, err := client.NewSftp()
 	if err != nil {
+		fmt.Printf("[SSH] SFTP initialization failed: %v\n", err)
 		client.Close()
 		m.mu.Unlock()
 		return err
@@ -121,6 +126,8 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 	m.connections[session.ID] = conn
 	m.mu.Unlock()
 
+	fmt.Printf("[SSH] Connected successfully to %s@%s:%d. Initializing terminal session.\n", session.User, session.Host, session.Port)
+
 	// Start terminal session
 	m.startTerminal(ctx, conn)
 
@@ -128,9 +135,10 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 }
 
 func (m *SSHManager) startTerminal(ctx context.Context, conn *SSHConnection) {
+	fmt.Printf("[SSH] Requesting new SSH session for terminal (SessionID: %s)...\n", conn.SessionID)
 	sshSession, err := conn.Client.NewSession()
 	if err != nil {
-		fmt.Printf("Failed to create SSH session: %v\n", err)
+		fmt.Printf("[SSH] Failed to create SSH session: %v\n", err)
 		return
 	}
 	m.mu.Lock()
@@ -139,12 +147,12 @@ func (m *SSHManager) startTerminal(ctx context.Context, conn *SSHConnection) {
 
 	stdout, err := sshSession.StdoutPipe()
 	if err != nil {
-		fmt.Printf("failed to get stdout pipe: %v\n", err)
+		fmt.Printf("[SSH] Failed to get stdout pipe: %v\n", err)
 		return
 	}
 	stdin, err := sshSession.StdinPipe()
 	if err != nil {
-		fmt.Printf("failed to get stdin pipe: %v\n", err)
+		fmt.Printf("[SSH] Failed to get stdin pipe: %v\n", err)
 		return
 	}
 	m.mu.Lock()
@@ -152,7 +160,7 @@ func (m *SSHManager) startTerminal(ctx context.Context, conn *SSHConnection) {
 	m.mu.Unlock()
 
 	if err := m.setupPTY(sshSession); err != nil {
-		fmt.Printf("failed to setup terminal: %v\n", err)
+		fmt.Printf("[SSH] Failed to setup terminal PTY: %v\n", err)
 		return
 	}
 
@@ -202,8 +210,10 @@ func (m *SSHManager) processTerminalOutput(ctx context.Context, conn *SSHConnect
 func (m *SSHManager) handleTerminalExit(ctx context.Context, conn *SSHConnection, sshSession interfaces.SSHSession, exitChan chan struct{}) {
 	select {
 	case <-conn.Context.Done():
+		fmt.Printf("[SSH] Context done, closing terminal session %s\n", conn.SessionID)
 		sshSession.Close()
 	case <-exitChan:
+		fmt.Printf("[SSH] Terminal output channel closed, disconnecting terminal session %s\n", conn.SessionID)
 		if m.runtime != nil {
 			m.runtime.EventsEmit(ctx, "ssh_disconnected", conn.SessionID)
 		}
@@ -260,6 +270,7 @@ func (m *SSHManager) Disconnect(sessionID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	fmt.Printf("[SSH] Disconnecting session ID: %s...\n", sessionID)
 	if conn, ok := m.connections[sessionID]; ok {
 		conn.Cancel()
 		if conn.SFTP != nil {
@@ -269,9 +280,11 @@ func (m *SSHManager) Disconnect(sessionID string) {
 			conn.Client.Close()
 		}
 		delete(m.connections, sessionID)
+		fmt.Printf("[SSH] Session ID %s successfully disconnected.\n", sessionID)
+	} else {
+		fmt.Printf("[SSH] Session ID %s not found for disconnection.\n", sessionID)
 	}
 }
-
 
 func (m *SSHManager) ListFiles(sessionID, pathStr string) ([]RemoteFile, error) {
 	m.mu.RLock()
@@ -286,7 +299,12 @@ func (m *SSHManager) ListFiles(sessionID, pathStr string) ([]RemoteFile, error) 
 	}
 
 	if pathStr == "" {
-		pathStr = "."
+		wd, err := conn.SFTP.Getwd()
+		if err == nil && wd != "" {
+			pathStr = wd
+		} else {
+			pathStr = "."
+		}
 	}
 
 	entries, err := conn.SFTP.ReadDir(pathStr)
@@ -592,26 +610,30 @@ type sshSessionWrapper struct {
 	session *ssh.Session
 }
 
-func (sw *sshSessionWrapper) StdoutPipe() (io.Reader, error) { return sw.session.StdoutPipe() }
+func (sw *sshSessionWrapper) StdoutPipe() (io.Reader, error)     { return sw.session.StdoutPipe() }
 func (sw *sshSessionWrapper) StdinPipe() (io.WriteCloser, error) { return sw.session.StdinPipe() }
 func (sw *sshSessionWrapper) RequestPty(term string, h, w int, modes ssh.TerminalModes) error {
 	return sw.session.RequestPty(term, h, w, modes)
 }
-func (sw *sshSessionWrapper) Shell() error { return sw.session.Shell() }
+func (sw *sshSessionWrapper) Shell() error                { return sw.session.Shell() }
 func (sw *sshSessionWrapper) WindowChange(h, w int) error { return sw.session.WindowChange(h, w) }
-func (sw *sshSessionWrapper) Close() error { return sw.session.Close() }
+func (sw *sshSessionWrapper) Close() error                { return sw.session.Close() }
 
 type sftpClientWrapper struct {
 	client *sftp.Client
 }
 
 func (cw *sftpClientWrapper) ReadDir(p string) ([]os.FileInfo, error) { return cw.client.ReadDir(p) }
-func (cw *sftpClientWrapper) Stat(p string) (os.FileInfo, error) { return cw.client.Stat(p) }
-func (cw *sftpClientWrapper) RemoveAll(p string) error { return cw.client.RemoveAll(p) }
-func (cw *sftpClientWrapper) Remove(p string) error { return cw.client.Remove(p) }
-func (cw *sftpClientWrapper) Rename(oldpath, newpath string) error { return cw.client.Rename(oldpath, newpath) }
-func (cw *sftpClientWrapper) Mkdir(p string) error { return cw.client.Mkdir(p) }
+func (cw *sftpClientWrapper) Stat(p string) (os.FileInfo, error)      { return cw.client.Stat(p) }
+func (cw *sftpClientWrapper) RemoveAll(p string) error                { return cw.client.RemoveAll(p) }
+func (cw *sftpClientWrapper) Remove(p string) error                   { return cw.client.Remove(p) }
+func (cw *sftpClientWrapper) Rename(oldpath, newpath string) error {
+	return cw.client.Rename(oldpath, newpath)
+}
+func (cw *sftpClientWrapper) Mkdir(p string) error                       { return cw.client.Mkdir(p) }
 func (cw *sftpClientWrapper) Open(p string) (interfaces.SFTPFile, error) { return cw.client.Open(p) }
-func (cw *sftpClientWrapper) Create(p string) (interfaces.SFTPFile, error) { return cw.client.Create(p) }
+func (cw *sftpClientWrapper) Create(p string) (interfaces.SFTPFile, error) {
+	return cw.client.Create(p)
+}
 func (cw *sftpClientWrapper) Getwd() (string, error) { return cw.client.Getwd() }
-func (cw *sftpClientWrapper) Close() error { return cw.client.Close() }
+func (cw *sftpClientWrapper) Close() error           { return cw.client.Close() }

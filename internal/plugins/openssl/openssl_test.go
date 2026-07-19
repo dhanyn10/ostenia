@@ -2,8 +2,8 @@ package openssl
 
 import (
 	"fmt"
-	"ostenia/internal/plugins/utils"
 	"os"
+	"ostenia/internal/plugins/utils"
 	"ostenia/internal/testutil"
 	"path/filepath"
 	"runtime"

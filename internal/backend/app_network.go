@@ -11,9 +11,9 @@ import (
 
 // ProxyStatusInfo represents the health status of a proxy target
 type ProxyStatusInfo struct {
-	Name   string `json:"name"`
-	IsUp   bool   `json:"isUp"`
-	Port   int    `json:"port"`
+	Name string `json:"name"`
+	IsUp bool   `json:"isUp"`
+	Port int    `json:"port"`
 }
 
 // ProxyAppInfo represents basic information about a potential proxy app directory

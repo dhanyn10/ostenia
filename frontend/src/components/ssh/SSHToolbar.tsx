@@ -1,7 +1,7 @@
-import React from 'react';
-import { Maximize2, RefreshCw, X, Folder } from 'lucide-react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import React from "react";
+import { Maximize2, RefreshCw, X, Folder } from "lucide-react";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -22,7 +22,7 @@ const SSHToolbar: React.FC<SSHToolbarProps> = ({
   onFit,
   onReconnect,
   onClose,
-  connecting
+  connecting,
 }) => {
   return (
     <div className="h-10 flex items-center justify-between px-3 bg-white dark:bg-mui-dark-bg border-b border-mui-grey-100 dark:border-white/5 shrink-0">
@@ -32,7 +32,7 @@ const SSHToolbar: React.FC<SSHToolbarProps> = ({
           onClick={() => setExplorerVisible(!explorerVisible)}
           className={cn(
             "p-1 rounded text-mui-grey-500 dark:text-mui-grey-400 hover:text-mui-blue-600 dark:hover:text-white transition-colors",
-            explorerVisible && "text-mui-blue-600 bg-mui-blue-600/10"
+            explorerVisible && "text-mui-blue-600 bg-mui-blue-600/10",
           )}
           title="Toggle Explorer"
         >

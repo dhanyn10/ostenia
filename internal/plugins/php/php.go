@@ -29,7 +29,9 @@ func DetectVersions() ([]string, map[string]string) {
 
 	for _, m := range matches {
 		v := m[1]
-		if seen[v] { continue }
+		if seen[v] {
+			continue
+		}
 		seen[v] = true
 
 		var major, minor, patch int
@@ -74,15 +76,21 @@ func GetModules() []utils.ModuleDefinition {
 func GetModuleVersion(moduleName, phpPath string) string {
 	if moduleName == "Composer" {
 		composerPharPath := filepath.Join(phpPath, composerPhar)
-		if _, err := os.Stat(composerPharPath); err != nil { return "" }
+		if _, err := os.Stat(composerPharPath); err != nil {
+			return ""
+		}
 		phpExe := filepath.Join(phpPath, "php.exe")
 		cmd := utils.Executor.Command(phpExe, composerPharPath, "--version")
 		utils.SetHideWindow(cmd)
 		out, err := cmd.Output()
-		if err != nil { return "" }
+		if err != nil {
+			return ""
+		}
 		re := regexp.MustCompile(`Composer version (\d+\.\d+\.\d+)`)
 		match := re.FindStringSubmatch(string(out))
-		if len(match) > 1 { return match[1] }
+		if len(match) > 1 {
+			return match[1]
+		}
 	}
 	return ""
 }
@@ -106,7 +114,9 @@ func InstallModule(ctx, m interface{}, moduleName, phpPath string, emitProgress 
 		err := utils.DownloadFile(context.Background(), "https://getcomposer.org/composer.phar", composerPharPath, "Composer", func(pct float64, status, speed, downloaded string) {
 			emitProgress("Composer", pct, status)
 		})
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 
 		batContent := "@php \"%~dp0composer.phar\" %*"
 		os.WriteFile(filepath.Join(phpPath, "composer.bat"), []byte(batContent), 0755)
@@ -116,4 +126,3 @@ func InstallModule(ctx, m interface{}, moduleName, phpPath string, emitProgress 
 	}
 	return fmt.Errorf("unknown module: %s", moduleName)
 }
-

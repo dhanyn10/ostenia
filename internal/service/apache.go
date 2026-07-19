@@ -80,7 +80,7 @@ func UpdateApacheConfig(apachePath string, vhostsContent string, port int, wwwRo
 	}
 
 	content := string(input)
-	
+
 	absApachePath, _ := filepath.Abs(apachePath)
 	normalizedApachePath := strings.ReplaceAll(absApachePath, "\\", "/")
 	normalizedWWWRoot := strings.ReplaceAll(wwwRoot, "\\", "/")

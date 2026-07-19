@@ -1,9 +1,9 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import React from 'react';
-import SSHToolbar from './SSHToolbar';
+import { render, screen, fireEvent, act } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import React from "react";
+import SSHToolbar from "./SSHToolbar";
 
-describe('SSHToolbar Component', () => {
+describe("SSHToolbar Component", () => {
   const setExplorerVisibleMock = vi.fn();
   const onFitMock = vi.fn();
   const onReconnectMock = vi.fn();
@@ -13,7 +13,7 @@ describe('SSHToolbar Component', () => {
     vi.clearAllMocks();
   });
 
-  it('renders toolbar correctly', () => {
+  it("renders toolbar correctly", () => {
     render(
       <SSHToolbar
         explorerVisible={true}
@@ -22,16 +22,16 @@ describe('SSHToolbar Component', () => {
         onReconnect={onReconnectMock}
         onClose={onCloseMock}
         connecting={false}
-      />
+      />,
     );
 
-    expect(screen.getByTitle('Toggle Explorer')).toBeInTheDocument();
-    expect(screen.getByTitle('Fit Terminal')).toBeInTheDocument();
-    expect(screen.getByTitle('Reconnect')).toBeInTheDocument();
-    expect(screen.getByTitle('Close')).toBeInTheDocument();
+    expect(screen.getByTitle("Toggle Explorer")).toBeInTheDocument();
+    expect(screen.getByTitle("Fit Terminal")).toBeInTheDocument();
+    expect(screen.getByTitle("Reconnect")).toBeInTheDocument();
+    expect(screen.getByTitle("Close")).toBeInTheDocument();
   });
 
-  it('triggers events when clicking buttons', () => {
+  it("triggers events when clicking buttons", () => {
     render(
       <SSHToolbar
         explorerVisible={false}
@@ -40,27 +40,27 @@ describe('SSHToolbar Component', () => {
         onReconnect={onReconnectMock}
         onClose={onCloseMock}
         connecting={false}
-      />
+      />,
     );
 
     // Toggle explorer
-    fireEvent.click(screen.getByTitle('Toggle Explorer'));
+    fireEvent.click(screen.getByTitle("Toggle Explorer"));
     expect(setExplorerVisibleMock).toHaveBeenCalledWith(true);
 
     // Fit terminal
-    fireEvent.click(screen.getByTitle('Fit Terminal'));
+    fireEvent.click(screen.getByTitle("Fit Terminal"));
     expect(onFitMock).toHaveBeenCalled();
 
     // Reconnect
-    fireEvent.click(screen.getByTitle('Reconnect'));
+    fireEvent.click(screen.getByTitle("Reconnect"));
     expect(onReconnectMock).toHaveBeenCalled();
 
     // Close
-    fireEvent.click(screen.getByTitle('Close'));
+    fireEvent.click(screen.getByTitle("Close"));
     expect(onCloseMock).toHaveBeenCalled();
   });
 
-  it('disables reconnect button when connecting', () => {
+  it("disables reconnect button when connecting", () => {
     render(
       <SSHToolbar
         explorerVisible={false}
@@ -69,10 +69,10 @@ describe('SSHToolbar Component', () => {
         onReconnect={onReconnectMock}
         onClose={onCloseMock}
         connecting={true}
-      />
+      />,
     );
 
-    const reconnectBtn = screen.getByTitle('Reconnect');
+    const reconnectBtn = screen.getByTitle("Reconnect");
     expect(reconnectBtn).toBeDisabled();
 
     // Clicking should not trigger reconnect

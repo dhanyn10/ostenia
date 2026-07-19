@@ -33,10 +33,10 @@ func TestSymlinkManager(t *testing.T) {
 		}
 	})
 
-    t.Run("SwitchVersion_NonExistent", func(t *testing.T) {
-        err := s.SwitchVersion("php", "non-existent")
-        if err == nil {
-            t.Error("Expected error for non-existent directory")
-        }
-    })
+	t.Run("SwitchVersion_NonExistent", func(t *testing.T) {
+		err := s.SwitchVersion("php", "non-existent")
+		if err == nil {
+			t.Error("Expected error for non-existent directory")
+		}
+	})
 }

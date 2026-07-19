@@ -17,14 +17,14 @@ import (
 )
 
 type pluginDefinition struct {
-	Name      string
-	Category string
-	TargetPrefix string
-	CheckFile string
-	Detect    func() ([]string, map[string]string)
-	GetIcon   func() string
-	GetInfo   func(path string) string
-	GetModules func() []utils.ModuleDefinition
+	Name             string
+	Category         string
+	TargetPrefix     string
+	CheckFile        string
+	Detect           func() ([]string, map[string]string)
+	GetIcon          func() string
+	GetInfo          func(path string) string
+	GetModules       func() []utils.ModuleDefinition
 	GetModuleVersion func(name string, path string) string
 }
 
@@ -62,7 +62,7 @@ func GetLatestKnownVersions() []DownloadTask {
 		{
 			Name: "Python", Category: "python", TargetPrefix: "python/python-", CheckFile: "python.exe",
 			Detect: python.DetectVersions, GetIcon: python.GetIcon,
-			GetInfo: python.GetInfo,
+			GetInfo:    python.GetInfo,
 			GetModules: python.GetModules, GetModuleVersion: python.GetModuleVersion,
 		},
 		{

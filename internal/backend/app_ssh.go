@@ -1,8 +1,8 @@
 package backend
 
 import (
-	"ostenia/internal/config"
 	"ostenia/internal/backend/interfaces"
+	"ostenia/internal/config"
 	"path/filepath"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"

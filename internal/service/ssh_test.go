@@ -5,12 +5,12 @@ import (
 	"errors"
 	"io"
 	"os"
-	"sync"
 	"ostenia/internal/backend/interfaces"
 	"ostenia/internal/config"
 	"ostenia/internal/plugins/utils"
 	"ostenia/internal/testutil"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,36 +41,38 @@ func (m *mockSSHClient) NewSftp(opts ...sftp.ClientOption) (interfaces.SFTPClien
 func (m *mockSSHClient) Close() error { return m.closeError }
 
 type mockSSHSession struct {
-	stdout io.Reader
-	stdin  io.WriteCloser
-	ptyErr error
+	stdout   io.Reader
+	stdin    io.WriteCloser
+	ptyErr   error
 	shellErr error
-	winErr error
-	closed bool
+	winErr   error
+	closed   bool
 }
 
-func (m *mockSSHSession) StdoutPipe() (io.Reader, error) { return m.stdout, nil }
+func (m *mockSSHSession) StdoutPipe() (io.Reader, error)     { return m.stdout, nil }
 func (m *mockSSHSession) StdinPipe() (io.WriteCloser, error) { return m.stdin, nil }
-func (m *mockSSHSession) RequestPty(term string, h, w int, modes ssh.TerminalModes) error { return m.ptyErr }
-func (m *mockSSHSession) Shell() error { return m.shellErr }
+func (m *mockSSHSession) RequestPty(term string, h, w int, modes ssh.TerminalModes) error {
+	return m.ptyErr
+}
+func (m *mockSSHSession) Shell() error                { return m.shellErr }
 func (m *mockSSHSession) WindowChange(h, w int) error { return m.winErr }
-func (m *mockSSHSession) Close() error { m.closed = true; return nil }
+func (m *mockSSHSession) Close() error                { m.closed = true; return nil }
 
 type mockSFTPClient struct {
-	files []os.FileInfo
-	stat  os.FileInfo
-	err   error
-	wd    string
-	openFile *mockSFTPFile
+	files      []os.FileInfo
+	stat       os.FileInfo
+	err        error
+	wd         string
+	openFile   *mockSFTPFile
 	createFile *mockSFTPFile
 }
 
 func (m *mockSFTPClient) ReadDir(p string) ([]os.FileInfo, error) { return m.files, m.err }
-func (m *mockSFTPClient) Stat(p string) (os.FileInfo, error) { return m.stat, m.err }
-func (m *mockSFTPClient) RemoveAll(p string) error { return m.err }
-func (m *mockSFTPClient) Remove(p string) error { return m.err }
-func (m *mockSFTPClient) Rename(old, new string) error { return m.err }
-func (m *mockSFTPClient) Mkdir(p string) error { return m.err }
+func (m *mockSFTPClient) Stat(p string) (os.FileInfo, error)      { return m.stat, m.err }
+func (m *mockSFTPClient) RemoveAll(p string) error                { return m.err }
+func (m *mockSFTPClient) Remove(p string) error                   { return m.err }
+func (m *mockSFTPClient) Rename(old, new string) error            { return m.err }
+func (m *mockSFTPClient) Mkdir(p string) error                    { return m.err }
 func (m *mockSFTPClient) Open(p string) (interfaces.SFTPFile, error) {
 	if m.openFile != nil {
 		return m.openFile, nil
@@ -84,7 +86,7 @@ func (m *mockSFTPClient) Create(p string) (interfaces.SFTPFile, error) {
 	return nil, m.err
 }
 func (m *mockSFTPClient) Getwd() (string, error) { return m.wd, m.err }
-func (m *mockSFTPClient) Close() error { return nil }
+func (m *mockSFTPClient) Close() error           { return nil }
 
 type mockSFTPFile struct {
 	io.Reader
@@ -102,7 +104,7 @@ type mockFileInfo struct {
 }
 
 func (m mockFileInfo) Name() string       { return m.name }
-func (m mockFileInfo) Size() int64      { return m.size }
+func (m mockFileInfo) Size() int64        { return m.size }
 func (m mockFileInfo) Mode() os.FileMode  { return 0 }
 func (m mockFileInfo) ModTime() time.Time { return time.Now() }
 func (m mockFileInfo) IsDir() bool        { return m.isDir }
@@ -137,14 +139,20 @@ func (m *mockSSHRuntime) getEvents() []string {
 	copy(copied, m.emittedEvents)
 	return copied
 }
-func (m *mockSSHRuntime) WindowMinimise(ctx context.Context) {}
-func (m *mockSSHRuntime) WindowMaximise(ctx context.Context) {}
-func (m *mockSSHRuntime) WindowUnmaximise(ctx context.Context) {}
+func (m *mockSSHRuntime) WindowMinimise(ctx context.Context)          {}
+func (m *mockSSHRuntime) WindowMaximise(ctx context.Context)          {}
+func (m *mockSSHRuntime) WindowUnmaximise(ctx context.Context)        {}
 func (m *mockSSHRuntime) WindowExecJS(ctx context.Context, js string) {}
-func (m *mockSSHRuntime) Quit(ctx context.Context) {}
-func (m *mockSSHRuntime) OpenFileDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) { return "", nil }
-func (m *mockSSHRuntime) OpenDirectoryDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) { return "", nil }
-func (m *mockSSHRuntime) SaveFileDialog(ctx context.Context, options wruntime.SaveDialogOptions) (string, error) { return "", nil }
+func (m *mockSSHRuntime) Quit(ctx context.Context)                    {}
+func (m *mockSSHRuntime) OpenFileDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) {
+	return "", nil
+}
+func (m *mockSSHRuntime) OpenDirectoryDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) {
+	return "", nil
+}
+func (m *mockSSHRuntime) SaveFileDialog(ctx context.Context, options wruntime.SaveDialogOptions) (string, error) {
+	return "", nil
+}
 
 func setupSSHTest(t *testing.T) (*SSHManager, string, *mockSSHClient, func()) {
 	ctx := context.Background()

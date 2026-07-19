@@ -259,7 +259,6 @@ func (m *Manager) DownloadFileManual(ctx context.Context, url, path, name string
 	})
 }
 
-
 func (m *Manager) ensureCurrentLink(task DownloadTask) error {
 	baseDir := config.GetBaseDir()
 	parts := strings.Split(filepath.ToSlash(task.Target), "/")
@@ -275,4 +274,3 @@ func (m *Manager) ensureCurrentLink(task DownloadTask) error {
 	utils.SetHideWindow(c)
 	return c.Run()
 }
-

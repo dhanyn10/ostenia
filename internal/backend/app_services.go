@@ -3,12 +3,12 @@ package backend
 import (
 	"fmt"
 	"os"
+	"ostenia/internal/backend/interfaces"
 	"ostenia/internal/config"
 	"ostenia/internal/network"
 	"ostenia/internal/plugins"
 	plugins_utils "ostenia/internal/plugins/utils"
 	"ostenia/internal/service"
-	"ostenia/internal/backend/interfaces"
 	"path/filepath"
 	"time"
 )
@@ -290,8 +290,14 @@ func (a *App) StartAllServices() error {
 func (a *App) StopAllServices() { a.orchestrator.StopAll(a.ctx) }
 
 func (a *App) updateMySQLConfig(mysqlPath string, port int) error {
-	dataDir := filepath.Join(mysqlPath, "data"); tmpDir := filepath.Join(mysqlPath, "tmp"); binDir := filepath.Join(mysqlPath, "bin"); iniPath := filepath.Join(mysqlPath, "my.ini")
-	err := service.UpdateMySQLConfig(mysqlPath, dataDir, tmpDir, port); if err != nil { return err }
+	dataDir := filepath.Join(mysqlPath, "data")
+	tmpDir := filepath.Join(mysqlPath, "tmp")
+	binDir := filepath.Join(mysqlPath, "bin")
+	iniPath := filepath.Join(mysqlPath, "my.ini")
+	err := service.UpdateMySQLConfig(mysqlPath, dataDir, tmpDir, port)
+	if err != nil {
+		return err
+	}
 	return service.InitializeMySQLDataDir(binDir, mysqlPath, dataDir, iniPath)
 }
 
@@ -347,7 +353,11 @@ func (a *App) updateNginxConfig(nginxPath string, port int) error {
 
 // SetApacheHTTPS enables or disables HTTPS support for Apache
 func (a *App) SetApacheHTTPS(enabled bool) error {
-	a.cfg.ApacheHTTPS = enabled; err := config.SaveConfig(a.cfg); if err != nil { return err }
+	a.cfg.ApacheHTTPS = enabled
+	err := config.SaveConfig(a.cfg)
+	if err != nil {
+		return err
+	}
 	if a.orchestrator.IsRunning("Apache") {
 		_ = a.StopService("Apache")
 		time.Sleep(600 * time.Millisecond)
@@ -358,7 +368,11 @@ func (a *App) SetApacheHTTPS(enabled bool) error {
 
 // SetNginxHTTPS enables or disables HTTPS support for Nginx
 func (a *App) SetNginxHTTPS(enabled bool) error {
-	a.cfg.NginxHTTPS = enabled; err := config.SaveConfig(a.cfg); if err != nil { return err }
+	a.cfg.NginxHTTPS = enabled
+	err := config.SaveConfig(a.cfg)
+	if err != nil {
+		return err
+	}
 	if a.orchestrator.IsRunning("Nginx") {
 		_ = a.StopService("Nginx")
 		time.Sleep(600 * time.Millisecond)

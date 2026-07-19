@@ -4,11 +4,11 @@ import (
 	"context"
 	"io"
 	"os"
-	"runtime"
-	"ostenia/internal/plugins/utils"
 	"ostenia/internal/backend/interfaces"
+	"ostenia/internal/plugins/utils"
 	"ostenia/internal/testutil"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -17,7 +17,8 @@ type mockRuntime struct {
 	interfaces.Runtime
 }
 
-func (m *mockRuntime) EventsEmit(ctx context.Context, eventName string, optionalData ...interface{}) {}
+func (m *mockRuntime) EventsEmit(ctx context.Context, eventName string, optionalData ...interface{}) {
+}
 
 func newTestOrchestrator() (context.Context, context.CancelFunc, *Orchestrator) {
 	ctx, cancel := context.WithCancel(context.Background())
