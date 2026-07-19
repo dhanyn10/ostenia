@@ -21,12 +21,31 @@ func NewWSLClient(distro string) (*WSLClient, error) {
 	return &WSLClient{distro: distro}, nil
 }
 
+type wslStdinWrapper struct {
+	io.WriteCloser
+}
+
+func (w *wslStdinWrapper) Write(p []byte) (n int, err error) {
+	translated := make([]byte, len(p))
+	copy(translated, p)
+	for i, b := range translated {
+		if b == '\r' {
+			translated[i] = '\n'
+		}
+	}
+	_, err = w.WriteCloser.Write(translated)
+	if err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
 func (c *WSLClient) NewSession() (interfaces.SSHSession, error) {
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("wsl.exe", "-d", c.distro)
+		cmd = exec.Command("wsl.exe", "-d", c.distro, "bash", "-i")
 	} else {
-		cmd = exec.Command("sh")
+		cmd = exec.Command("sh", "-i")
 	}
 
 	stdin, err := cmd.StdinPipe()
@@ -43,7 +62,7 @@ func (c *WSLClient) NewSession() (interfaces.SSHSession, error) {
 
 	return &WSLSession{
 		cmd:    cmd,
-		stdin:  stdin,
+		stdin:  &wslStdinWrapper{stdin},
 		stdout: stdout,
 	}, nil
 }
