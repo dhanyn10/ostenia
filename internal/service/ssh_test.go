@@ -394,9 +394,17 @@ func TestSSHManager_SFTP_Actions(t *testing.T) {
 	m, sessionID, mockClient, cleanup := setupSSHTest(t)
 	defer cleanup()
 
+	// Test Stat error in delete action
+	mockClient.sftp.err = errors.New("stat error")
+	err := m.ExecuteSFTPAction(sessionID, "delete", "dir1", "")
+	if err == nil {
+		t.Error("Expected ExecuteSFTPAction to fail when Stat fails")
+	}
+	mockClient.sftp.err = nil
+
 	// ExecuteSFTPAction
 	mockClient.sftp.stat = mockFileInfo{name: "file1", isDir: false}
-	err := m.ExecuteSFTPAction(sessionID, "delete", "file1", "")
+	err = m.ExecuteSFTPAction(sessionID, "delete", "file1", "")
 	if err != nil {
 		t.Errorf("Delete file failed: %v", err)
 	}
@@ -520,6 +528,23 @@ func TestSSHManager_File_Ops(t *testing.T) {
 	if err == nil {
 		t.Error("Expected EditFile to fail when download fails")
 	}
+
+	// EditFile runEditor error
+	utils.Executor = &testutil.MockExecutor{Err: errors.New("editor error")}
+	mockClient.sftp.openFile = &mockSFTPFile{Reader: io.LimitReader(nil, 0), Closer: io.NopCloser(nil)}
+	mockClient.sftp.err = nil
+	err = m.EditFile(sessionID, "remote.txt", "nano")
+	if err == nil {
+		t.Error("Expected EditFile to fail when runEditor fails")
+	}
+
+	// EditFile with empty default editor
+	utils.Executor = &testutil.MockExecutor{Output: ""}
+	mockClient.sftp.openFile = &mockSFTPFile{Reader: io.LimitReader(nil, 0), Closer: io.NopCloser(nil)}
+	err = m.EditFile(sessionID, "remote.txt", "")
+	if err != nil {
+		t.Logf("EditFile with empty editor result (expected if no editor found on system): %v", err)
+	}
 }
 
 func TestSSHManager_Disconnect(t *testing.T) {
@@ -626,6 +651,36 @@ func TestSSHManager_Errors(t *testing.T) {
 		err := mgr.ExecuteSFTPAction(sessionID, "unknown_action", "p", "")
 		if err == nil || !strings.Contains(err.Error(), "unknown action") {
 			t.Errorf("Expected 'unknown action' error, got %v", err)
+		}
+	})
+
+	t.Run("Connect NewSftp Error", func(t *testing.T) {
+		mgr := NewSSHManager()
+		mgr.dialer = func(cfg *goph.Config) (interfaces.SSHClient, error) {
+			return &mockSSHClient{sftp: nil}, nil
+		}
+		err := mgr.Connect(context.Background(), config.SSHSession{ID: "newsftp-err-id", AuthMethod: "password"})
+		if err == nil {
+			t.Error("Expected Connect to fail when NewSftp fails")
+		}
+	})
+
+	t.Run("startTerminal NewSession Error", func(t *testing.T) {
+		mgr := NewSSHManager()
+		mgr.dialer = func(cfg *goph.Config) (interfaces.SSHClient, error) {
+			return &mockSSHClient{session: nil, sftp: &mockSFTPClient{}}, nil
+		}
+		_ = mgr.Connect(context.Background(), config.SSHSession{ID: "newsession-err-id", AuthMethod: "password"})
+	})
+
+	t.Run("DefaultSSHDialer error", func(t *testing.T) {
+		_, err := DefaultSSHDialer(&goph.Config{
+			User: "user",
+			Addr: "127.0.0.1",
+			Port: 9999,
+		})
+		if err == nil {
+			t.Error("Expected DefaultSSHDialer to return error")
 		}
 	})
 }
