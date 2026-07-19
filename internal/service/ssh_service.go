@@ -7,9 +7,9 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"ostenia/internal/backend/interfaces"
 	"ostenia/internal/config"
 	"ostenia/internal/plugins/utils"
-	"ostenia/internal/backend/interfaces"
 	"path/filepath"
 	"sync"
 	"time"
@@ -286,7 +286,6 @@ func (m *SSHManager) Disconnect(sessionID string) {
 	}
 }
 
-
 func (m *SSHManager) ListFiles(sessionID, pathStr string) ([]RemoteFile, error) {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
@@ -300,7 +299,12 @@ func (m *SSHManager) ListFiles(sessionID, pathStr string) ([]RemoteFile, error) 
 	}
 
 	if pathStr == "" {
-		pathStr = "."
+		wd, err := conn.SFTP.Getwd()
+		if err == nil && wd != "" {
+			pathStr = wd
+		} else {
+			pathStr = "."
+		}
 	}
 
 	entries, err := conn.SFTP.ReadDir(pathStr)
@@ -606,26 +610,30 @@ type sshSessionWrapper struct {
 	session *ssh.Session
 }
 
-func (sw *sshSessionWrapper) StdoutPipe() (io.Reader, error) { return sw.session.StdoutPipe() }
+func (sw *sshSessionWrapper) StdoutPipe() (io.Reader, error)     { return sw.session.StdoutPipe() }
 func (sw *sshSessionWrapper) StdinPipe() (io.WriteCloser, error) { return sw.session.StdinPipe() }
 func (sw *sshSessionWrapper) RequestPty(term string, h, w int, modes ssh.TerminalModes) error {
 	return sw.session.RequestPty(term, h, w, modes)
 }
-func (sw *sshSessionWrapper) Shell() error { return sw.session.Shell() }
+func (sw *sshSessionWrapper) Shell() error                { return sw.session.Shell() }
 func (sw *sshSessionWrapper) WindowChange(h, w int) error { return sw.session.WindowChange(h, w) }
-func (sw *sshSessionWrapper) Close() error { return sw.session.Close() }
+func (sw *sshSessionWrapper) Close() error                { return sw.session.Close() }
 
 type sftpClientWrapper struct {
 	client *sftp.Client
 }
 
 func (cw *sftpClientWrapper) ReadDir(p string) ([]os.FileInfo, error) { return cw.client.ReadDir(p) }
-func (cw *sftpClientWrapper) Stat(p string) (os.FileInfo, error) { return cw.client.Stat(p) }
-func (cw *sftpClientWrapper) RemoveAll(p string) error { return cw.client.RemoveAll(p) }
-func (cw *sftpClientWrapper) Remove(p string) error { return cw.client.Remove(p) }
-func (cw *sftpClientWrapper) Rename(oldpath, newpath string) error { return cw.client.Rename(oldpath, newpath) }
-func (cw *sftpClientWrapper) Mkdir(p string) error { return cw.client.Mkdir(p) }
+func (cw *sftpClientWrapper) Stat(p string) (os.FileInfo, error)      { return cw.client.Stat(p) }
+func (cw *sftpClientWrapper) RemoveAll(p string) error                { return cw.client.RemoveAll(p) }
+func (cw *sftpClientWrapper) Remove(p string) error                   { return cw.client.Remove(p) }
+func (cw *sftpClientWrapper) Rename(oldpath, newpath string) error {
+	return cw.client.Rename(oldpath, newpath)
+}
+func (cw *sftpClientWrapper) Mkdir(p string) error                       { return cw.client.Mkdir(p) }
 func (cw *sftpClientWrapper) Open(p string) (interfaces.SFTPFile, error) { return cw.client.Open(p) }
-func (cw *sftpClientWrapper) Create(p string) (interfaces.SFTPFile, error) { return cw.client.Create(p) }
+func (cw *sftpClientWrapper) Create(p string) (interfaces.SFTPFile, error) {
+	return cw.client.Create(p)
+}
 func (cw *sftpClientWrapper) Getwd() (string, error) { return cw.client.Getwd() }
-func (cw *sftpClientWrapper) Close() error { return cw.client.Close() }
+func (cw *sftpClientWrapper) Close() error           { return cw.client.Close() }

@@ -30,9 +30,15 @@ func TestDetectVersions(t *testing.T) {
 	found822 := false
 	found821 := false
 	for _, v := range versions {
-		if v == "8.4.1" { found84 = true }
-		if v == "8.2.2" { found822 = true }
-		if v == "8.2.1" { found821 = true }
+		if v == "8.4.1" {
+			found84 = true
+		}
+		if v == "8.2.2" {
+			found822 = true
+		}
+		if v == "8.2.1" {
+			found821 = true
+		}
 	}
 	if !found84 || !found822 || found821 {
 		t.Errorf("Unexpected versions: found84=%v, found822=%v, found821=%v", found84, found822, found821)

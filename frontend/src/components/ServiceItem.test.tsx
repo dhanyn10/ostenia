@@ -1,20 +1,20 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
-import ServiceItem from './ServiceItem';
+import { render, screen, fireEvent, act } from "@testing-library/react";
+import { vi, describe, it, expect, beforeEach } from "vitest";
+import ServiceItem from "./ServiceItem";
 
-describe('ServiceItem Component', () => {
+describe("ServiceItem Component", () => {
   const mockProps = {
     service: {
-      name: 'Apache',
-      status: 'Stopped',
+      name: "Apache",
+      status: "Stopped",
       pid: 0,
       port: 80,
       ports: [80, 443],
-      activeVersion: '2.4.58',
+      activeVersion: "2.4.58",
     },
     task: {
-      name: 'Apache',
-      installedVers: ['2.4.58', '2.4.59'],
+      name: "Apache",
+      installedVers: ["2.4.58", "2.4.59"],
     },
     isExpanded: false,
     onToggleAccordion: vi.fn(),
@@ -38,60 +38,68 @@ describe('ServiceItem Component', () => {
     vi.clearAllMocks();
   });
 
-  it('renders service information correctly', () => {
+  it("renders service information correctly", () => {
     render(<ServiceItem {...mockProps} />);
 
-    expect(screen.getByText('Apache')).toBeInTheDocument();
-    expect(screen.getByText('Stopped')).toBeInTheDocument();
-    expect(screen.getByTestId('icon')).toBeInTheDocument();
+    expect(screen.getByText("Apache")).toBeInTheDocument();
+    expect(screen.getByText("Stopped")).toBeInTheDocument();
+    expect(screen.getByTestId("icon")).toBeInTheDocument();
   });
 
-  it('shows running status and stats when running', () => {
+  it("shows running status and stats when running", () => {
     const runningProps = {
       ...mockProps,
-      service: { ...mockProps.service, status: 'Running', pid: 1234 }
+      service: { ...mockProps.service, status: "Running", pid: 1234 },
     };
     render(<ServiceItem {...runningProps} />);
 
-    expect(screen.getByText('Running')).toBeInTheDocument();
+    expect(screen.getByText("Running")).toBeInTheDocument();
     expect(screen.getByText(/PID: 1234/)).toBeInTheDocument();
     expect(screen.getByText(/Port: 80, 443/)).toBeInTheDocument();
   });
 
-  it('calls onToggleAccordion when clicked', () => {
+  it("calls onToggleAccordion when clicked", () => {
     render(<ServiceItem {...mockProps} />);
 
-    const toggleButton = screen.getByText('Apache').closest('button');
+    const toggleButton = screen.getByText("Apache").closest("button");
     fireEvent.click(toggleButton!);
 
-    expect(mockProps.onToggleAccordion).toHaveBeenCalledWith('Apache', true);
+    expect(mockProps.onToggleAccordion).toHaveBeenCalledWith("Apache", true);
   });
 
-  it('calls handleToggleService when main action button is clicked', () => {
+  it("calls handleToggleService when main action button is clicked", () => {
     render(<ServiceItem {...mockProps} />);
 
-    const buttons = screen.getAllByRole('button');
-    const toggleButton = buttons.find(b => b.className.includes('w-12 h-6'));
+    const buttons = screen.getAllByRole("button");
+    const toggleButton = buttons.find((b) => b.className.includes("w-12 h-6"));
 
     fireEvent.click(toggleButton!);
-    expect(mockProps.handleToggleService).toHaveBeenCalledWith('Apache', 'Stopped');
+    expect(mockProps.handleToggleService).toHaveBeenCalledWith(
+      "Apache",
+      "Stopped",
+    );
   });
 
-  it('shows extra actions when expanded', () => {
+  it("shows extra actions when expanded", () => {
     const expandedProps = { ...mockProps, isExpanded: true };
     render(<ServiceItem {...expandedProps} />);
 
-    expect(screen.getByTitle('Open Folder')).toBeInTheDocument();
-    expect(screen.getByTitle('Terminal')).toBeInTheDocument();
-    expect(screen.getByTitle('Enable HTTPS')).toBeInTheDocument();
+    expect(screen.getByTitle("Open Folder")).toBeInTheDocument();
+    expect(screen.getByTitle("Terminal")).toBeInTheDocument();
+    expect(screen.getByTitle("Enable HTTPS")).toBeInTheDocument();
   });
 
-  it('handles version switching', () => {
-    render(<ServiceItem {...mockProps} service={{...mockProps.service, name: 'PHP'}} />);
+  it("handles version switching", () => {
+    render(
+      <ServiceItem
+        {...mockProps}
+        service={{ ...mockProps.service, name: "PHP" }}
+      />,
+    );
 
-    const versionButton = screen.getByText('2.4.59');
+    const versionButton = screen.getByText("2.4.59");
     fireEvent.click(versionButton);
 
-    expect(mockProps.handleSwitchVersion).toHaveBeenCalledWith('PHP', '2.4.59');
+    expect(mockProps.handleSwitchVersion).toHaveBeenCalledWith("PHP", "2.4.59");
   });
 });

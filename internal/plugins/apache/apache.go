@@ -20,7 +20,9 @@ func DetectVersions() ([]string, map[string]string) {
 	content := utils.FetchContent("https://www.apachelounge.com/download/")
 
 	rePattern := `httpd-(2\.4\.\d+-\d+)-Win64-VS\d+\.zip`
-	if arch == "x86" { rePattern = `httpd-(2\.4\.\d+-\d+)-win32-vs\d+\.zip` }
+	if arch == "x86" {
+		rePattern = `httpd-(2\.4\.\d+-\d+)-win32-vs\d+\.zip`
+	}
 	re := regexp.MustCompile(rePattern)
 	matches := re.FindAllStringSubmatch(content, -1)
 

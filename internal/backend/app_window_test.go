@@ -2,9 +2,9 @@ package backend
 
 import (
 	"context"
+	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 	"ostenia/internal/backend/interfaces"
 	"testing"
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 type FullMockRuntime struct {
@@ -16,15 +16,22 @@ type FullMockRuntime struct {
 	JS          string
 }
 
-func (m *FullMockRuntime) WindowMinimise(ctx context.Context)   { m.Minimised = true }
-func (m *FullMockRuntime) WindowMaximise(ctx context.Context)   { m.Maximised = true }
-func (m *FullMockRuntime) WindowUnmaximise(ctx context.Context) { m.Unmaximised = true }
+func (m *FullMockRuntime) WindowMinimise(ctx context.Context)          { m.Minimised = true }
+func (m *FullMockRuntime) WindowMaximise(ctx context.Context)          { m.Maximised = true }
+func (m *FullMockRuntime) WindowUnmaximise(ctx context.Context)        { m.Unmaximised = true }
 func (m *FullMockRuntime) WindowExecJS(ctx context.Context, js string) { m.JS = js }
-func (m *FullMockRuntime) Quit(ctx context.Context)             { m.QuitCalled = true }
-func (m *FullMockRuntime) EventsEmit(ctx context.Context, eventName string, optionalData ...interface{}) {}
-func (m *FullMockRuntime) OpenFileDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) { return "file", nil }
-func (m *FullMockRuntime) OpenDirectoryDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) { return "dir", nil }
-func (m *FullMockRuntime) SaveFileDialog(ctx context.Context, options wruntime.SaveDialogOptions) (string, error) { return "save", nil }
+func (m *FullMockRuntime) Quit(ctx context.Context)                    { m.QuitCalled = true }
+func (m *FullMockRuntime) EventsEmit(ctx context.Context, eventName string, optionalData ...interface{}) {
+}
+func (m *FullMockRuntime) OpenFileDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) {
+	return "file", nil
+}
+func (m *FullMockRuntime) OpenDirectoryDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) {
+	return "dir", nil
+}
+func (m *FullMockRuntime) SaveFileDialog(ctx context.Context, options wruntime.SaveDialogOptions) (string, error) {
+	return "save", nil
+}
 
 func TestApp_WindowDelegates(t *testing.T) {
 	mockR := &FullMockRuntime{}

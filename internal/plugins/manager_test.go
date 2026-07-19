@@ -24,9 +24,9 @@ func (m *mockHTTPClient) Get(url string) (*http.Response, error) {
 		return nil, m.err
 	}
 	return &http.Response{
-		StatusCode: http.StatusOK,
+		StatusCode:    http.StatusOK,
 		ContentLength: int64(len(m.content)),
-		Body:       io.NopCloser(bytes.NewBufferString(m.content)),
+		Body:          io.NopCloser(bytes.NewBufferString(m.content)),
 	}, nil
 }
 
@@ -50,9 +50,9 @@ type mockHTTPClientProgress struct {
 
 func (m *mockHTTPClientProgress) Get(url string) (*http.Response, error) {
 	return &http.Response{
-		StatusCode: http.StatusOK,
+		StatusCode:    http.StatusOK,
 		ContentLength: 100,
-		Body:       io.NopCloser(bytes.NewBuffer(make([]byte, 100))),
+		Body:          io.NopCloser(bytes.NewBuffer(make([]byte, 100))),
 	}, nil
 }
 
@@ -161,10 +161,10 @@ func TestDownloadAndExtract_Basic(t *testing.T) {
 	utils.Client = &mockHTTPClientProgress{}
 
 	task := DownloadTask{
-		Name: "TestPlugin",
-		Version: "1.0.0",
-		URL: "http://example.com/test.exe", // Ends in .exe, triggers handleInstaller
-		Target: "test/1.0.0",
+		Name:      "TestPlugin",
+		Version:   "1.0.0",
+		URL:       "http://example.com/test.exe", // Ends in .exe, triggers handleInstaller
+		Target:    "test/1.0.0",
 		CheckFile: "test.exe",
 	}
 
@@ -237,10 +237,10 @@ func TestHandleArchive_Mocked(t *testing.T) {
 	defer func() { unzipFunc = oldUnzip }()
 
 	task := DownloadTask{
-		Name: "TestZip",
-		Version: "1.0.0",
-		URL: "http://example.com/test.zip",
-		Target: "testzip/1.0.0",
+		Name:      "TestZip",
+		Version:   "1.0.0",
+		URL:       "http://example.com/test.zip",
+		Target:    "testzip/1.0.0",
 		CheckFile: "sub/test.txt",
 	}
 	targetDir := filepath.Join(tempDir, "bin", task.Target)
@@ -285,9 +285,9 @@ func TestDownloadAndExtract_AlreadyInstalled(t *testing.T) {
 	defer os.Setenv("OSTENIA_HOME", oldEnv)
 
 	task := DownloadTask{
-		Name: "PHP",
-		Version: "8.2.0",
-		Target: "php/php-8.2.0",
+		Name:      "PHP",
+		Version:   "8.2.0",
+		Target:    "php/php-8.2.0",
 		CheckFile: "php.exe",
 	}
 	targetDir := filepath.Join(tempDir, "bin", task.Target)
@@ -301,9 +301,9 @@ func TestDownloadAndExtract_AlreadyInstalled(t *testing.T) {
 
 	// Test already installed branch with Apache special case
 	task2 := DownloadTask{
-		Name: "Apache",
-		Version: "2.4.54",
-		Target: "apache/httpd-2.4.54",
+		Name:      "Apache",
+		Version:   "2.4.54",
+		Target:    "apache/httpd-2.4.54",
 		CheckFile: "bin/httpd.exe",
 	}
 	targetDir2 := filepath.Join(tempDir, "bin", task2.Target)

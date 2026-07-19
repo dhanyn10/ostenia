@@ -88,4 +88,3 @@ func UninstallModule(moduleName, pythonPath string) error {
 func InstallModule(ctx, m interface{}, moduleName, pythonPath string, emitProgress func(string, float64, string)) error {
 	return fmt.Errorf("unknown module: %s", moduleName)
 }
-

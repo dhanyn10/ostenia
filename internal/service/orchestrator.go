@@ -7,10 +7,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"ostenia/internal/backend/interfaces"
 	"ostenia/internal/config"
 	"ostenia/internal/plugins/utils"
 	"ostenia/internal/ssl"
-	"ostenia/internal/backend/interfaces"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -312,7 +312,6 @@ func (o *Orchestrator) updateCache(name string, info ServiceDetailedInfo) {
 	o.mu.Unlock()
 }
 
-
 func parseWmicOutput(output string) []int {
 	pids := []int{}
 	binPath := filepath.Join(config.GetBaseDir(), "bin")
@@ -515,9 +514,9 @@ func (o *Orchestrator) stopServiceWindows(name string) {
 	}
 
 	exeMap := map[string][]string{
-		"Apache":   {"httpd.exe"},
-		"MySQL":    {"mysqld.exe"},
-		"Nginx":    {"nginx.exe"},
+		"Apache":      {"httpd.exe"},
+		"MySQL":       {"mysqld.exe"},
+		"Nginx":       {"nginx.exe"},
 		"PHP":         {"php.exe", "php-cgi.exe"},
 		serviceNodeJS: {"node.exe"},
 		"Python":      {"python.exe"},

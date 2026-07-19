@@ -205,19 +205,27 @@ func signCertificate(caDir, domain, destDir string) error {
 	certPath := filepath.Join(destDir, domain+".crt")
 	keyPath := filepath.Join(destDir, domain+".key")
 	if _, err := os.Stat(certPath); err == nil {
-		return nil 
+		return nil
 	}
 
 	caCert, err := LoadCertificate(filepath.Join(caDir, "ca.crt"))
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 
 	caKey, err := LoadPrivateKey(filepath.Join(caDir, "ca.key"))
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 
 	size := 2048
-	if RSAKeySize < 2048 { size = RSAKeySize }
+	if RSAKeySize < 2048 {
+		size = RSAKeySize
+	}
 	priv, err := GeneratePrivateKey(size)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 
 	template := CreateEndEntityTemplate(domain, caCert)
 

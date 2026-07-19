@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   X,
   User,
@@ -6,13 +6,13 @@ import {
   Terminal as TerminalIcon,
   Search,
   ChevronRight,
-  Settings
-} from 'lucide-react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-import ProfileCategory from './settings/ProfileCategory';
-import GlobalConfigCategory from './settings/GlobalConfigCategory';
-import SSHManagementCategory from './settings/SSHManagementCategory';
+  Settings,
+} from "lucide-react";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+import ProfileCategory from "./settings/ProfileCategory";
+import GlobalConfigCategory from "./settings/GlobalConfigCategory";
+import SSHManagementCategory from "./settings/SSHManagementCategory";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -31,12 +31,12 @@ interface SettingsModalProps {
 const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
-  initialCategory = 'profile',
+  initialCategory = "profile",
   appConfig = {},
-  initApp
+  initApp,
 }) => {
   const [activeCategory, setActiveCategory] = useState(initialCategory);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (isOpen) {
@@ -47,22 +47,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   if (!isOpen) return null;
 
   const categories = [
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'config', label: 'Global Config', icon: Sliders },
-    { id: 'ssh', label: 'SSH Management', icon: TerminalIcon },
+    { id: "profile", label: "Profile", icon: User },
+    { id: "config", label: "Global Config", icon: Sliders },
+    { id: "ssh", label: "SSH Management", icon: TerminalIcon },
   ];
 
-  const filteredCategories = categories.filter(cat =>
-    cat.label.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredCategories = categories.filter((cat) =>
+    cat.label.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const renderContent = () => {
     switch (activeCategory) {
-      case 'profile':
+      case "profile":
         return <ProfileCategory initApp={initApp} />;
-      case 'config':
+      case "config":
         return <GlobalConfigCategory appConfig={appConfig} initApp={initApp} />;
-      case 'ssh':
+      case "ssh":
         return <SSHManagementCategory />;
       default:
         return (
@@ -85,7 +85,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         aria-modal="true"
         className={cn(
           "relative w-full max-w-5xl h-[80vh] flex flex-col rounded-xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] border overflow-hidden",
-          "bg-white dark:bg-mui-dark-bg border-mui-grey-200 dark:border-white/10"
+          "bg-white dark:bg-mui-dark-bg border-mui-grey-200 dark:border-white/10",
         )}
       >
         {/* Header */}
@@ -95,8 +95,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               <Settings size={18} />
             </div>
             <div>
-              <h2 className="text-base font-black uppercase tracking-wider text-mui-grey-900 dark:text-white">Settings</h2>
-              <div className="text-[10px] text-mui-grey-400 font-bold uppercase tracking-[0.2em] -mt-1">Ostenia Management</div>
+              <h2 className="text-base font-black uppercase tracking-wider text-mui-grey-900 dark:text-white">
+                Settings
+              </h2>
+              <div className="text-[10px] text-mui-grey-400 font-bold uppercase tracking-[0.2em] -mt-1">
+                Ostenia Management
+              </div>
             </div>
           </div>
           <button
@@ -113,7 +117,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="w-64 shrink-0 border-r border-mui-grey-200 dark:border-white/10 flex flex-col bg-mui-grey-50 dark:bg-mui-dark-paper">
             <div className="p-4">
               <div className="relative group">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-mui-grey-400 group-focus-within:text-mui-blue-500 transition-colors" />
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-mui-grey-400 group-focus-within:text-mui-blue-500 transition-colors"
+                />
                 <input
                   type="text"
                   placeholder="Search settings..."
@@ -125,7 +132,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
 
             <div className="flex-1 overflow-y-auto px-2 space-y-1">
-              {filteredCategories.map(cat => (
+              {filteredCategories.map((cat) => (
                 <button
                   type="button"
                   key={cat.id}
@@ -134,7 +141,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all group bg-transparent border-none",
                     activeCategory === cat.id
                       ? "bg-mui-blue-500 text-white shadow-lg shadow-mui-blue-500/30"
-                      : "text-mui-grey-600 dark:text-mui-grey-400 hover:bg-white dark:hover:bg-white/5"
+                      : "text-mui-grey-600 dark:text-mui-grey-400 hover:bg-white dark:hover:bg-white/5",
                   )}
                 >
                   <div className="flex items-center gap-3">
@@ -149,7 +156,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="p-4 border-t border-mui-grey-200 dark:border-white/5">
               <div className="p-3 rounded-lg bg-mui-blue-500/5 border border-mui-blue-500/10">
                 <p className="text-[10px] text-mui-grey-500 dark:text-mui-grey-400 leading-relaxed italic">
-                  "Productivity is never an accident. It is always the result of a commitment to excellence."
+                  "Productivity is never an accident. It is always the result of
+                  a commitment to excellence."
                 </p>
               </div>
             </div>
@@ -157,9 +165,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Main Content */}
           <div className="flex-1 overflow-y-auto bg-white dark:bg-mui-dark-bg p-10">
-            <div className="max-w-3xl mx-auto h-full">
-              {renderContent()}
-            </div>
+            <div className="max-w-3xl mx-auto h-full">{renderContent()}</div>
           </div>
         </div>
 

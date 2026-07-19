@@ -43,4 +43,3 @@ func (s *SymlinkManager) SwitchVersion(category, targetVersionDir string) error 
 
 	return os.Symlink(targetPath, currentLink)
 }
-
