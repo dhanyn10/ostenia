@@ -13,6 +13,7 @@ import SSHSessionForm from "./SSHSessionForm";
 vi.mock("../../../wailsjs/go/backend/App", () => ({
   AddSSHSession: vi.fn(),
   UpdateSSHSession: vi.fn(),
+  GetWSLDistributions: vi.fn(() => Promise.resolve(["Ubuntu", "Debian"])),
 }));
 
 import * as AppBackendRaw from "../../../wailsjs/go/backend/App";
@@ -206,5 +207,51 @@ describe("SSHSessionForm Component", () => {
         "error",
       );
     });
+  });
+
+  it("handles WSL connection configuration and submission", async () => {
+    AppBackend.AddSSHSession.mockResolvedValue(true);
+    AppBackend.GetWSLDistributions.mockResolvedValue(["Ubuntu", "Debian"]);
+
+    render(
+      <SSHSessionForm
+        session={null}
+        onClose={onCloseMock}
+        onSave={onSaveMock}
+        addToast={addToastMock}
+      />,
+    );
+
+    // Toggle to WSL
+    const wslBtn = screen.getByRole("button", { name: "WSL" });
+    fireEvent.click(wslBtn);
+
+    // Fill out standard WSL label
+    fireEvent.change(screen.getByPlaceholderText("e.g. Production Web"), {
+      target: { value: "Local WSL" },
+    });
+
+    // Verify WSL distro select is rendered
+    await waitFor(() => {
+      expect(screen.getByLabelText("WSL Distribution")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText("WSL Distribution"), {
+      target: { value: "Ubuntu" },
+    });
+
+    const saveBtn = screen.getByRole("button", { name: "Save" });
+    fireEvent.click(saveBtn);
+
+    expect(AppBackend.AddSSHSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Local WSL",
+        type: "wsl",
+        wslDistro: "Ubuntu",
+        host: "Ubuntu",
+        user: "wsl",
+        port: 0,
+      }),
+    );
   });
 });

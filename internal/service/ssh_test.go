@@ -685,6 +685,187 @@ func TestSSHManager_Errors(t *testing.T) {
 	})
 }
 
+func TestWSLSupport(t *testing.T) {
+	t.Run("GetWSLDistributions on current OS", func(t *testing.T) {
+		distros, err := GetWSLDistributions()
+		if err != nil {
+			t.Fatalf("GetWSLDistributions failed: %v", err)
+		}
+		// On non-Windows it should return mock list
+		if len(distros) == 0 {
+			t.Error("Expected at least one mock distribution")
+		}
+	})
+
+	t.Run("decodeUTF16 helper", func(t *testing.T) {
+		input := []byte{0x55, 0x00, 0x62, 0x00, 0x75, 0x00, 0x6e, 0x00, 0x74, 0x00, 0x75, 0x00} // "Ubuntu" in UTF-16LE
+		res := decodeUTF16(input)
+		if res != "Ubuntu" {
+			t.Errorf("decodeUTF16 failed, expected 'Ubuntu', got %q", res)
+		}
+		// Short byte array
+		if decodeUTF16([]byte{0x41}) != "\x41" {
+			t.Error("decodeUTF16 failed on short slice")
+		}
+	})
+
+	t.Run("wslSSHClient connect and shell", func(t *testing.T) {
+		client := &wslSSHClient{distroName: "Ubuntu"}
+		sess, err := client.NewSession()
+		if err != nil {
+			t.Fatalf("NewSession failed: %v", err)
+		}
+		defer sess.Close()
+
+		stdout, err := sess.StdoutPipe()
+		if err != nil {
+			t.Fatalf("StdoutPipe failed: %v", err)
+		}
+		if stdout == nil {
+			t.Error("Expected stdout reader")
+		}
+
+		stdin, err := sess.StdinPipe()
+		if err != nil {
+			t.Fatalf("StdinPipe failed: %v", err)
+		}
+		if stdin == nil {
+			t.Error("Expected stdin writer")
+		}
+
+		err = sess.RequestPty("xterm", 24, 80, nil)
+		if err != nil {
+			t.Errorf("RequestPty failed: %v", err)
+		}
+
+		err = sess.WindowChange(24, 80)
+		if err != nil {
+			t.Errorf("WindowChange failed: %v", err)
+		}
+
+		err = sess.Shell()
+		if err != nil {
+			t.Errorf("Shell failed: %v", err)
+		}
+	})
+
+	t.Run("WSLFileSystemClient operations", func(t *testing.T) {
+		fs := &WSLFileSystemClient{DistroName: "UbuntuTest"}
+
+		// Test paths mapping
+		localRoot := fs.toLocalPath("/")
+		if !strings.Contains(localRoot, "UbuntuTest") {
+			t.Errorf("Expected path to map to distro, got %s", localRoot)
+		}
+
+		// Test mkdir
+		testDir := "/my-test-dir"
+		err := fs.Mkdir(testDir)
+		if err != nil {
+			t.Fatalf("Mkdir failed: %v", err)
+		}
+
+		// Test create file and open file
+		testFile := "/my-test-dir/file.txt"
+		f, err := fs.Create(testFile)
+		if err != nil {
+			t.Fatalf("Create file failed: %v", err)
+		}
+		_, err = f.Write([]byte("hello world"))
+		if err != nil {
+			t.Errorf("File write failed: %v", err)
+		}
+		f.Close()
+
+		opened, err := fs.Open(testFile)
+		if err != nil {
+			t.Fatalf("Open file failed: %v", err)
+		}
+		buf := make([]byte, 11)
+		_, err = opened.Read(buf)
+		if err != nil {
+			t.Errorf("File read failed: %v", err)
+		}
+		opened.Close()
+		if string(buf) != "hello world" {
+			t.Errorf("Expected 'hello world', got %s", string(buf))
+		}
+
+		// Test Stat
+		stat, err := fs.Stat(testFile)
+		if err != nil {
+			t.Fatalf("Stat failed: %v", err)
+		}
+		if stat.Name() != "file.txt" {
+			t.Errorf("Expected file.txt, got %s", stat.Name())
+		}
+
+		// Test ReadDir
+		dir, err := fs.Getwd()
+		if err != nil || dir != "/" {
+			t.Errorf("Expected Getwd to return '/', got %s (err: %v)", dir, err)
+		}
+
+		entries, err := fs.ReadDir("/my-test-dir")
+		if err != nil {
+			t.Fatalf("ReadDir failed: %v", err)
+		}
+		if len(entries) != 1 {
+			t.Errorf("Expected 1 entry, got %d", len(entries))
+		}
+
+		// Test Rename
+		renamedFile := "/my-test-dir/renamed.txt"
+		err = fs.Rename(testFile, renamedFile)
+		if err != nil {
+			t.Fatalf("Rename failed: %v", err)
+		}
+
+		// Test Remove
+		err = fs.Remove(renamedFile)
+		if err != nil {
+			t.Fatalf("Remove failed: %v", err)
+		}
+
+		err = fs.RemoveAll(testDir)
+		if err != nil {
+			t.Fatalf("RemoveAll failed: %v", err)
+		}
+
+		err = fs.Close()
+		if err != nil {
+			t.Errorf("Close failed: %v", err)
+		}
+	})
+
+	t.Run("SSHManager Connect with WSL type", func(t *testing.T) {
+		m := NewSSHManager()
+		sess := config.SSHSession{
+			ID:        "wsl-test-session",
+			Type:      "wsl",
+			WSLDistro: "Ubuntu",
+		}
+
+		err := m.Connect(context.Background(), sess)
+		if err != nil {
+			t.Fatalf("WSL Connect failed: %v", err)
+		}
+		defer m.Disconnect("wsl-test-session")
+
+		// Verify connection was registered
+		m.mu.RLock()
+		conn, exists := m.connections["wsl-test-session"]
+		m.mu.RUnlock()
+
+		if !exists {
+			t.Fatal("WSL connection not registered in connections map")
+		}
+		if conn.SFTP == nil {
+			t.Error("Expected local filesystem client as SFTP client")
+		}
+	})
+}
+
 func TestSSHManager_Editor_Mocked(t *testing.T) {
 	utils.Executor = &testutil.MockExecutor{
 		Output: "",

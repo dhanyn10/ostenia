@@ -3,6 +3,7 @@ package backend
 import (
 	"ostenia/internal/backend/interfaces"
 	"ostenia/internal/config"
+	"ostenia/internal/service"
 	"path/filepath"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -11,6 +12,11 @@ import (
 // GetSSHSessions returns the list of saved SSH sessions
 func (a *App) GetSSHSessions() ([]config.SSHSession, error) {
 	return config.LoadSSHSessions()
+}
+
+// GetWSLDistributions returns the list of installed WSL distributions
+func (a *App) GetWSLDistributions() ([]string, error) {
+	return service.GetWSLDistributions()
 }
 
 // SaveSSHSessions saves the entire list of SSH sessions

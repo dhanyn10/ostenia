@@ -20,6 +20,8 @@ type SSHSession struct {
 	Passphrase string `json:"passphrase,omitempty"`
 	LastPath   string `json:"lastPath,omitempty"`
 	CreatedAt  int64  `json:"createdAt"`
+	Type       string `json:"type,omitempty"`       // "ssh" or "wsl"
+	WSLDistro  string `json:"wslDistro,omitempty"`  // e.g. "Ubuntu"
 }
 
 var (

@@ -134,15 +134,15 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
 
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold text-mui-grey-900 dark:text-white truncate text-sm leading-tight">
-                    {session.host}
+                    {session.type === "wsl" ? (session.name || session.wslDistro) : session.host}
                   </h4>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-[9px] font-black text-mui-blue-500 uppercase tracking-tighter">
-                      SSH
+                      {session.type === "wsl" ? "WSL" : "SSH"}
                     </span>
                     <div className="w-1 h-1 bg-mui-grey-300 dark:bg-mui-grey-600 rounded-full" />
                     <span className="text-[9px] font-medium text-mui-grey-400 uppercase">
-                      {session.authMethod}
+                      {session.type === "wsl" ? session.wslDistro : session.authMethod}
                     </span>
                   </div>
                 </div>
