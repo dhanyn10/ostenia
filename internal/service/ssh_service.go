@@ -86,21 +86,29 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 
 	fmt.Printf("[SSH] Connecting to %s@%s:%d...\n", session.User, session.Host, session.Port)
 
-	auth, err := m.getAuth(session)
-	if err != nil {
-		fmt.Printf("[SSH] Authentication retrieval failed: %v\n", err)
-		m.mu.Unlock()
-		return err
-	}
+	var client interfaces.SSHClient
+	var err error
 
-	client, err := m.dialer(&goph.Config{
-		User:     session.User,
-		Addr:     session.Host,
-		Port:     uint(session.Port),
-		Auth:     auth,
-		Timeout:  10 * time.Second,
-		Callback: m.getHostKeyCallback(),
-	})
+	if strings.HasPrefix(session.Host, "wsl://") {
+		distro := strings.TrimPrefix(session.Host, "wsl://")
+		client, err = NewWSLClient(distro)
+	} else {
+		auth, errAuth := m.getAuth(session)
+		if errAuth != nil {
+			fmt.Printf("[SSH] Authentication retrieval failed: %v\n", errAuth)
+			m.mu.Unlock()
+			return errAuth
+		}
+
+		client, err = m.dialer(&goph.Config{
+			User:     session.User,
+			Addr:     session.Host,
+			Port:     uint(session.Port),
+			Auth:     auth,
+			Timeout:  10 * time.Second,
+			Callback: m.getHostKeyCallback(),
+		})
+	}
 
 	if err != nil {
 		fmt.Printf("[SSH] Dial connection failed: %v\n", err)
