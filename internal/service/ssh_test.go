@@ -219,6 +219,30 @@ func TestSSHManager_PathAndFiles(t *testing.T) {
 	}
 }
 
+func TestSSHManager_ListFiles_EOF(t *testing.T) {
+	m, sessionID, mockClient, cleanup := setupSSHTest(t)
+	defer cleanup()
+
+	mockClient.sftp.err = io.EOF
+	files, err := m.ListFiles(sessionID, "/home/user")
+	if err != nil {
+		t.Errorf("Expected no error when ReadDir returns io.EOF, got %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("Expected empty files list when ReadDir returns io.EOF, got %d", len(files))
+	}
+
+	// Test custom EOF-string error
+	mockClient.sftp.err = errors.New("EOF")
+	files, err = m.ListFiles(sessionID, "/home/user")
+	if err != nil {
+		t.Errorf("Expected no error when ReadDir returns error 'EOF', got %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("Expected empty files list when ReadDir returns error 'EOF', got %d", len(files))
+	}
+}
+
 func TestSSHManager_SFTP_Actions(t *testing.T) {
 	m, sessionID, mockClient, cleanup := setupSSHTest(t)
 	defer cleanup()

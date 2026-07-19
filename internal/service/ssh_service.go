@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -291,6 +292,9 @@ func (m *SSHManager) ListFiles(sessionID, pathStr string) ([]RemoteFile, error) 
 
 	entries, err := conn.SFTP.ReadDir(pathStr)
 	if err != nil {
+		if errors.Is(err, io.EOF) || err.Error() == "EOF" {
+			return []RemoteFile{}, nil
+		}
 		return nil, err
 	}
 

@@ -218,11 +218,14 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({ session, onClose, addTo
  }
  }
  } catch (err: any) {
- if (isManualEntry) {
- addToast('Navigation', 'Directory not available', 'error');
- setEditingPath(remotePath);
+ const errStr = String(err);
+ if (errStr === 'EOF' || errStr.includes('EOF')) {
+   setFiles([]);
+ } else if (isManualEntry) {
+   addToast('Navigation', 'Directory not available', 'error');
+   setEditingPath(remotePath);
  } else {
- addToast('Explorer', 'Failed to list files: ' + err, 'error');
+   addToast('Explorer', 'Failed to list files: ' + err, 'error');
  }
  } finally {
  setLoadingFiles(false);
