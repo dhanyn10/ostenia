@@ -130,7 +130,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const handleTerminalContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
 
-    const menuHeight = 140;
+    const menuHeight = 100;
     let y = e.clientY;
     if (y + menuHeight > window.innerHeight) {
       y = Math.max(10, y - menuHeight);
@@ -167,10 +167,6 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
 
   const handleTerminalRefresh = () => {
     performFit();
-  };
-
-  const handleTerminalToggleExplorer = () => {
-    setExplorerVisible(!explorerVisible);
   };
 
   const performFit = () => {
@@ -728,22 +724,6 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
           >
             <RefreshCw size={14} /> Refresh
-          </button>
-
-          <div className="h-px bg-mui-grey-100 dark:bg-white/5 my-1" />
-
-          <button
-            type="button"
-            onClick={() => {
-              handleTerminalToggleExplorer();
-              setTerminalContextMenu(null);
-            }}
-            className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
-          >
-            <span className="w-3.5 flex items-center justify-center">
-              {explorerVisible && <Check size={14} />}
-            </span>
-            Toggle view files/folder
           </button>
         </div>
       )}

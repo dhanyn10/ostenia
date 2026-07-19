@@ -538,7 +538,7 @@ describe("SSHSessionView Component", () => {
       expect(screen.getByText("Copy")).toBeInTheDocument();
       expect(screen.getByText("Paste")).toBeInTheDocument();
       expect(screen.getByText("Refresh")).toBeInTheDocument();
-      expect(screen.getByText("Toggle view files/folder")).toBeInTheDocument();
+      expect(screen.queryByText("Toggle view files/folder")).not.toBeInTheDocument();
 
       // 2. Click Copy
       const copyBtn = screen.getByText("Copy");
@@ -559,13 +559,6 @@ describe("SSHSessionView Component", () => {
       const refreshBtn = screen.getByText("Refresh");
       fireEvent.click(refreshBtn);
 
-      // 5. Click Toggle view files/folder
-      fireEvent.contextMenu(terminalDiv);
-      const toggleExplorerBtn = screen.getByText("Toggle view files/folder");
-      fireEvent.click(toggleExplorerBtn);
-      // Explorer should be hidden now!
-      expect(screen.queryByText("test.txt")).not.toBeInTheDocument();
-
       // Open terminal context menu again near the bottom to test position adjustment
       const originalInnerHeight = window.innerHeight;
       Object.defineProperty(window, "innerHeight", {
@@ -577,8 +570,8 @@ describe("SSHSessionView Component", () => {
       fireEvent.contextMenu(terminalDiv, { clientY: 550, clientX: 200 });
       const termMenuElement = screen.getByText("Copy").closest("div");
       expect(termMenuElement).toBeInTheDocument();
-      // Expected Y: 550 - 140 = 410
-      expect(termMenuElement?.style.top).toBe("410px");
+      // Expected Y: 550 - 100 = 450
+      expect(termMenuElement?.style.top).toBe("450px");
 
       // Restore innerHeight
       Object.defineProperty(window, "innerHeight", {
