@@ -34,12 +34,23 @@ vi.mock("@xterm/addon-fit", () => {
   };
 });
 
+const eventCallbacks: Record<string, Function> = {};
+vi.mock("../../wailsjs/runtime/runtime", () => ({
+  EventsOn: vi.fn((event, cb) => {
+    eventCallbacks[event] = cb;
+  }),
+  EventsOff: vi.fn(),
+}));
+
 // Mock Wails backend functions
 vi.mock("../../wailsjs/go/backend/App", () => ({
   ConnectSSH: vi.fn().mockResolvedValue(null),
   GetRemoteFiles: vi.fn().mockResolvedValue([
     { name: "test.txt", isDir: false, size: 1024 },
     { name: "folder", isDir: true, size: 0 },
+    { name: ".env", isDir: false, size: 256 },
+    { name: ".hidden_dir", isDir: true, size: 0 },
+    { name: "archive.zip", isDir: false, size: 50000 },
   ]),
   GetRemoteCurrentPath: vi.fn().mockResolvedValue("/home/user"),
   SendSSHInput: vi.fn().mockResolvedValue(null),
@@ -146,5 +157,327 @@ describe("SSHSessionView Component", () => {
       mockSession.id,
       expect.stringContaining("folder"),
     );
+  });
+
+  it("filters hidden files by default and shows them after toggling", async () => {
+    render(<SSHSessionView {...mockProps} />);
+
+    // Wait for file listing to load
+    await waitFor(() => {
+      expect(screen.getByText("test.txt")).toBeInTheDocument();
+    });
+
+    // Hidden files should not be visible by default
+    expect(screen.queryByText(".env")).not.toBeInTheDocument();
+
+    // Right click on the file explorer background to open the context menu
+    const nameHeader = screen.getByText("Name");
+    fireEvent.contextMenu(nameHeader);
+
+    // Context menu should appear
+    const toggleHiddenBtn = screen.getByText("View hidden files/folder");
+    expect(toggleHiddenBtn).toBeInTheDocument();
+
+    // Click "View hidden files/folder"
+    fireEvent.click(toggleHiddenBtn);
+
+    // Hidden files should now be visible!
+    await waitFor(() => {
+      expect(screen.getByText(".env")).toBeInTheDocument();
+    });
+  });
+
+  it("adjusts context menu position to prevent bottom cut-offs", async () => {
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test.txt")).toBeInTheDocument();
+    });
+
+    // Mock window innerHeight
+    const originalInnerHeight = window.innerHeight;
+    Object.defineProperty(window, "innerHeight", {
+      writable: true,
+      configurable: true,
+      value: 600,
+    });
+
+    // 1. Test explorer context menu near the bottom
+    const nameHeader = screen.getByText("Name");
+    fireEvent.contextMenu(nameHeader, { clientY: 550, clientX: 100 });
+
+    // Menu should be rendered. Its Y position should be offset upwards
+    const menuElement = screen.getByText("View hidden files/folder").closest("div");
+    expect(menuElement).toBeInTheDocument();
+    // Expected Y position: 550 - 130 = 420
+    expect(menuElement?.style.top).toBe("420px");
+
+    // Close menu by clicking
+    fireEvent.click(document.body);
+
+    // 2. Test file context menu near the bottom
+    const fileItem = screen.getByText("test.txt");
+    fireEvent.contextMenu(fileItem, { clientY: 500, clientX: 100 });
+
+    const fileMenuElement = screen.getByText("Rename").closest("div");
+    expect(fileMenuElement).toBeInTheDocument();
+    // Expected Y position: 500 - 180 = 320
+    expect(fileMenuElement?.style.top).toBe("320px");
+
+    // Restore innerHeight
+    Object.defineProperty(window, "innerHeight", {
+      writable: true,
+      configurable: true,
+      value: originalInnerHeight,
+    });
+  });
+
+  it("handles explorer context menu 'Back' and 'Refresh' actions", async () => {
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test.txt")).toBeInTheDocument();
+    });
+
+    // Open background context menu
+    const nameHeader = screen.getByText("Name");
+    fireEvent.contextMenu(nameHeader);
+
+    // Test Refresh action
+    const refreshBtn = screen.getByText("Refresh");
+    fireEvent.click(refreshBtn);
+
+    // Expect another GetRemoteFiles fetch call
+    expect(AppBackend.GetRemoteFiles).toHaveBeenCalled();
+
+    // Re-open background context menu to test Back action
+    fireEvent.contextMenu(nameHeader);
+    const backBtn = screen.getByText("Back");
+    expect(backBtn).toBeInTheDocument();
+
+    // Since default mock current path is not empty/root in nested calls, trigger Back
+    fireEvent.click(backBtn);
+  });
+
+  it("handles file download, edit, and open settings", async () => {
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test.txt")).toBeInTheDocument();
+    });
+
+    const fileItem = screen.getByText("test.txt");
+    fireEvent.contextMenu(fileItem);
+
+    // 1. Download
+    const downloadBtn = screen.getByText("Download");
+    fireEvent.click(downloadBtn);
+    expect(AppBackend.DownloadRemoteFile).toHaveBeenCalledWith(mockSession.id, "/home/user/test.txt");
+
+    // 2. Open With
+    fireEvent.contextMenu(fileItem);
+    const openWithBtn = screen.getByText("Open With");
+    fireEvent.click(openWithBtn);
+    expect(mockProps.onOpenSettings).toHaveBeenCalledWith("config");
+
+    // 3. Edit (via context menu)
+    fireEvent.contextMenu(fileItem);
+    const editBtn = screen.getByText("Edit File");
+    fireEvent.click(editBtn);
+    expect(AppBackend.EditRemoteFile).toHaveBeenCalledWith(mockSession.id, "/home/user/test.txt");
+
+    // 4. Edit (via double click on file)
+    fireEvent.doubleClick(fileItem);
+    expect(AppBackend.EditRemoteFile).toHaveBeenCalled();
+  });
+
+  it("handles Upload and New Folder buttons", async () => {
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test.txt")).toBeInTheDocument();
+    });
+
+    // 1. Upload
+    const uploadBtn = screen.getByText("Upload");
+    fireEvent.click(uploadBtn);
+    expect(AppBackend.UploadRemoteFile).toHaveBeenCalledWith(mockSession.id, "/home/user");
+
+    // 2. New Folder
+    window.prompt = vi.fn().mockReturnValue("new_folder_name");
+    const newBtn = screen.getByText("New");
+    fireEvent.click(newBtn);
+    expect(AppBackend.ExecuteSFTPAction).toHaveBeenCalledWith(mockSession.id, "mkdir", "/home/user/new_folder_name", "");
+  });
+
+  it("handles incoming Wails events", async () => {
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test.txt")).toBeInTheDocument();
+    });
+
+    // 1. Trigger ssh_disconnected event
+    if (eventCallbacks["ssh_disconnected"]) {
+      act(() => {
+        eventCallbacks["ssh_disconnected"](mockSession.id);
+      });
+      expect(mockProps.addToast).toHaveBeenCalledWith("SSH", expect.stringContaining("Disconnected"), "warn");
+    }
+
+    // 2. Trigger ssh_path_changed event
+    if (eventCallbacks["ssh_path_changed"]) {
+      act(() => {
+        eventCallbacks["ssh_path_changed"]({ sessionId: mockSession.id, path: "/home/user/other" });
+      });
+    }
+  });
+
+  it("handles Rename action and archive types", async () => {
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("archive.zip")).toBeInTheDocument();
+    });
+
+    // 1. Right click on archive.zip
+    const archiveItem = screen.getByText("archive.zip");
+    fireEvent.contextMenu(archiveItem);
+
+    // "Open With" should not be visible for archives
+    expect(screen.queryByText("Open With")).not.toBeInTheDocument();
+
+    // 2. Click Rename and perform rename successfully
+    window.prompt = vi.fn().mockReturnValue("new_archive_name.zip");
+    const renameBtn = screen.getByText("Rename");
+    fireEvent.click(renameBtn);
+    expect(AppBackend.ExecuteSFTPAction).toHaveBeenCalledWith(
+      mockSession.id,
+      "rename",
+      "/home/user/archive.zip",
+      "/home/user/new_archive_name.zip",
+    );
+
+    // 3. Test Rename with prompt cancellation (no input)
+    fireEvent.contextMenu(archiveItem);
+    window.prompt = vi.fn().mockReturnValue("");
+    const renameBtn2 = screen.getByText("Rename");
+    fireEvent.click(renameBtn2);
+  });
+
+  it("handles New Folder and Rename action failures", async () => {
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test.txt")).toBeInTheDocument();
+    });
+
+    // Mock ExecuteSFTPAction to fail
+    AppBackend.ExecuteSFTPAction.mockRejectedValueOnce(new Error("SFTP action failed"));
+
+    // 1. New Folder failure
+    window.prompt = vi.fn().mockReturnValue("fail_folder");
+    const newBtn = screen.getByText("New");
+    fireEvent.click(newBtn);
+    await waitFor(() => {
+      expect(mockProps.addToast).toHaveBeenCalledWith("Error", expect.stringContaining("SFTP action failed"), "error");
+    });
+
+    // 2. Rename failure
+    const archiveItem = screen.getByText("archive.zip");
+    fireEvent.contextMenu(archiveItem);
+
+    AppBackend.ExecuteSFTPAction.mockRejectedValueOnce(new Error("Rename failed"));
+    window.prompt = vi.fn().mockReturnValue("fail_rename.zip");
+    const renameBtn = screen.getByText("Rename");
+    fireEvent.click(renameBtn);
+    await waitFor(() => {
+      expect(mockProps.addToast).toHaveBeenCalledWith("Error", expect.stringContaining("Rename failed"), "error");
+    });
+  });
+
+  it("handles Download and Upload action failures", async () => {
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test.txt")).toBeInTheDocument();
+    });
+
+    const fileItem = screen.getByText("test.txt");
+    fireEvent.contextMenu(fileItem);
+
+    // 1. Download failure
+    AppBackend.DownloadRemoteFile.mockRejectedValueOnce(new Error("Download failed"));
+    const downloadBtn = screen.getByText("Download");
+    fireEvent.click(downloadBtn);
+
+    await waitFor(() => {
+      expect(mockProps.addToast).toHaveBeenCalledWith("Error", expect.stringContaining("Download failed"), "error");
+    });
+
+    // 2. Upload failure
+    AppBackend.UploadRemoteFile.mockRejectedValueOnce(new Error("Upload failed"));
+    const uploadBtn = screen.getByText("Upload");
+    fireEvent.click(uploadBtn);
+
+    await waitFor(() => {
+      expect(mockProps.addToast).toHaveBeenCalledWith("Error", expect.stringContaining("Upload failed"), "error");
+    });
+  });
+
+  it("handles Edit and Delete action failures", async () => {
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test.txt")).toBeInTheDocument();
+    });
+
+    // 1. Edit failure
+    AppBackend.EditRemoteFile.mockRejectedValueOnce(new Error("Edit failed"));
+    const fileItem = screen.getByText("test.txt");
+    fireEvent.contextMenu(fileItem);
+    const editBtn = screen.getByText("Edit File");
+    fireEvent.click(editBtn);
+
+    await waitFor(() => {
+      expect(mockProps.addToast).toHaveBeenCalledWith("Error", expect.stringContaining("Edit failed"), "error");
+    });
+
+    // 2. Delete failure
+    AppBackend.ExecuteSFTPAction.mockRejectedValueOnce(new Error("Delete failed"));
+    fireEvent.contextMenu(fileItem);
+    const deleteBtn = screen.getByText("Delete");
+    fireEvent.click(deleteBtn);
+
+    await waitFor(() => {
+      expect(mockProps.addToast).toHaveBeenCalledWith("Error", expect.stringContaining("Delete failed"), "error");
+    });
+  });
+
+  it("handles sorting and manual path entry navigation", async () => {
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test.txt")).toBeInTheDocument();
+    });
+
+    // 1. Trigger sorting by name and size
+    const nameHeader = screen.getByRole("button", { name: /Name/ });
+    fireEvent.click(nameHeader);
+    fireEvent.click(nameHeader); // toggle direction
+
+    const sizeHeader = screen.getByRole("button", { name: /Size/ });
+    fireEvent.click(sizeHeader);
+    fireEvent.click(sizeHeader); // toggle direction
+
+    // 2. Test manual navigation input
+    // Find the input element containing current path "/home/user"
+    const pathInput = screen.getByDisplayValue("/home/user");
+    fireEvent.change(pathInput, { target: { value: "/home/user/manual" } });
+    fireEvent.keyDown(pathInput, { key: "Enter", code: "Enter" });
+
+    await waitFor(() => {
+      expect(AppBackend.GetRemoteFiles).toHaveBeenCalledWith(mockSession.id, "/home/user/manual");
+    });
   });
 });
