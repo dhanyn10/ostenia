@@ -10,6 +10,7 @@ import (
 	"ostenia/internal/plugins/utils"
 	"ostenia/internal/testutil"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -335,6 +336,57 @@ func TestSSHManager_ResolveRemotePath(t *testing.T) {
 		if result != tt.expected {
 			t.Errorf("resolveRemotePath(%q) = %q; expected %q", tt.input, result, tt.expected)
 		}
+	}
+}
+
+func TestSSHManager_ListFiles_EdgeCases(t *testing.T) {
+	m, sessionID, mockClient, cleanup := setupSSHTest(t)
+	defer cleanup()
+
+	// 1. Test when SFTP is nil / not connected
+	m.mu.Lock()
+	conn := m.connections[sessionID]
+	oldSFTP := conn.SFTP
+	conn.SFTP = nil
+	m.mu.Unlock()
+
+	_, err := m.ListFiles(sessionID, "/home/user")
+	if err == nil || !strings.Contains(err.Error(), "SFTP not connected") {
+		t.Errorf("Expected 'SFTP not connected' error, got %v", err)
+	}
+
+	// Restore SFTP
+	m.mu.Lock()
+	conn.SFTP = oldSFTP
+	m.mu.Unlock()
+
+	// 2. Test empty pathStr which triggers Getwd success
+	mockClient.sftp.wd = "/home/defaultwd"
+	mockClient.sftp.files = []os.FileInfo{
+		mockFileInfo{name: "file_in_wd", size: 10, isDir: false},
+	}
+	mockClient.sftp.err = nil
+
+	files, err := m.ListFiles(sessionID, "")
+	if err != nil {
+		t.Errorf("Expected ListFiles with empty path to succeed, got %v", err)
+	}
+	if len(files) != 1 || files[0].Name != "file_in_wd" {
+		t.Errorf("Expected file_in_wd from default working dir, got %v", files)
+	}
+
+	// 3. Test empty pathStr when Getwd fails, which defaults to "."
+	mockClient.sftp.wd = "" // triggers default to "."
+	mockClient.sftp.files = []os.FileInfo{
+		mockFileInfo{name: "file_in_dot", size: 5, isDir: false},
+	}
+
+	files, err = m.ListFiles(sessionID, "")
+	if err != nil {
+		t.Errorf("Expected ListFiles with empty path and failed Getwd to succeed, got %v", err)
+	}
+	if len(files) != 1 || files[0].Name != "file_in_dot" {
+		t.Errorf("Expected file_in_dot from dot folder, got %v", files)
 	}
 }
 
