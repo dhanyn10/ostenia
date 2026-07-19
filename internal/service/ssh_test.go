@@ -251,7 +251,57 @@ func TestSSHManager_ListFiles_EOF(t *testing.T) {
 		t.Errorf("Expected 0 files on EOF-containing error, got %d", len(files))
 	}
 
-	// 3. Test a non-EOF error (real error)
+	// 3. Test os.ErrNotExist error
+	mockClient.sftp.err = os.ErrNotExist
+	files, err = m.ListFiles(sessionID, "/home/user")
+	if err != nil {
+		t.Errorf("ListFiles should have succeeded on os.ErrNotExist, but got error: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("Expected 0 files on os.ErrNotExist, got %d", len(files))
+	}
+
+	// 4. Test custom "file does not exist" error
+	mockClient.sftp.err = errors.New("file does not exist")
+	files, err = m.ListFiles(sessionID, "/home/user")
+	if err != nil {
+		t.Errorf("ListFiles should have succeeded on 'file does not exist' error, but got error: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("Expected 0 files on 'file does not exist' error, got %d", len(files))
+	}
+
+	// 5. Test custom "no such file" error
+	mockClient.sftp.err = errors.New("no such file or directory")
+	files, err = m.ListFiles(sessionID, "/home/user")
+	if err != nil {
+		t.Errorf("ListFiles should have succeeded on 'no such file' error, but got error: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("Expected 0 files on 'no such file' error, got %d", len(files))
+	}
+
+	// 6. Test custom "not found" error
+	mockClient.sftp.err = errors.New("directory not found")
+	files, err = m.ListFiles(sessionID, "/home/user")
+	if err != nil {
+		t.Errorf("ListFiles should have succeeded on 'not found' error, but got error: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("Expected 0 files on 'not found' error, got %d", len(files))
+	}
+
+	// 7. Test custom "not exist" error
+	mockClient.sftp.err = errors.New("path does not exist")
+	files, err = m.ListFiles(sessionID, "/home/user")
+	if err != nil {
+		t.Errorf("ListFiles should have succeeded on 'not exist' error, but got error: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("Expected 0 files on 'not exist' error, got %d", len(files))
+	}
+
+	// 8. Test a real other error (e.g. permission denied)
 	mockClient.sftp.err = errors.New("permission denied")
 	_, err = m.ListFiles(sessionID, "/home/user")
 	if err == nil {

@@ -311,15 +311,21 @@ func (m *SSHManager) ListFiles(sessionID, pathStr string) ([]RemoteFile, error) 
 
 	entries, err := conn.SFTP.ReadDir(pathStr)
 	if err != nil {
-		if err == io.EOF || strings.Contains(err.Error(), "EOF") {
-			log.Printf("[SSH] ReadDir empty/EOF for path %s: %v", pathStr, err)
-			fmt.Printf("[SSH] ReadDir empty/EOF for path %s: %v\n", pathStr, err)
+		errStr := err.Error()
+		if err == io.EOF || os.IsNotExist(err) ||
+			strings.Contains(errStr, "EOF") ||
+			strings.Contains(errStr, "does not exist") ||
+			strings.Contains(errStr, "no such file") ||
+			strings.Contains(errStr, "not found") ||
+			strings.Contains(errStr, "not exist") {
+			log.Printf("[SSH] ReadDir ignored empty/missing/EOF path %s: %v", pathStr, err)
+			fmt.Printf("[SSH] ReadDir ignored empty/missing/EOF path %s: %v\n", pathStr, err)
 			return []RemoteFile{}, nil
 		}
 		return nil, err
 	}
 
-	var files []RemoteFile
+	files := []RemoteFile{}
 	for _, entry := range entries {
 		files = append(files, RemoteFile{
 			Name:    entry.Name(),
