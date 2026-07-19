@@ -24,6 +24,7 @@ interface SSHFileExplorerProps {
   sortedFiles: any[];
   onFileDoubleClick: (file: any) => void;
   onFileContextMenu: (e: React.MouseEvent, file: any) => void;
+  onExplorerContextMenu: (e: React.MouseEvent) => void;
   formatSize: (bytes: number) => string;
   toggleSort: (key: string) => void;
   sortConfig: { key: string; direction: "asc" | "desc" };
@@ -44,13 +45,17 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
   sortedFiles,
   onFileDoubleClick,
   onFileContextMenu,
+  onExplorerContextMenu,
   formatSize,
   toggleSort,
   sortConfig,
   onManualNavigation,
 }) => {
   return (
-    <div className="w-72 flex flex-col border-r border-mui-grey-200 dark:border-mui-grey-800 bg-white dark:bg-mui-dark-bg shrink-0">
+    <div
+      onContextMenu={onExplorerContextMenu}
+      className="w-72 flex flex-col border-r border-mui-grey-200 dark:border-mui-grey-800 bg-white dark:bg-mui-dark-bg shrink-0"
+    >
       <div className="p-3 border-b border-mui-grey-100 dark:border-mui-grey-800 space-y-3 bg-mui-grey-50 dark:bg-mui-grey-900">
         <div className="flex items-center gap-1 bg-white dark:bg-mui-dark-bg rounded px-1 py-0.5 border border-mui-grey-200 dark:border-mui-grey-800">
           <button
@@ -66,6 +71,7 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
             className="flex-1 min-w-0 px-1 py-0.5 bg-transparent text-[10px] text-mui-grey-700 dark:text-mui-grey-300 font-mono outline-none focus:text-mui-blue-600 dark:focus:text-mui-blue-400 transition-colors"
             value={editingPath}
             onChange={(e) => setEditingPath(e.target.value)}
+            onContextMenu={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 onManualNavigation(editingPath);
@@ -95,6 +101,7 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
             className="w-full bg-mui-grey-50 dark:bg-mui-grey-800 border border-mui-grey-200 dark:border-mui-grey-700 rounded py-1 pl-7 pr-2 text-[11px] text-mui-grey-700 dark:text-mui-grey-300 outline-none focus:border-mui-blue-500 transition-all"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onContextMenu={(e) => e.stopPropagation()}
           />
         </div>
 

@@ -11,6 +11,8 @@ import {
   Trash2,
   RefreshCw,
   ExternalLink,
+  ArrowLeft,
+  Check,
 } from "lucide-react";
 import SSHToolbar from "./ssh/SSHToolbar";
 import SSHFileExplorer from "./ssh/SSHFileExplorer";
@@ -50,6 +52,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const [explorerVisible, setExplorerVisible] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [fileContextMenu, setFileContextMenu] = useState<any>(null);
+  const [showHiddenFiles, setShowHiddenFiles] = useState(false);
+  const [explorerContextMenu, setExplorerContextMenu] = useState<any>(null);
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: "asc" | "desc";
@@ -77,6 +81,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         return;
       }
       setFileContextMenu(null);
+      setExplorerContextMenu(null);
     };
     window.addEventListener("click", handleClick);
     return () => window.removeEventListener("click", handleClick);
@@ -84,11 +89,22 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
 
   const handleFileContextMenu = (e: React.MouseEvent, file: any) => {
     e.preventDefault();
+    e.stopPropagation();
     setFileContextMenu({
       x: e.clientX,
       y: e.clientY,
       file: file,
     });
+    setExplorerContextMenu(null);
+  };
+
+  const handleExplorerContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setExplorerContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+    });
+    setFileContextMenu(null);
   };
 
   const performFit = () => {
@@ -364,7 +380,13 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   };
 
   const sortedFiles = [...files]
-    .filter((f) => f.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter((f) => {
+      const matchesSearch = f.name.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!showHiddenFiles) {
+        return matchesSearch && !f.name.startsWith(".");
+      }
+      return matchesSearch;
+    })
     .sort((a, b) => {
       if (a.isDir !== b.isDir) return b.isDir ? 1 : -1;
       let comparison =
@@ -432,6 +454,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             sortedFiles={sortedFiles}
             onFileDoubleClick={handleFileDoubleClick}
             onFileContextMenu={handleFileContextMenu}
+            onExplorerContextMenu={handleExplorerContextMenu}
             formatSize={formatSize}
             toggleSort={toggleSort}
             sortConfig={sortConfig}
@@ -547,6 +570,53 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             className="w-full px-4 py-2 text-left text-[11px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2 transition-all"
           >
             <Trash2 size={14} /> Delete
+          </button>
+        </div>
+      )}
+
+      {explorerContextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="fixed z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg py-1 min-w-[170px] animate-in fade-in zoom-in-95 duration-100 cursor-default p-0"
+          style={{ top: explorerContextMenu.y, left: explorerContextMenu.x }}
+        >
+          <button
+            type="button"
+            disabled={remotePath === "/" || remotePath === ""}
+            onClick={() => {
+              navigateUp();
+              setExplorerContextMenu(null);
+            }}
+            className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2 disabled:opacity-50 disabled:hover:bg-transparent"
+          >
+            <ArrowLeft size={14} /> Back
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              loadRemoteFiles(remotePath);
+              setExplorerContextMenu(null);
+            }}
+            className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+          >
+            <RefreshCw size={14} /> Refresh
+          </button>
+
+          <div className="h-px bg-mui-grey-100 dark:bg-white/5 my-1" />
+
+          <button
+            type="button"
+            onClick={() => {
+              setShowHiddenFiles(!showHiddenFiles);
+              setExplorerContextMenu(null);
+            }}
+            className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+          >
+            <span className="w-3.5 flex items-center justify-center">
+              {showHiddenFiles && <Check size={14} />}
+            </span>
+            View hidden files/folder
           </button>
         </div>
       )}
