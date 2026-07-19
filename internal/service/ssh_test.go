@@ -432,6 +432,12 @@ func TestSSHManager_Terminal_Ops(t *testing.T) {
 		t.Errorf("ResizeTerminal failed: %v", err)
 	}
 
+	// Test hard guards for low cols and rows
+	err = m.ResizeTerminal(sessionID, 50, 5)
+	if err != nil {
+		t.Errorf("ResizeTerminal failed on hard guards: %v", err)
+	}
+
 	err = m.SendInput(sessionID, "ls\n")
 	if err != nil {
 		t.Errorf("SendInput failed: %v", err)
@@ -446,17 +452,54 @@ func TestSSHManager_File_Ops(t *testing.T) {
 	tempFile := filepath.Join(tempDir, "local")
 	os.WriteFile(tempFile, []byte("data"), 0644)
 
+	// 1. Success case
 	mockClient.sftp.openFile = &mockSFTPFile{Reader: io.LimitReader(nil, 0), Closer: io.NopCloser(nil)}
 	err := m.DownloadFile(sessionID, "remote", tempFile)
 	if err != nil {
 		t.Errorf("DownloadFile failed: %v", err)
 	}
 
+	// 2. Download open error
+	mockClient.sftp.openFile = nil
+	mockClient.sftp.err = errors.New("open error")
+	err = m.DownloadFile(sessionID, "remote", tempFile)
+	if err == nil {
+		t.Error("Expected DownloadFile to fail when SFTP.Open fails")
+	}
+
+	// 3. Download os.Create error
+	mockClient.sftp.openFile = &mockSFTPFile{Reader: io.LimitReader(nil, 0), Closer: io.NopCloser(nil)}
+	err = m.DownloadFile(sessionID, "remote", "/nonexistent_folder_abc/local")
+	if err == nil {
+		t.Error("Expected DownloadFile to fail when local file creation fails")
+	}
+
+	// Reset mock err
+	mockClient.sftp.err = nil
+
+	// 4. Upload success case
 	mockClient.sftp.createFile = &mockSFTPFile{Writer: io.Discard, Closer: io.NopCloser(nil)}
 	err = m.UploadFile(sessionID, tempFile, "remote")
 	if err != nil {
 		t.Errorf("UploadFile failed: %v", err)
 	}
+
+	// 5. Upload local open error
+	err = m.UploadFile(sessionID, "nonexistent_local_file_abc", "remote")
+	if err == nil {
+		t.Error("Expected UploadFile to fail when local file doesn't exist")
+	}
+
+	// 6. Upload remote create error
+	mockClient.sftp.createFile = nil
+	mockClient.sftp.err = errors.New("create error")
+	err = m.UploadFile(sessionID, tempFile, "remote")
+	if err == nil {
+		t.Error("Expected UploadFile to fail when SFTP.Create fails")
+	}
+
+	// Reset mock err
+	mockClient.sftp.err = nil
 
 	// EditFile
 	origExecutor := utils.Executor
@@ -468,6 +511,14 @@ func TestSSHManager_File_Ops(t *testing.T) {
 	err = m.EditFile(sessionID, "remote.txt", "nano")
 	if err != nil {
 		t.Errorf("EditFile failed: %v", err)
+	}
+
+	// EditFile download error
+	mockClient.sftp.openFile = nil
+	mockClient.sftp.err = errors.New("download error")
+	err = m.EditFile(sessionID, "remote.txt", "nano")
+	if err == nil {
+		t.Error("Expected EditFile to fail when download fails")
 	}
 }
 
@@ -509,6 +560,72 @@ func TestSSHManager_Errors(t *testing.T) {
 		}
 		if err := m.UploadFile("none", "l", "r"); err == nil {
 			t.Error("Expected error for missing session")
+		}
+		if err := m.ExecuteSFTPAction("none", "mkdir", "p", ""); err == nil {
+			t.Error("Expected error for missing session")
+		}
+		if err := m.EditFile("none", "p", "editor"); err == nil {
+			t.Error("Expected error for missing session")
+		}
+		if err := m.ResizeTerminal("none", 80, 24); err == nil {
+			t.Error("Expected error for missing session")
+		}
+		if err := m.SendInput("none", "abc"); err == nil {
+			t.Error("Expected error for missing session")
+		}
+	})
+
+	t.Run("SFTP Not Connected Errors", func(t *testing.T) {
+		mgr, sessionID, _, cleanup := setupSSHTest(t)
+		defer cleanup()
+
+		mgr.mu.Lock()
+		conn := mgr.connections[sessionID]
+		conn.SFTP = nil
+		mgr.mu.Unlock()
+
+		if _, err := mgr.GetCurrentPath(sessionID); err == nil {
+			t.Error("Expected error for nil SFTP")
+		}
+		if err := mgr.DownloadFile(sessionID, "r", "l"); err == nil {
+			t.Error("Expected error for nil SFTP")
+		}
+		if err := mgr.UploadFile(sessionID, "l", "r"); err == nil {
+			t.Error("Expected error for nil SFTP")
+		}
+		if err := mgr.ExecuteSFTPAction(sessionID, "mkdir", "p", ""); err == nil {
+			t.Error("Expected error for nil SFTP")
+		}
+		if err := mgr.EditFile(sessionID, "p", "editor"); err == nil {
+			t.Error("Expected error for nil SFTP")
+		}
+	})
+
+	t.Run("Terminal Ops Nil PTY Shell", func(t *testing.T) {
+		mgr, sessionID, _, cleanup := setupSSHTest(t)
+		defer cleanup()
+
+		mgr.mu.Lock()
+		conn := mgr.connections[sessionID]
+		conn.PTY = nil
+		conn.Shell = nil
+		mgr.mu.Unlock()
+
+		if err := mgr.ResizeTerminal(sessionID, 80, 24); err == nil {
+			t.Error("Expected error for nil PTY")
+		}
+		if err := mgr.SendInput(sessionID, "abc"); err == nil {
+			t.Error("Expected error for nil Shell")
+		}
+	})
+
+	t.Run("ExecuteSFTPAction Unknown Action", func(t *testing.T) {
+		mgr, sessionID, _, cleanup := setupSSHTest(t)
+		defer cleanup()
+
+		err := mgr.ExecuteSFTPAction(sessionID, "unknown_action", "p", "")
+		if err == nil || !strings.Contains(err.Error(), "unknown action") {
+			t.Errorf("Expected 'unknown action' error, got %v", err)
 		}
 	})
 }
@@ -620,6 +737,46 @@ func TestSSHManager_AuthMethods(t *testing.T) {
 		sess := config.SSHSession{AuthMethod: "agent"}
 		_, _ = m.getAuth(sess)
 	})
+
+	t.Run("getAuth key", func(t *testing.T) {
+		tempDir := t.TempDir()
+		keyFile := filepath.Join(tempDir, "id_rsa")
+		os.WriteFile(keyFile, []byte("mock private key content"), 0600)
+
+		sess := config.SSHSession{AuthMethod: "key", KeyPath: keyFile, Passphrase: "pass"}
+		_, _ = m.getAuth(sess)
+	})
+
+	t.Run("getAuth key without passphrase", func(t *testing.T) {
+		tempDir := t.TempDir()
+		keyFile := filepath.Join(tempDir, "id_rsa")
+		os.WriteFile(keyFile, []byte("mock private key content"), 0600)
+
+		sess := config.SSHSession{AuthMethod: "key", KeyPath: keyFile, Passphrase: ""}
+		_, _ = m.getAuth(sess)
+	})
+}
+
+type mockAddr struct{}
+func (mockAddr) Network() string { return "tcp" }
+func (mockAddr) String() string  { return "127.0.0.1:22" }
+
+type mockPublicKey struct{}
+func (mockPublicKey) Type() string { return "ssh-rsa" }
+func (mockPublicKey) Marshal() []byte { return []byte("mock-key-bytes") }
+func (mockPublicKey) Verify(data []byte, sig *ssh.Signature) error { return nil }
+
+func TestSSHManager_HostKeyCallback(t *testing.T) {
+	m := NewSSHManager()
+	cb := m.getHostKeyCallback()
+	if cb == nil {
+		t.Fatal("Expected non-nil host key callback")
+	}
+
+	// Invoke callback to cover all internal paths
+	_ = cb("localhost", mockAddr{}, mockPublicKey{})
+	// Call it again so it is found in known_hosts
+	_ = cb("localhost", mockAddr{}, mockPublicKey{})
 }
 
 func TestSSHManager_Wrappers(t *testing.T) {
