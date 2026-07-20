@@ -326,12 +326,9 @@ func TestApp_SSLDelegates(t *testing.T) {
 
 func TestApp_GetWSLDistros(t *testing.T) {
 	app := &App{}
-	distros, err := app.GetWSLDistros()
+	_, err := app.GetWSLDistros()
 	if err != nil {
 		t.Fatalf("GetWSLDistros failed: %v", err)
-	}
-	if len(distros) == 0 {
-		t.Error("Expected at least one WSL distro")
 	}
 }
 

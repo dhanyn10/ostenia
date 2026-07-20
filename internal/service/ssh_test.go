@@ -686,10 +686,13 @@ func TestSSHManager_Errors(t *testing.T) {
 }
 
 func TestSSHManager_Editor_Mocked(t *testing.T) {
+	origExecutor := utils.Executor
 	utils.Executor = &testutil.MockExecutor{
 		Output: "",
 		Err:    nil,
 	}
+	defer func() { utils.Executor = origExecutor }()
+
 	m := &SSHManager{}
 
 	t.Run("runEditor custom", func(t *testing.T) {
