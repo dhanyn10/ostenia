@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"ostenia/internal/backend/interfaces"
+	"ostenia/internal/plugins/utils"
 	"path"
 	"path/filepath"
 	"strings"
@@ -15,16 +16,21 @@ import (
 )
 
 var wslCommand = func(distro string, args ...string) *exec.Cmd {
+	var cmd *exec.Cmd
 	if RuntimeGOOS == "windows" {
 		cmdArgs := append([]string{"-d", distro}, args...)
-		return exec.Command("wsl.exe", cmdArgs...)
+		cmd = exec.Command("wsl.exe", cmdArgs...)
+	} else {
+		// Fallback/mock implementation for tests on non-Windows platforms
+		if len(args) == 0 {
+			cmd = exec.Command("sh", "-c", "echo 'WSL Shell Mock'; sleep 0.1")
+		} else {
+			cmdArgs := append([]string{"-c"}, args...)
+			cmd = exec.Command("sh", cmdArgs...)
+		}
 	}
-	// Fallback/mock implementation for tests on non-Windows platforms
-	if len(args) == 0 {
-		return exec.Command("sh", "-c", "echo 'WSL Shell Mock'; sleep 0.1")
-	}
-	cmdArgs := append([]string{"-c"}, args...)
-	return exec.Command("sh", cmdArgs...)
+	cmd.Env = utils.SafeEnv()
+	return cmd
 }
 
 var wslRootPath = func(distro string) string {
