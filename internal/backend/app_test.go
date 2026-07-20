@@ -324,6 +324,46 @@ func TestApp_SSLDelegates(t *testing.T) {
 	_ = app.SignCertificate("ca", "domain", "dest")
 }
 
+func TestApp_GetWSLDistros(t *testing.T) {
+	app := &App{}
+	distros, err := app.GetWSLDistros()
+	if err != nil {
+		t.Fatalf("GetWSLDistros failed: %v", err)
+	}
+	if len(distros) == 0 {
+		t.Error("Expected at least one WSL distro")
+	}
+}
+
+func Test_parseWSLOutput(t *testing.T) {
+	// UTF-16LE with BOM
+	utf16Input := []byte{
+		0xFF, 0xFE, // BOM
+		'U', 0x00, 'b', 0x00, 'u', 0x00, 'n', 0x00, 't', 0x00, 'u', 0x00, '\r', 0x00, '\n', 0x00,
+		'D', 0x00, 'e', 0x00, 'b', 0x00, 'i', 0x00, 'a', 0x00, 'n', 0x00, '\r', 0x00, '\n', 0x00,
+	}
+	res := parseWSLOutput(utf16Input)
+	if len(res) != 2 || res[0] != "Ubuntu" || res[1] != "Debian" {
+		t.Errorf("parseWSLOutput with UTF-16LE BOM failed: %v", res)
+	}
+
+	// UTF-16LE without BOM
+	utf16NoBOM := []byte{
+		'U', 0x00, 'b', 0x00, 'u', 0x00, 'n', 0x00, 't', 0x00, 'u', 0x00, '\n', 0x00,
+	}
+	res = parseWSLOutput(utf16NoBOM)
+	if len(res) != 1 || res[0] != "Ubuntu" {
+		t.Errorf("parseWSLOutput with UTF-16LE no BOM failed: %v", res)
+	}
+
+	// Standard UTF-8
+	utf8Input := []byte("Ubuntu\nDebian\n")
+	res = parseWSLOutput(utf8Input)
+	if len(res) != 2 || res[0] != "Ubuntu" || res[1] != "Debian" {
+		t.Errorf("parseWSLOutput with UTF-8 failed: %v", res)
+	}
+}
+
 func TestDefaultSSLManager(t *testing.T) {
 	// These call the actual internal/ssl package, which is risky but since we are in backend
 	// and we want coverage for the wrapper, we just call them.

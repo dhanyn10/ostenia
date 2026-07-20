@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, Save, RefreshCw } from "lucide-react";
 import { clsx } from "clsx";
 import * as AppBackend from "../../../wailsjs/go/backend/App";
@@ -36,6 +36,19 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
   );
 
   const [saving, setSaving] = useState(false);
+  const [wslDistros, setWslDistros] = useState<string[]>([]);
+
+  useEffect(() => {
+    AppBackend.GetWSLDistros()
+      .then((distros) => {
+        if (distros && distros.length > 0) {
+          setWslDistros(distros);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load WSL distros:", err);
+      });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,6 +113,47 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
               }
             />
           </div>
+
+          {wslDistros.length > 0 && (
+            <div>
+              <label
+                htmlFor="wsl-quick-select"
+                className="block text-[10px] font-bold text-mui-grey-400 uppercase tracking-widest mb-1.5 ml-0.5"
+              >
+                WSL Distro (Local Auto-Detect)
+              </label>
+              <select
+                id="wsl-quick-select"
+                className="w-full px-3 py-2 bg-mui-grey-50 dark:bg-white/5 border border-transparent focus:border-mui-blue-500 focus:bg-white dark:focus:bg-mui-grey-900 rounded-md outline-none text-mui-grey-900 dark:text-white transition-all text-sm"
+                value={formData.host.startsWith("wsl://") ? formData.host : ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val) {
+                    const distroName = val.replace("wsl://", "");
+                    setFormData({
+                      ...formData,
+                      host: val,
+                      name: formData.name ? formData.name : `WSL: ${distroName}`,
+                      port: 0,
+                      user: "root",
+                    });
+                  } else {
+                    setFormData({
+                      ...formData,
+                      host: "",
+                    });
+                  }
+                }}
+              >
+                <option value="" className="dark:bg-mui-dark-bg">-- Select WSL Distro to Connect Locally --</option>
+                {wslDistros.map((distro) => (
+                  <option key={distro} value={`wsl://${distro}`} className="dark:bg-mui-dark-bg">
+                    {distro} (Local VM)
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="grid grid-cols-4 gap-2">
             <div className="col-span-3">

@@ -101,6 +101,7 @@ const mockApp = {
   UploadRemoteFile: vi.fn().mockResolvedValue(null),
   EditRemoteFile: vi.fn().mockResolvedValue(null),
   ExecuteSFTPAction: vi.fn().mockResolvedValue(null),
+  GetWSLDistros: vi.fn().mockResolvedValue([]),
 };
 
 // Mock Wails go globals

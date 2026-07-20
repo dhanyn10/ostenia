@@ -13,6 +13,7 @@ import SSHSessionForm from "./SSHSessionForm";
 vi.mock("../../../wailsjs/go/backend/App", () => ({
   AddSSHSession: vi.fn(),
   UpdateSSHSession: vi.fn(),
+  GetWSLDistros: vi.fn().mockResolvedValue([]),
 }));
 
 import * as AppBackendRaw from "../../../wailsjs/go/backend/App";
