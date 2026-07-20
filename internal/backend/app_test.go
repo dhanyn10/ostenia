@@ -128,6 +128,7 @@ func (m *MockSSHManager) DownloadFile(sessionID, remotePath, localPath string) e
 func (m *MockSSHManager) UploadFile(sessionID, localPath, remotePath string) error        { return nil }
 func (m *MockSSHManager) EditFile(sessionID, remotePath, editor string) error             { return nil }
 func (m *MockSSHManager) GetCurrentPath(sessionID string) (string, error)                 { return "/", nil }
+func (m *MockSSHManager) GetWSLDistros() ([]string, error)                               { return []string{"Ubuntu"}, nil }
 
 type MockSSLManager struct {
 	interfaces.SSLManager

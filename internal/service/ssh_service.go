@@ -86,21 +86,29 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 
 	fmt.Printf("[SSH] Connecting to %s@%s:%d...\n", session.User, session.Host, session.Port)
 
-	auth, err := m.getAuth(session)
-	if err != nil {
-		fmt.Printf("[SSH] Authentication retrieval failed: %v\n", err)
-		m.mu.Unlock()
-		return err
-	}
+	var client interfaces.SSHClient
+	var err error
 
-	client, err := m.dialer(&goph.Config{
-		User:     session.User,
-		Addr:     session.Host,
-		Port:     uint(session.Port),
-		Auth:     auth,
-		Timeout:  10 * time.Second,
-		Callback: m.getHostKeyCallback(),
-	})
+	if strings.HasPrefix(session.Host, "wsl://") {
+		distro := strings.TrimPrefix(session.Host, "wsl://")
+		client = NewWSLClient(distro, session.User)
+	} else {
+		auth, err := m.getAuth(session)
+		if err != nil {
+			fmt.Printf("[SSH] Authentication retrieval failed: %v\n", err)
+			m.mu.Unlock()
+			return err
+		}
+
+		client, err = m.dialer(&goph.Config{
+			User:     session.User,
+			Addr:     session.Host,
+			Port:     uint(session.Port),
+			Auth:     auth,
+			Timeout:  10 * time.Second,
+			Callback: m.getHostKeyCallback(),
+		})
+	}
 
 	if err != nil {
 		fmt.Printf("[SSH] Dial connection failed: %v\n", err)
@@ -612,6 +620,33 @@ func (m *SSHManager) getHostKeyCallback() ssh.HostKeyCallback {
 		// If not found, add it (remembering it for next time)
 		return goph.AddKnownHost(host, remote, key, knownHostsPath)
 	}
+}
+
+func (m *SSHManager) GetWSLDistros() ([]string, error) {
+	if RuntimeGOOS != "windows" {
+		return []string{}, nil
+	}
+
+	cmd := wslCommand("", "-l", "-q")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	decoded, err := decodeUTF16LE(output)
+	if err != nil {
+		decoded = string(output)
+	}
+
+	var distros []string
+	lines := strings.Split(decoded, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			distros = append(distros, line)
+		}
+	}
+	return distros, nil
 }
 
 // Wrappers

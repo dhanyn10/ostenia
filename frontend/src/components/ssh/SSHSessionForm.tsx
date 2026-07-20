@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, Save, RefreshCw } from "lucide-react";
 import { clsx } from "clsx";
 import * as AppBackend from "../../../wailsjs/go/backend/App";
@@ -36,6 +36,25 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
   );
 
   const [saving, setSaving] = useState(false);
+  const [wslDistros, setWslDistros] = useState<string[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    const fetchDistros = async () => {
+      try {
+        const distros = await AppBackend.GetWSLDistros();
+        if (active && distros) {
+          setWslDistros(distros);
+        }
+      } catch (err) {
+        console.error("Failed to load WSL distros:", err);
+      }
+    };
+    fetchDistros();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,6 +162,36 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
               />
             </div>
           </div>
+
+          {wslDistros.length > 0 && (
+            <div>
+              <label
+                htmlFor="wsl-distro-select"
+                className="block text-[10px] font-bold text-mui-grey-400 uppercase tracking-widest mb-1.5 ml-0.5"
+              >
+                WSL Distribution
+              </label>
+              <select
+                id="wsl-distro-select"
+                className="w-full px-3 py-2 bg-mui-grey-50 dark:bg-white/5 border border-transparent focus:border-mui-blue-500 focus:bg-white dark:focus:bg-mui-grey-900 rounded-md outline-none text-mui-grey-900 dark:text-white transition-all text-sm"
+                value={formData.host.startsWith("wsl://") ? formData.host.replace("wsl://", "") : ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFormData({
+                    ...formData,
+                    host: val ? `wsl://${val}` : "",
+                  });
+                }}
+              >
+                <option value="">-- Non-WSL (Standard Host) --</option>
+                {wslDistros.map((distro) => (
+                  <option key={distro} value={distro}>
+                    {distro}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label

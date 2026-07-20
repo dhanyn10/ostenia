@@ -13,6 +13,7 @@ import SSHSessionForm from "./SSHSessionForm";
 vi.mock("../../../wailsjs/go/backend/App", () => ({
   AddSSHSession: vi.fn(),
   UpdateSSHSession: vi.fn(),
+  GetWSLDistros: vi.fn().mockResolvedValue([]),
 }));
 
 import * as AppBackendRaw from "../../../wailsjs/go/backend/App";
@@ -206,5 +207,36 @@ describe("SSHSessionForm Component", () => {
         "error",
       );
     });
+  });
+
+  it("loads and displays WSL distributions dropdown, and updates host on selection", async () => {
+    AppBackend.GetWSLDistros.mockResolvedValue(["Ubuntu-22.04", "Debian"]);
+
+    render(
+      <SSHSessionForm
+        session={null}
+        onClose={onCloseMock}
+        onSave={onSaveMock}
+        addToast={addToastMock}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("WSL Distribution")).toBeInTheDocument();
+    });
+
+    const select = screen.getByLabelText("WSL Distribution");
+    expect(select).toBeInTheDocument();
+    expect(screen.getByText("Ubuntu-22.04")).toBeInTheDocument();
+    expect(screen.getByText("Debian")).toBeInTheDocument();
+
+    fireEvent.change(select, { target: { value: "Ubuntu-22.04" } });
+
+    expect(screen.getByPlaceholderText("1.2.3.4 or example.com")).toHaveValue(
+      "wsl://Ubuntu-22.04",
+    );
+
+    fireEvent.change(select, { target: { value: "" } });
+    expect(screen.getByPlaceholderText("1.2.3.4 or example.com")).toHaveValue("");
   });
 });
