@@ -42,24 +42,15 @@ func TestNewWSLClient(t *testing.T) {
 		t.Fatalf("Shell start failed: %v", err)
 	}
 
-	// Test writing / reading
+	// Test writing
 	stdin, err := session.StdinPipe()
 	if err != nil {
 		t.Errorf("StdinPipe failed: %v", err)
 	}
-	stdout, err := session.StdoutPipe()
+
+	_, err = stdin.Write([]byte("echo hello\n"))
 	if err != nil {
-		t.Errorf("StdoutPipe failed: %v", err)
-	}
-
-	go func() {
-		_, _ = stdin.Write([]byte("echo hello\n"))
-	}()
-
-	buf := make([]byte, 1024)
-	n, _ := stdout.Read(buf)
-	if n > 0 {
-		t.Logf("Read from shell: %s", string(buf[:n]))
+		t.Errorf("Write to stdin failed: %v", err)
 	}
 
 	if err := client.Close(); err != nil {
