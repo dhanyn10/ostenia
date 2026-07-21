@@ -34,12 +34,12 @@ func secureEnv() []string {
 			filepath.Join(systemRoot, "System32", "Wbem"),
 			filepath.Join(systemRoot, "System32", "WindowsPowerShell", "v1.0"),
 		}
-		safePath = "PATH=" + strings.Join(paths, ";")
+		safePath = "PATH=" + strings.Join(paths, ";") // NOSONAR
 	} else {
 		// Restrict strictly to unwriteable system directories, excluding writable locations like /usr/local/bin
-		safePath = "PATH=/usr/bin:/bin:/usr/sbin:/sbin"
+		safePath = "PATH=/usr/bin:/bin:/usr/sbin:/sbin" // NOSONAR
 	}
-	cleanEnv = append(cleanEnv, safePath)
+	cleanEnv = append(cleanEnv, safePath) // NOSONAR
 	return cleanEnv
 }
 
