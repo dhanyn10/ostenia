@@ -45,6 +45,7 @@ vi.mock('../wailsjs/go/backend/App', () => ({
   ToggleDevTools: vi.fn(),
   GetProxyApps: vi.fn().mockResolvedValue([]),
   GetSSHSessions: vi.fn().mockResolvedValue([]),
+  GetWSLDistros: vi.fn().mockResolvedValue([]),
   GetPHPExtensions: vi.fn().mockResolvedValue([]),
   TogglePHPExtension: vi.fn().mockResolvedValue(null),
 }));
