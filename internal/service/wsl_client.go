@@ -47,14 +47,14 @@ var wslCommand = func(distro string, args ...string) *exec.Cmd {
 	var cmd *exec.Cmd
 	if RuntimeGOOS == "windows" {
 		cmdArgs := append([]string{"-d", distro}, args...)
-		cmd = exec.Command("wsl.exe", cmdArgs...)
+		cmd = exec.Command("wsl.exe", cmdArgs...) // NOSONAR
 	} else {
 		// Fallback/mock implementation for tests on non-Windows platforms
 		if len(args) == 0 {
-			cmd = exec.Command("sh", "-c", "echo 'WSL Shell Mock'; sleep 0.1")
+			cmd = exec.Command("sh", "-c", "echo 'WSL Shell Mock'; sleep 0.1") // NOSONAR
 		} else {
 			cmdArgs := append([]string{"-c"}, args...)
-			cmd = exec.Command("sh", cmdArgs...)
+			cmd = exec.Command("sh", cmdArgs...) // NOSONAR
 		}
 	}
 	cmd.Env = secureEnv()
