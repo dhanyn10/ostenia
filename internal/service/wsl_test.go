@@ -12,21 +12,18 @@ import (
 )
 
 func TestWSLClient_SessionAndShell(t *testing.T) {
-	// Set mock RuntimeGOOS to test both flows
 	origGOOS := RuntimeGOOS
 	defer func() { RuntimeGOOS = origGOOS }()
 	RuntimeGOOS = "linux"
 
-	// Mock wslCommand to run echo/sh instead of hanging
 	origWslCommand := wslCommand
 	defer func() { wslCommand = origWslCommand }()
 	wslCommand = func(distro string, args ...string) *exec.Cmd {
-		// Mock a command that echos inputs or outputs custom text
 		script := "echo 'wsl-mock-session'"
 		if len(args) > 0 {
 			script = "echo 'wsl-mock-args: " + strings.Join(args, " ") + "'"
 		}
-		return exec.Command("sh", "-c", script)
+		return exec.Command("sh", "-c", script) // NOSONAR
 	}
 
 	client := NewWSLClient("Ubuntu", "root")
@@ -52,17 +49,14 @@ func TestWSLClient_SessionAndShell(t *testing.T) {
 		t.Error("Expected non-nil stdin pipe")
 	}
 
-	// Request Pty should be a no-op
 	if err := sess.RequestPty("xterm", 24, 80, nil); err != nil {
 		t.Errorf("RequestPty failed: %v", err)
 	}
 
-	// WindowChange should be a no-op
 	if err := sess.WindowChange(24, 80); err != nil {
 		t.Errorf("WindowChange failed: %v", err)
 	}
 
-	// Shell should start the mock command
 	if err := sess.Shell(); err != nil {
 		t.Fatalf("Shell failed to start: %v", err)
 	}
@@ -91,7 +85,7 @@ func TestWSLClient_SessionWithCustomUser(t *testing.T) {
 	var commandArgs []string
 	wslCommand = func(distro string, args ...string) *exec.Cmd {
 		commandArgs = args
-		return exec.Command("sh", "-c", "echo 'ok'")
+		return exec.Command("sh", "-c", "echo 'ok'") // NOSONAR
 	}
 
 	client := NewWSLClient("Ubuntu", "customuser")
@@ -104,7 +98,6 @@ func TestWSLClient_SessionWithCustomUser(t *testing.T) {
 		t.Fatalf("Shell failed: %v", err)
 	}
 
-	// The WSL Session should pass "-u" and "customuser" to the command
 	if len(commandArgs) < 2 || commandArgs[0] != "-u" || commandArgs[1] != "customuser" {
 		t.Errorf("Expected user arguments in wslCommand, got %v", commandArgs)
 	}
@@ -130,25 +123,21 @@ func TestWSLClient_SftpAndFiles(t *testing.T) {
 	}
 	defer sftpClient.Close()
 
-	// 1. Getwd
 	wd, err := sftpClient.Getwd()
 	if err != nil || wd != "/" {
 		t.Errorf("Expected Getwd to return '/', got '%s' (err: %v)", wd, err)
 	}
 
-	// 2. Mkdir
 	err = sftpClient.Mkdir("/testdir")
 	if err != nil {
 		t.Fatalf("Mkdir failed: %v", err)
 	}
 
-	// Verify local dir was created
 	localDir := filepath.Join(tempDir, "Ubuntu-Test", "testdir")
 	if info, err := os.Stat(localDir); err != nil || !info.IsDir() {
 		t.Errorf("Expected local directory to be created at %s, but err: %v", localDir, err)
 	}
 
-	// 3. Create file
 	file, err := sftpClient.Create("/testdir/file.txt")
 	if err != nil {
 		t.Fatalf("Create file failed: %v", err)
@@ -159,7 +148,6 @@ func TestWSLClient_SftpAndFiles(t *testing.T) {
 	}
 	file.Close()
 
-	// 4. Open and Read file
 	file, err = sftpClient.Open("/testdir/file.txt")
 	if err != nil {
 		t.Fatalf("Open file failed: %v", err)
@@ -173,41 +161,34 @@ func TestWSLClient_SftpAndFiles(t *testing.T) {
 		t.Errorf("Expected 'hello wsl sftp', got '%s'", string(content))
 	}
 
-	// 5. Stat
 	info, err := sftpClient.Stat("/testdir/file.txt")
 	if err != nil || info.IsDir() {
 		t.Errorf("Stat failed or is directory: %v", err)
 	}
 
-	// 6. ReadDir
 	infos, err := sftpClient.ReadDir("/testdir")
 	if err != nil || len(infos) != 1 || infos[0].Name() != "file.txt" {
 		t.Errorf("ReadDir failed or length mismatch: %v (infos: %v)", err, infos)
 	}
 
-	// 7. Rename
 	err = sftpClient.Rename("/testdir/file.txt", "/testdir/file_new.txt")
 	if err != nil {
 		t.Fatalf("Rename failed: %v", err)
 	}
-	// Verify rename
 	if _, err := os.Stat(filepath.Join(tempDir, "Ubuntu-Test", "testdir", "file_new.txt")); err != nil {
 		t.Errorf("Expected renamed file, got stat err: %v", err)
 	}
 
-	// 8. Remove
 	err = sftpClient.Remove("/testdir/file_new.txt")
 	if err != nil {
 		t.Fatalf("Remove failed: %v", err)
 	}
 
-	// 9. RemoveAll
 	err = sftpClient.RemoveAll("/testdir")
 	if err != nil {
 		t.Fatalf("RemoveAll failed: %v", err)
 	}
 
-	// Verify cleanup
 	if _, err := os.Stat(localDir); !os.IsNotExist(err) {
 		t.Errorf("Expected directory to be removed, but stat err was: %v", err)
 	}
@@ -239,21 +220,14 @@ func TestSSHManager_GetWSLDistros(t *testing.T) {
 		defer func() { wslCommand = origWslCommand }()
 
 		wslCommand = func(distro string, args ...string) *exec.Cmd {
-			// Output "Ubuntu-22.04\nDebian\n" in UTF-16LE
-			// UTF-16LE BOM: FF FE
-			// 'U': 55 00, 'b': 62 00, 'u': 75 00, 'n': 6E 00, 't': 74 00, 'u': 75 00, '-': 2D 00, '2': 32 00, '2': 32 00, '.': 2E 00, '0': 30 00, '4': 34 00, '\r': 0D 00, '\n': 0A 00
-			// 'D': 44 00, 'e': 65 00, 'b': 62 00, 'i': 69 00, 'a': 61 00, 'n': 6E 00, '\r': 0D 00, '\n': 0A 00
 			utf16Output := []byte{
-				0xFF, 0xFE, // BOM
+				0xFF, 0xFE,
 				0x55, 0x00, 0x62, 0x00, 0x75, 0x00, 0x6E, 0x00, 0x74, 0x00, 0x75, 0x00, 0x2D, 0x00, 0x32, 0x00, 0x32, 0x00, 0x2E, 0x00, 0x30, 0x00, 0x34, 0x00, 0x0D, 0x00, 0x0A, 0x00,
 				0x44, 0x00, 0x65, 0x00, 0x62, 0x00, 0x69, 0x00, 0x61, 0x00, 0x6E, 0x00, 0x0D, 0x00, 0x0A, 0x00,
 			}
-			// Let's write a mock sh script to output these bytes
-			// We can write them to a temp file and cat them, or echo -ne hex.
-			// But since we can write to a temp file:
 			tempFile := filepath.Join(t.TempDir(), "utf16_output")
 			_ = os.WriteFile(tempFile, utf16Output, 0644)
-			return exec.Command("cat", tempFile)
+			return exec.Command("cat", tempFile) // NOSONAR
 		}
 
 		distros, err := m.GetWSLDistros()
@@ -275,7 +249,7 @@ func TestSSHManager_WSLConnect(t *testing.T) {
 	origWslCommand := wslCommand
 	defer func() { wslCommand = origWslCommand }()
 	wslCommand = func(distro string, args ...string) *exec.Cmd {
-		return exec.Command("sh", "-c", "echo 'connected'")
+		return exec.Command("sh", "-c", "echo 'connected'") // NOSONAR
 	}
 
 	m := NewSSHManager()
@@ -294,7 +268,6 @@ func TestSSHManager_WSLConnect(t *testing.T) {
 	}
 	defer m.Disconnect("wsl-session-id")
 
-	// Verify connection exists in manager
 	m.mu.RLock()
 	conn, ok := m.connections["wsl-session-id"]
 	m.mu.RUnlock()
@@ -302,9 +275,111 @@ func TestSSHManager_WSLConnect(t *testing.T) {
 		t.Fatal("Expected connected WSL session in SSHManager connections map")
 	}
 
-	// Verify standard client is WSLSFTPClient
 	_, isWSLSFTP := conn.SFTP.(*WSLSFTPClient)
 	if !isWSLSFTP {
 		t.Error("Expected connection SFTP client to be *WSLSFTPClient")
 	}
+}
+
+func TestWSLClient_SftpErrors(t *testing.T) {
+	origGOOS := RuntimeGOOS
+	defer func() { RuntimeGOOS = origGOOS }()
+	RuntimeGOOS = "linux"
+
+	tempDir := t.TempDir()
+	origWslRootPath := wslRootPath
+	defer func() { wslRootPath = origWslRootPath }()
+	wslRootPath = func(distro string) string {
+		return filepath.Join(tempDir, distro)
+	}
+
+	client := NewWSLClient("Ubuntu-Error", "")
+	sftpClient, err := client.NewSftp()
+	if err != nil {
+		t.Fatalf("Failed to create WSL SFTP Client: %v", err)
+	}
+	defer sftpClient.Close()
+
+	// Try reading nonexistent directory
+	_, err = sftpClient.ReadDir("/nonexistent")
+	if err == nil {
+		t.Error("Expected ReadDir of nonexistent path to return error")
+	}
+
+	// Try stat of nonexistent file
+	_, err = sftpClient.Stat("/nonexistent")
+	if err == nil {
+		t.Error("Expected Stat of nonexistent path to return error")
+	}
+
+	// Try opening nonexistent file
+	_, err = sftpClient.Open("/nonexistent")
+	if err == nil {
+		t.Error("Expected Open of nonexistent path to return error")
+	}
+
+	// Try removing nonexistent file
+	err = sftpClient.Remove("/nonexistent")
+	if err == nil {
+		t.Error("Expected Remove of nonexistent path to return error")
+	}
+
+	// Try renaming nonexistent file
+	err = sftpClient.Rename("/nonexistent1", "/nonexistent2")
+	if err == nil {
+		t.Error("Expected Rename of nonexistent paths to return error")
+	}
+}
+
+func TestWSLClient_GetWSLDistros_ErrorCase(t *testing.T) {
+	origGOOS := RuntimeGOOS
+	defer func() { RuntimeGOOS = origGOOS }()
+	RuntimeGOOS = "windows"
+
+	origWslCommand := wslCommand
+	defer func() { wslCommand = origWslCommand }()
+
+	// Mock wslCommand to return a failing process
+	wslCommand = func(distro string, args ...string) *exec.Cmd {
+		return exec.Command("sh", "-c", "exit 1") // NOSONAR
+	}
+
+	m := NewSSHManager()
+	_, err := m.GetWSLDistros()
+	if err == nil {
+		t.Error("Expected GetWSLDistros to fail when wsl command fails")
+	}
+}
+
+func TestWSLClient_SessionPipesMock(t *testing.T) {
+	origGOOS := RuntimeGOOS
+	defer func() { RuntimeGOOS = origGOOS }()
+	RuntimeGOOS = "linux"
+
+	client := NewWSLClient("Ubuntu", "root")
+	sess, err := client.NewSession()
+	if err != nil {
+		t.Fatalf("Failed to create session: %v", err)
+	}
+
+	// Verify we can retrieve pipes multiple times safely (returning the cached pipes)
+	stdout1, err := sess.StdoutPipe()
+	if err != nil {
+		t.Fatalf("StdoutPipe failed: %v", err)
+	}
+	stdout2, err := sess.StdoutPipe()
+	if err != nil || stdout1 != stdout2 {
+		t.Error("Expected identical stdout pipe instance on subsequent calls")
+	}
+
+	stdin1, err := sess.StdinPipe()
+	if err != nil {
+		t.Fatalf("StdinPipe failed: %v", err)
+	}
+	stdin2, err := sess.StdinPipe()
+	if err != nil || stdin1 != stdin2 {
+		t.Error("Expected identical stdin pipe instance on subsequent calls")
+	}
+
+	sess.Close()
 }
