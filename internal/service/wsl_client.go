@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"ostenia/internal/backend/interfaces"
-	"ostenia/internal/plugins/utils"
 	"path"
 	"path/filepath"
 	"strings"
@@ -14,6 +13,35 @@ import (
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
+
+func secureEnv() []string {
+	var cleanEnv []string
+	for _, envVar := range os.Environ() {
+		if !strings.HasPrefix(strings.ToUpper(envVar), "PATH=") {
+			cleanEnv = append(cleanEnv, envVar)
+		}
+	}
+
+	var safePath string
+	if RuntimeGOOS == "windows" {
+		systemRoot := os.Getenv("SystemRoot")
+		if systemRoot == "" {
+			systemRoot = `C:\Windows`
+		}
+		paths := []string{
+			filepath.Join(systemRoot, "System32"),
+			systemRoot,
+			filepath.Join(systemRoot, "System32", "Wbem"),
+			filepath.Join(systemRoot, "System32", "WindowsPowerShell", "v1.0"),
+		}
+		safePath = "PATH=" + strings.Join(paths, ";")
+	} else {
+		// Restrict strictly to unwriteable system directories, excluding writable locations like /usr/local/bin
+		safePath = "PATH=/usr/bin:/bin:/usr/sbin:/sbin"
+	}
+	cleanEnv = append(cleanEnv, safePath)
+	return cleanEnv
+}
 
 var wslCommand = func(distro string, args ...string) *exec.Cmd {
 	var cmd *exec.Cmd
@@ -29,7 +57,7 @@ var wslCommand = func(distro string, args ...string) *exec.Cmd {
 			cmd = exec.Command("sh", cmdArgs...)
 		}
 	}
-	cmd.Env = utils.SafeEnv()
+	cmd.Env = secureEnv()
 	return cmd
 }
 
