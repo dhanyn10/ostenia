@@ -17,7 +17,7 @@ import (
 func secureEnv() []string {
 	var cleanEnv []string
 	for _, envVar := range os.Environ() {
-		if !strings.HasPrefix(strings.ToUpper(envVar), "PATH=") {
+		if !strings.HasPrefix(strings.ToUpper(envVar), "PATH=") && !strings.HasPrefix(strings.ToUpper(envVar), "TERM=") {
 			cleanEnv = append(cleanEnv, envVar)
 		}
 	}
@@ -40,13 +40,19 @@ func secureEnv() []string {
 		safePath = "PATH=/usr/bin:/bin:/usr/sbin:/sbin" // NOSONAR
 	}
 	cleanEnv = append(cleanEnv, safePath) // NOSONAR
+	cleanEnv = append(cleanEnv, "TERM=xterm-256color")
 	return cleanEnv
 }
 
 var wslCommand = func(distro string, args ...string) *exec.Cmd {
 	var cmd *exec.Cmd
 	if RuntimeGOOS == "windows" {
-		cmdArgs := append([]string{"-d", distro}, args...)
+		cmdArgs := []string{"-d", distro}
+		if len(args) == 0 {
+			cmdArgs = append(cmdArgs, "bash", "--login", "-i")
+		} else {
+			cmdArgs = append(cmdArgs, args...)
+		}
 		cmd = exec.Command("wsl.exe", cmdArgs...) // NOSONAR
 	} else {
 		// Fallback/mock implementation for tests on non-Windows platforms
@@ -112,7 +118,7 @@ func NewWSLClient(distro, user string) *WSLClient {
 func (c *WSLClient) NewSession() (interfaces.SSHSession, error) {
 	var cmd *exec.Cmd
 	if c.User != "" && c.User != "root" {
-		cmd = wslCommand(c.Distro, "-u", c.User)
+		cmd = wslCommand(c.Distro, "-u", c.User, "bash", "--login", "-i")
 	} else {
 		cmd = wslCommand(c.Distro)
 	}
