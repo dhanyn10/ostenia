@@ -97,3 +97,8 @@ func (a *App) UploadRemoteFile(sessionID, remoteDir string) error {
 	remotePath := filepath.ToSlash(filepath.Join(remoteDir, filepath.Base(localPath)))
 	return a.sshManager.UploadFile(sessionID, localPath, remotePath)
 }
+
+// GetWSLDistros returns the list of WSL distributions available on the system
+func (a *App) GetWSLDistros() ([]string, error) {
+	return a.sshManager.GetWSLDistros()
+}

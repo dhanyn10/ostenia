@@ -52,4 +52,23 @@ describe("Toast Component", () => {
       "bg-rose-50",
     );
   });
+
+  it("copies toast message to clipboard on copy button click", () => {
+    const removeToast = vi.fn();
+    const writeTextMock = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: writeTextMock,
+      },
+    });
+
+    render(<Toast toasts={mockToasts} removeToast={removeToast} />);
+
+    const copyButtons = screen.getAllByTitle("Copy message");
+    expect(copyButtons.length).toBe(3);
+
+    fireEvent.click(copyButtons[0]);
+
+    expect(writeTextMock).toHaveBeenCalledWith("Operation successful");
+  });
 });

@@ -98,4 +98,5 @@ type SSHManager interface {
 	UploadFile(sessionID, localPath, remotePath string) error
 	EditFile(sessionID, remotePath, editor string) error
 	GetCurrentPath(sessionID string) (string, error)
+	GetWSLDistros() ([]string, error)
 }
