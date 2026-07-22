@@ -142,20 +142,21 @@ func (c *WSLClient) Close() error {
 
 type WSLSession struct {
 	cmd    *exec.Cmd
-	stdout io.ReadCloser
+	stdout io.Reader
 	stdin  io.WriteCloser
+	pipeW  io.WriteCloser
 }
 
 func (s *WSLSession) StdoutPipe() (io.Reader, error) {
 	if s.stdout != nil {
 		return s.stdout, nil
 	}
-	stdout, err := s.cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-	s.stdout = stdout
-	return stdout, nil
+	pr, pw := io.Pipe()
+	s.cmd.Stdout = pw
+	s.cmd.Stderr = pw
+	s.stdout = pr
+	s.pipeW = pw
+	return pr, nil
 }
 
 func (s *WSLSession) StdinPipe() (io.WriteCloser, error) {
@@ -175,7 +176,17 @@ func (s *WSLSession) RequestPty(term string, h, w int, modes ssh.TerminalModes) 
 }
 
 func (s *WSLSession) Shell() error {
-	return s.cmd.Start()
+	err := s.cmd.Start()
+	if err != nil {
+		return err
+	}
+	if s.pipeW != nil {
+		go func() {
+			_ = s.cmd.Wait()
+			_ = s.pipeW.Close()
+		}()
+	}
+	return nil
 }
 
 func (s *WSLSession) WindowChange(h, w int) error {
@@ -185,6 +196,9 @@ func (s *WSLSession) WindowChange(h, w int) error {
 func (s *WSLSession) Close() error {
 	if s.cmd != nil && s.cmd.Process != nil {
 		_ = s.cmd.Process.Kill()
+	}
+	if s.pipeW != nil {
+		_ = s.pipeW.Close()
 	}
 	return nil
 }
