@@ -662,5 +662,25 @@ describe("SSHSessionView Component", () => {
     if (syncButtons.length > 0) {
       fireEvent.click(syncButtons[0]);
     }
+
+    // 4. syncExplorer with trailing slash path, e.g. "/home/user/" -> normalized to "/home/user"
+    vi.mocked(AppBackend.GetRemoteCurrentPath).mockResolvedValueOnce("/home/user/");
+    if (syncButtons.length > 0) {
+      fireEvent.click(syncButtons[0]);
+    }
+
+    // 5. doubleClick directory when remotePath ends with slash
+    vi.mocked(AppBackend.GetRemoteCurrentPath).mockResolvedValueOnce("/home/user/");
+    render(<SSHSessionView {...mockProps} />);
+    const folderItem2 = await screen.findByText("folder");
+    fireEvent.doubleClick(folderItem2);
+
+    // 6. navigateUp when path is "/" or empty (returns early)
+    vi.mocked(AppBackend.GetRemoteCurrentPath).mockResolvedValueOnce("/");
+    render(<SSHSessionView {...mockProps} />);
+    const backBtn = screen.getAllByTitle("Back");
+    if (backBtn.length > 0) {
+      fireEvent.click(backBtn[0]);
+    }
   });
 });
