@@ -340,18 +340,35 @@ describe("SSHSessionView Component", () => {
       expect(screen.getByText("test.txt")).toBeInTheDocument();
     });
 
-    // 1. Trigger ssh_disconnected event
+    // 1. Trigger ssh_disconnected event with correct and incorrect session IDs
     if (eventCallbacks["ssh_disconnected"]) {
+      act(() => {
+        eventCallbacks["ssh_disconnected"]("incorrect-id");
+      });
       act(() => {
         eventCallbacks["ssh_disconnected"](mockSession.id);
       });
       expect(mockProps.addToast).toHaveBeenCalledWith("SSH", expect.stringContaining("Disconnected"), "warn");
     }
 
-    // 2. Trigger ssh_path_changed event
+    // 2. Trigger ssh_path_changed event with correct/incorrect session IDs and duplicate paths
     if (eventCallbacks["ssh_path_changed"]) {
       act(() => {
+        eventCallbacks["ssh_path_changed"]({ sessionId: "incorrect-id", path: "/home/user/other" });
+      });
+      act(() => {
+        eventCallbacks["ssh_path_changed"]({ sessionId: mockSession.id, path: "/home/user" }); // duplicate path
+      });
+      act(() => {
         eventCallbacks["ssh_path_changed"]({ sessionId: mockSession.id, path: "/home/user/other" });
+      });
+    }
+
+    // 3. Trigger ssh_output event with correct and incorrect session IDs
+    if (eventCallbacks["ssh_output"]) {
+      act(() => {
+        eventCallbacks["ssh_output"]({ sessionId: "incorrect-id", data: "ignored output" });
+        eventCallbacks["ssh_output"]({ sessionId: mockSession.id, data: "some output" });
       });
     }
   });
@@ -597,6 +614,33 @@ describe("SSHSessionView Component", () => {
 
     // 2. Mock GetRemoteFiles to fail with "Permission denied"
     vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("Permission denied"));
+
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(mockProps.addToast).not.toHaveBeenCalledWith("Explorer", expect.any(String), "error");
+    });
+
+    // 4. Mock GetRemoteFiles to fail with "session not connected"
+    vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("session not connected"));
+
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(mockProps.addToast).not.toHaveBeenCalledWith("Explorer", expect.any(String), "error");
+    });
+
+    // 5. Mock GetRemoteFiles to fail with "sftp not connected"
+    vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("sftp not connected"));
+
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(mockProps.addToast).not.toHaveBeenCalledWith("Explorer", expect.any(String), "error");
+    });
+
+    // 6. Mock GetRemoteFiles to fail with "session not found"
+    vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("session not found"));
 
     render(<SSHSessionView {...mockProps} />);
 
