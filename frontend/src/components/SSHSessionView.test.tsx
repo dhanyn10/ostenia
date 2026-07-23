@@ -653,10 +653,8 @@ describe("SSHSessionView Component", () => {
     vi.mocked(AppBackend.GetRemoteCurrentPath).mockResolvedValueOnce("");
     render(<SSHSessionView {...mockProps} />);
 
-    await waitFor(() => {
-      const folderItem = screen.getByText("folder");
-      fireEvent.doubleClick(folderItem);
-    });
+    const folderItem = await screen.findByText("folder");
+    fireEvent.doubleClick(folderItem);
 
     // 3. syncExplorer when current path is empty (returns early)
     vi.mocked(AppBackend.GetRemoteCurrentPath).mockResolvedValueOnce("");
