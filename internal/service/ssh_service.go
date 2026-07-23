@@ -34,6 +34,7 @@ type SSHConnection struct {
 	Context   context.Context
 	Cancel    context.CancelFunc
 	LastSync  time.Time
+	IsWSL     bool
 }
 
 type SSHManager struct {
@@ -124,6 +125,7 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 		return err
 	}
 
+	isWSL := strings.HasPrefix(session.Host, "wsl://")
 	cCtx, cancel := context.WithCancel(ctx)
 	conn := &SSHConnection{
 		SessionID: session.ID,
@@ -131,6 +133,7 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 		SFTP:      sftpClient,
 		Context:   cCtx,
 		Cancel:    cancel,
+		IsWSL:     isWSL,
 	}
 
 	m.connections[session.ID] = conn
@@ -172,6 +175,10 @@ func (m *SSHManager) startTerminal(ctx context.Context, conn *SSHConnection) {
 	if err := m.setupPTY(sshSession); err != nil {
 		fmt.Printf("[SSH] Failed to setup terminal PTY: %v\n", err)
 		return
+	}
+
+	if conn.IsWSL && conn.Shell != nil {
+		_, _ = conn.Shell.Write([]byte("\n"))
 	}
 
 	exitChan := make(chan struct{})

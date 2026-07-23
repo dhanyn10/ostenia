@@ -340,18 +340,35 @@ describe("SSHSessionView Component", () => {
       expect(screen.getByText("test.txt")).toBeInTheDocument();
     });
 
-    // 1. Trigger ssh_disconnected event
+    // 1. Trigger ssh_disconnected event with correct and incorrect session IDs
     if (eventCallbacks["ssh_disconnected"]) {
+      act(() => {
+        eventCallbacks["ssh_disconnected"]("incorrect-id");
+      });
       act(() => {
         eventCallbacks["ssh_disconnected"](mockSession.id);
       });
       expect(mockProps.addToast).toHaveBeenCalledWith("SSH", expect.stringContaining("Disconnected"), "warn");
     }
 
-    // 2. Trigger ssh_path_changed event
+    // 2. Trigger ssh_path_changed event with correct/incorrect session IDs and duplicate paths
     if (eventCallbacks["ssh_path_changed"]) {
       act(() => {
+        eventCallbacks["ssh_path_changed"]({ sessionId: "incorrect-id", path: "/home/user/other" });
+      });
+      act(() => {
+        eventCallbacks["ssh_path_changed"]({ sessionId: mockSession.id, path: "/home/user" }); // duplicate path
+      });
+      act(() => {
         eventCallbacks["ssh_path_changed"]({ sessionId: mockSession.id, path: "/home/user/other" });
+      });
+    }
+
+    // 3. Trigger ssh_output event with correct and incorrect session IDs
+    if (eventCallbacks["ssh_output"]) {
+      act(() => {
+        eventCallbacks["ssh_output"]({ sessionId: "incorrect-id", data: "ignored output" });
+        eventCallbacks["ssh_output"]({ sessionId: mockSession.id, data: "some output" });
       });
     }
   });
@@ -581,6 +598,133 @@ describe("SSHSessionView Component", () => {
       });
     } else {
       expect(terminalDiv).not.toBeNull();
+    }
+  });
+
+  it("suppresses all errors including access denied / permission denied during background/automatic sync", async () => {
+    // 1. Mock GetRemoteFiles to fail with "Access is denied"
+    vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("open \\\\wsl.localhost\\Ubuntu\\mnt\\d\\koding\\ostenia: Access is denied."));
+
+    render(<SSHSessionView {...mockProps} />);
+
+    // Since background/initial load uses isAutoSync=true, no toast error should be shown
+    await waitFor(() => {
+      expect(mockProps.addToast).not.toHaveBeenCalledWith("Explorer", expect.any(String), "error");
+    });
+
+    // 2. Mock GetRemoteFiles to fail with "Permission denied"
+    vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("Permission denied"));
+
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(mockProps.addToast).not.toHaveBeenCalledWith("Explorer", expect.any(String), "error");
+    });
+
+    // 4. Mock GetRemoteFiles to fail with "session not connected"
+    vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("session not connected"));
+
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(mockProps.addToast).not.toHaveBeenCalledWith("Explorer", expect.any(String), "error");
+    });
+
+    // 5. Mock GetRemoteFiles to fail with "sftp not connected"
+    vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("sftp not connected"));
+
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(mockProps.addToast).not.toHaveBeenCalledWith("Explorer", expect.any(String), "error");
+    });
+
+    // 6. Mock GetRemoteFiles to fail with "session not found"
+    vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("session not found"));
+
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(mockProps.addToast).not.toHaveBeenCalledWith("Explorer", expect.any(String), "error");
+    });
+
+    // 3. Mock GetRemoteFiles to fail with "EOF"
+    vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("EOF"));
+
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(mockProps.addToast).not.toHaveBeenCalledWith("Explorer", expect.any(String), "error");
+    });
+  });
+
+  it("does not suppress errors during manual navigation or user-initiated refresh", async () => {
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test.txt")).toBeInTheDocument();
+    });
+
+    // Mock GetRemoteFiles to fail with EOF on the next manual navigation call
+    vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("connection EOF"));
+
+    const pathInput = screen.getByDisplayValue("/home/user");
+    fireEvent.change(pathInput, { target: { value: "/home/user/manual" } });
+    fireEvent.keyDown(pathInput, { key: "Enter", code: "Enter" });
+
+    // Since isManualEntry is true, it should show "Directory not available" as a "Navigation" toast, NOT suppress it
+    await waitFor(() => {
+      expect(mockProps.addToast).toHaveBeenCalledWith("Navigation", "Directory not available", "error");
+    });
+  });
+
+  it("covers file double click, syncExplorer empty, and directory manual navigation edge cases", async () => {
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test.txt")).toBeInTheDocument();
+    });
+
+    // 1. Double click file to edit
+    const fileItem = screen.getByText("test.txt");
+    fireEvent.doubleClick(fileItem);
+    await waitFor(() => {
+      expect(AppBackend.EditRemoteFile).toHaveBeenCalledWith(mockSession.id, "/home/user/test.txt");
+    });
+
+    // 2. Double click directory fallback when remotePath is empty
+    // To test fallback when remotePath is empty, let's mock GetRemoteCurrentPath to return empty string
+    vi.mocked(AppBackend.GetRemoteCurrentPath).mockResolvedValueOnce("");
+    render(<SSHSessionView {...mockProps} />);
+
+    const folderItem = await screen.findByText("folder");
+    fireEvent.doubleClick(folderItem);
+
+    // 3. syncExplorer when current path is empty (returns early)
+    vi.mocked(AppBackend.GetRemoteCurrentPath).mockResolvedValueOnce("");
+    const syncButtons = screen.getAllByTitle("Sync with terminal");
+    if (syncButtons.length > 0) {
+      fireEvent.click(syncButtons[0]);
+    }
+
+    // 4. syncExplorer with trailing slash path, e.g. "/home/user/" -> normalized to "/home/user"
+    vi.mocked(AppBackend.GetRemoteCurrentPath).mockResolvedValueOnce("/home/user/");
+    if (syncButtons.length > 0) {
+      fireEvent.click(syncButtons[0]);
+    }
+
+    // 5. doubleClick directory when remotePath ends with slash
+    vi.mocked(AppBackend.GetRemoteCurrentPath).mockResolvedValueOnce("/home/user/");
+    render(<SSHSessionView {...mockProps} />);
+    const folderItem2 = await screen.findByText("folder");
+    fireEvent.doubleClick(folderItem2);
+
+    // 6. navigateUp when path is "/" or empty (returns early)
+    vi.mocked(AppBackend.GetRemoteCurrentPath).mockResolvedValueOnce("/");
+    render(<SSHSessionView {...mockProps} />);
+    const backBtn = screen.getAllByTitle("Back");
+    if (backBtn.length > 0) {
+      fireEvent.click(backBtn[0]);
     }
   });
 });
