@@ -245,7 +245,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                 <div
                   key={id}
                   className={clsx(
-                    "relative py-2 text-xs transition-all rounded-t-xl flex items-center min-w-[140px] max-w-[220px] overflow-hidden",
+                    "relative py-2 text-xs transition-all rounded-t-xl flex items-center min-w-[140px] max-w-[220px] overflow-hidden pr-2 group",
                     isActive
                       ? "bg-white dark:bg-mui-dark-bg z-10 border-t border-x border-mui-grey-200 dark:border-white/80"
                       : "text-mui-grey-500 hover:bg-mui-grey-200 dark:hover:bg-white/10",
@@ -255,7 +255,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                     type="button"
                     onClick={() => setCurrentSessionId(id)}
                     onKeyDown={handleActionKey(() => setCurrentSessionId(id))}
-                    className="flex-1 min-w-0 pl-6 pr-1 h-full text-left outline-none bg-transparent border-none p-0"
+                    className="flex-1 min-w-0 pl-4 pr-1 h-full text-left outline-none bg-transparent border-none p-0"
                   >
                     <span
                       className={clsx(
@@ -272,13 +272,8 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                       e.stopPropagation();
                       handleCloseSession(id);
                     }}
-                    className={clsx(
-                      "p-1 rounded-md transition-all ml-2",
-                      isActive
-                        ? "hover:bg-mui-blue-500/10"
-                        : "hover:bg-mui-grey-500/10",
-                      "opacity-0 group-hover:opacity-100 focus:opacity-100",
-                    )}
+                    className="p-0.5 rounded-full transition-all ml-2 opacity-50 group-hover:opacity-100 hover:bg-mui-grey-200 dark:hover:bg-white/10 flex items-center justify-center cursor-pointer select-none"
+                    title="Close Connection"
                   >
                     <X
                       size={12}
