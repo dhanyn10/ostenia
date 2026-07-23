@@ -30,7 +30,7 @@ function AppHeader({
       activity: "Activity Center",
       plugins: "Plugin Management",
       proxy: "Proxy Management",
-      ssh: "SSH & Remote Files",
+      ssh: "",
       logs: "System Activity Logs",
     }[activeTab] || "";
 

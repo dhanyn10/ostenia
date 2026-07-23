@@ -71,7 +71,7 @@ describe("SSHTab Component", () => {
       <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
     );
 
-    const newBtn = screen.getByText("New Connection");
+    const newBtn = screen.getByTitle("New Connection");
     fireEvent.click(newBtn);
 
     expect(screen.getByTestId("ssh-session-form")).toBeInTheDocument();

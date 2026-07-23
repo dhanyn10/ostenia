@@ -51,7 +51,7 @@ describe("AppHeader Component", () => {
         setIsTerminalOpen={() => {}}
       />,
     );
-    expect(screen.getByText("SSH & Remote Files")).toBeInTheDocument();
+    expect(screen.queryByText("SSH & Remote Files")).not.toBeInTheDocument();
   });
 
   it("returns null when activeTab is logs", () => {
