@@ -583,4 +583,54 @@ describe("SSHSessionView Component", () => {
       expect(terminalDiv).not.toBeNull();
     }
   });
+
+  it("suppresses specific background/automatic sync errors but displays other errors", async () => {
+    // Mock GetRemoteFiles to fail with "EOF"
+    vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("SFTP stream ended: EOF"));
+
+    render(<SSHSessionView {...mockProps} />);
+
+    // Since GetRemoteFiles fails with EOF, and isManualEntry is false on initial load, addToast should not be called with an "Explorer" error for EOF
+    await waitFor(() => {
+      expect(mockProps.addToast).not.toHaveBeenCalledWith("Explorer", expect.any(String), "error");
+    });
+
+    // Mock GetRemoteFiles to fail with "session not found"
+    vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("session not found"));
+
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(mockProps.addToast).not.toHaveBeenCalledWith("Explorer", expect.any(String), "error");
+    });
+
+    // Mock GetRemoteFiles to fail with a real other error, e.g., "Permission denied"
+    vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("Permission denied"));
+
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(mockProps.addToast).toHaveBeenCalledWith("Explorer", expect.stringContaining("Permission denied"), "error");
+    });
+  });
+
+  it("does not suppress errors during manual navigation even if they contain EOF", async () => {
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test.txt")).toBeInTheDocument();
+    });
+
+    // Mock GetRemoteFiles to fail with EOF on the next manual navigation call
+    vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("connection EOF"));
+
+    const pathInput = screen.getByDisplayValue("/home/user");
+    fireEvent.change(pathInput, { target: { value: "/home/user/manual" } });
+    fireEvent.keyDown(pathInput, { key: "Enter", code: "Enter" });
+
+    // Since isManualEntry is true, it should show "Directory not available" as a "Navigation" toast, NOT suppress it
+    await waitFor(() => {
+      expect(mockProps.addToast).toHaveBeenCalledWith("Navigation", "Directory not available", "error");
+    });
+  });
 });
