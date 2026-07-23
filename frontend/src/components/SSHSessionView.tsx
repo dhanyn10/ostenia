@@ -347,6 +347,15 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         addToast("Navigation", "Directory not available", "error");
         setEditingPath(remotePath);
       } else {
+        const errStr = String(err).toLowerCase();
+        if (
+          errStr.includes("eof") ||
+          errStr.includes("session not found") ||
+          errStr.includes("session not connected") ||
+          errStr.includes("sftp not connected")
+        ) {
+          return;
+        }
         addToast("Explorer", "Failed to list files: " + err, "error");
       }
     } finally {

@@ -279,6 +279,10 @@ func TestSSHManager_WSLConnect(t *testing.T) {
 	if !isWSLSFTP {
 		t.Error("Expected connection SFTP client to be *WSLSFTPClient")
 	}
+
+	if !conn.IsWSL {
+		t.Error("Expected IsWSL to be true on WSL connection")
+	}
 }
 
 func TestWSLClient_SftpErrors(t *testing.T) {
