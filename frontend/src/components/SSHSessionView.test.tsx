@@ -633,4 +633,36 @@ describe("SSHSessionView Component", () => {
       expect(mockProps.addToast).toHaveBeenCalledWith("Navigation", "Directory not available", "error");
     });
   });
+
+  it("covers file double click, syncExplorer empty, and directory manual navigation edge cases", async () => {
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test.txt")).toBeInTheDocument();
+    });
+
+    // 1. Double click file to edit
+    const fileItem = screen.getByText("test.txt");
+    fireEvent.doubleClick(fileItem);
+    await waitFor(() => {
+      expect(AppBackend.EditRemoteFile).toHaveBeenCalledWith(mockSession.id, "/home/user/test.txt");
+    });
+
+    // 2. Double click directory fallback when remotePath is empty
+    // To test fallback when remotePath is empty, let's mock GetRemoteCurrentPath to return empty string
+    vi.mocked(AppBackend.GetRemoteCurrentPath).mockResolvedValueOnce("");
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      const folderItem = screen.getByText("folder");
+      fireEvent.doubleClick(folderItem);
+    });
+
+    // 3. syncExplorer when current path is empty (returns early)
+    vi.mocked(AppBackend.GetRemoteCurrentPath).mockResolvedValueOnce("");
+    const syncButtons = screen.getAllByTitle("Sync with terminal");
+    if (syncButtons.length > 0) {
+      fireEvent.click(syncButtons[0]);
+    }
+  });
 });
