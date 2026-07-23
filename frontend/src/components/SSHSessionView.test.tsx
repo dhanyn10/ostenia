@@ -21,6 +21,7 @@ vi.mock("@xterm/xterm", () => {
       write: vi.fn(),
       options: { theme: {} },
       focus: vi.fn(),
+      clear: vi.fn(),
       getSelection: vi.fn().mockReturnValue("selected terminal text"),
     })),
   };
@@ -127,10 +128,6 @@ describe("SSHSessionView Component", () => {
     const toggleExplorerBtn = screen.getByTitle(/Toggle Explorer/i);
     fireEvent.click(toggleExplorerBtn);
     expect(screen.queryByText("test.txt")).not.toBeInTheDocument();
-
-    const closeBtn = screen.getByTitle(/Close/i);
-    fireEvent.click(closeBtn);
-    expect(mockProps.onClose).toHaveBeenCalled();
   });
 
   it("handles file deletion", async () => {

@@ -463,6 +463,16 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     }
   };
 
+  const handleReconnect = async () => {
+    try {
+      await AppBackend.DisconnectSSH(session.id);
+    } catch (e) {
+      console.error("Disconnect error on reconnect:", e);
+    }
+    xterm.current?.clear();
+    connectSSH();
+  };
+
   const loadRemoteFiles = async (path: string, isManualEntry = false, isAutoSync = false) => {
     setLoadingFiles(true);
     try {
@@ -629,9 +639,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       <SSHToolbar
         explorerVisible={explorerVisible}
         setExplorerVisible={setExplorerVisible}
-        onFit={performFit}
-        onReconnect={connectSSH}
-        onClose={onClose}
+        onReconnect={handleReconnect}
         connecting={connecting}
       />
 
