@@ -584,37 +584,37 @@ describe("SSHSessionView Component", () => {
     }
   });
 
-  it("suppresses specific background/automatic sync errors but displays other errors", async () => {
-    // Mock GetRemoteFiles to fail with "EOF"
-    vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("SFTP stream ended: EOF"));
+  it("suppresses all errors including access denied / permission denied during background/automatic sync", async () => {
+    // 1. Mock GetRemoteFiles to fail with "Access is denied"
+    vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("open \\\\wsl.localhost\\Ubuntu\\mnt\\d\\koding\\ostenia: Access is denied."));
 
     render(<SSHSessionView {...mockProps} />);
 
-    // Since GetRemoteFiles fails with EOF, and isManualEntry is false on initial load, addToast should not be called with an "Explorer" error for EOF
+    // Since background/initial load uses isAutoSync=true, no toast error should be shown
     await waitFor(() => {
       expect(mockProps.addToast).not.toHaveBeenCalledWith("Explorer", expect.any(String), "error");
     });
 
-    // Mock GetRemoteFiles to fail with "session not found"
-    vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("session not found"));
-
-    render(<SSHSessionView {...mockProps} />);
-
-    await waitFor(() => {
-      expect(mockProps.addToast).not.toHaveBeenCalledWith("Explorer", expect.any(String), "error");
-    });
-
-    // Mock GetRemoteFiles to fail with a real other error, e.g., "Permission denied"
+    // 2. Mock GetRemoteFiles to fail with "Permission denied"
     vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("Permission denied"));
 
     render(<SSHSessionView {...mockProps} />);
 
     await waitFor(() => {
-      expect(mockProps.addToast).toHaveBeenCalledWith("Explorer", expect.stringContaining("Permission denied"), "error");
+      expect(mockProps.addToast).not.toHaveBeenCalledWith("Explorer", expect.any(String), "error");
+    });
+
+    // 3. Mock GetRemoteFiles to fail with "EOF"
+    vi.mocked(AppBackend.GetRemoteFiles).mockRejectedValueOnce(new Error("EOF"));
+
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(mockProps.addToast).not.toHaveBeenCalledWith("Explorer", expect.any(String), "error");
     });
   });
 
-  it("does not suppress errors during manual navigation even if they contain EOF", async () => {
+  it("does not suppress errors during manual navigation or user-initiated refresh", async () => {
     render(<SSHSessionView {...mockProps} />);
 
     await waitFor(() => {

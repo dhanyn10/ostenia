@@ -279,7 +279,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     const handlePathChange = (event: any) => {
       if (event.sessionId === session.id) {
         setRemotePath((prev) => {
-          if (event.path !== prev) loadRemoteFiles(event.path);
+          if (event.path !== prev) loadRemoteFiles(event.path, false, true);
           return event.path;
         });
       }
@@ -318,7 +318,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       setConnecting(false);
       xterm.current.write("\x1b[32mConnected successfully.\x1b[0m\r\n\r\n");
       performFit();
-      loadRemoteFiles("");
+      loadRemoteFiles("", false, true);
     } catch (err) {
       setConnecting(false);
       xterm.current.write(`\x1b[31mConnection failed: ${err}\x1b[0m\r\n`);
@@ -326,7 +326,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     }
   };
 
-  const loadRemoteFiles = async (path: string, isManualEntry = false) => {
+  const loadRemoteFiles = async (path: string, isManualEntry = false, isAutoSync = false) => {
     setLoadingFiles(true);
     try {
       let targetPath = path;
@@ -347,6 +347,10 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         addToast("Navigation", "Directory not available", "error");
         setEditingPath(remotePath);
       } else {
+        if (isAutoSync) {
+          // Completely suppress all Toast errors during background/automatic sync
+          return;
+        }
         const errStr = String(err).toLowerCase();
         if (
           errStr.includes("eof") ||
@@ -371,7 +375,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       let normalized = current.trim();
       if (normalized.length > 1 && normalized.endsWith("/"))
         normalized = normalized.substring(0, normalized.length - 1);
-      if (normalized !== currentPathRef.current) loadRemoteFiles(normalized);
+      if (normalized !== currentPathRef.current) loadRemoteFiles(normalized, false, true);
     } catch (e) {}
   };
 
