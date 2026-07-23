@@ -86,29 +86,15 @@ const ResourceLineChart: React.FC<ResourceLineChartProps> = ({ data, metric, col
   });
 
   return (
-    <svg width={width} height={height} className="overflow-hidden border border-mui-grey-200 dark:border-white/10 rounded bg-mui-grey-50/50 dark:bg-black/20">
-      <line x1={0} y1={height / 3} x2={width} y2={height / 3} stroke="rgba(156, 163, 175, 0.15)" strokeDasharray="2,2" />
-      <line x1={0} y1={(2 * height) / 3} x2={width} y2={(2 * height) / 3} stroke="rgba(156, 163, 175, 0.15)" strokeDasharray="2,2" />
+    <svg width={width} height={height} className="overflow-hidden border border-mui-grey-200 dark:border-white/10 rounded bg-white dark:bg-mui-grey-950">
+      {/* Horizontal grid lines */}
+      <line x1={0} y1={height / 3} x2={width} y2={height / 3} stroke="rgba(156, 163, 175, 0.12)" strokeDasharray="1,1" />
+      <line x1={0} y1={(2 * height) / 3} x2={width} y2={(2 * height) / 3} stroke="rgba(156, 163, 175, 0.12)" strokeDasharray="1,1" />
 
-      {paddedData.map((d, i) => {
-        const val = d[metric];
-        if (val === null) {
-          const xStart = i > 0 ? getX(i - 1) : 0;
-          const xEnd = getX(i);
-          return (
-            <rect
-              key={i}
-              x={xStart}
-              y={0}
-              width={xEnd - xStart + 1}
-              height={height}
-              fill="rgba(107, 114, 128, 0.25)"
-              className="dark:fill-gray-500/25"
-            />
-          );
-        }
-        return null;
-      })}
+      {/* Vertical grid lines */}
+      <line x1={width / 4} y1={0} x2={width / 4} y2={height} stroke="rgba(156, 163, 175, 0.12)" strokeDasharray="1,1" />
+      <line x1={width / 2} y1={0} x2={width / 2} y2={height} stroke="rgba(156, 163, 175, 0.12)" strokeDasharray="1,1" />
+      <line x1={(3 * width) / 4} y1={0} x2={(3 * width) / 4} y2={height} stroke="rgba(156, 163, 175, 0.12)" strokeDasharray="1,1" />
 
       {areaPath && <path d={areaPath} fill={fillColor} />}
       {linePath && <path d={linePath} fill="none" stroke={color} strokeWidth={1.5} />}
@@ -785,24 +771,6 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             </span>
           )}
         </div>
-
-        {isMonitoringEnabled && (
-          <div className="flex items-center gap-1.5">
-            <span className="relative flex h-2 w-2">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${resourceUsage === null ? "bg-red-400" : isFetchingUsage ? "bg-mui-blue-400" : "bg-emerald-400"}`}></span>
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${resourceUsage === null ? "bg-red-500" : isFetchingUsage ? "bg-mui-blue-500" : "bg-emerald-500"}`}></span>
-            </span>
-            <span className="text-[9px] font-bold uppercase tracking-wider">
-              {resourceUsage === null ? (
-                <span className="text-red-500">Offline</span>
-              ) : isFetchingUsage ? (
-                <span className="text-mui-blue-500">Syncing</span>
-              ) : (
-                <span className="text-emerald-500">Active</span>
-              )}
-            </span>
-          </div>
-        )}
       </div>
 
       {fileContextMenu && (

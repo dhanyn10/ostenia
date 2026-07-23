@@ -782,7 +782,6 @@ describe("SSHSessionView Component", () => {
     });
     expect(screen.getByText("RAM: 60%")).toBeInTheDocument();
     expect(screen.getByText("DISK: 70%")).toBeInTheDocument();
-    expect(screen.getByText("Active")).toBeInTheDocument();
 
     // Now mock second fetch to fail
     vi.mocked(AppBackend.GetSSHResourceUsage).mockRejectedValue(new Error("Connection lost"));
@@ -792,9 +791,8 @@ describe("SSHSessionView Component", () => {
     fireEvent.click(reconnectBtn);
 
     await waitFor(() => {
-      expect(screen.getByText("Offline")).toBeInTheDocument();
+      expect(screen.getByText("CPU: —")).toBeInTheDocument();
     });
-    expect(screen.getByText("CPU: —")).toBeInTheDocument();
     expect(screen.getByText("RAM: —")).toBeInTheDocument();
     expect(screen.getByText("DISK: —")).toBeInTheDocument();
   });
