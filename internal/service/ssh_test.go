@@ -46,6 +46,7 @@ type mockSSHSession struct {
 	stdin    io.WriteCloser
 	ptyErr   error
 	shellErr error
+	runErr   error
 	winErr   error
 	closed   bool
 }
@@ -56,6 +57,7 @@ func (m *mockSSHSession) RequestPty(term string, h, w int, modes ssh.TerminalMod
 	return m.ptyErr
 }
 func (m *mockSSHSession) Shell() error                { return m.shellErr }
+func (m *mockSSHSession) Run(cmd string) error        { return m.runErr }
 func (m *mockSSHSession) WindowChange(h, w int) error { return m.winErr }
 func (m *mockSSHSession) Close() error                { m.closed = true; return nil }
 
@@ -683,6 +685,51 @@ func TestSSHManager_Errors(t *testing.T) {
 			t.Error("Expected DefaultSSHDialer to return error")
 		}
 	})
+}
+
+func TestSSHManager_GetResourceUsage(t *testing.T) {
+	m, sessionID, mockClient, cleanup := setupSSHTest(t)
+	defer cleanup()
+
+	// 1. Success case
+	output := "===METRICS===\nCPU:12.5\nMEM:45\nDISK:30\n===END===\n"
+	mockClient.session.stdout = strings.NewReader(output)
+	mockClient.session.runErr = nil
+
+	usage, err := m.GetResourceUsage(sessionID)
+	if err != nil {
+		t.Errorf("Expected success, got err: %v", err)
+	}
+	if usage.CPU != 12.5 || usage.Mem != 45 || usage.Disk != 30 {
+		t.Errorf("Expected {12.5, 45, 30}, got %+v", usage)
+	}
+
+	// 2. Not found error
+	_, err = m.GetResourceUsage("nonexistent")
+	if err == nil {
+		t.Error("Expected error for nonexistent session")
+	}
+
+	// 3. Command execution error
+	mockClient.session.runErr = errors.New("command execution failed")
+	mockClient.session.stdout = strings.NewReader("")
+	_, err = m.GetResourceUsage(sessionID)
+	if err == nil {
+		t.Error("Expected error on command execution failure")
+	}
+}
+
+func Test_parseResourceUsage(t *testing.T) {
+	// Mixed/empty inputs
+	usage := parseResourceUsage("")
+	if usage.CPU != 0 || usage.Mem != 0 || usage.Disk != 0 {
+		t.Errorf("Expected zeros, got %+v", usage)
+	}
+
+	usage = parseResourceUsage("CPU:invalid\nMEM:75\nDISK:abc")
+	if usage.Mem != 75 || usage.CPU != 0 || usage.Disk != 0 {
+		t.Errorf("Expected MEM:75 and others zero, got %+v", usage)
+	}
 }
 
 func TestSSHManager_Editor_Mocked(t *testing.T) {

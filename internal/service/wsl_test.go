@@ -74,6 +74,44 @@ func TestWSLClient_SessionAndShell(t *testing.T) {
 	sess.Close()
 }
 
+func TestWSLSession_Run(t *testing.T) {
+	origGOOS := RuntimeGOOS
+	defer func() { RuntimeGOOS = origGOOS }()
+	RuntimeGOOS = "linux"
+
+	origWslCommand := wslCommand
+	defer func() { wslCommand = origWslCommand }()
+	wslCommand = func(distro string, args ...string) *exec.Cmd {
+		return exec.Command("echo", "wsl-mock-run") // NOSONAR
+	}
+
+	client := NewWSLClient("Ubuntu", "root")
+	sess, err := client.NewSession()
+	if err != nil {
+		t.Fatalf("Failed to create session: %v", err)
+	}
+	defer sess.Close()
+
+	stdout, err := sess.StdoutPipe()
+	if err != nil {
+		t.Fatalf("StdoutPipe failed: %v", err)
+	}
+
+	err = sess.Run("echo hello")
+	if err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+
+	output, err := io.ReadAll(stdout)
+	if err != nil {
+		t.Fatalf("ReadAll failed: %v", err)
+	}
+
+	if !strings.Contains(string(output), "wsl-mock-run") {
+		t.Errorf("Expected output to contain 'wsl-mock-run', got %q", string(output))
+	}
+}
+
 func TestWSLClient_SessionWithCustomUser(t *testing.T) {
 	origGOOS := RuntimeGOOS
 	defer func() { RuntimeGOOS = origGOOS }()

@@ -15,6 +15,7 @@ import {
   Check,
   Copy,
   Clipboard,
+  Settings,
 } from "lucide-react";
 import SSHToolbar from "./ssh/SSHToolbar";
 import SSHFileExplorer from "./ssh/SSHFileExplorer";
@@ -61,6 +62,51 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     key: string;
     direction: "asc" | "desc";
   }>({ key: "name", direction: "asc" });
+
+  const [resourceUsage, setResourceUsage] = useState<{
+    cpu: number;
+    mem: number;
+    disk: number;
+  } | null>(null);
+  const [monitorInterval, setMonitorInterval] = useState<number>(3);
+  const [isMonitoringEnabled, setIsMonitoringEnabled] = useState<boolean>(true);
+  const [showResourceSettings, setShowResourceSettings] = useState<boolean>(false);
+  const [isFetchingUsage, setIsFetchingUsage] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isMonitoringEnabled || connecting) {
+      setResourceUsage(null);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchUsage = async () => {
+      if (isFetchingUsage) return;
+      setIsFetchingUsage(true);
+      try {
+        const usage = await AppBackend.GetSSHResourceUsage(session.id);
+        if (isMounted) {
+          setResourceUsage(usage);
+        }
+      } catch (e) {
+        console.error("Failed to fetch SSH resource usage", e);
+      } finally {
+        if (isMounted) {
+          setIsFetchingUsage(false);
+        }
+      }
+    };
+
+    // Initial fetch instantly
+    fetchUsage();
+
+    const intervalId = setInterval(fetchUsage, monitorInterval * 1000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [session.id, monitorInterval, isMonitoringEnabled, connecting]);
 
   useEffect(() => {
     setEditingPath(remotePath);
@@ -557,6 +603,132 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Resource Usage Monitoring Bar */}
+      <div className="h-9 flex items-center justify-between px-3 bg-mui-grey-50 dark:bg-mui-grey-900 border-t border-mui-grey-200 dark:border-white/5 shrink-0 relative select-none">
+        <div className="flex items-center gap-4 text-xs">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowResourceSettings(!showResourceSettings)}
+              className="p-1 rounded text-mui-grey-500 dark:text-mui-grey-400 hover:text-mui-blue-600 dark:hover:text-white transition-colors"
+              title="Monitoring Settings"
+            >
+              <Settings size={14} className={isFetchingUsage ? "animate-spin" : ""} />
+            </button>
+
+            {showResourceSettings && (
+              <div className="absolute bottom-8 left-0 z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg p-3 min-w-[220px] flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">
+                  Monitoring Settings
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer text-mui-grey-700 dark:text-mui-grey-300">
+                  <input
+                    type="checkbox"
+                    checked={isMonitoringEnabled}
+                    onChange={(e) => setIsMonitoringEnabled(e.target.checked)}
+                    className="rounded border-mui-grey-300 dark:border-white/10 text-mui-blue-600 focus:ring-mui-blue-500"
+                  />
+                  <span className="font-bold text-[11px]">Enable Monitoring</span>
+                </label>
+                <div className="flex flex-col gap-1">
+                  <span className="font-bold text-[11px] text-mui-grey-700 dark:text-mui-grey-300">
+                    Interval (seconds)
+                  </span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={60}
+                    value={monitorInterval}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      if (!isNaN(val) && val >= 1) {
+                        setMonitorInterval(val);
+                      }
+                    }}
+                    className="px-2 py-1 text-xs border border-mui-grey-300 dark:border-white/10 rounded bg-transparent text-mui-grey-900 dark:text-white focus:outline-none focus:border-mui-blue-500 w-full font-bold"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {isMonitoringEnabled && resourceUsage ? (
+            <div className="flex items-center gap-5 text-[11px] font-bold text-mui-grey-600 dark:text-mui-grey-400">
+              {/* CPU */}
+              <div className="flex items-center gap-2">
+                <span>CPU: {resourceUsage.cpu.toFixed(0)}%</span>
+                <div className="w-16 h-1.5 bg-mui-grey-200 dark:bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      resourceUsage.cpu < 70
+                        ? "bg-emerald-500"
+                        : resourceUsage.cpu < 85
+                        ? "bg-amber-500"
+                        : "bg-red-500"
+                    }`}
+                    style={{ width: `${Math.min(100, Math.max(0, resourceUsage.cpu))}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* RAM */}
+              <div className="flex items-center gap-2">
+                <span>RAM: {resourceUsage.mem.toFixed(0)}%</span>
+                <div className="w-16 h-1.5 bg-mui-grey-200 dark:bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      resourceUsage.mem < 70
+                        ? "bg-emerald-500"
+                        : resourceUsage.mem < 85
+                        ? "bg-amber-500"
+                        : "bg-red-500"
+                    }`}
+                    style={{ width: `${Math.min(100, Math.max(0, resourceUsage.mem))}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Disk */}
+              <div className="flex items-center gap-2">
+                <span>DISK: {resourceUsage.disk.toFixed(0)}%</span>
+                <div className="w-16 h-1.5 bg-mui-grey-200 dark:bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      resourceUsage.disk < 70
+                        ? "bg-emerald-500"
+                        : resourceUsage.disk < 85
+                        ? "bg-amber-500"
+                        : "bg-red-500"
+                    }`}
+                    style={{ width: `${Math.min(100, Math.max(0, resourceUsage.disk))}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : isMonitoringEnabled ? (
+            <span className="text-[10px] text-mui-grey-400 uppercase tracking-wider font-bold">
+              Retrieving metrics...
+            </span>
+          ) : (
+            <span className="text-[10px] text-mui-grey-400 uppercase tracking-wider font-bold">
+              Monitoring disabled
+            </span>
+          )}
+        </div>
+
+        {isMonitoringEnabled && (
+          <div className="flex items-center gap-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isFetchingUsage ? "bg-mui-blue-400" : "bg-emerald-400"}`}></span>
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${isFetchingUsage ? "bg-mui-blue-500" : "bg-emerald-500"}`}></span>
+            </span>
+            <span className="text-[9px] font-bold text-mui-grey-400 dark:text-mui-grey-500 uppercase tracking-wider">
+              {isFetchingUsage ? "Syncing" : "Active"}
+            </span>
+          </div>
+        )}
       </div>
 
       {fileContextMenu && (

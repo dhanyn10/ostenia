@@ -60,6 +60,7 @@ vi.mock("../../wailsjs/go/backend/App", () => ({
   UploadRemoteFile: vi.fn().mockResolvedValue(null),
   EditRemoteFile: vi.fn().mockResolvedValue(null),
   ExecuteSFTPAction: vi.fn().mockResolvedValue(null),
+  GetSSHResourceUsage: vi.fn().mockResolvedValue({ cpu: 0, mem: 0, disk: 0 }),
 }));
 
 describe("SSHSessionView Component", () => {
@@ -726,5 +727,42 @@ describe("SSHSessionView Component", () => {
     if (backBtn.length > 0) {
       fireEvent.click(backBtn[0]);
     }
+  });
+
+  it("renders the real-time resource usage monitoring bar and toggles settings", async () => {
+    vi.mocked(AppBackend.GetSSHResourceUsage).mockResolvedValue({
+      cpu: 45,
+      mem: 75,
+      disk: 90,
+    });
+
+    render(<SSHSessionView {...mockProps} />);
+
+    // Initially should show "Retrieving metrics..."
+    expect(screen.getByText(/Retrieving metrics\.\.\./i)).toBeInTheDocument();
+
+    // Wait for the mock values to be loaded
+    await waitFor(() => {
+      expect(screen.getByText("CPU: 45%")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("RAM: 75%")).toBeInTheDocument();
+    expect(screen.getByText("DISK: 90%")).toBeInTheDocument();
+
+    // Verify gear settings button and click it to open settings
+    const gearBtn = screen.getByTitle("Monitoring Settings");
+    expect(gearBtn).toBeInTheDocument();
+    fireEvent.click(gearBtn);
+
+    // Settings title should be visible
+    expect(screen.getByText("Monitoring Settings")).toBeInTheDocument();
+
+    // Toggle monitoring checkbox
+    const enableCheckbox = screen.getByLabelText("Enable Monitoring");
+    expect(enableCheckbox).toBeInTheDocument();
+    fireEvent.click(enableCheckbox);
+
+    // Now monitoring should be disabled
+    expect(screen.getByText("Monitoring disabled")).toBeInTheDocument();
   });
 });

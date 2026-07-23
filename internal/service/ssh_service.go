@@ -656,6 +656,66 @@ func (m *SSHManager) GetWSLDistros() ([]string, error) {
 	return distros, nil
 }
 
+func (m *SSHManager) GetResourceUsage(sessionID string) (interfaces.ResourceUsage, error) {
+	m.mu.RLock()
+	conn, ok := m.connections[sessionID]
+	m.mu.RUnlock()
+
+	if !ok {
+		return interfaces.ResourceUsage{}, fmt.Errorf("session not found")
+	}
+
+	sess, err := conn.Client.NewSession()
+	if err != nil {
+		return interfaces.ResourceUsage{}, err
+	}
+	defer sess.Close()
+
+	stdout, err := sess.StdoutPipe()
+	if err != nil {
+		return interfaces.ResourceUsage{}, err
+	}
+
+	command := `echo "===METRICS==="; vmstat 1 2 | tail -1 | awk '{print "CPU:" 100 - $15}'; free | grep Mem | awk '{print "MEM:" int($3/$2 * 100)}'; df -h / | tail -1 | awk '{print "DISK:" $5}' | tr -d '%'; echo "===END==="`
+
+	err = sess.Run(command)
+	if err != nil {
+		return interfaces.ResourceUsage{}, err
+	}
+
+	outputBytes, err := io.ReadAll(stdout)
+	if err != nil {
+		return interfaces.ResourceUsage{}, err
+	}
+
+	return parseResourceUsage(string(outputBytes)), nil
+}
+
+func parseResourceUsage(output string) interfaces.ResourceUsage {
+	var usage interfaces.ResourceUsage
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "CPU:") {
+			valStr := strings.TrimPrefix(line, "CPU:")
+			var val float64
+			fmt.Sscanf(valStr, "%f", &val)
+			usage.CPU = val
+		} else if strings.HasPrefix(line, "MEM:") {
+			valStr := strings.TrimPrefix(line, "MEM:")
+			var val float64
+			fmt.Sscanf(valStr, "%f", &val)
+			usage.Mem = val
+		} else if strings.HasPrefix(line, "DISK:") {
+			valStr := strings.TrimPrefix(line, "DISK:")
+			var val float64
+			fmt.Sscanf(valStr, "%f", &val)
+			usage.Disk = val
+		}
+	}
+	return usage
+}
+
 // Wrappers
 
 type gophSSHClient struct {
@@ -692,6 +752,7 @@ func (sw *sshSessionWrapper) RequestPty(term string, h, w int, modes ssh.Termina
 	return sw.session.RequestPty(term, h, w, modes)
 }
 func (sw *sshSessionWrapper) Shell() error                { return sw.session.Shell() }
+func (sw *sshSessionWrapper) Run(cmd string) error        { return sw.session.Run(cmd) }
 func (sw *sshSessionWrapper) WindowChange(h, w int) error { return sw.session.WindowChange(h, w) }
 func (sw *sshSessionWrapper) Close() error                { return sw.session.Close() }
 

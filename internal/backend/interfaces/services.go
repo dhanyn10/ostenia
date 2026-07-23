@@ -99,4 +99,5 @@ type SSHManager interface {
 	EditFile(sessionID, remotePath, editor string) error
 	GetCurrentPath(sessionID string) (string, error)
 	GetWSLDistros() ([]string, error)
+	GetResourceUsage(sessionID string) (ResourceUsage, error)
 }

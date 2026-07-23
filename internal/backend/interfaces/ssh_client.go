@@ -14,11 +14,18 @@ type SSHClient interface {
 	Close() error
 }
 
+type ResourceUsage struct {
+	CPU  float64 `json:"cpu"`
+	Mem  float64 `json:"mem"`
+	Disk float64 `json:"disk"`
+}
+
 type SSHSession interface {
 	StdoutPipe() (io.Reader, error)
 	StdinPipe() (io.WriteCloser, error)
 	RequestPty(term string, h, w int, modes ssh.TerminalModes) error
 	Shell() error
+	Run(cmd string) error
 	WindowChange(h, w int) error
 	Close() error
 }
