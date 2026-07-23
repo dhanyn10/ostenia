@@ -21,6 +21,101 @@ import SSHToolbar from "./ssh/SSHToolbar";
 import SSHFileExplorer from "./ssh/SSHFileExplorer";
 import { handleActionKey } from "../utils/a11y";
 
+interface ResourceLineChartProps {
+  data: Array<{ cpu: number | null; mem: number | null; disk: number | null }>;
+  metric: "cpu" | "mem" | "disk";
+  color: string;
+  fillColor: string;
+}
+
+const ResourceLineChart: React.FC<ResourceLineChartProps> = ({ data, metric, color, fillColor }) => {
+  const width = 120;
+  const height = 30;
+  const pointsCount = 30;
+
+  const paddedData = [...Array(pointsCount).fill({ cpu: null, mem: null, disk: null }), ...data].slice(-pointsCount);
+
+  const getX = (index: number) => {
+    return (index / (pointsCount - 1)) * width;
+  };
+
+  const getY = (val: number | null) => {
+    if (val === null) return height;
+    return height - 1 - (val / 100) * (height - 2);
+  };
+
+  let linePath = "";
+  let areaPath = "";
+  let currentSegment: Array<[number, number]> = [];
+  const segments: Array<Array<[number, number]>> = [];
+
+  paddedData.forEach((d, i) => {
+    const val = d[metric];
+    if (val !== null) {
+      currentSegment.push([getX(i), getY(val)]);
+    } else {
+      if (currentSegment.length > 0) {
+        segments.push(currentSegment);
+        currentSegment = [];
+      }
+    }
+  });
+  if (currentSegment.length > 0) {
+    segments.push(currentSegment);
+  }
+
+  segments.forEach((seg) => {
+    if (seg.length > 0) {
+      let segLine = `M ${seg[0][0]} ${seg[0][1]}`;
+      for (let j = 1; j < seg.length; j++) {
+        segLine += ` L ${seg[j][0]} ${seg[j][1]}`;
+      }
+      linePath += " " + segLine;
+    }
+  });
+
+  segments.forEach((seg) => {
+    if (seg.length > 0) {
+      let segArea = `M ${seg[0][0]} ${height} L ${seg[0][0]} ${seg[0][1]}`;
+      for (let j = 1; j < seg.length; j++) {
+        segArea += ` L ${seg[j][0]} ${seg[j][1]}`;
+      }
+      segArea += ` L ${seg[seg.length - 1][0]} ${height} Z`;
+      areaPath += " " + segArea;
+    }
+  });
+
+  return (
+    <svg width={width} height={height} className="overflow-hidden border border-mui-grey-200 dark:border-white/10 rounded bg-mui-grey-50/50 dark:bg-black/20">
+      <line x1={0} y1={height / 3} x2={width} y2={height / 3} stroke="rgba(156, 163, 175, 0.15)" strokeDasharray="2,2" />
+      <line x1={0} y1={(2 * height) / 3} x2={width} y2={(2 * height) / 3} stroke="rgba(156, 163, 175, 0.15)" strokeDasharray="2,2" />
+
+      {paddedData.map((d, i) => {
+        const val = d[metric];
+        if (val === null) {
+          const xStart = i > 0 ? getX(i - 1) : 0;
+          const xEnd = getX(i);
+          return (
+            <rect
+              key={i}
+              x={xStart}
+              y={0}
+              width={xEnd - xStart + 1}
+              height={height}
+              fill="rgba(107, 114, 128, 0.25)"
+              className="dark:fill-gray-500/25"
+            />
+          );
+        }
+        return null;
+      })}
+
+      {areaPath && <path d={areaPath} fill={fillColor} />}
+      {linePath && <path d={linePath} fill="none" stroke={color} strokeWidth={1.5} />}
+    </svg>
+  );
+};
+
 interface SSHSessionViewProps {
   session: any;
   onClose: () => void;
@@ -72,6 +167,11 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const [isMonitoringEnabled, setIsMonitoringEnabled] = useState<boolean>(true);
   const [showResourceSettings, setShowResourceSettings] = useState<boolean>(false);
   const [isFetchingUsage, setIsFetchingUsage] = useState<boolean>(false);
+  const [history, setHistory] = useState<Array<{
+    cpu: number | null;
+    mem: number | null;
+    disk: number | null;
+  }>>([]);
 
   useEffect(() => {
     if (!isMonitoringEnabled || connecting) {
@@ -87,9 +187,14 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         const usage = await AppBackend.GetSSHResourceUsage(session.id);
         if (isMounted) {
           setResourceUsage(usage);
+          setHistory((prev) => [...prev, { cpu: usage.cpu, mem: usage.mem, disk: usage.disk }].slice(-30));
         }
       } catch (e) {
         console.error("Failed to fetch SSH resource usage", e);
+        if (isMounted) {
+          setResourceUsage(null);
+          setHistory((prev) => [...prev, { cpu: null, mem: null, disk: null }].slice(-30));
+        }
       } finally {
         if (isMounted) {
           setIsFetchingUsage(false);
@@ -606,7 +711,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       </div>
 
       {/* Resource Usage Monitoring Bar */}
-      <div className="h-9 flex items-center justify-between px-3 bg-mui-grey-50 dark:bg-mui-grey-900 border-t border-mui-grey-200 dark:border-white/5 shrink-0 relative select-none">
+      <div className="h-12 flex items-center justify-between px-3 bg-mui-grey-50 dark:bg-mui-grey-900 border-t border-mui-grey-200 dark:border-white/5 shrink-0 relative select-none">
         <div className="flex items-center gap-4 text-xs">
           <div className="relative">
             <button
@@ -619,7 +724,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             </button>
 
             {showResourceSettings && (
-              <div className="absolute bottom-8 left-0 z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg p-3 min-w-[220px] flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-150">
+              <div className="absolute bottom-11 left-0 z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg p-3 min-w-[220px] flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-150">
                 <div className="text-[11px] font-bold uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">
                   Monitoring Settings
                 </div>
@@ -654,63 +759,26 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             )}
           </div>
 
-          {isMonitoringEnabled && resourceUsage ? (
-            <div className="flex items-center gap-5 text-[11px] font-bold text-mui-grey-600 dark:text-mui-grey-400">
+          {isMonitoringEnabled ? (
+            <div className="flex items-center gap-6 text-[10px] font-bold text-mui-grey-600 dark:text-mui-grey-400">
               {/* CPU */}
               <div className="flex items-center gap-2">
-                <span>CPU: {resourceUsage.cpu.toFixed(0)}%</span>
-                <div className="w-16 h-1.5 bg-mui-grey-200 dark:bg-white/10 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      resourceUsage.cpu < 70
-                        ? "bg-emerald-500"
-                        : resourceUsage.cpu < 85
-                        ? "bg-amber-500"
-                        : "bg-red-500"
-                    }`}
-                    style={{ width: `${Math.min(100, Math.max(0, resourceUsage.cpu))}%` }}
-                  />
-                </div>
+                <span className="min-w-[55px]">CPU: {resourceUsage ? `${resourceUsage.cpu.toFixed(0)}%` : "—"}</span>
+                <ResourceLineChart data={history} metric="cpu" color="#2196f3" fillColor="rgba(33, 150, 243, 0.15)" />
               </div>
 
               {/* RAM */}
               <div className="flex items-center gap-2">
-                <span>RAM: {resourceUsage.mem.toFixed(0)}%</span>
-                <div className="w-16 h-1.5 bg-mui-grey-200 dark:bg-white/10 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      resourceUsage.mem < 70
-                        ? "bg-emerald-500"
-                        : resourceUsage.mem < 85
-                        ? "bg-amber-500"
-                        : "bg-red-500"
-                    }`}
-                    style={{ width: `${Math.min(100, Math.max(0, resourceUsage.mem))}%` }}
-                  />
-                </div>
+                <span className="min-w-[55px]">RAM: {resourceUsage ? `${resourceUsage.mem.toFixed(0)}%` : "—"}</span>
+                <ResourceLineChart data={history} metric="mem" color="#9c27b0" fillColor="rgba(156, 39, 176, 0.15)" />
               </div>
 
               {/* Disk */}
               <div className="flex items-center gap-2">
-                <span>DISK: {resourceUsage.disk.toFixed(0)}%</span>
-                <div className="w-16 h-1.5 bg-mui-grey-200 dark:bg-white/10 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      resourceUsage.disk < 70
-                        ? "bg-emerald-500"
-                        : resourceUsage.disk < 85
-                        ? "bg-amber-500"
-                        : "bg-red-500"
-                    }`}
-                    style={{ width: `${Math.min(100, Math.max(0, resourceUsage.disk))}%` }}
-                  />
-                </div>
+                <span className="min-w-[55px]">DISK: {resourceUsage ? `${resourceUsage.disk.toFixed(0)}%` : "—"}</span>
+                <ResourceLineChart data={history} metric="disk" color="#009688" fillColor="rgba(0, 150, 136, 0.15)" />
               </div>
             </div>
-          ) : isMonitoringEnabled ? (
-            <span className="text-[10px] text-mui-grey-400 uppercase tracking-wider font-bold">
-              Retrieving metrics...
-            </span>
           ) : (
             <span className="text-[10px] text-mui-grey-400 uppercase tracking-wider font-bold">
               Monitoring disabled
@@ -721,11 +789,17 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         {isMonitoringEnabled && (
           <div className="flex items-center gap-1.5">
             <span className="relative flex h-2 w-2">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isFetchingUsage ? "bg-mui-blue-400" : "bg-emerald-400"}`}></span>
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${isFetchingUsage ? "bg-mui-blue-500" : "bg-emerald-500"}`}></span>
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${resourceUsage === null ? "bg-red-400" : isFetchingUsage ? "bg-mui-blue-400" : "bg-emerald-400"}`}></span>
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${resourceUsage === null ? "bg-red-500" : isFetchingUsage ? "bg-mui-blue-500" : "bg-emerald-500"}`}></span>
             </span>
-            <span className="text-[9px] font-bold text-mui-grey-400 dark:text-mui-grey-500 uppercase tracking-wider">
-              {isFetchingUsage ? "Syncing" : "Active"}
+            <span className="text-[9px] font-bold uppercase tracking-wider">
+              {resourceUsage === null ? (
+                <span className="text-red-500">Offline</span>
+              ) : isFetchingUsage ? (
+                <span className="text-mui-blue-500">Syncing</span>
+              ) : (
+                <span className="text-emerald-500">Active</span>
+              )}
             </span>
           </div>
         )}

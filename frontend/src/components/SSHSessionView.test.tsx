@@ -738,8 +738,8 @@ describe("SSHSessionView Component", () => {
 
     render(<SSHSessionView {...mockProps} />);
 
-    // Initially should show "Retrieving metrics..."
-    expect(screen.getByText(/Retrieving metrics\.\.\./i)).toBeInTheDocument();
+    // Initially (before first fetch finishes) should show em-dash
+    expect(screen.getAllByText(/—/).length).toBe(3);
 
     // Wait for the mock values to be loaded
     await waitFor(() => {
@@ -764,5 +764,38 @@ describe("SSHSessionView Component", () => {
 
     // Now monitoring should be disabled
     expect(screen.getByText("Monitoring disabled")).toBeInTheDocument();
+  });
+
+  it("handles connection drop and displays offline gray zone", async () => {
+    // Mock first fetch to succeed
+    vi.mocked(AppBackend.GetSSHResourceUsage).mockResolvedValueOnce({
+      cpu: 50,
+      mem: 60,
+      disk: 70,
+    });
+
+    render(<SSHSessionView {...mockProps} />);
+
+    // First fetch succeeds
+    await waitFor(() => {
+      expect(screen.getByText("CPU: 50%")).toBeInTheDocument();
+    });
+    expect(screen.getByText("RAM: 60%")).toBeInTheDocument();
+    expect(screen.getByText("DISK: 70%")).toBeInTheDocument();
+    expect(screen.getByText("Active")).toBeInTheDocument();
+
+    // Now mock second fetch to fail
+    vi.mocked(AppBackend.GetSSHResourceUsage).mockRejectedValue(new Error("Connection lost"));
+
+    // Click Reconnect to trigger fresh connection and metric fetch
+    const reconnectBtn = screen.getByTitle("Reconnect");
+    fireEvent.click(reconnectBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText("Offline")).toBeInTheDocument();
+    });
+    expect(screen.getByText("CPU: —")).toBeInTheDocument();
+    expect(screen.getByText("RAM: —")).toBeInTheDocument();
+    expect(screen.getByText("DISK: —")).toBeInTheDocument();
   });
 });
