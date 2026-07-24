@@ -140,24 +140,4 @@ describe('GlobalConfigCategory Component', () => {
       expect(initAppMock).toHaveBeenCalled();
     });
   });
-
-  it('handles SSH Connection Resource Monitoring toggles and interval inputs', async () => {
-    render(<GlobalConfigCategory appConfig={mockConfig} initApp={vi.fn()} />);
-
-    // Checkbox is present
-    const checkbox = screen.getByLabelText('Enable Real-Time Resource Monitoring');
-    expect(checkbox).toBeInTheDocument();
-    expect(checkbox).toBeChecked();
-
-    fireEvent.click(checkbox);
-    expect(checkbox).not.toBeChecked();
-
-    // Interval input is present
-    const intervalInput = screen.getByLabelText('Refresh Interval (seconds)');
-    expect(intervalInput).toBeInTheDocument();
-    expect(intervalInput).toHaveValue(3);
-
-    fireEvent.change(intervalInput, { target: { value: '5' } });
-    expect(intervalInput).toHaveValue(5);
-  });
 });

@@ -7,12 +7,14 @@ import {
   Search,
   ChevronRight,
   Settings,
+  Activity,
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import ProfileCategory from "./settings/ProfileCategory";
 import GlobalConfigCategory from "./settings/GlobalConfigCategory";
 import SSHManagementCategory from "./settings/SSHManagementCategory";
+import SSHMonitorCategory from "./settings/SSHMonitorCategory";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -50,6 +52,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     { id: "profile", label: "Profile", icon: User },
     { id: "config", label: "Global Config", icon: Sliders },
     { id: "ssh", label: "SSH Management", icon: TerminalIcon },
+    { id: "ssh-monitor", label: "SSH Monitoring", icon: Activity },
   ];
 
   const filteredCategories = categories.filter((cat) =>
@@ -64,6 +67,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         return <GlobalConfigCategory appConfig={appConfig} initApp={initApp} />;
       case "ssh":
         return <SSHManagementCategory />;
+      case "ssh-monitor":
+        return <SSHMonitorCategory />;
       default:
         return (
           <div className="flex items-center justify-center h-full text-mui-grey-400">

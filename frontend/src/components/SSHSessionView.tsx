@@ -730,7 +730,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           <div className="relative">
             <button
               type="button"
-              onClick={() => onOpenSettings("config")}
+              onClick={() => onOpenSettings("ssh-monitor")}
               className="p-1 rounded text-mui-grey-500 dark:text-mui-grey-400 hover:text-mui-blue-600 dark:hover:text-white transition-colors"
               title="Monitoring Settings"
             >

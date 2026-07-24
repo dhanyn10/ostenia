@@ -773,8 +773,8 @@ describe("SSHSessionView Component", () => {
     expect(gearBtn).toBeInTheDocument();
     fireEvent.click(gearBtn);
 
-    // Should call onOpenSettings with "config"
-    expect(mockProps.onOpenSettings).toHaveBeenCalledWith("config");
+    // Should call onOpenSettings with "ssh-monitor"
+    expect(mockProps.onOpenSettings).toHaveBeenCalledWith("ssh-monitor");
   });
 
   it("handles connection drop and displays offline gray zone", async () => {
