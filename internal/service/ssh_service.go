@@ -676,7 +676,7 @@ func (m *SSHManager) GetResourceUsage(sessionID string) (interfaces.ResourceUsag
 		return interfaces.ResourceUsage{}, err
 	}
 
-	command := `echo "===METRICS==="; vmstat 1 2 | tail -1 | awk '{print "CPU:" 100 - $15}'; free | grep Mem | awk '{print "MEM:" int($3/$2 * 100)}'; df -h / | tail -1 | awk '{print "DISK:" $5}' | tr -d '%'; echo "===END==="`
+	command := `echo "===METRICS==="; vmstat 1 2 | tail -1 | awk '{print "CPU:" 100 - $15}'; free -m | grep Mem | awk '{print "MEM_TOTAL:" $2 " MEM_USED:" $3}'; df -m / | tail -1 | awk '{print "DISK_TOTAL:" $2 " DISK_USED:" $3}'; echo "===END==="`
 
 	err = sess.Run(command)
 	if err != nil {
@@ -701,16 +701,22 @@ func parseResourceUsage(output string) interfaces.ResourceUsage {
 			var val float64
 			fmt.Sscanf(valStr, "%f", &val)
 			usage.CPU = val
-		} else if strings.HasPrefix(line, "MEM:") {
-			valStr := strings.TrimPrefix(line, "MEM:")
-			var val float64
-			fmt.Sscanf(valStr, "%f", &val)
-			usage.Mem = val
-		} else if strings.HasPrefix(line, "DISK:") {
-			valStr := strings.TrimPrefix(line, "DISK:")
-			var val float64
-			fmt.Sscanf(valStr, "%f", &val)
-			usage.Disk = val
+		} else if strings.HasPrefix(line, "MEM_TOTAL:") {
+			var total, used float64
+			fmt.Sscanf(line, "MEM_TOTAL:%f MEM_USED:%f", &total, &used)
+			usage.MemTotal = total
+			usage.MemUsed = used
+			if total > 0 {
+				usage.Mem = (used / total) * 100
+			}
+		} else if strings.HasPrefix(line, "DISK_TOTAL:") {
+			var total, used float64
+			fmt.Sscanf(line, "DISK_TOTAL:%f DISK_USED:%f", &total, &used)
+			usage.DiskTotal = total
+			usage.DiskUsed = used
+			if total > 0 {
+				usage.Disk = (used / total) * 100
+			}
 		}
 	}
 	return usage

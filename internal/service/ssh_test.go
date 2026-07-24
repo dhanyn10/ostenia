@@ -692,7 +692,7 @@ func TestSSHManager_GetResourceUsage(t *testing.T) {
 	defer cleanup()
 
 	// 1. Success case
-	output := "===METRICS===\nCPU:12.5\nMEM:45\nDISK:30\n===END===\n"
+	output := "===METRICS===\nCPU:12.5\nMEM_TOTAL:100 MEM_USED:45\nDISK_TOTAL:100 DISK_USED:30\n===END===\n"
 	mockClient.session.stdout = strings.NewReader(output)
 	mockClient.session.runErr = nil
 
@@ -726,7 +726,7 @@ func Test_parseResourceUsage(t *testing.T) {
 		t.Errorf("Expected zeros, got %+v", usage)
 	}
 
-	usage = parseResourceUsage("CPU:invalid\nMEM:75\nDISK:abc")
+	usage = parseResourceUsage("CPU:invalid\nMEM_TOTAL:100 MEM_USED:75\nDISK_TOTAL:abc DISK_USED:def")
 	if usage.Mem != 75 || usage.CPU != 0 || usage.Disk != 0 {
 		t.Errorf("Expected MEM:75 and others zero, got %+v", usage)
 	}

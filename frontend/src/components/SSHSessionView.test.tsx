@@ -61,7 +61,15 @@ vi.mock("../../wailsjs/go/backend/App", () => ({
   UploadRemoteFile: vi.fn().mockResolvedValue(null),
   EditRemoteFile: vi.fn().mockResolvedValue(null),
   ExecuteSFTPAction: vi.fn().mockResolvedValue(null),
-  GetSSHResourceUsage: vi.fn().mockResolvedValue({ cpu: 0, mem: 0, disk: 0 }),
+  GetSSHResourceUsage: vi.fn().mockResolvedValue({
+    cpu: 0,
+    mem: 0,
+    memTotal: 8192,
+    memUsed: 0,
+    disk: 0,
+    diskTotal: 102400,
+    diskUsed: 0,
+  }),
 }));
 
 describe("SSHSessionView Component", () => {
@@ -730,7 +738,11 @@ describe("SSHSessionView Component", () => {
     vi.mocked(AppBackend.GetSSHResourceUsage).mockResolvedValue({
       cpu: 45,
       mem: 75,
+      memTotal: 8192,
+      memUsed: 6144,
       disk: 90,
+      diskTotal: 102400,
+      diskUsed: 92160,
     });
 
     render(<SSHSessionView {...mockProps} />);
@@ -743,8 +755,8 @@ describe("SSHSessionView Component", () => {
       expect(screen.getByText("CPU: 45%")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("RAM: 75%")).toBeInTheDocument();
-    expect(screen.getByText("DISK: 90%")).toBeInTheDocument();
+    expect(screen.getByText("RAM: 6.0 GB / 8.0 GB (75%)")).toBeInTheDocument();
+    expect(screen.getByText("DISK: 90.0 GB / 100.0 GB (90%)")).toBeInTheDocument();
 
     // Verify gear settings button and click it to open settings
     const gearBtn = screen.getByTitle("Monitoring Settings");
@@ -768,7 +780,11 @@ describe("SSHSessionView Component", () => {
     vi.mocked(AppBackend.GetSSHResourceUsage).mockResolvedValueOnce({
       cpu: 50,
       mem: 60,
+      memTotal: 8192,
+      memUsed: 4915.2,
       disk: 70,
+      diskTotal: 102400,
+      diskUsed: 71680,
     });
 
     render(<SSHSessionView {...mockProps} />);
@@ -777,8 +793,8 @@ describe("SSHSessionView Component", () => {
     await waitFor(() => {
       expect(screen.getByText("CPU: 50%")).toBeInTheDocument();
     });
-    expect(screen.getByText("RAM: 60%")).toBeInTheDocument();
-    expect(screen.getByText("DISK: 70%")).toBeInTheDocument();
+    expect(screen.getByText("RAM: 4.8 GB / 8.0 GB (60%)")).toBeInTheDocument();
+    expect(screen.getByText("DISK: 70.0 GB / 100.0 GB (70%)")).toBeInTheDocument();
 
     // Now mock second fetch to fail
     vi.mocked(AppBackend.GetSSHResourceUsage).mockRejectedValue(new Error("Connection lost"));

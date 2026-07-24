@@ -15,9 +15,13 @@ type SSHClient interface {
 }
 
 type ResourceUsage struct {
-	CPU  float64 `json:"cpu"`
-	Mem  float64 `json:"mem"`
-	Disk float64 `json:"disk"`
+	CPU       float64 `json:"cpu"`
+	Mem       float64 `json:"mem"`
+	MemTotal  float64 `json:"memTotal"`
+	MemUsed   float64 `json:"memUsed"`
+	Disk      float64 `json:"disk"`
+	DiskTotal float64 `json:"diskTotal"`
+	DiskUsed  float64 `json:"diskUsed"`
 }
 
 type SSHSession interface {

@@ -145,7 +145,11 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const [resourceUsage, setResourceUsage] = useState<{
     cpu: number;
     mem: number;
+    memTotal: number;
+    memUsed: number;
     disk: number;
+    diskTotal: number;
+    diskUsed: number;
   } | null>(null);
   const [monitorInterval, setMonitorInterval] = useState<number>(3);
   const [isMonitoringEnabled, setIsMonitoringEnabled] = useState<boolean>(true);
@@ -759,13 +763,17 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
 
               {/* RAM */}
               <div className="flex items-center gap-2">
-                <span className="min-w-[55px]">RAM: {resourceUsage ? `${resourceUsage.mem.toFixed(0)}%` : "—"}</span>
+                <span className="min-w-[130px]">
+                  RAM: {resourceUsage ? `${(resourceUsage.memUsed / 1024).toFixed(1)} GB / ${(resourceUsage.memTotal / 1024).toFixed(1)} GB (${resourceUsage.mem.toFixed(0)}%)` : "—"}
+                </span>
                 <ResourceLineChart data={history} metric="mem" color="#9c27b0" fillColor="rgba(156, 39, 176, 0.15)" />
               </div>
 
               {/* Disk */}
               <div className="flex items-center gap-2">
-                <span className="min-w-[55px]">DISK: {resourceUsage ? `${resourceUsage.disk.toFixed(0)}%` : "—"}</span>
+                <span className="min-w-[140px]">
+                  DISK: {resourceUsage ? `${(resourceUsage.diskUsed / 1024).toFixed(1)} GB / ${(resourceUsage.diskTotal / 1024).toFixed(1)} GB (${resourceUsage.disk.toFixed(0)}%)` : "—"}
+                </span>
                 <ResourceLineChart data={history} metric="disk" color="#009688" fillColor="rgba(0, 150, 136, 0.15)" />
               </div>
             </div>
