@@ -739,15 +739,30 @@ func parseResourceUsage(output string) interfaces.ResourceUsage {
 			continue
 		}
 
-		if strings.HasPrefix(line, "cpu  ") {
-			var user, nice, system, idle, iowait, irq, softirq, steal, guest, guestNice float64
-			n, _ := fmt.Sscanf(line, "cpu   %f %f %f %f %f %f %f %f %f %f",
-				&user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal, &guest, &guestNice)
-			if n >= 4 {
-				total := user + nice + system + idle + iowait + irq + softirq + steal
-				idleVal := idle + iowait
-				cpuTicks = append(cpuTicks, []float64{total, idleVal})
+		fields := strings.Fields(line)
+
+		if strings.HasPrefix(line, "cpu ") && len(fields) >= 5 {
+			var user, nice, system, idle, iowait, irq, softirq, steal float64
+			fmt.Sscanf(fields[1], "%f", &user)
+			fmt.Sscanf(fields[2], "%f", &nice)
+			fmt.Sscanf(fields[3], "%f", &system)
+			fmt.Sscanf(fields[4], "%f", &idle)
+			if len(fields) >= 6 {
+				fmt.Sscanf(fields[5], "%f", &iowait)
 			}
+			if len(fields) >= 7 {
+				fmt.Sscanf(fields[6], "%f", &irq)
+			}
+			if len(fields) >= 8 {
+				fmt.Sscanf(fields[7], "%f", &softirq)
+			}
+			if len(fields) >= 9 {
+				fmt.Sscanf(fields[8], "%f", &steal)
+			}
+
+			total := user + nice + system + idle + iowait + irq + softirq + steal
+			idleVal := idle + iowait
+			cpuTicks = append(cpuTicks, []float64{total, idleVal})
 		}
 
 		if strings.HasPrefix(line, "MemTotal:") {
@@ -762,8 +777,7 @@ func parseResourceUsage(output string) interfaces.ResourceUsage {
 			fmt.Sscanf(line, "Cached: %f kB", &cached)
 		}
 
-		if strings.Contains(line, " /") || strings.HasSuffix(line, " /") {
-			fields := strings.Fields(line)
+		if len(fields) >= 5 && fields[len(fields)-1] == "/" {
 			if len(fields) >= 6 {
 				var tot, usd float64
 				fmt.Sscanf(fields[1], "%f", &tot)
@@ -772,7 +786,7 @@ func parseResourceUsage(output string) interfaces.ResourceUsage {
 					diskTotal = tot
 					diskUsed = usd
 				}
-			} else if len(fields) >= 5 {
+			} else if len(fields) == 5 {
 				var tot, usd float64
 				fmt.Sscanf(fields[0], "%f", &tot)
 				fmt.Sscanf(fields[1], "%f", &usd)
