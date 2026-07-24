@@ -677,7 +677,7 @@ func (m *SSHManager) GetResourceUsage(sessionID string) (interfaces.ResourceUsag
 		return interfaces.ResourceUsage{}, err
 	}
 
-	command := `echo "===METRICS==="; vmstat 1 2 | tail -1 | awk '{print "CPU:" 100 - $15}'; awk '/MemTotal/ {total=$2} /MemAvailable/ {avail=$2} /MemFree/ {free=$2} /Buffers/ {buf=$2} /Cached/ {cached=$2} END { if (avail=="") {used=(total-free-buf-cached)} else {used=(total-avail)}; print "MEM_TOTAL:" int(total/1024) " MEM_USED:" int(used/1024) }' /proc/meminfo; df -m / | awk 'NR>1 { if (NF==1) {line=$1; getline; print "DISK_TOTAL:" $1 " DISK_USED:" $2} else {print "DISK_TOTAL:" $2 " DISK_USED:" $3} }'; echo "===END==="`
+	command := `vmstat 1 2 | tail -1 | awk '{print 100 - $15}'; free -m | grep Mem | awk '{print $2, $3}'; df -m / | tail -1 | awk '{print $2, $3}'`
 
 	err = sess.Run(command)
 	if err != nil {
@@ -728,29 +728,35 @@ func decodeMaybeUTF16(b []byte) string {
 func parseResourceUsage(output string) interfaces.ResourceUsage {
 	var usage interfaces.ResourceUsage
 	lines := strings.Split(output, "\n")
+
+	var cleanLines []string
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "CPU:") {
-			valStr := strings.TrimPrefix(line, "CPU:")
-			var val float64
-			fmt.Sscanf(valStr, "%f", &val)
-			usage.CPU = val
-		} else if strings.HasPrefix(line, "MEM_TOTAL:") {
-			var total, used float64
-			fmt.Sscanf(line, "MEM_TOTAL:%f MEM_USED:%f", &total, &used)
-			usage.MemTotal = total
-			usage.MemUsed = used
-			if total > 0 {
-				usage.Mem = (used / total) * 100
-			}
-		} else if strings.HasPrefix(line, "DISK_TOTAL:") {
-			var total, used float64
-			fmt.Sscanf(line, "DISK_TOTAL:%f DISK_USED:%f", &total, &used)
-			usage.DiskTotal = total
-			usage.DiskUsed = used
-			if total > 0 {
-				usage.Disk = (used / total) * 100
-			}
+		if line != "" {
+			cleanLines = append(cleanLines, line)
+		}
+	}
+
+	if len(cleanLines) >= 3 {
+		// Line 1: CPU
+		fmt.Sscanf(cleanLines[0], "%f", &usage.CPU)
+
+		// Line 2: RAM Total and Used
+		var memTotal, memUsed float64
+		fmt.Sscanf(cleanLines[1], "%f %f", &memTotal, &memUsed)
+		usage.MemTotal = memTotal
+		usage.MemUsed = memUsed
+		if memTotal > 0 {
+			usage.Mem = (memUsed / memTotal) * 100
+		}
+
+		// Line 3: Disk Total and Used
+		var diskTotal, diskUsed float64
+		fmt.Sscanf(cleanLines[2], "%f %f", &diskTotal, &diskUsed)
+		usage.DiskTotal = diskTotal
+		usage.DiskUsed = diskUsed
+		if diskTotal > 0 {
+			usage.Disk = (diskUsed / diskTotal) * 100
 		}
 	}
 	return usage
