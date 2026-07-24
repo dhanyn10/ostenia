@@ -192,7 +192,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
   };
 
   return (
-    <div className="flex h-full overflow-hidden bg-white dark:bg-mui-dark-bg transition-colors duration-300">
+    <div className="relative flex h-full overflow-hidden bg-white dark:bg-mui-dark-bg transition-colors duration-300">
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {true && (
           <div className="flex items-center gap-[2px] overflow-x-auto no-scrollbar shrink-0 pt-2 px-6 bg-mui-grey-50 dark:bg-mui-grey-900 border-b border-mui-grey-200 dark:border-white/5">

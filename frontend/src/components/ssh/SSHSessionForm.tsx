@@ -79,7 +79,7 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
   };
 
   return (
-    <div className="w-[380px] bg-white dark:bg-mui-dark-bg border-l border-mui-grey-200 dark:border-white/10 flex flex-col h-full animate-in slide-in-from-right duration-200 shrink-0">
+    <div className="absolute right-0 top-0 bottom-0 z-30 w-[380px] bg-white dark:bg-mui-dark-bg border-l border-mui-grey-200 dark:border-white/10 flex flex-col h-full shadow-2xl animate-in slide-in-from-right duration-200 shrink-0">
       <div className="px-5 py-4 border-b border-mui-grey-100 dark:border-white/5 flex items-center justify-between bg-mui-grey-50 dark:bg-mui-grey-900/50">
         <div>
           <h3 className="text-sm font-bold text-mui-grey-900 dark:text-white uppercase tracking-wider">
