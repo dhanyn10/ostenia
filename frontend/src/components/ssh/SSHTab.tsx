@@ -289,29 +289,29 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
             currentSessionId === null && "p-6",
           )}
         >
-          {currentSessionId ? (
-            <div className="h-full">
-              {activeSessionIds.map((id) => (
-                <div
-                  key={id}
-                  className={currentSessionId === id ? "h-full" : "hidden"}
-                >
-                  <SSHSessionView
-                    session={sessions.find((s) => s.id === id)}
-                    onClose={() => handleCloseSession(id)}
-                    addToast={addToast}
-                    isActive={currentSessionId === id}
-                    theme={theme}
-                    onOpenSettings={onOpenSettings}
-                  />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col h-full">
-              {renderDashboardContent()}
-            </div>
-          )}
+          {/* Dashboard container - kept alive but hidden if not selected */}
+          <div className={clsx("h-full flex flex-col", currentSessionId !== null && "hidden")}>
+            {renderDashboardContent()}
+          </div>
+
+          {/* Active SSH sessions container - kept alive but hidden if Dashboard is selected */}
+          <div className={clsx("h-full", currentSessionId === null && "hidden")}>
+            {activeSessionIds.map((id) => (
+              <div
+                key={id}
+                className={currentSessionId === id ? "h-full" : "hidden"}
+              >
+                <SSHSessionView
+                  session={sessions.find((s) => s.id === id)}
+                  onClose={() => handleCloseSession(id)}
+                  addToast={addToast}
+                  isActive={currentSessionId === id}
+                  theme={theme}
+                  onOpenSettings={onOpenSettings}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
