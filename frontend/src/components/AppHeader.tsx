@@ -23,7 +23,7 @@ function AppHeader({
   isTerminalOpen,
   setIsTerminalOpen,
 }) {
-  if (activeTab === "logs") return null;
+  if (activeTab === "logs" || activeTab === "ssh") return null;
 
   const title =
     {
