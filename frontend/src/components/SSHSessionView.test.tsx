@@ -736,7 +736,7 @@ describe("SSHSessionView Component", () => {
 
   it("renders the real-time resource usage monitoring bar and toggles settings", async () => {
     vi.mocked(AppBackend.GetSSHResourceUsage).mockResolvedValue({
-      cpu: 45,
+      cpu: 54,
       mem: 75,
       memTotal: 8192,
       memUsed: 6144,
@@ -752,14 +752,14 @@ describe("SSHSessionView Component", () => {
 
     // Wait for the mock values to be loaded
     await waitFor(() => {
-      expect(screen.getByText("CPU: 45%")).toBeInTheDocument();
+      expect(screen.getByText("CPU: 54%")).toBeInTheDocument();
     });
 
     expect(screen.getByText("RAM: 6.0 GB / 8.0 GB (75%)")).toBeInTheDocument();
     expect(screen.getByText("DISK: 90.0 GB / 100.0 GB (90%)")).toBeInTheDocument();
 
     // Hover over CPU item to trigger tooltip
-    const cpuItem = screen.getByText("CPU: 45%");
+    const cpuItem = screen.getByText("CPU: 54%");
     fireEvent.mouseEnter(cpuItem);
     expect(screen.getByText("CPU Usage History")).toBeInTheDocument();
 

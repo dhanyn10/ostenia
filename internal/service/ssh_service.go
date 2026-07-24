@@ -677,7 +677,7 @@ func (m *SSHManager) GetResourceUsage(sessionID string) (interfaces.ResourceUsag
 		return interfaces.ResourceUsage{}, err
 	}
 
-	command := `vmstat 1 2 | tail -1 | awk '{print 100 - $15}'; free -m | grep Mem | awk '{print $2, $3}'; df -m / | tail -1 | awk '{print $2, $3}'`
+	command := `cat /proc/stat; sleep 0.1; cat /proc/stat; cat /proc/meminfo; df -m /`
 
 	err = sess.Run(command)
 	if err != nil {
@@ -729,36 +729,87 @@ func parseResourceUsage(output string) interfaces.ResourceUsage {
 	var usage interfaces.ResourceUsage
 	lines := strings.Split(output, "\n")
 
-	var cleanLines []string
+	var cpuTicks [][]float64
+	var memTotal, memAvailable, memFree, buffers, cached float64
+	var diskTotal, diskUsed float64
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if line != "" {
-			cleanLines = append(cleanLines, line)
+		if line == "" {
+			continue
+		}
+
+		if strings.HasPrefix(line, "cpu  ") {
+			var user, nice, system, idle, iowait, irq, softirq, steal, guest, guestNice float64
+			n, _ := fmt.Sscanf(line, "cpu   %f %f %f %f %f %f %f %f %f %f",
+				&user, &nice, &system, &idle, &iowait, &irq, &softirq, &steal, &guest, &guestNice)
+			if n >= 4 {
+				total := user + nice + system + idle + iowait + irq + softirq + steal
+				idleVal := idle + iowait
+				cpuTicks = append(cpuTicks, []float64{total, idleVal})
+			}
+		}
+
+		if strings.HasPrefix(line, "MemTotal:") {
+			fmt.Sscanf(line, "MemTotal: %f kB", &memTotal)
+		} else if strings.HasPrefix(line, "MemAvailable:") {
+			fmt.Sscanf(line, "MemAvailable: %f kB", &memAvailable)
+		} else if strings.HasPrefix(line, "MemFree:") {
+			fmt.Sscanf(line, "MemFree: %f kB", &memFree)
+		} else if strings.HasPrefix(line, "Buffers:") {
+			fmt.Sscanf(line, "Buffers: %f kB", &buffers)
+		} else if strings.HasPrefix(line, "Cached:") {
+			fmt.Sscanf(line, "Cached: %f kB", &cached)
+		}
+
+		if strings.Contains(line, " /") || strings.HasSuffix(line, " /") {
+			fields := strings.Fields(line)
+			if len(fields) >= 6 {
+				var tot, usd float64
+				fmt.Sscanf(fields[1], "%f", &tot)
+				fmt.Sscanf(fields[2], "%f", &usd)
+				if tot > 0 {
+					diskTotal = tot
+					diskUsed = usd
+				}
+			} else if len(fields) >= 5 {
+				var tot, usd float64
+				fmt.Sscanf(fields[0], "%f", &tot)
+				fmt.Sscanf(fields[1], "%f", &usd)
+				if tot > 0 {
+					diskTotal = tot
+					diskUsed = usd
+				}
+			}
 		}
 	}
 
-	if len(cleanLines) >= 3 {
-		// Line 1: CPU
-		fmt.Sscanf(cleanLines[0], "%f", &usage.CPU)
-
-		// Line 2: RAM Total and Used
-		var memTotal, memUsed float64
-		fmt.Sscanf(cleanLines[1], "%f %f", &memTotal, &memUsed)
-		usage.MemTotal = memTotal
-		usage.MemUsed = memUsed
-		if memTotal > 0 {
-			usage.Mem = (memUsed / memTotal) * 100
+	if len(cpuTicks) >= 2 {
+		diffTotal := cpuTicks[1][0] - cpuTicks[0][0]
+		diffIdle := cpuTicks[1][1] - cpuTicks[0][1]
+		if diffTotal > 0 {
+			usage.CPU = ((diffTotal - diffIdle) / diffTotal) * 100
 		}
+	}
 
-		// Line 3: Disk Total and Used
-		var diskTotal, diskUsed float64
-		fmt.Sscanf(cleanLines[2], "%f %f", &diskTotal, &diskUsed)
+	if memTotal > 0 {
+		usage.MemTotal = memTotal / 1024
+		var used float64
+		if memAvailable > 0 {
+			used = memTotal - memAvailable
+		} else {
+			used = memTotal - memFree - buffers - cached
+		}
+		usage.MemUsed = used / 1024
+		usage.Mem = (used / memTotal) * 100
+	}
+
+	if diskTotal > 0 {
 		usage.DiskTotal = diskTotal
 		usage.DiskUsed = diskUsed
-		if diskTotal > 0 {
-			usage.Disk = (diskUsed / diskTotal) * 100
-		}
+		usage.Disk = (diskUsed / diskTotal) * 100
 	}
+
 	return usage
 }
 

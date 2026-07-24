@@ -692,7 +692,7 @@ func TestSSHManager_GetResourceUsage(t *testing.T) {
 	defer cleanup()
 
 	// 1. Success case
-	output := "12.5\n100 45\n100 30\n"
+	output := "cpu  457000 0 389000 5560000\ncpu  457125 0 389010 5560115\nMemTotal: 102400 kB\nMemAvailable: 56320 kB\noverlayfs:/ 100 30 70 30% /\n"
 	mockClient.session.stdout = strings.NewReader(output)
 	mockClient.session.runErr = nil
 
@@ -700,8 +700,8 @@ func TestSSHManager_GetResourceUsage(t *testing.T) {
 	if err != nil {
 		t.Errorf("Expected success, got err: %v", err)
 	}
-	if usage.CPU != 12.5 || usage.Mem != 45 || usage.Disk != 30 {
-		t.Errorf("Expected {12.5, 45, 30}, got %+v", usage)
+	if usage.CPU != 54 || usage.Mem != 45 || usage.Disk != 30 {
+		t.Errorf("Expected {54, 45, 30}, got %+v", usage)
 	}
 
 	// 2. Not found error
@@ -726,9 +726,9 @@ func Test_parseResourceUsage(t *testing.T) {
 		t.Errorf("Expected zeros, got %+v", usage)
 	}
 
-	usage = parseResourceUsage("invalid\n100 75\nabc def")
-	if usage.Mem != 75 || usage.CPU != 0 || usage.Disk != 0 {
-		t.Errorf("Expected MEM:75 and others zero, got %+v", usage)
+	usage = parseResourceUsage("cpu  1 2 3 4\ncpu  11 12 13 14\nMemTotal: 102400 kB\nMemAvailable: 25600 kB\noverlayfs:/ 100 50 50 50% /")
+	if usage.Mem != 75 || usage.CPU != 75 || usage.Disk != 50 {
+		t.Errorf("Expected Mem:75, CPU:75, Disk:50, got %+v", usage)
 	}
 }
 
