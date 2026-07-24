@@ -152,7 +152,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const [monitorInterval, setMonitorInterval] = useState<number>(3);
   const [isMonitoringEnabled, setIsMonitoringEnabled] = useState<boolean>(true);
   const [showResourceSettings, setShowResourceSettings] = useState<boolean>(false);
-  const [isFetchingUsage, setIsFetchingUsage] = useState<boolean>(false);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const isFetchingUsageRef = useRef(false);
   const [history, setHistory] = useState<Array<{
     cpu: number | null;
     mem: number | null;
@@ -167,8 +168,11 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
 
     let isMounted = true;
     const fetchUsage = async () => {
-      if (isFetchingUsage) return;
-      setIsFetchingUsage(true);
+      if (isFetchingUsageRef.current) return;
+      isFetchingUsageRef.current = true;
+      if (isMounted) {
+        setIsSyncing(true);
+      }
       try {
         const usage = await AppBackend.GetSSHResourceUsage(session.id);
         if (isMounted) {
@@ -182,8 +186,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           setHistory((prev) => [...prev, { cpu: null, mem: null, disk: null }].slice(-30));
         }
       } finally {
+        isFetchingUsageRef.current = false;
         if (isMounted) {
-          setIsFetchingUsage(false);
+          setIsSyncing(false);
         }
       }
     };
