@@ -732,6 +732,26 @@ func Test_parseResourceUsage(t *testing.T) {
 	}
 }
 
+func Test_decodeMaybeUTF16(t *testing.T) {
+	// Standard string
+	s := "hello utf-8"
+	if decodeMaybeUTF16([]byte(s)) != s {
+		t.Errorf("Expected unchanged UTF-8 string")
+	}
+
+	// UTF-16LE with BOM
+	utf16Bytes := []byte{0xFF, 0xFE, 'h', 0x00, 'i', 0x00}
+	if decodeMaybeUTF16(utf16Bytes) != "hi" {
+		t.Errorf("Expected decoded UTF-16 string")
+	}
+
+	// UTF-16LE without BOM
+	utf16NoBOM := []byte{'h', 0x00, 'i', 0x00}
+	if decodeMaybeUTF16(utf16NoBOM) != "hi" {
+		t.Errorf("Expected decoded UTF-16 without BOM string")
+	}
+}
+
 func TestSSHManager_Editor_Mocked(t *testing.T) {
 	utils.Executor = &testutil.MockExecutor{
 		Output: "",

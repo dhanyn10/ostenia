@@ -21,6 +21,7 @@ import (
 	"golang.org/x/crypto/ssh"
 	"path"
 	"runtime"
+	"unicode/utf16"
 )
 
 type RemoteFile = interfaces.RemoteFile
@@ -688,7 +689,40 @@ func (m *SSHManager) GetResourceUsage(sessionID string) (interfaces.ResourceUsag
 		return interfaces.ResourceUsage{}, err
 	}
 
-	return parseResourceUsage(string(outputBytes)), nil
+	return parseResourceUsage(decodeMaybeUTF16(outputBytes)), nil
+}
+
+func decodeMaybeUTF16(b []byte) string {
+	if len(b) < 2 {
+		return string(b)
+	}
+
+	isUTF16 := false
+	if b[0] == 0xFF && b[1] == 0xFE {
+		isUTF16 = true
+	} else if len(b) >= 4 && b[1] == 0x00 && b[3] == 0x00 {
+		isUTF16 = true
+	}
+
+	if !isUTF16 {
+		return string(b)
+	}
+
+	startIdx := 0
+	if b[0] == 0xFF && b[1] == 0xFE {
+		startIdx = 2
+	}
+
+	bytesToDecode := b[startIdx:]
+	if len(bytesToDecode)%2 != 0 {
+		bytesToDecode = bytesToDecode[:len(bytesToDecode)-1]
+	}
+
+	u16 := make([]uint16, len(bytesToDecode)/2)
+	for i := 0; i < len(u16); i++ {
+		u16[i] = uint16(bytesToDecode[2*i]) | (uint16(bytesToDecode[2*i+1]) << 8)
+	}
+	return string(utf16.Decode(u16))
 }
 
 func parseResourceUsage(output string) interfaces.ResourceUsage {
