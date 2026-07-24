@@ -677,7 +677,7 @@ func (m *SSHManager) GetResourceUsage(sessionID string) (interfaces.ResourceUsag
 		return interfaces.ResourceUsage{}, err
 	}
 
-	command := `echo "===METRICS==="; vmstat 1 2 | tail -1 | awk '{print "CPU:" 100 - $15}'; free -m | grep Mem | awk '{print "MEM_TOTAL:" $2 " MEM_USED:" $3}'; df -m / | tail -1 | awk '{print "DISK_TOTAL:" $2 " DISK_USED:" $3}'; echo "===END==="`
+	command := `echo "===METRICS==="; vmstat 1 2 | tail -1 | awk '{print "CPU:" 100 - $15}'; awk '/MemTotal/ {total=$2} /MemAvailable/ {avail=$2} /MemFree/ {free=$2} /Buffers/ {buf=$2} /Cached/ {cached=$2} END { if (avail=="") {used=(total-free-buf-cached)} else {used=(total-avail)}; print "MEM_TOTAL:" int(total/1024) " MEM_USED:" int(used/1024) }' /proc/meminfo; df -m / | awk 'NR>1 { if (NF==1) {line=$1; getline; print "DISK_TOTAL:" $1 " DISK_USED:" $2} else {print "DISK_TOTAL:" $2 " DISK_USED:" $3} }'; echo "===END==="`
 
 	err = sess.Run(command)
 	if err != nil {

@@ -758,6 +758,15 @@ describe("SSHSessionView Component", () => {
     expect(screen.getByText("RAM: 6.0 GB / 8.0 GB (75%)")).toBeInTheDocument();
     expect(screen.getByText("DISK: 90.0 GB / 100.0 GB (90%)")).toBeInTheDocument();
 
+    // Hover over CPU item to trigger tooltip
+    const cpuItem = screen.getByText("CPU: 45%");
+    fireEvent.mouseEnter(cpuItem);
+    expect(screen.getByText("CPU Usage History")).toBeInTheDocument();
+
+    // Leave hover
+    fireEvent.mouseLeave(cpuItem);
+    expect(screen.queryByText("CPU Usage History")).not.toBeInTheDocument();
+
     // Verify gear settings button and click it to open settings
     const gearBtn = screen.getByTitle("Monitoring Settings");
     expect(gearBtn).toBeInTheDocument();

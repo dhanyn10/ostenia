@@ -154,6 +154,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const [monitorInterval, setMonitorInterval] = useState<number>(3);
   const [isMonitoringEnabled, setIsMonitoringEnabled] = useState<boolean>(true);
   const [showResourceSettings, setShowResourceSettings] = useState<boolean>(false);
+  const [hoveredMetric, setHoveredMetric] = useState<"cpu" | "mem" | "disk" | null>(null);
   const isFetchingUsageRef = useRef(false);
   const [history, setHistory] = useState<Array<{
     cpu: number | null;
@@ -756,25 +757,52 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           {isMonitoringEnabled ? (
             <div className="flex items-center gap-6 text-[10px] font-bold text-mui-grey-600 dark:text-mui-grey-400">
               {/* CPU */}
-              <div className="flex items-center gap-2">
+              <div
+                className="relative py-1 cursor-help group"
+                onMouseEnter={() => setHoveredMetric("cpu")}
+                onMouseLeave={() => setHoveredMetric(null)}
+              >
                 <span className="min-w-[55px]">CPU: {resourceUsage ? `${resourceUsage.cpu.toFixed(0)}%` : "—"}</span>
-                <ResourceLineChart data={history} metric="cpu" color="#2196f3" fillColor="rgba(33, 150, 243, 0.15)" />
+                {hoveredMetric === "cpu" && (
+                  <div className="absolute bottom-7 left-0 z-50 bg-white dark:bg-mui-grey-850 p-2 rounded shadow-lg border border-mui-grey-200 dark:border-white/10 flex flex-col gap-1 items-center animate-in fade-in duration-100 min-w-[130px]">
+                    <span className="text-[9px] uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">CPU Usage History</span>
+                    <ResourceLineChart data={history} metric="cpu" color="#2196f3" fillColor="rgba(33, 150, 243, 0.15)" />
+                  </div>
+                )}
               </div>
 
               {/* RAM */}
-              <div className="flex items-center gap-2">
+              <div
+                className="relative py-1 cursor-help group"
+                onMouseEnter={() => setHoveredMetric("mem")}
+                onMouseLeave={() => setHoveredMetric(null)}
+              >
                 <span className="min-w-[130px]">
                   RAM: {resourceUsage ? `${(resourceUsage.memUsed / 1024).toFixed(1)} GB / ${(resourceUsage.memTotal / 1024).toFixed(1)} GB (${resourceUsage.mem.toFixed(0)}%)` : "—"}
                 </span>
-                <ResourceLineChart data={history} metric="mem" color="#9c27b0" fillColor="rgba(156, 39, 176, 0.15)" />
+                {hoveredMetric === "mem" && (
+                  <div className="absolute bottom-7 left-0 z-50 bg-white dark:bg-mui-grey-850 p-2 rounded shadow-lg border border-mui-grey-200 dark:border-white/10 flex flex-col gap-1 items-center animate-in fade-in duration-100 min-w-[130px]">
+                    <span className="text-[9px] uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">RAM Usage History</span>
+                    <ResourceLineChart data={history} metric="mem" color="#9c27b0" fillColor="rgba(156, 39, 176, 0.15)" />
+                  </div>
+                )}
               </div>
 
               {/* Disk */}
-              <div className="flex items-center gap-2">
+              <div
+                className="relative py-1 cursor-help group"
+                onMouseEnter={() => setHoveredMetric("disk")}
+                onMouseLeave={() => setHoveredMetric(null)}
+              >
                 <span className="min-w-[140px]">
                   DISK: {resourceUsage ? `${(resourceUsage.diskUsed / 1024).toFixed(1)} GB / ${(resourceUsage.diskTotal / 1024).toFixed(1)} GB (${resourceUsage.disk.toFixed(0)}%)` : "—"}
                 </span>
-                <ResourceLineChart data={history} metric="disk" color="#009688" fillColor="rgba(0, 150, 136, 0.15)" />
+                {hoveredMetric === "disk" && (
+                  <div className="absolute bottom-7 left-0 z-50 bg-white dark:bg-mui-grey-850 p-2 rounded shadow-lg border border-mui-grey-200 dark:border-white/10 flex flex-col gap-1 items-center animate-in fade-in duration-100 min-w-[130px]">
+                    <span className="text-[9px] uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">Disk Usage History</span>
+                    <ResourceLineChart data={history} metric="disk" color="#009688" fillColor="rgba(0, 150, 136, 0.15)" />
+                  </div>
+                )}
               </div>
             </div>
           ) : (
