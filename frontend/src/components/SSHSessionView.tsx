@@ -158,7 +158,6 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const [isMonitoringEnabled, setIsMonitoringEnabled] = useState<boolean>(() => {
     return localStorage.getItem('ostenia_ssh_monitor_enabled') !== 'false';
   });
-  const [showResourceSettings, setShowResourceSettings] = useState<boolean>(false);
   const [hoveredMetric, setHoveredMetric] = useState<"cpu" | "mem" | "disk" | null>(null);
   const isFetchingUsageRef = useRef(false);
   const [history, setHistory] = useState<Array<{
@@ -731,53 +730,12 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           <div className="relative">
             <button
               type="button"
-              onClick={() => setShowResourceSettings(!showResourceSettings)}
+              onClick={() => onOpenSettings("config")}
               className="p-1 rounded text-mui-grey-500 dark:text-mui-grey-400 hover:text-mui-blue-600 dark:hover:text-white transition-colors"
               title="Monitoring Settings"
             >
               <Settings size={14} />
             </button>
-
-            {showResourceSettings && (
-              <div className="absolute bottom-11 left-0 z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg p-3 min-w-[220px] flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-150">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">
-                  Monitoring Settings
-                </div>
-                <label className="flex items-center gap-2 cursor-pointer text-mui-grey-700 dark:text-mui-grey-300">
-                  <input
-                    type="checkbox"
-                    checked={isMonitoringEnabled}
-                    onChange={(e) => {
-                      setIsMonitoringEnabled(e.target.checked);
-                      localStorage.setItem('ostenia_ssh_monitor_enabled', e.target.checked ? 'true' : 'false');
-                      window.dispatchEvent(new Event('ostenia_ssh_monitor_settings_changed'));
-                    }}
-                    className="rounded border-mui-grey-300 dark:border-white/10 text-mui-blue-600 focus:ring-mui-blue-500"
-                  />
-                  <span className="font-bold text-[11px]">Enable Monitoring</span>
-                </label>
-                <div className="flex flex-col gap-1">
-                  <span className="font-bold text-[11px] text-mui-grey-700 dark:text-mui-grey-300">
-                    Interval (seconds)
-                  </span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={60}
-                    value={monitorInterval}
-                    onChange={(e) => {
-                      const val = Number.parseInt(e.target.value, 10);
-                      if (!Number.isNaN(val) && val >= 1) {
-                        setMonitorInterval(val);
-                        localStorage.setItem('ostenia_ssh_monitor_interval', String(val));
-                        window.dispatchEvent(new Event('ostenia_ssh_monitor_settings_changed'));
-                      }
-                    }}
-                    className="px-2 py-1 text-xs border border-mui-grey-300 dark:border-white/10 rounded bg-transparent text-mui-grey-900 dark:text-white focus:outline-none focus:border-mui-blue-500 w-full font-bold"
-                  />
-                </div>
-              </div>
-            )}
           </div>
 
           {isMonitoringEnabled ? (

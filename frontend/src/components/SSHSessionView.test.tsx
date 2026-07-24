@@ -773,16 +773,8 @@ describe("SSHSessionView Component", () => {
     expect(gearBtn).toBeInTheDocument();
     fireEvent.click(gearBtn);
 
-    // Settings title should be visible
-    expect(screen.getByText("Monitoring Settings")).toBeInTheDocument();
-
-    // Toggle monitoring checkbox
-    const enableCheckbox = screen.getByLabelText("Enable Monitoring");
-    expect(enableCheckbox).toBeInTheDocument();
-    fireEvent.click(enableCheckbox);
-
-    // Now monitoring should be disabled
-    expect(screen.getByText("Monitoring disabled")).toBeInTheDocument();
+    // Should call onOpenSettings with "config"
+    expect(mockProps.onOpenSettings).toHaveBeenCalledWith("config");
   });
 
   it("handles connection drop and displays offline gray zone", async () => {
