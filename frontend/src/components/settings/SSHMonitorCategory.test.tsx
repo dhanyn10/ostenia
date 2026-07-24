@@ -40,4 +40,20 @@ describe('SSHMonitorCategory Component', () => {
     expect(intervalInput).toHaveValue(10);
     expect(localStorage.getItem('ostenia_ssh_monitor_interval')).toBe('10');
   });
+
+  it('handles custom display style selections', () => {
+    render(<SSHMonitorCategory />);
+
+    const select = screen.getByLabelText('Chart Display Style');
+    expect(select).toBeInTheDocument();
+    expect(select).toHaveValue('tooltip');
+
+    fireEvent.change(select, { target: { value: 'hover-inline' } });
+    expect(select).toHaveValue('hover-inline');
+    expect(localStorage.getItem('ostenia_ssh_monitor_display_mode')).toBe('hover-inline');
+
+    fireEvent.change(select, { target: { value: 'always' } });
+    expect(select).toHaveValue('always');
+    expect(localStorage.getItem('ostenia_ssh_monitor_display_mode')).toBe('always');
+  });
 });

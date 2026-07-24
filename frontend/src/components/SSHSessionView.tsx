@@ -159,6 +159,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     return localStorage.getItem('ostenia_ssh_monitor_enabled') !== 'false';
   });
   const [hoveredMetric, setHoveredMetric] = useState<"cpu" | "mem" | "disk" | null>(null);
+  const [displayMode, setDisplayMode] = useState<string>(() => {
+    return localStorage.getItem('ostenia_ssh_monitor_display_mode') || 'tooltip';
+  });
   const isFetchingUsageRef = useRef(false);
   const [history, setHistory] = useState<Array<{
     cpu: number | null;
@@ -171,6 +174,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       setIsMonitoringEnabled(localStorage.getItem('ostenia_ssh_monitor_enabled') !== 'false');
       const val = Number.parseInt(localStorage.getItem('ostenia_ssh_monitor_interval') || '3', 10);
       setMonitorInterval(Number.isNaN(val) || val < 1 ? 3 : val);
+      setDisplayMode(localStorage.getItem('ostenia_ssh_monitor_display_mode') || 'tooltip');
     };
 
     window.addEventListener('ostenia_ssh_monitor_settings_changed', handleSettingsChanged);
@@ -742,14 +746,19 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             <div className="flex items-center gap-6 text-[10px] font-bold text-mui-grey-600 dark:text-mui-grey-400">
               {/* CPU */}
               <div
-                className="relative py-1 cursor-help group"
+                className="relative py-1 cursor-help group flex items-center gap-2"
                 onMouseEnter={() => setHoveredMetric("cpu")}
                 onMouseLeave={() => setHoveredMetric(null)}
               >
                 <span className="min-w-[55px]">CPU: {resourceUsage ? `${resourceUsage.cpu.toFixed(0)}%` : "—"}</span>
-                {hoveredMetric === "cpu" && (
+                {displayMode === "tooltip" && hoveredMetric === "cpu" && (
                   <div className="absolute bottom-7 left-0 z-50 bg-white dark:bg-mui-grey-850 p-2 rounded shadow-lg border border-mui-grey-200 dark:border-white/10 flex flex-col gap-1 items-center animate-in fade-in duration-100 min-w-[130px]">
                     <span className="text-[9px] uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">CPU Usage History</span>
+                    <ResourceLineChart data={history} metric="cpu" color="#2196f3" fillColor="rgba(33, 150, 243, 0.15)" />
+                  </div>
+                )}
+                {displayMode !== "tooltip" && (displayMode === "always" || (displayMode === "hover-inline" && hoveredMetric === "cpu")) && (
+                  <div className="flex items-center shrink-0">
                     <ResourceLineChart data={history} metric="cpu" color="#2196f3" fillColor="rgba(33, 150, 243, 0.15)" />
                   </div>
                 )}
@@ -757,16 +766,21 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
 
               {/* RAM */}
               <div
-                className="relative py-1 cursor-help group"
+                className="relative py-1 cursor-help group flex items-center gap-2"
                 onMouseEnter={() => setHoveredMetric("mem")}
                 onMouseLeave={() => setHoveredMetric(null)}
               >
                 <span className="min-w-[130px]">
                   RAM: {resourceUsage ? `${(resourceUsage.memUsed / 1024).toFixed(1)} GB / ${(resourceUsage.memTotal / 1024).toFixed(1)} GB (${resourceUsage.mem.toFixed(0)}%)` : "—"}
                 </span>
-                {hoveredMetric === "mem" && (
+                {displayMode === "tooltip" && hoveredMetric === "mem" && (
                   <div className="absolute bottom-7 left-0 z-50 bg-white dark:bg-mui-grey-850 p-2 rounded shadow-lg border border-mui-grey-200 dark:border-white/10 flex flex-col gap-1 items-center animate-in fade-in duration-100 min-w-[130px]">
                     <span className="text-[9px] uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">RAM Usage History</span>
+                    <ResourceLineChart data={history} metric="mem" color="#9c27b0" fillColor="rgba(156, 39, 176, 0.15)" />
+                  </div>
+                )}
+                {displayMode !== "tooltip" && (displayMode === "always" || (displayMode === "hover-inline" && hoveredMetric === "mem")) && (
+                  <div className="flex items-center shrink-0">
                     <ResourceLineChart data={history} metric="mem" color="#9c27b0" fillColor="rgba(156, 39, 176, 0.15)" />
                   </div>
                 )}
@@ -774,16 +788,21 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
 
               {/* Disk */}
               <div
-                className="relative py-1 cursor-help group"
+                className="relative py-1 cursor-help group flex items-center gap-2"
                 onMouseEnter={() => setHoveredMetric("disk")}
                 onMouseLeave={() => setHoveredMetric(null)}
               >
                 <span className="min-w-[140px]">
                   DISK: {resourceUsage ? `${(resourceUsage.diskUsed / 1024).toFixed(1)} GB / ${(resourceUsage.diskTotal / 1024).toFixed(1)} GB (${resourceUsage.disk.toFixed(0)}%)` : "—"}
                 </span>
-                {hoveredMetric === "disk" && (
+                {displayMode === "tooltip" && hoveredMetric === "disk" && (
                   <div className="absolute bottom-7 left-0 z-50 bg-white dark:bg-mui-grey-850 p-2 rounded shadow-lg border border-mui-grey-200 dark:border-white/10 flex flex-col gap-1 items-center animate-in fade-in duration-100 min-w-[130px]">
                     <span className="text-[9px] uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">Disk Usage History</span>
+                    <ResourceLineChart data={history} metric="disk" color="#009688" fillColor="rgba(0, 150, 136, 0.15)" />
+                  </div>
+                )}
+                {displayMode !== "tooltip" && (displayMode === "always" || (displayMode === "hover-inline" && hoveredMetric === "disk")) && (
+                  <div className="flex items-center shrink-0">
                     <ResourceLineChart data={history} metric="disk" color="#009688" fillColor="rgba(0, 150, 136, 0.15)" />
                   </div>
                 )}

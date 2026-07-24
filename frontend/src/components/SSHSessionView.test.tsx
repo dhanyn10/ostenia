@@ -811,4 +811,26 @@ describe("SSHSessionView Component", () => {
     expect(screen.getByText("RAM: —")).toBeInTheDocument();
     expect(screen.getByText("DISK: —")).toBeInTheDocument();
   });
+
+  it("handles always-inline display mode rendering", async () => {
+    localStorage.setItem('ostenia_ssh_monitor_display_mode', 'always');
+    vi.mocked(AppBackend.GetSSHResourceUsage).mockResolvedValue({
+      cpu: 54,
+      mem: 75,
+      memTotal: 8192,
+      memUsed: 6144,
+      disk: 90,
+      diskTotal: 102400,
+      diskUsed: 92160,
+    });
+
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("CPU: 54%")).toBeInTheDocument();
+    });
+
+    // Chart SVG elements should render inline immediately
+    expect(document.querySelectorAll('svg line').length).toBeGreaterThan(0);
+  });
 });

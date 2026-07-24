@@ -9,6 +9,9 @@ const SSHMonitorCategory: React.FC = () => {
     const val = Number.parseInt(localStorage.getItem('ostenia_ssh_monitor_interval') || '3', 10);
     return Number.isNaN(val) || val < 1 ? 3 : val;
   });
+  const [displayMode, setDisplayMode] = useState<string>(() => {
+    return localStorage.getItem('ostenia_ssh_monitor_display_mode') || 'tooltip';
+  });
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
@@ -53,6 +56,27 @@ const SSHMonitorCategory: React.FC = () => {
               }}
               className="w-full px-3 py-1.5 bg-white dark:bg-mui-grey-900 border border-mui-grey-200 dark:border-white/10 rounded outline-none text-sm text-mui-grey-900 dark:text-white focus:border-mui-blue-500 font-bold"
             />
+          </div>
+
+          <div className="space-y-2 max-w-xs pt-2">
+            <label htmlFor="monitor-display-select" className="block text-[10px] font-bold text-mui-grey-500 uppercase tracking-wider">
+              Chart Display Style
+            </label>
+            <select
+              id="monitor-display-select"
+              value={displayMode}
+              onChange={(e) => {
+                const val = e.target.value;
+                setDisplayMode(val);
+                localStorage.setItem('ostenia_ssh_monitor_display_mode', val);
+                window.dispatchEvent(new Event('ostenia_ssh_monitor_settings_changed'));
+              }}
+              className="w-full px-3 py-1.5 bg-white dark:bg-mui-grey-900 border border-mui-grey-200 dark:border-white/10 rounded outline-none text-sm text-mui-grey-700 dark:text-mui-grey-200 focus:border-mui-blue-500 font-bold cursor-pointer"
+            >
+              <option value="tooltip">Tooltip on Hover</option>
+              <option value="hover-inline">Show Inline on Hover</option>
+              <option value="always">Always Show Inline</option>
+            </select>
           </div>
         </div>
 
