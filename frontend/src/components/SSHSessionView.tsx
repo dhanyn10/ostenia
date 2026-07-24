@@ -714,7 +714,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
               className="p-1 rounded text-mui-grey-500 dark:text-mui-grey-400 hover:text-mui-blue-600 dark:hover:text-white transition-colors"
               title="Monitoring Settings"
             >
-              <Settings size={14} className={isFetchingUsage ? "animate-spin" : ""} />
+              <Settings size={14} />
             </button>
 
             {showResourceSettings && (
