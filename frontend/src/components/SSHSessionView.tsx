@@ -33,7 +33,7 @@ const ResourceLineChart: React.FC<ResourceLineChartProps> = ({ data, metric, col
   const height = 30;
   const pointsCount = 30;
 
-  const paddedData = [...Array(pointsCount).fill({ cpu: null, mem: null, disk: null }), ...data].slice(-pointsCount);
+  const paddedData = [...new Array(pointsCount).fill({ cpu: null, mem: null, disk: null }), ...data].slice(-pointsCount);
 
   const getX = (index: number) => {
     return (index / (pointsCount - 1)) * width;
@@ -53,11 +53,9 @@ const ResourceLineChart: React.FC<ResourceLineChartProps> = ({ data, metric, col
     const val = d[metric];
     if (val !== null) {
       currentSegment.push([getX(i), getY(val)]);
-    } else {
-      if (currentSegment.length > 0) {
-        segments.push(currentSegment);
-        currentSegment = [];
-      }
+    } else if (currentSegment.length > 0) {
+      segments.push(currentSegment);
+      currentSegment = [];
     }
   });
   if (currentSegment.length > 0) {
@@ -80,7 +78,7 @@ const ResourceLineChart: React.FC<ResourceLineChartProps> = ({ data, metric, col
       for (let j = 1; j < seg.length; j++) {
         segArea += ` L ${seg[j][0]} ${seg[j][1]}`;
       }
-      segArea += ` L ${seg[seg.length - 1][0]} ${height} Z`;
+      segArea += ` L ${seg.at(-1)[0]} ${height} Z`;
       areaPath += " " + segArea;
     }
   });
@@ -152,7 +150,6 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const [monitorInterval, setMonitorInterval] = useState<number>(3);
   const [isMonitoringEnabled, setIsMonitoringEnabled] = useState<boolean>(true);
   const [showResourceSettings, setShowResourceSettings] = useState<boolean>(false);
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const isFetchingUsageRef = useRef(false);
   const [history, setHistory] = useState<Array<{
     cpu: number | null;
@@ -170,9 +167,6 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     const fetchUsage = async () => {
       if (isFetchingUsageRef.current) return;
       isFetchingUsageRef.current = true;
-      if (isMounted) {
-        setIsSyncing(true);
-      }
       try {
         const usage = await AppBackend.GetSSHResourceUsage(session.id);
         if (isMounted) {
@@ -187,9 +181,6 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         }
       } finally {
         isFetchingUsageRef.current = false;
-        if (isMounted) {
-          setIsSyncing(false);
-        }
       }
     };
 
@@ -407,7 +398,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     xterm.current.onTitleChange((title) => {
       if (title.includes(":")) {
         const parts = title.split(":");
-        const potentialPath = parts[parts.length - 1].trim();
+        const potentialPath = parts.at(-1).trim();
         if (potentialPath.startsWith("/") || potentialPath.startsWith("~")) {
           syncExplorer(potentialPath);
         }
@@ -526,7 +517,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       if (!current) return;
       let normalized = current.trim();
       if (normalized.length > 1 && normalized.endsWith("/"))
-        normalized = normalized.substring(0, normalized.length - 1);
+        normalized = normalized.slice(0, -1);
       if (normalized !== currentPathRef.current) loadRemoteFiles(normalized, false, true);
     } catch (e) {}
   };
@@ -746,8 +737,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
                     max={60}
                     value={monitorInterval}
                     onChange={(e) => {
-                      const val = parseInt(e.target.value, 10);
-                      if (!isNaN(val) && val >= 1) {
+                      const val = Number.parseInt(e.target.value, 10);
+                      if (!Number.isNaN(val) && val >= 1) {
                         setMonitorInterval(val);
                       }
                     }}
