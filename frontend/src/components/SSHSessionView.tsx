@@ -151,9 +151,13 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     diskTotal: number;
     diskUsed: number;
   } | null>(null);
-  const [monitorInterval, setMonitorInterval] = useState<number>(3);
-  const [isMonitoringEnabled, setIsMonitoringEnabled] = useState<boolean>(true);
-  const [showResourceSettings, setShowResourceSettings] = useState<boolean>(false);
+  const [monitorInterval, setMonitorInterval] = useState<number>(() => {
+    const val = Number.parseInt(localStorage.getItem('ostenia_ssh_monitor_interval') || '3', 10);
+    return Number.isNaN(val) || val < 1 ? 3 : val;
+  });
+  const [isMonitoringEnabled, setIsMonitoringEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('ostenia_ssh_monitor_enabled') !== 'false';
+  });
   const [hoveredMetric, setHoveredMetric] = useState<"cpu" | "mem" | "disk" | null>(null);
   const isFetchingUsageRef = useRef(false);
   const [history, setHistory] = useState<Array<{
@@ -161,6 +165,21 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     mem: number | null;
     disk: number | null;
   }>>([]);
+
+  useEffect(() => {
+    const handleSettingsChanged = () => {
+      setIsMonitoringEnabled(localStorage.getItem('ostenia_ssh_monitor_enabled') !== 'false');
+      const val = Number.parseInt(localStorage.getItem('ostenia_ssh_monitor_interval') || '3', 10);
+      setMonitorInterval(Number.isNaN(val) || val < 1 ? 3 : val);
+    };
+
+    window.addEventListener('ostenia_ssh_monitor_settings_changed', handleSettingsChanged);
+    handleSettingsChanged();
+
+    return () => {
+      window.removeEventListener('ostenia_ssh_monitor_settings_changed', handleSettingsChanged);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isMonitoringEnabled || connecting) {
@@ -711,47 +730,12 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           <div className="relative">
             <button
               type="button"
-              onClick={() => setShowResourceSettings(!showResourceSettings)}
+              onClick={() => onOpenSettings("config")}
               className="p-1 rounded text-mui-grey-500 dark:text-mui-grey-400 hover:text-mui-blue-600 dark:hover:text-white transition-colors"
               title="Monitoring Settings"
             >
               <Settings size={14} />
             </button>
-
-            {showResourceSettings && (
-              <div className="absolute bottom-11 left-0 z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg p-3 min-w-[220px] flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-150">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">
-                  Monitoring Settings
-                </div>
-                <label className="flex items-center gap-2 cursor-pointer text-mui-grey-700 dark:text-mui-grey-300">
-                  <input
-                    type="checkbox"
-                    checked={isMonitoringEnabled}
-                    onChange={(e) => setIsMonitoringEnabled(e.target.checked)}
-                    className="rounded border-mui-grey-300 dark:border-white/10 text-mui-blue-600 focus:ring-mui-blue-500"
-                  />
-                  <span className="font-bold text-[11px]">Enable Monitoring</span>
-                </label>
-                <div className="flex flex-col gap-1">
-                  <span className="font-bold text-[11px] text-mui-grey-700 dark:text-mui-grey-300">
-                    Interval (seconds)
-                  </span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={60}
-                    value={monitorInterval}
-                    onChange={(e) => {
-                      const val = Number.parseInt(e.target.value, 10);
-                      if (!Number.isNaN(val) && val >= 1) {
-                        setMonitorInterval(val);
-                      }
-                    }}
-                    className="px-2 py-1 text-xs border border-mui-grey-300 dark:border-white/10 rounded bg-transparent text-mui-grey-900 dark:text-white focus:outline-none focus:border-mui-blue-500 w-full font-bold"
-                  />
-                </div>
-              </div>
-            )}
           </div>
 
           {isMonitoringEnabled ? (
