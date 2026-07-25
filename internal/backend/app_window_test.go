@@ -55,28 +55,29 @@ func TestApp_WindowDelegates(t *testing.T) {
 	app := &App{
 		runtime: mockR,
 	}
+	app.Startup(ctx)
 
-	app.Minimize(ctx)
+	app.Minimize()
 	if !mockR.Minimised {
 		t.Error("Expected WindowMinimise to be called")
 	}
 
-	app.Maximize(ctx)
+	app.Maximize()
 	if !mockR.Maximised {
 		t.Error("Expected WindowMaximise to be called")
 	}
 
-	app.Unmaximize(ctx)
+	app.Unmaximize()
 	if !mockR.Unmaximised {
 		t.Error("Expected WindowUnmaximise to be called")
 	}
 
-	app.Close(ctx)
+	app.Close()
 	if !mockR.QuitCalled {
 		t.Error("Expected Quit to be called")
 	}
 
-	app.ToggleDevTools(ctx)
+	app.ToggleDevTools()
 	if mockR.JS == "" {
 		t.Error("Expected WindowExecJS to be called")
 	}
@@ -92,7 +93,6 @@ func TestApp_WindowDelegatesWithStartupContext(t *testing.T) {
 	mockR := &FullMockRuntime{}
 	type contextKey string
 	startupCtx := context.WithValue(context.Background(), contextKey("type"), "startup")
-	callCtx := context.WithValue(context.Background(), contextKey("type"), "call")
 
 	app := &App{
 		runtime: mockR,
@@ -100,7 +100,7 @@ func TestApp_WindowDelegatesWithStartupContext(t *testing.T) {
 	app.Startup(startupCtx)
 
 	// Minimize
-	app.Minimize(callCtx)
+	app.Minimize()
 	if !mockR.Minimised {
 		t.Error("Expected WindowMinimise to be called")
 	}
@@ -109,7 +109,7 @@ func TestApp_WindowDelegatesWithStartupContext(t *testing.T) {
 	}
 
 	// Maximize
-	app.Maximize(callCtx)
+	app.Maximize()
 	if !mockR.Maximised {
 		t.Error("Expected WindowMaximise to be called")
 	}
@@ -118,7 +118,7 @@ func TestApp_WindowDelegatesWithStartupContext(t *testing.T) {
 	}
 
 	// Unmaximize
-	app.Unmaximize(callCtx)
+	app.Unmaximize()
 	if !mockR.Unmaximised {
 		t.Error("Expected WindowUnmaximise to be called")
 	}
@@ -127,7 +127,7 @@ func TestApp_WindowDelegatesWithStartupContext(t *testing.T) {
 	}
 
 	// Close
-	app.Close(callCtx)
+	app.Close()
 	if !mockR.QuitCalled {
 		t.Error("Expected Quit to be called")
 	}
@@ -136,7 +136,7 @@ func TestApp_WindowDelegatesWithStartupContext(t *testing.T) {
 	}
 
 	// ToggleDevTools
-	app.ToggleDevTools(callCtx)
+	app.ToggleDevTools()
 	if mockR.JS == "" {
 		t.Error("Expected WindowExecJS to be called")
 	}

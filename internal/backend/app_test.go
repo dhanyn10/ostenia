@@ -155,6 +155,7 @@ func TestApp_Full_Mocked(t *testing.T) {
 	ctx := context.Background()
 
 	app := &App{
+		ctx:          ctx,
 		runtime:      mockR,
 		cfg:          &config.Config{Proxies: map[string]int{"test": 3000}, BaseDir: tempDir, WWWRoot: filepath.Join(tempDir, "www")},
 		downloader:   &MockPluginManager{},
@@ -164,11 +165,11 @@ func TestApp_Full_Mocked(t *testing.T) {
 	}
 
 	// App window
-	app.Minimize(ctx)
-	app.Maximize(ctx)
-	app.Unmaximize(ctx)
-	app.ToggleDevTools(ctx)
-	app.Close(ctx)
+	app.Minimize()
+	app.Maximize()
+	app.Unmaximize()
+	app.ToggleDevTools()
+	app.Close()
 	app.EventsEmit(ctx, "test", nil)
 	_, _ = app.OpenFileDialog(ctx, wruntime.OpenDialogOptions{})
 	_, _ = app.OpenDirectoryDialog(ctx, wruntime.OpenDialogOptions{})
