@@ -238,6 +238,7 @@ func TestApp_Full_Mocked(t *testing.T) {
 	_ = app.DownloadRemoteFile(ctx, "test", "/path")
 	_ = app.UploadRemoteFile(ctx, "test", "/path")
 	_, _ = app.GetSSHResourceUsage("test")
+	_, _ = app.GetWSLDistros()
 
 	// Network
 	_ = app.CheckProxyPorts()
@@ -312,9 +313,6 @@ func TestApp_Startup(t *testing.T) {
 }
 
 func TestWailsRuntime(t *testing.T) {
-	// We avoid calling WailsRuntime methods directly because they panic/exit if context is invalid
-	// and Wails isn't running.
-	// Instead, we skip this to keep tests passing, or we could use recover() but it's messy.
 	t.Skip("Skipping WailsRuntime tests as they require a valid Wails context")
 }
 
@@ -355,6 +353,7 @@ func TestApp_Services_RealIsh(t *testing.T) {
 	phpCurrent := filepath.Join(binDir, "php", "current")
 	os.MkdirAll(phpCurrent, 0755)
 	os.WriteFile(filepath.Join(phpCurrent, "php-cgi.exe"), []byte(""), 0755)
+	_ = os.WriteFile(filepath.Join(phpCurrent, "php.ini"), []byte("extension=openssl\n"), 0644)
 
 	// MySQL
 	mysqlDir := filepath.Join(binDir, "mysql", "mysql-8.0.0")
@@ -391,11 +390,17 @@ func TestApp_Services_RealIsh(t *testing.T) {
 	nodeDir := filepath.Join(binDir, "nodejs", "node-v18.0.0")
 	os.MkdirAll(filepath.Join(nodeDir, "bin"), 0755)
 	os.WriteFile(filepath.Join(nodeDir, "bin", "node.exe"), []byte(""), 0755)
+	nodeCurrent := filepath.Join(binDir, "nodejs", "current")
+	os.MkdirAll(filepath.Join(nodeCurrent, "bin"), 0755)
+	os.WriteFile(filepath.Join(nodeCurrent, "bin", "node.exe"), []byte(""), 0755)
 
 	// Python
 	pythonDir := filepath.Join(binDir, "python", "python-3.10.0")
 	os.MkdirAll(filepath.Join(pythonDir, "bin"), 0755)
 	os.WriteFile(filepath.Join(pythonDir, "bin", "python.exe"), []byte(""), 0755)
+	pythonCurrent := filepath.Join(binDir, "python", "current")
+	os.MkdirAll(filepath.Join(pythonCurrent, "bin"), 0755)
+	os.WriteFile(filepath.Join(pythonCurrent, "bin", "python.exe"), []byte(""), 0755)
 
 	ctx := context.Background()
 
