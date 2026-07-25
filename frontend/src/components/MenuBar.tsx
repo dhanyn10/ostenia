@@ -150,6 +150,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
 }) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [showSnapMenu, setShowSnapMenu] = useState(false);
+  const hoverTimeoutRef = useRef<any>(null);
 
   const handleMinimize = () => AppBackend.Minimize();
   const handleMaximize = () => {
@@ -161,6 +163,65 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setIsMaximized(!isMaximized);
   };
   const handleClose = () => AppBackend.Close();
+
+  const handleMouseEnterMaximize = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    hoverTimeoutRef.current = setTimeout(() => {
+      setShowSnapMenu(true);
+    }, 400);
+  };
+
+  const handleMouseLeaveMaximize = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    hoverTimeoutRef.current = setTimeout(() => {
+      setShowSnapMenu(false);
+    }, 300);
+  };
+
+  const handleMouseEnterSnapMenu = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+  };
+
+  const handleMouseLeaveSnapMenu = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    hoverTimeoutRef.current = setTimeout(() => {
+      setShowSnapMenu(false);
+    }, 200);
+  };
+
+  const snapWindow = async (layout: 'left' | 'right' | 'left-third' | 'right-third' | 'full') => {
+    if (isMaximized) {
+      AppBackend.Unmaximize();
+      setIsMaximized(false);
+    }
+    try {
+      const runtime = await import("../../wailsjs/runtime/runtime");
+      const screens = await runtime.ScreenGetAll();
+      const currentScreen = screens.find((s: any) => s.isCurrent) || screens[0] || { width: 1920, height: 1080 };
+      const screenWidth = currentScreen.width;
+      const screenHeight = currentScreen.height - 48; // Reserve pixels for system taskbar
+
+      if (layout === 'left') {
+        runtime.WindowSetPosition(0, 0);
+        runtime.WindowSetSize(Math.floor(screenWidth / 2), screenHeight);
+      } else if (layout === 'right') {
+        runtime.WindowSetPosition(Math.floor(screenWidth / 2), 0);
+        runtime.WindowSetSize(Math.floor(screenWidth / 2), screenHeight);
+      } else if (layout === 'left-third') {
+        runtime.WindowSetPosition(0, 0);
+        runtime.WindowSetSize(Math.floor(screenWidth / 3), screenHeight);
+      } else if (layout === 'right-third') {
+        runtime.WindowSetPosition(Math.floor(screenWidth * 2 / 3), 0);
+        runtime.WindowSetSize(Math.floor(screenWidth / 3), screenHeight);
+      } else if (layout === 'full') {
+        AppBackend.Maximize();
+        setIsMaximized(true);
+      }
+    } catch (e) {
+      console.error("Failed to snap window:", e);
+    }
+    setShowSnapMenu(false);
+  };
 
   const handleOpenCategory = (category: string) => {
     onOpenSettings(category);
@@ -328,13 +389,97 @@ const MenuBar: React.FC<MenuBarProps> = ({
         >
           <Minus size={14} />
         </button>
-        <button
-          type="button"
-          onClick={handleMaximize}
-          className="w-12 h-full flex items-center justify-center hover:bg-mui-grey-200 dark:hover:bg-white/10 transition-colors"
+
+        <div
+          className="relative h-full flex items-center"
+          onMouseEnter={handleMouseEnterMaximize}
+          onMouseLeave={handleMouseLeaveMaximize}
+          data-testid="maximize-container"
         >
-          <Square size={12} />
-        </button>
+          <button
+            type="button"
+            onClick={handleMaximize}
+            className="w-12 h-full flex items-center justify-center hover:bg-mui-grey-200 dark:hover:bg-white/10 transition-colors"
+          >
+            <Square size={12} />
+          </button>
+
+          {showSnapMenu && (
+            <div
+              onMouseEnter={handleMouseEnterSnapMenu}
+              onMouseLeave={handleMouseLeaveSnapMenu}
+              className={cn(
+                "absolute top-full right-0 mt-1 w-48 p-3 border shadow-2xl z-[150] rounded bg-white dark:bg-mui-dark-paper border-mui-grey-200 dark:border-white/10 flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-100",
+              )}
+            >
+              <div className="text-[10px] font-semibold text-mui-grey-500 dark:text-mui-grey-400 uppercase tracking-wider mb-1">
+                Snap Window
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => snapWindow('left')}
+                  className="group flex flex-col items-center gap-1.5 p-2 rounded hover:bg-mui-grey-100 dark:hover:bg-white/5 border border-mui-grey-200 dark:border-white/5 transition-colors"
+                >
+                  <div className="w-12 h-8 border border-mui-grey-300 dark:border-white/10 rounded flex overflow-hidden">
+                    <div className="w-1/2 bg-mui-blue-500/20 dark:bg-mui-blue-500/30 border-r border-mui-grey-300 dark:border-white/10 group-hover:bg-mui-blue-500/40" />
+                    <div className="w-1/2 bg-transparent" />
+                  </div>
+                  <span className="text-[11px] text-mui-grey-600 dark:text-mui-grey-300">Left Half</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => snapWindow('right')}
+                  className="group flex flex-col items-center gap-1.5 p-2 rounded hover:bg-mui-grey-100 dark:hover:bg-white/5 border border-mui-grey-200 dark:border-white/5 transition-colors"
+                >
+                  <div className="w-12 h-8 border border-mui-grey-300 dark:border-white/10 rounded flex overflow-hidden">
+                    <div className="w-1/2 bg-transparent" />
+                    <div className="w-1/2 bg-mui-blue-500/20 dark:bg-mui-blue-500/30 border-l border-mui-grey-300 dark:border-white/10 group-hover:bg-mui-blue-500/40" />
+                  </div>
+                  <span className="text-[11px] text-mui-grey-600 dark:text-mui-grey-300">Right Half</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => snapWindow('left-third')}
+                  className="group flex flex-col items-center gap-1.5 p-2 rounded hover:bg-mui-grey-100 dark:hover:bg-white/5 border border-mui-grey-200 dark:border-white/5 transition-colors"
+                >
+                  <div className="w-12 h-8 border border-mui-grey-300 dark:border-white/10 rounded flex overflow-hidden">
+                    <div className="w-1/3 bg-mui-blue-500/20 dark:bg-mui-blue-500/30 border-r border-mui-grey-300 dark:border-white/10 group-hover:bg-mui-blue-500/40" />
+                    <div className="w-2/3 bg-transparent" />
+                  </div>
+                  <span className="text-[11px] text-mui-grey-600 dark:text-mui-grey-300">Left 1/3</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => snapWindow('right-third')}
+                  className="group flex flex-col items-center gap-1.5 p-2 rounded hover:bg-mui-grey-100 dark:hover:bg-white/5 border border-mui-grey-200 dark:border-white/5 transition-colors"
+                >
+                  <div className="w-12 h-8 border border-mui-grey-300 dark:border-white/10 rounded flex overflow-hidden">
+                    <div className="w-2/3 bg-transparent" />
+                    <div className="w-1/3 bg-mui-blue-500/20 dark:bg-mui-blue-500/30 border-l border-mui-grey-300 dark:border-white/10 group-hover:bg-mui-blue-500/40" />
+                  </div>
+                  <span className="text-[11px] text-mui-grey-600 dark:text-mui-grey-300">Right 1/3</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => snapWindow('full')}
+                className="group w-full flex items-center justify-between p-1.5 px-2.5 rounded hover:bg-mui-grey-100 dark:hover:bg-white/5 border border-mui-grey-200 dark:border-white/5 transition-colors text-left"
+              >
+                <span className="text-[11px] text-mui-grey-600 dark:text-mui-grey-300">Full Maximize</span>
+                <div className="w-4 h-3 border border-mui-grey-400 dark:border-white/20 rounded-sm bg-mui-blue-500/10 group-hover:bg-mui-blue-500/30" />
+              </button>
+            </div>
+          )}
+        </div>
+
         <button
           type="button"
           onClick={handleClose}
