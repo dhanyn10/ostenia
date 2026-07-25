@@ -24,6 +24,8 @@ import (
 	"unicode/utf16"
 )
 
+const wslPrefix = "wsl://"
+
 type RemoteFile = interfaces.RemoteFile
 
 type SSHConnection struct {
@@ -91,8 +93,8 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 	var client interfaces.SSHClient
 	var err error
 
-	if strings.HasPrefix(session.Host, "wsl://") {
-		distro := strings.TrimPrefix(session.Host, "wsl://")
+	if strings.HasPrefix(session.Host, wslPrefix) {
+		distro := strings.TrimPrefix(session.Host, wslPrefix)
 		client = NewWSLClient(distro, session.User)
 	} else {
 		auth, err := m.getAuth(session)
@@ -126,7 +128,7 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 		return err
 	}
 
-	isWSL := strings.HasPrefix(session.Host, "wsl://")
+	isWSL := strings.HasPrefix(session.Host, wslPrefix)
 	cCtx, cancel := context.WithCancel(ctx)
 	conn := &SSHConnection{
 		SessionID: session.ID,
