@@ -214,9 +214,9 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold text-mui-grey-400 uppercase tracking-widest mb-1.5 ml-0.5">
+            <span className="block text-[10px] font-bold text-mui-grey-400 uppercase tracking-widest mb-1.5 ml-0.5">
               Authentication Method
-            </label>
+            </span>
             <div className="flex p-1 bg-mui-grey-100 dark:bg-mui-grey-900 rounded-md">
               <button
                 type="button"

@@ -719,9 +719,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
                   className="animate-spin text-mui-blue-600 dark:text-mui-blue-500"
                   size={18}
                 />
-                <span className="text-mui-grey-600 dark:text-mui-grey-400 text-xs font-bold uppercase tracking-widest">
-                  Connecting...
-                </span>
+                <span className="text-mui-grey-600 dark:text-mui-grey-400 text-xs font-bold uppercase tracking-widest">Connecting...</span>
               </div>
             </div>
           )}
@@ -770,9 +768,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
                 onMouseEnter={() => setHoveredMetric("mem")}
                 onMouseLeave={() => setHoveredMetric(null)}
               >
-                <span className="min-w-[130px]">
-                  RAM: {resourceUsage ? `${(resourceUsage.memUsed / 1024).toFixed(1)} GB / ${(resourceUsage.memTotal / 1024).toFixed(1)} GB (${resourceUsage.mem.toFixed(0)}%)` : "—"}
-                </span>
+                <span className="min-w-[130px]">RAM: {resourceUsage ? `${(resourceUsage.memUsed / 1024).toFixed(1)} GB / ${(resourceUsage.memTotal / 1024).toFixed(1)} GB (${resourceUsage.mem.toFixed(0)}%)` : "—"}</span>
                 {displayMode === "tooltip" && hoveredMetric === "mem" && (
                   <div className="absolute bottom-7 left-0 z-50 bg-white dark:bg-mui-grey-850 p-2 rounded shadow-lg border border-mui-grey-200 dark:border-white/10 flex flex-col gap-1 items-center animate-in fade-in duration-100 min-w-[130px]">
                     <span className="text-[9px] uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">RAM Usage History</span>
@@ -792,9 +788,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
                 onMouseEnter={() => setHoveredMetric("disk")}
                 onMouseLeave={() => setHoveredMetric(null)}
               >
-                <span className="min-w-[140px]">
-                  DISK: {resourceUsage ? `${(resourceUsage.diskUsed / 1024).toFixed(1)} GB / ${(resourceUsage.diskTotal / 1024).toFixed(1)} GB (${resourceUsage.disk.toFixed(0)}%)` : "—"}
-                </span>
+                <span className="min-w-[140px]">DISK: {resourceUsage ? `${(resourceUsage.diskUsed / 1024).toFixed(1)} GB / ${(resourceUsage.diskTotal / 1024).toFixed(1)} GB (${resourceUsage.disk.toFixed(0)}%)` : "—"}</span>
                 {displayMode === "tooltip" && hoveredMetric === "disk" && (
                   <div className="absolute bottom-7 left-0 z-50 bg-white dark:bg-mui-grey-850 p-2 rounded shadow-lg border border-mui-grey-200 dark:border-white/10 flex flex-col gap-1 items-center animate-in fade-in duration-100 min-w-[130px]">
                     <span className="text-[9px] uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">Disk Usage History</span>
@@ -809,9 +803,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
               </div>
             </div>
           ) : (
-            <span className="text-[10px] text-mui-grey-400 uppercase tracking-wider font-bold">
-              Monitoring disabled
-            </span>
+            <span className="text-[10px] text-mui-grey-400 uppercase tracking-wider font-bold">Monitoring disabled</span>
           )}
         </div>
       </div>
