@@ -59,4 +59,21 @@ func TestNginxConfig(t *testing.T) {
 			t.Errorf("UpdateNginxConfig failed: %v", err)
 		}
 	})
+
+	t.Run("UpdateNginxConfig_HTTPS_CertNotFound", func(t *testing.T) {
+		// Mock SignCertificate to NOT create cert files
+		origSign := ssl.SignCertificateFunc
+		ssl.SignCertificateFunc = func(ca, dom, dst string) error {
+			return nil
+		}
+		defer func() { ssl.SignCertificateFunc = origSign }()
+
+		// Remove any existing localhost.crt from tempDir/ssl to trigger fallback
+		_ = os.Remove(filepath.Join(tempDir, "ssl", "localhost.crt"))
+
+		err := UpdateNginxConfig(tempDir, tempDir, 9000, 443, true, nil)
+		if err != nil {
+			t.Errorf("UpdateNginxConfig failed on CertNotFound: %v", err)
+		}
+	})
 }

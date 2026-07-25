@@ -21,6 +21,13 @@ func TestGenerateProxyVHost(t *testing.T) {
 	}
 }
 
+func TestGenerateProxyVHost_DefaultPort(t *testing.T) {
+	vhost := GenerateProxyVHost("example", 3000, 0, true, "/ssl")
+	if !strings.Contains(vhost, "<VirtualHost *:80>") {
+		t.Error("Expected proxy vhost default port 80")
+	}
+}
+
 func TestUpdateApacheConfig_Full(t *testing.T) {
 	tempDir := t.TempDir()
 	apachePath := filepath.Join(tempDir, "apache_full")
