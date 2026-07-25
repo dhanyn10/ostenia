@@ -122,7 +122,11 @@ func (c *WSLClient) NewSession() (interfaces.SSHSession, error) {
 	} else {
 		cmd = wslCommand(c.Distro)
 	}
-	return &WSLSession{cmd: cmd}, nil
+	return &WSLSession{
+		cmd:    cmd,
+		distro: c.Distro,
+		user:   c.User,
+	}, nil
 }
 
 func (c *WSLClient) NewSftp(opts ...sftp.ClientOption) (interfaces.SFTPClient, error) {
@@ -145,6 +149,8 @@ type WSLSession struct {
 	stdout io.Reader
 	stdin  io.WriteCloser
 	pipeW  io.WriteCloser
+	distro string
+	user   string
 }
 
 func (s *WSLSession) StdoutPipe() (io.Reader, error) {
@@ -187,6 +193,34 @@ func (s *WSLSession) Shell() error {
 		}()
 	}
 	return nil
+}
+
+func (s *WSLSession) Run(cmd string) error {
+	if cmd != "" {
+		var newCmd *exec.Cmd
+		if s.user != "" && s.user != "root" {
+			newCmd = wslCommand(s.distro, "-u", s.user, "sh", "-c", cmd)
+		} else {
+			newCmd = wslCommand(s.distro, "sh", "-c", cmd)
+		}
+		if s.pipeW != nil {
+			newCmd.Stdout = s.cmd.Stdout
+			newCmd.Stderr = s.cmd.Stderr
+		}
+		s.cmd = newCmd
+	}
+	err := s.cmd.Start()
+	if err != nil {
+		return err
+	}
+	if s.pipeW != nil {
+		go func() {
+			_ = s.cmd.Wait()
+			_ = s.pipeW.Close()
+		}()
+		return nil
+	}
+	return s.cmd.Wait()
 }
 
 func (s *WSLSession) WindowChange(h, w int) error {

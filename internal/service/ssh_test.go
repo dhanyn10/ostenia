@@ -46,6 +46,7 @@ type mockSSHSession struct {
 	stdin    io.WriteCloser
 	ptyErr   error
 	shellErr error
+	runErr   error
 	winErr   error
 	closed   bool
 }
@@ -56,6 +57,7 @@ func (m *mockSSHSession) RequestPty(term string, h, w int, modes ssh.TerminalMod
 	return m.ptyErr
 }
 func (m *mockSSHSession) Shell() error                { return m.shellErr }
+func (m *mockSSHSession) Run(cmd string) error        { return m.runErr }
 func (m *mockSSHSession) WindowChange(h, w int) error { return m.winErr }
 func (m *mockSSHSession) Close() error                { m.closed = true; return nil }
 
@@ -683,6 +685,71 @@ func TestSSHManager_Errors(t *testing.T) {
 			t.Error("Expected DefaultSSHDialer to return error")
 		}
 	})
+}
+
+func TestSSHManager_GetResourceUsage(t *testing.T) {
+	m, sessionID, mockClient, cleanup := setupSSHTest(t)
+	defer cleanup()
+
+	// 1. Success case
+	output := "cpu  457000 0 389000 5560000\ncpu  457125 0 389010 5560115\nMemTotal: 102400 kB\nMemAvailable: 56320 kB\noverlayfs:/ 100 30 70 30% /\n"
+	mockClient.session.stdout = strings.NewReader(output)
+	mockClient.session.runErr = nil
+
+	usage, err := m.GetResourceUsage(sessionID)
+	if err != nil {
+		t.Errorf("Expected success, got err: %v", err)
+	}
+	if usage.CPU != 54 || usage.Mem != 45 || usage.Disk != 30 {
+		t.Errorf("Expected {54, 45, 30}, got %+v", usage)
+	}
+
+	// 2. Not found error
+	_, err = m.GetResourceUsage("nonexistent")
+	if err == nil {
+		t.Error("Expected error for nonexistent session")
+	}
+
+	// 3. Command execution error
+	mockClient.session.runErr = errors.New("command execution failed")
+	mockClient.session.stdout = strings.NewReader("")
+	_, err = m.GetResourceUsage(sessionID)
+	if err == nil {
+		t.Error("Expected error on command execution failure")
+	}
+}
+
+func Test_parseResourceUsage(t *testing.T) {
+	// Mixed/empty inputs
+	usage := parseResourceUsage("")
+	if usage.CPU != 0 || usage.Mem != 0 || usage.Disk != 0 {
+		t.Errorf("Expected zeros, got %+v", usage)
+	}
+
+	usage = parseResourceUsage("cpu  1 2 3 4\ncpu  11 12 13 14\nMemTotal: 102400 kB\nMemAvailable: 25600 kB\noverlayfs:/ 100 50 50 50% /")
+	if usage.Mem != 75 || usage.CPU != 75 || usage.Disk != 50 {
+		t.Errorf("Expected Mem:75, CPU:75, Disk:50, got %+v", usage)
+	}
+}
+
+func Test_decodeMaybeUTF16(t *testing.T) {
+	// Standard string
+	s := "hello utf-8"
+	if decodeMaybeUTF16([]byte(s)) != s {
+		t.Errorf("Expected unchanged UTF-8 string")
+	}
+
+	// UTF-16LE with BOM
+	utf16Bytes := []byte{0xFF, 0xFE, 'h', 0x00, 'i', 0x00}
+	if decodeMaybeUTF16(utf16Bytes) != "hi" {
+		t.Errorf("Expected decoded UTF-16 string")
+	}
+
+	// UTF-16LE without BOM
+	utf16NoBOM := []byte{'h', 0x00, 'i', 0x00}
+	if decodeMaybeUTF16(utf16NoBOM) != "hi" {
+		t.Errorf("Expected decoded UTF-16 without BOM string")
+	}
 }
 
 func TestSSHManager_Editor_Mocked(t *testing.T) {

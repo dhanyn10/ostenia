@@ -21,6 +21,7 @@ vi.mock("@xterm/xterm", () => {
       write: vi.fn(),
       options: { theme: {} },
       focus: vi.fn(),
+      clear: vi.fn(),
       getSelection: vi.fn().mockReturnValue("selected terminal text"),
     })),
   };
@@ -60,6 +61,15 @@ vi.mock("../../wailsjs/go/backend/App", () => ({
   UploadRemoteFile: vi.fn().mockResolvedValue(null),
   EditRemoteFile: vi.fn().mockResolvedValue(null),
   ExecuteSFTPAction: vi.fn().mockResolvedValue(null),
+  GetSSHResourceUsage: vi.fn().mockResolvedValue({
+    cpu: 0,
+    mem: 0,
+    memTotal: 8192,
+    memUsed: 0,
+    disk: 0,
+    diskTotal: 102400,
+    diskUsed: 0,
+  }),
 }));
 
 describe("SSHSessionView Component", () => {
@@ -81,6 +91,7 @@ describe("SSHSessionView Component", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     window.confirm = vi.fn().mockReturnValue(true);
     window.prompt = vi.fn().mockReturnValue("new-name");
 
@@ -126,10 +137,6 @@ describe("SSHSessionView Component", () => {
     const toggleExplorerBtn = screen.getByTitle(/Toggle Explorer/i);
     fireEvent.click(toggleExplorerBtn);
     expect(screen.queryByText("test.txt")).not.toBeInTheDocument();
-
-    const closeBtn = screen.getByTitle(/Close/i);
-    fireEvent.click(closeBtn);
-    expect(mockProps.onClose).toHaveBeenCalled();
   });
 
   it("handles file deletion", async () => {
@@ -726,5 +733,104 @@ describe("SSHSessionView Component", () => {
     if (backBtn.length > 0) {
       fireEvent.click(backBtn[0]);
     }
+  });
+
+  it("renders the real-time resource usage monitoring bar and toggles settings", async () => {
+    vi.mocked(AppBackend.GetSSHResourceUsage).mockResolvedValue({
+      cpu: 54,
+      mem: 75,
+      memTotal: 8192,
+      memUsed: 6144,
+      disk: 90,
+      diskTotal: 102400,
+      diskUsed: 92160,
+    });
+
+    render(<SSHSessionView {...mockProps} />);
+
+    // Initially (before first fetch finishes) should show em-dash
+    expect(screen.getAllByText(/—/).length).toBe(3);
+
+    // Wait for the mock values to be loaded
+    await waitFor(() => {
+      expect(screen.getByText("CPU: 54%")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("RAM: 6.0 GB / 8.0 GB (75%)")).toBeInTheDocument();
+    expect(screen.getByText("DISK: 90.0 GB / 100.0 GB (90%)")).toBeInTheDocument();
+
+    // Hover over CPU item to trigger tooltip
+    const cpuItem = screen.getByText("CPU: 54%");
+    fireEvent.mouseEnter(cpuItem);
+    expect(screen.getByText("CPU Usage History")).toBeInTheDocument();
+
+    // Leave hover
+    fireEvent.mouseLeave(cpuItem);
+    expect(screen.queryByText("CPU Usage History")).not.toBeInTheDocument();
+
+    // Verify gear settings button and click it to open settings
+    const gearBtn = screen.getByTitle("Monitoring Settings");
+    expect(gearBtn).toBeInTheDocument();
+    fireEvent.click(gearBtn);
+
+    // Should call onOpenSettings with "ssh-monitor"
+    expect(mockProps.onOpenSettings).toHaveBeenCalledWith("ssh-monitor");
+  });
+
+  it("handles connection drop and displays offline gray zone", async () => {
+    // Mock first fetch to succeed
+    vi.mocked(AppBackend.GetSSHResourceUsage).mockResolvedValue({
+      cpu: 50,
+      mem: 60,
+      memTotal: 8192,
+      memUsed: 4915.2,
+      disk: 70,
+      diskTotal: 102400,
+      diskUsed: 71680,
+    });
+
+    render(<SSHSessionView {...mockProps} />);
+
+    // First fetch succeeds
+    await waitFor(() => {
+      expect(screen.getByText("CPU: 50%")).toBeInTheDocument();
+    });
+    expect(screen.getByText("RAM: 4.8 GB / 8.0 GB (60%)")).toBeInTheDocument();
+    expect(screen.getByText("DISK: 70.0 GB / 100.0 GB (70%)")).toBeInTheDocument();
+
+    // Now mock second fetch to fail
+    vi.mocked(AppBackend.GetSSHResourceUsage).mockRejectedValue(new Error("Connection lost"));
+
+    // Click Reconnect to trigger fresh connection and metric fetch
+    const reconnectBtn = screen.getByTitle("Reconnect");
+    fireEvent.click(reconnectBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText("CPU: —")).toBeInTheDocument();
+    });
+    expect(screen.getByText("RAM: —")).toBeInTheDocument();
+    expect(screen.getByText("DISK: —")).toBeInTheDocument();
+  });
+
+  it("handles always-inline display mode rendering", async () => {
+    localStorage.setItem('ostenia_ssh_monitor_display_mode', 'always');
+    vi.mocked(AppBackend.GetSSHResourceUsage).mockResolvedValue({
+      cpu: 54,
+      mem: 75,
+      memTotal: 8192,
+      memUsed: 6144,
+      disk: 90,
+      diskTotal: 102400,
+      diskUsed: 92160,
+    });
+
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("CPU: 54%")).toBeInTheDocument();
+    });
+
+    // Chart SVG elements should render inline immediately
+    expect(document.querySelectorAll('svg line').length).toBeGreaterThan(0);
   });
 });

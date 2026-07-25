@@ -10,18 +10,14 @@ function cn(...inputs: ClassValue[]) {
 interface SSHToolbarProps {
   explorerVisible: boolean;
   setExplorerVisible: (visible: boolean) => void;
-  onFit: () => void;
   onReconnect: () => void;
-  onClose: () => void;
   connecting: boolean;
 }
 
 const SSHToolbar: React.FC<SSHToolbarProps> = ({
   explorerVisible,
   setExplorerVisible,
-  onFit,
   onReconnect,
-  onClose,
   connecting,
 }) => {
   return (
@@ -43,28 +39,12 @@ const SSHToolbar: React.FC<SSHToolbarProps> = ({
       <div className="flex items-center gap-1">
         <button
           type="button"
-          onClick={onFit}
-          className="p-1 text-mui-grey-500 hover:text-mui-blue-600 dark:hover:text-white transition-colors"
-          title="Fit Terminal"
-        >
-          <Maximize2 size={14} />
-        </button>
-        <button
-          type="button"
           onClick={onReconnect}
           disabled={connecting}
           className="p-1 text-mui-grey-500 hover:text-mui-blue-600 dark:hover:text-white transition-colors disabled:opacity-30"
           title="Reconnect"
         >
           <RefreshCw size={14} className={connecting ? "animate-spin" : ""} />
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="p-1 text-mui-grey-500 hover:text-red-500 transition-colors"
-          title="Close"
-        >
-          <X size={16} />
         </button>
       </div>
     </div>

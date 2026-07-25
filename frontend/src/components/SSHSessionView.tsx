@@ -15,10 +15,90 @@ import {
   Check,
   Copy,
   Clipboard,
+  Settings,
 } from "lucide-react";
 import SSHToolbar from "./ssh/SSHToolbar";
 import SSHFileExplorer from "./ssh/SSHFileExplorer";
 import { handleActionKey } from "../utils/a11y";
+
+interface ResourceLineChartProps {
+  data: Array<{ cpu: number | null; mem: number | null; disk: number | null }>;
+  metric: "cpu" | "mem" | "disk";
+  color: string;
+  fillColor: string;
+}
+
+const ResourceLineChart: React.FC<ResourceLineChartProps> = ({ data, metric, color, fillColor }) => {
+  const width = 120;
+  const height = 30;
+  const pointsCount = 30;
+
+  const paddedData = [...new Array(pointsCount).fill({ cpu: null, mem: null, disk: null }), ...data].slice(-pointsCount);
+
+  const getX = (index: number) => {
+    return (index / (pointsCount - 1)) * width;
+  };
+
+  const getY = (val: number | null) => {
+    if (val === null) return height;
+    return height - 1 - (val / 100) * (height - 2);
+  };
+
+  let linePath = "";
+  let areaPath = "";
+  let currentSegment: Array<[number, number]> = [];
+  const segments: Array<Array<[number, number]>> = [];
+
+  paddedData.forEach((d, i) => {
+    const val = d[metric];
+    if (val !== null) {
+      currentSegment.push([getX(i), getY(val)]);
+    } else if (currentSegment.length > 0) {
+      segments.push(currentSegment);
+      currentSegment = [];
+    }
+  });
+  if (currentSegment.length > 0) {
+    segments.push(currentSegment);
+  }
+
+  segments.forEach((seg) => {
+    if (seg.length > 0) {
+      let segLine = `M ${seg[0][0]} ${seg[0][1]}`;
+      for (let j = 1; j < seg.length; j++) {
+        segLine += ` L ${seg[j][0]} ${seg[j][1]}`;
+      }
+      linePath += " " + segLine;
+    }
+  });
+
+  segments.forEach((seg) => {
+    if (seg.length > 0) {
+      let segArea = `M ${seg[0][0]} ${height} L ${seg[0][0]} ${seg[0][1]}`;
+      for (let j = 1; j < seg.length; j++) {
+        segArea += ` L ${seg[j][0]} ${seg[j][1]}`;
+      }
+      segArea += ` L ${seg.at(-1)[0]} ${height} Z`;
+      areaPath += " " + segArea;
+    }
+  });
+
+  return (
+    <svg width={width} height={height} className="overflow-hidden border border-mui-grey-200 dark:border-white/10 rounded bg-white dark:bg-mui-grey-950">
+      {/* Horizontal grid lines */}
+      <line x1={0} y1={height / 3} x2={width} y2={height / 3} stroke="rgba(156, 163, 175, 0.12)" strokeDasharray="1,1" />
+      <line x1={0} y1={(2 * height) / 3} x2={width} y2={(2 * height) / 3} stroke="rgba(156, 163, 175, 0.12)" strokeDasharray="1,1" />
+
+      {/* Vertical grid lines */}
+      <line x1={width / 4} y1={0} x2={width / 4} y2={height} stroke="rgba(156, 163, 175, 0.12)" strokeDasharray="1,1" />
+      <line x1={width / 2} y1={0} x2={width / 2} y2={height} stroke="rgba(156, 163, 175, 0.12)" strokeDasharray="1,1" />
+      <line x1={(3 * width) / 4} y1={0} x2={(3 * width) / 4} y2={height} stroke="rgba(156, 163, 175, 0.12)" strokeDasharray="1,1" />
+
+      {areaPath && <path d={areaPath} fill={fillColor} />}
+      {linePath && <path d={linePath} fill="none" stroke={color} strokeWidth={1.5} />}
+    </svg>
+  );
+};
 
 interface SSHSessionViewProps {
   session: any;
@@ -61,6 +141,87 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     key: string;
     direction: "asc" | "desc";
   }>({ key: "name", direction: "asc" });
+
+  const [resourceUsage, setResourceUsage] = useState<{
+    cpu: number;
+    mem: number;
+    memTotal: number;
+    memUsed: number;
+    disk: number;
+    diskTotal: number;
+    diskUsed: number;
+  } | null>(null);
+  const [monitorInterval, setMonitorInterval] = useState<number>(() => {
+    const val = Number.parseInt(localStorage.getItem('ostenia_ssh_monitor_interval') || '3', 10);
+    return Number.isNaN(val) || val < 1 ? 3 : val;
+  });
+  const [isMonitoringEnabled, setIsMonitoringEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('ostenia_ssh_monitor_enabled') !== 'false';
+  });
+  const [hoveredMetric, setHoveredMetric] = useState<"cpu" | "mem" | "disk" | null>(null);
+  const [displayMode, setDisplayMode] = useState<string>(() => {
+    return localStorage.getItem('ostenia_ssh_monitor_display_mode') || 'tooltip';
+  });
+  const isFetchingUsageRef = useRef(false);
+  const [history, setHistory] = useState<Array<{
+    cpu: number | null;
+    mem: number | null;
+    disk: number | null;
+  }>>([]);
+
+  useEffect(() => {
+    const handleSettingsChanged = () => {
+      setIsMonitoringEnabled(localStorage.getItem('ostenia_ssh_monitor_enabled') !== 'false');
+      const val = Number.parseInt(localStorage.getItem('ostenia_ssh_monitor_interval') || '3', 10);
+      setMonitorInterval(Number.isNaN(val) || val < 1 ? 3 : val);
+      setDisplayMode(localStorage.getItem('ostenia_ssh_monitor_display_mode') || 'tooltip');
+    };
+
+    window.addEventListener('ostenia_ssh_monitor_settings_changed', handleSettingsChanged);
+    handleSettingsChanged();
+
+    return () => {
+      window.removeEventListener('ostenia_ssh_monitor_settings_changed', handleSettingsChanged);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isMonitoringEnabled || connecting) {
+      setResourceUsage(null);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchUsage = async () => {
+      if (isFetchingUsageRef.current) return;
+      isFetchingUsageRef.current = true;
+      try {
+        const usage = await AppBackend.GetSSHResourceUsage(session.id);
+        if (isMounted) {
+          setResourceUsage(usage);
+          setHistory((prev) => [...prev, { cpu: usage.cpu, mem: usage.mem, disk: usage.disk }].slice(-30));
+        }
+      } catch (e) {
+        console.error("Failed to fetch SSH resource usage", e);
+        if (isMounted) {
+          setResourceUsage(null);
+          setHistory((prev) => [...prev, { cpu: null, mem: null, disk: null }].slice(-30));
+        }
+      } finally {
+        isFetchingUsageRef.current = false;
+      }
+    };
+
+    // Initial fetch instantly
+    fetchUsage();
+
+    const intervalId = setInterval(fetchUsage, monitorInterval * 1000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [session.id, monitorInterval, isMonitoringEnabled, connecting]);
 
   useEffect(() => {
     setEditingPath(remotePath);
@@ -265,7 +426,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     xterm.current.onTitleChange((title) => {
       if (title.includes(":")) {
         const parts = title.split(":");
-        const potentialPath = parts[parts.length - 1].trim();
+        const potentialPath = parts.at(-1).trim();
         if (potentialPath.startsWith("/") || potentialPath.startsWith("~")) {
           syncExplorer(potentialPath);
         }
@@ -326,6 +487,16 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     }
   };
 
+  const handleReconnect = async () => {
+    try {
+      await AppBackend.DisconnectSSH(session.id);
+    } catch (e) {
+      console.error("Disconnect error on reconnect:", e);
+    }
+    xterm.current?.clear();
+    connectSSH();
+  };
+
   const loadRemoteFiles = async (path: string, isManualEntry = false, isAutoSync = false) => {
     setLoadingFiles(true);
     try {
@@ -374,7 +545,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       if (!current) return;
       let normalized = current.trim();
       if (normalized.length > 1 && normalized.endsWith("/"))
-        normalized = normalized.substring(0, normalized.length - 1);
+        normalized = normalized.slice(0, -1);
       if (normalized !== currentPathRef.current) loadRemoteFiles(normalized, false, true);
     } catch (e) {}
   };
@@ -492,9 +663,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       <SSHToolbar
         explorerVisible={explorerVisible}
         setExplorerVisible={setExplorerVisible}
-        onFit={performFit}
-        onReconnect={connectSSH}
-        onClose={onClose}
+        onReconnect={handleReconnect}
         connecting={connecting}
       />
 
@@ -555,6 +724,94 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
                 </span>
               </div>
             </div>
+          )}
+        </div>
+      </div>
+
+      {/* Resource Usage Monitoring Bar */}
+      <div className="h-12 flex items-center justify-between px-3 bg-mui-grey-50 dark:bg-mui-grey-900 border-t border-mui-grey-200 dark:border-white/5 shrink-0 relative select-none">
+        <div className="flex items-center gap-4 text-xs">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => onOpenSettings("ssh-monitor")}
+              className="p-1 rounded text-mui-grey-500 dark:text-mui-grey-400 hover:text-mui-blue-600 dark:hover:text-white transition-colors"
+              title="Monitoring Settings"
+            >
+              <Settings size={14} />
+            </button>
+          </div>
+
+          {isMonitoringEnabled ? (
+            <div className="flex items-center gap-6 text-[10px] font-bold text-mui-grey-600 dark:text-mui-grey-400">
+              {/* CPU */}
+              <div
+                className="relative py-1 cursor-help group flex items-center gap-2"
+                onMouseEnter={() => setHoveredMetric("cpu")}
+                onMouseLeave={() => setHoveredMetric(null)}
+              >
+                <span className="min-w-[55px]">CPU: {resourceUsage ? `${resourceUsage.cpu.toFixed(0)}%` : "—"}</span>
+                {displayMode === "tooltip" && hoveredMetric === "cpu" && (
+                  <div className="absolute bottom-7 left-0 z-50 bg-white dark:bg-mui-grey-850 p-2 rounded shadow-lg border border-mui-grey-200 dark:border-white/10 flex flex-col gap-1 items-center animate-in fade-in duration-100 min-w-[130px]">
+                    <span className="text-[9px] uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">CPU Usage History</span>
+                    <ResourceLineChart data={history} metric="cpu" color="#2196f3" fillColor="rgba(33, 150, 243, 0.15)" />
+                  </div>
+                )}
+                {displayMode !== "tooltip" && (displayMode === "always" || (displayMode === "hover-inline" && hoveredMetric === "cpu")) && (
+                  <div className="flex items-center shrink-0">
+                    <ResourceLineChart data={history} metric="cpu" color="#2196f3" fillColor="rgba(33, 150, 243, 0.15)" />
+                  </div>
+                )}
+              </div>
+
+              {/* RAM */}
+              <div
+                className="relative py-1 cursor-help group flex items-center gap-2"
+                onMouseEnter={() => setHoveredMetric("mem")}
+                onMouseLeave={() => setHoveredMetric(null)}
+              >
+                <span className="min-w-[130px]">
+                  RAM: {resourceUsage ? `${(resourceUsage.memUsed / 1024).toFixed(1)} GB / ${(resourceUsage.memTotal / 1024).toFixed(1)} GB (${resourceUsage.mem.toFixed(0)}%)` : "—"}
+                </span>
+                {displayMode === "tooltip" && hoveredMetric === "mem" && (
+                  <div className="absolute bottom-7 left-0 z-50 bg-white dark:bg-mui-grey-850 p-2 rounded shadow-lg border border-mui-grey-200 dark:border-white/10 flex flex-col gap-1 items-center animate-in fade-in duration-100 min-w-[130px]">
+                    <span className="text-[9px] uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">RAM Usage History</span>
+                    <ResourceLineChart data={history} metric="mem" color="#9c27b0" fillColor="rgba(156, 39, 176, 0.15)" />
+                  </div>
+                )}
+                {displayMode !== "tooltip" && (displayMode === "always" || (displayMode === "hover-inline" && hoveredMetric === "mem")) && (
+                  <div className="flex items-center shrink-0">
+                    <ResourceLineChart data={history} metric="mem" color="#9c27b0" fillColor="rgba(156, 39, 176, 0.15)" />
+                  </div>
+                )}
+              </div>
+
+              {/* Disk */}
+              <div
+                className="relative py-1 cursor-help group flex items-center gap-2"
+                onMouseEnter={() => setHoveredMetric("disk")}
+                onMouseLeave={() => setHoveredMetric(null)}
+              >
+                <span className="min-w-[140px]">
+                  DISK: {resourceUsage ? `${(resourceUsage.diskUsed / 1024).toFixed(1)} GB / ${(resourceUsage.diskTotal / 1024).toFixed(1)} GB (${resourceUsage.disk.toFixed(0)}%)` : "—"}
+                </span>
+                {displayMode === "tooltip" && hoveredMetric === "disk" && (
+                  <div className="absolute bottom-7 left-0 z-50 bg-white dark:bg-mui-grey-850 p-2 rounded shadow-lg border border-mui-grey-200 dark:border-white/10 flex flex-col gap-1 items-center animate-in fade-in duration-100 min-w-[130px]">
+                    <span className="text-[9px] uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">Disk Usage History</span>
+                    <ResourceLineChart data={history} metric="disk" color="#009688" fillColor="rgba(0, 150, 136, 0.15)" />
+                  </div>
+                )}
+                {displayMode !== "tooltip" && (displayMode === "always" || (displayMode === "hover-inline" && hoveredMetric === "disk")) && (
+                  <div className="flex items-center shrink-0">
+                    <ResourceLineChart data={history} metric="disk" color="#009688" fillColor="rgba(0, 150, 136, 0.15)" />
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <span className="text-[10px] text-mui-grey-400 uppercase tracking-wider font-bold">
+              Monitoring disabled
+            </span>
           )}
         </div>
       </div>

@@ -102,3 +102,8 @@ func (a *App) UploadRemoteFile(sessionID, remoteDir string) error {
 func (a *App) GetWSLDistros() ([]string, error) {
 	return a.sshManager.GetWSLDistros()
 }
+
+// GetSSHResourceUsage returns the CPU, RAM, and Disk resource usage for the active connection
+func (a *App) GetSSHResourceUsage(sessionID string) (interfaces.ResourceUsage, error) {
+	return a.sshManager.GetResourceUsage(sessionID)
+}

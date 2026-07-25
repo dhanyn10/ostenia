@@ -23,14 +23,14 @@ function AppHeader({
   isTerminalOpen,
   setIsTerminalOpen,
 }) {
-  if (activeTab === "logs") return null;
+  if (activeTab === "logs" || activeTab === "ssh") return null;
 
   const title =
     {
       activity: "Activity Center",
       plugins: "Plugin Management",
       proxy: "Proxy Management",
-      ssh: "SSH & Remote Files",
+      ssh: "",
       logs: "System Activity Logs",
     }[activeTab] || "";
 

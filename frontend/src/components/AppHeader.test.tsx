@@ -41,9 +41,12 @@ describe("AppHeader Component", () => {
     );
     expect(screen.getByText("Proxy Management")).toBeInTheDocument();
 
-    rerender(
+  });
+
+  it("returns null when activeTab is logs or ssh", () => {
+    const { container, rerender } = render(
       <AppHeader
-        activeTab="ssh"
+        activeTab="logs"
         handleStartAll={() => {}}
         handleStopAll={() => {}}
         handleTerminal={() => {}}
@@ -51,13 +54,11 @@ describe("AppHeader Component", () => {
         setIsTerminalOpen={() => {}}
       />,
     );
-    expect(screen.getByText("SSH & Remote Files")).toBeInTheDocument();
-  });
+    expect(container.firstChild).toBeNull();
 
-  it("returns null when activeTab is logs", () => {
-    const { container } = render(
+    rerender(
       <AppHeader
-        activeTab="logs"
+        activeTab="ssh"
         handleStartAll={() => {}}
         handleStopAll={() => {}}
         handleTerminal={() => {}}

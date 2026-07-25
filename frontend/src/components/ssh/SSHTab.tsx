@@ -192,35 +192,10 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
   };
 
   return (
-    <div className="flex h-full overflow-hidden bg-white dark:bg-mui-dark-bg transition-colors duration-300">
+    <div className="relative flex h-full overflow-hidden bg-white dark:bg-mui-dark-bg transition-colors duration-300">
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        <div className="px-6 pt-2 pb-4 flex justify-between items-center shrink-0 border-b border-mui-grey-100 dark:border-white/5">
-          <div>
-            <h2 className="text-2xl font-bold text-mui-grey-900 dark:text-white">
-              SSH Connections
-            </h2>
-            <p className="text-mui-grey-600 dark:text-mui-grey-400 text-sm">
-              Manage and connect to your remote servers.
-            </p>
-          </div>
-          {!showForm && (
-            <button
-              type="button"
-              onClick={() => {
-                setEditingSession(null);
-                setShowForm(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-mui-blue-600 hover:bg-mui-blue-700 text-white rounded-lg transition-colors font-medium shadow-sm"
-            >
-              <Plus size={18} />
-              New Connection
-            </button>
-          )}
-        </div>
-
-        {activeSessionIds.length > 0 && (
-          <div className="flex items-center gap-[2px] overflow-x-auto no-scrollbar shrink-0 pt-2 px-6 bg-mui-grey-50 dark:bg-mui-grey-900 border-b border-mui-grey-200 dark:border-white/5">
-            <button
+        <div className="flex items-center gap-[2px] overflow-x-auto no-scrollbar shrink-0 pt-2 px-6 bg-mui-grey-50 dark:bg-mui-grey-900 border-b border-mui-grey-200 dark:border-white/5">
+          <button
               type="button"
               onClick={() => setCurrentSessionId(null)}
               onKeyDown={handleActionKey(() => setCurrentSessionId(null))}
@@ -245,7 +220,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                 <div
                   key={id}
                   className={clsx(
-                    "relative py-2 text-xs transition-all rounded-t-xl flex items-center min-w-[140px] max-w-[220px] overflow-hidden",
+                    "relative py-2 text-xs transition-all rounded-t-xl flex items-center min-w-[140px] max-w-[220px] overflow-hidden pr-2 group",
                     isActive
                       ? "bg-white dark:bg-mui-dark-bg z-10 border-t border-x border-mui-grey-200 dark:border-white/80"
                       : "text-mui-grey-500 hover:bg-mui-grey-200 dark:hover:bg-white/10",
@@ -255,7 +230,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                     type="button"
                     onClick={() => setCurrentSessionId(id)}
                     onKeyDown={handleActionKey(() => setCurrentSessionId(id))}
-                    className="flex-1 min-w-0 pl-6 pr-1 h-full text-left outline-none bg-transparent border-none p-0"
+                    className="flex-1 min-w-0 pl-4 pr-1 h-full text-left outline-none bg-transparent border-none p-0"
                   >
                     <span
                       className={clsx(
@@ -272,13 +247,8 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                       e.stopPropagation();
                       handleCloseSession(id);
                     }}
-                    className={clsx(
-                      "p-1 rounded-md transition-all ml-2",
-                      isActive
-                        ? "hover:bg-mui-blue-500/10"
-                        : "hover:bg-mui-grey-500/10",
-                      "opacity-0 group-hover:opacity-100 focus:opacity-100",
-                    )}
+                    className="p-0.5 rounded-full transition-all ml-2 opacity-50 group-hover:opacity-100 hover:bg-mui-grey-200 dark:hover:bg-white/10 flex items-center justify-center cursor-pointer select-none"
+                    title="Close Connection"
                   >
                     <X
                       size={12}
@@ -294,8 +264,22 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                 </div>
               );
             })}
+
+            {/* New connection '+' tab-button */}
+            {!showForm && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingSession(null);
+                  setShowForm(true);
+                }}
+                className="p-1 rounded-full text-mui-grey-500 hover:text-mui-blue-600 dark:hover:text-white hover:bg-mui-grey-200 dark:hover:bg-white/10 transition-all ml-2 flex items-center justify-center cursor-pointer shrink-0"
+                title="New Connection"
+              >
+                <Plus size={14} />
+              </button>
+            )}
           </div>
-        )}
 
         <div
           className={clsx(
@@ -303,29 +287,29 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
             currentSessionId === null && "p-6",
           )}
         >
-          {currentSessionId ? (
-            <div className="h-full">
-              {activeSessionIds.map((id) => (
-                <div
-                  key={id}
-                  className={currentSessionId === id ? "h-full" : "hidden"}
-                >
-                  <SSHSessionView
-                    session={sessions.find((s) => s.id === id)}
-                    onClose={() => handleCloseSession(id)}
-                    addToast={addToast}
-                    isActive={currentSessionId === id}
-                    theme={theme}
-                    onOpenSettings={onOpenSettings}
-                  />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col h-full">
-              {renderDashboardContent()}
-            </div>
-          )}
+          {/* Dashboard container - kept alive but hidden if not selected */}
+          <div className={clsx("h-full flex flex-col", currentSessionId !== null && "hidden")}>
+            {renderDashboardContent()}
+          </div>
+
+          {/* Active SSH sessions container - kept alive but hidden if Dashboard is selected */}
+          <div className={clsx("h-full", currentSessionId === null && "hidden")}>
+            {activeSessionIds.map((id) => (
+              <div
+                key={id}
+                className={currentSessionId === id ? "h-full" : "hidden"}
+              >
+                <SSHSessionView
+                  session={sessions.find((s) => s.id === id)}
+                  onClose={() => handleCloseSession(id)}
+                  addToast={addToast}
+                  isActive={currentSessionId === id}
+                  theme={theme}
+                  onOpenSettings={onOpenSettings}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

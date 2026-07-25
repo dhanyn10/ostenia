@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FolderOpen, Globe, Monitor, Trash2 } from 'lucide-react';
+import { FolderOpen, Globe, Monitor, Trash2, Sliders } from 'lucide-react';
 import * as AppBackend from '../../../wailsjs/go/backend/App';
 
 interface GlobalConfigCategoryProps {

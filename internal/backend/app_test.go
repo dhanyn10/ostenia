@@ -129,6 +129,9 @@ func (m *MockSSHManager) UploadFile(sessionID, localPath, remotePath string) err
 func (m *MockSSHManager) EditFile(sessionID, remotePath, editor string) error             { return nil }
 func (m *MockSSHManager) GetCurrentPath(sessionID string) (string, error)                 { return "/", nil }
 func (m *MockSSHManager) GetWSLDistros() ([]string, error)                               { return []string{"Ubuntu"}, nil }
+func (m *MockSSHManager) GetResourceUsage(sessionID string) (interfaces.ResourceUsage, error) {
+	return interfaces.ResourceUsage{CPU: 10, Mem: 20, Disk: 30}, nil
+}
 
 type MockSSLManager struct {
 	interfaces.SSLManager
@@ -233,6 +236,7 @@ func TestApp_Full_Mocked(t *testing.T) {
 	_, _ = app.GetRemoteCurrentPath("test")
 	_ = app.DownloadRemoteFile("test", "/path")
 	_ = app.UploadRemoteFile("test", "/path")
+	_, _ = app.GetSSHResourceUsage("test")
 
 	// Network
 	_ = app.CheckProxyPorts()
