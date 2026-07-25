@@ -783,7 +783,6 @@ func TestSSHManager_TerminalLoop(t *testing.T) {
 	conn := &SSHConnection{
 		SessionID: "loop-id",
 		PTY:       &mockSSHSession{},
-		Context:   ctx,
 		Cancel:    cancel,
 	}
 
@@ -822,7 +821,6 @@ func TestSSHManager_TerminalLoop(t *testing.T) {
 		defer cancel3()
 		conn3 := &SSHConnection{
 			SessionID: "exit-id",
-			Context:   ctx3,
 			Cancel:    cancel3,
 		}
 		m.mu.Lock()

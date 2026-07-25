@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -22,17 +23,17 @@ type ProxyAppInfo struct {
 	Port int    `json:"port"`
 }
 
-func (a *App) startProxyWatcher() {
+func (a *App) startProxyWatcher(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-a.ctx.Done():
+		case <-ctx.Done():
 			return
 		case <-ticker.C:
 			statuses := a.CheckProxyPorts()
-			a.runtime.EventsEmit(a.ctx, "proxy_status", statuses)
+			a.runtime.EventsEmit(ctx, "proxy_status", statuses)
 		}
 	}
 }
@@ -87,7 +88,7 @@ func (a *App) GetProxyApps() []ProxyAppInfo {
 }
 
 // SaveProxyPort saves the proxy port for a specific folder and reconfigures web servers
-func (a *App) SaveProxyPort(name string, port int) error {
+func (a *App) SaveProxyPort(ctx context.Context, name string, port int) error {
 	if a.cfg.Proxies == nil {
 		a.cfg.Proxies = make(map[string]int)
 	}
@@ -104,15 +105,15 @@ func (a *App) SaveProxyPort(name string, port int) error {
 	// Trigger web server re-config
 	if a.orchestrator.IsRunning("Apache") {
 		_ = a.updateApacheConfig(filepath.Join(config.GetBaseDir(), "bin", "apache", "current"), a.orchestrator.GetDetailedInfo("Apache").Port)
-		_ = a.StopService("Apache")
+		_ = a.StopService(ctx, "Apache")
 		time.Sleep(500 * time.Millisecond)
-		_ = a.StartService("Apache")
+		_ = a.StartService(ctx, "Apache")
 	}
 	if a.orchestrator.IsRunning("Nginx") {
 		_ = a.updateNginxConfig(filepath.Join(config.GetBaseDir(), "bin", "nginx", "current"), a.orchestrator.GetDetailedInfo("Nginx").Port)
-		_ = a.StopService("Nginx")
+		_ = a.StopService(ctx, "Nginx")
 		time.Sleep(500 * time.Millisecond)
-		_ = a.StartService("Nginx")
+		_ = a.StartService(ctx, "Nginx")
 	}
 
 	return nil

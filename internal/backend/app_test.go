@@ -152,9 +152,10 @@ func TestApp_Full_Mocked(t *testing.T) {
 	}
 	os.MkdirAll(mockR.SelectedDir, 0755)
 
+	ctx := context.Background()
+
 	app := &App{
 		runtime:      mockR,
-		ctx:          context.Background(),
 		cfg:          &config.Config{Proxies: map[string]int{"test": 3000}, BaseDir: tempDir, WWWRoot: filepath.Join(tempDir, "www")},
 		downloader:   &MockPluginManager{},
 		orchestrator: &MockOrchestrator{Running: make(map[string]bool)},
@@ -163,16 +164,16 @@ func TestApp_Full_Mocked(t *testing.T) {
 	}
 
 	// App window
-	app.Minimize()
-	app.Maximize()
-	app.Unmaximize()
-	app.ToggleDevTools()
-	app.Close()
-	app.EventsEmit(context.Background(), "test", nil)
-	_, _ = app.OpenFileDialog(context.Background(), wruntime.OpenDialogOptions{})
-	_, _ = app.OpenDirectoryDialog(context.Background(), wruntime.OpenDialogOptions{})
-	_, _ = app.SaveFileDialog(context.Background(), wruntime.SaveDialogOptions{})
-	app.Quit(context.Background())
+	app.Minimize(ctx)
+	app.Maximize(ctx)
+	app.Unmaximize(ctx)
+	app.ToggleDevTools(ctx)
+	app.Close(ctx)
+	app.EventsEmit(ctx, "test", nil)
+	_, _ = app.OpenFileDialog(ctx, wruntime.OpenDialogOptions{})
+	_, _ = app.OpenDirectoryDialog(ctx, wruntime.OpenDialogOptions{})
+	_, _ = app.SaveFileDialog(ctx, wruntime.SaveDialogOptions{})
+	app.Quit(ctx)
 
 	_ = app.GenerateRootCA("test")
 	_, _ = app.GetRemainingDays("test")
@@ -180,17 +181,17 @@ func TestApp_Full_Mocked(t *testing.T) {
 
 	// Config
 	_ = app.GetConfig()
-	_, _ = app.SelectDefaultEditor()
+	_, _ = app.SelectDefaultEditor(ctx)
 	_ = app.SetDefaultEditor("path")
 	app.UpdateActiveTab("activity")
 	_ = app.IsAdmin()
 
 	// Env
-	app.orchestrator.StartService(app.ctx, "Apache", "", nil, "")
-	_ = app.SetWWWRoot(filepath.Join(tempDir, "www2"))
-	_ = app.SetServerRoot(tempDir)
-	_, _ = app.SelectServerRoot()
-	_, _ = app.SelectWWWRoot()
+	app.orchestrator.StartService(ctx, "Apache", "", nil, "")
+	_ = app.SetWWWRoot(ctx, filepath.Join(tempDir, "www2"))
+	_ = app.SetServerRoot(ctx, tempDir)
+	_, _ = app.SelectServerRoot(ctx)
+	_, _ = app.SelectWWWRoot(ctx)
 	_ = app.OpenServerRootFolder()
 	_ = app.OpenAppsLocationFolder()
 
@@ -198,27 +199,27 @@ func TestApp_Full_Mocked(t *testing.T) {
 	_ = app.GetPrerequisites()
 	app.CancelDownload("test")
 	_ = app.OpenPluginFolder("PHP")
-	_ = app.InstallPrerequisite(interfaces.DownloadTask{Name: "OpenSSL"})
-	_ = app.InstallPrerequisite(interfaces.DownloadTask{Name: "Python"})
-	_ = app.InstallPluginModule("PHP", "Composer")
-	_ = app.InstallPluginModule("Python", "Pip")
-	_ = app.InstallPluginModule("Unknown", "Mod")
+	_ = app.InstallPrerequisite(ctx, interfaces.DownloadTask{Name: "OpenSSL"})
+	_ = app.InstallPrerequisite(ctx, interfaces.DownloadTask{Name: "Python"})
+	_ = app.InstallPluginModule(ctx, "PHP", "Composer")
+	_ = app.InstallPluginModule(ctx, "Python", "Pip")
+	_ = app.InstallPluginModule(ctx, "Unknown", "Mod")
 	_ = app.UninstallPluginModule("PHP", "Composer")
 	_ = app.UninstallPluginModule("Python", "Pip")
 	_ = app.UninstallPluginModule("Unknown", "Mod")
-	_ = app.SwitchServiceVersion("PHP", "8.2.0")
+	_ = app.SwitchServiceVersion(ctx, "PHP", "8.2.0")
 	_ = app.DeleteVersion("PHP", "8.1.0")
 
 	// Services
 	_ = app.GetServiceStatus("Apache")
 	for _, s := range []string{"Apache", "MySQL", "Nginx", "PHP", serviceNodeJS, "Python", "OpenSSL", "HeidiSQL", "Unknown"} {
-		_ = app.StartService(s)
-		_ = app.StopService(s)
+		_ = app.StartService(ctx, s)
+		_ = app.StopService(ctx, s)
 	}
-	_ = app.StartAllServices()
-	app.StopAllServices()
-	_ = app.SetApacheHTTPS(true)
-	_ = app.SetNginxHTTPS(true)
+	_ = app.StartAllServices(ctx)
+	app.StopAllServices(ctx)
+	_ = app.SetApacheHTTPS(ctx, true)
+	_ = app.SetNginxHTTPS(ctx, true)
 
 	// SSH
 	_, _ = app.GetSSHSessions()
@@ -226,7 +227,7 @@ func TestApp_Full_Mocked(t *testing.T) {
 	_ = app.UpdateSSHSession(config.SSHSession{ID: "test"})
 	_ = app.DeleteSSHSession("test")
 	_ = app.SaveSSHSessions([]config.SSHSession{})
-	_ = app.ConnectSSH(config.SSHSession{ID: "test"})
+	_ = app.ConnectSSH(ctx, config.SSHSession{ID: "test"})
 	app.DisconnectSSH("test")
 	_ = app.SendSSHInput("test", "ls")
 	_ = app.ResizeSSHTerminal("test", 80, 24)
@@ -234,21 +235,21 @@ func TestApp_Full_Mocked(t *testing.T) {
 	_ = app.ExecuteSFTPAction("test", "mkdir", "/path", "")
 	_ = app.EditRemoteFile("test", "/path")
 	_, _ = app.GetRemoteCurrentPath("test")
-	_ = app.DownloadRemoteFile("test", "/path")
-	_ = app.UploadRemoteFile("test", "/path")
+	_ = app.DownloadRemoteFile(ctx, "test", "/path")
+	_ = app.UploadRemoteFile(ctx, "test", "/path")
 	_, _ = app.GetSSHResourceUsage("test")
 
 	// Network
 	_ = app.CheckProxyPorts()
 	_ = app.GetProxyApps()
-	_ = app.SaveProxyPort("myapp", 4000)
-	_ = app.SaveProxyPort("myapp", 0) // Test deletion
+	_ = app.SaveProxyPort(ctx, "myapp", 4000)
+	_ = app.SaveProxyPort(ctx, "myapp", 0) // Test deletion
 	app.OpenProxyTerminal("myapp", "cmd")
 
 	// PHP
-	app.orchestrator.StartService(app.ctx, "PHP", "", nil, "")
+	app.orchestrator.StartService(ctx, "PHP", "", nil, "")
 	_, _ = app.GetPHPExtensions()
-	_ = app.TogglePHPExtension("openssl", true)
+	_ = app.TogglePHPExtension(ctx, "openssl", true)
 
 	// Services extra
 	_ = app.OpenHeidiSQL()
@@ -257,11 +258,11 @@ func TestApp_Full_Mocked(t *testing.T) {
 	app.OpenTerminalAtPath("cmd", tempDir)
 
 	// Extra service coverage
-	_ = app.StartService("Unknown")
-	_ = app.StopService("PHP")
-	_ = app.StopService("OpenSSL")
-	_ = app.StopService(serviceNodeJS)
-	_ = app.StopService("Python")
+	_ = app.StartService(ctx, "Unknown")
+	_ = app.StopService(ctx, "PHP")
+	_ = app.StopService(ctx, "OpenSSL")
+	_ = app.StopService(ctx, serviceNodeJS)
+	_ = app.StopService(ctx, "Python")
 
 	// Node and Python Start Service fail cases
 	_ = app.startNodeService("/nonexistent")
@@ -272,8 +273,8 @@ func TestApp_Full_Mocked(t *testing.T) {
 	plugins.DetectHeidiSQLInstallationOverride = nil
 
 	// Profile
-	_ = app.ExportProfile(true, true)
-	_ = app.ImportProfile()
+	_ = app.ExportProfile(ctx, true, true)
+	_ = app.ImportProfile(ctx)
 }
 
 func TestNewApp(t *testing.T) {
@@ -305,9 +306,6 @@ func TestApp_Startup(t *testing.T) {
 	app.Startup(ctx)
 	cancel() // Stop background goroutines like startProxyWatcher
 
-	if app.ctx == nil {
-		t.Error("Expected context to be set")
-	}
 	if app.cfg == nil {
 		t.Error("Expected config to be set")
 	}
@@ -399,8 +397,9 @@ func TestApp_Services_RealIsh(t *testing.T) {
 	os.MkdirAll(filepath.Join(pythonDir, "bin"), 0755)
 	os.WriteFile(filepath.Join(pythonDir, "bin", "python.exe"), []byte(""), 0755)
 
+	ctx := context.Background()
+
 	app := &App{
-		ctx:     context.Background(),
 		runtime: &MockRuntime{},
 		cfg: &config.Config{
 			BaseDir: tempDir,
@@ -414,34 +413,34 @@ func TestApp_Services_RealIsh(t *testing.T) {
 	}
 
 	// Now test starting services
-	_ = app.StartService("PHP")
-	_ = app.StartService("MySQL")
-	_ = app.StartService("Apache")
-	_ = app.StartService("Nginx")
+	_ = app.StartService(ctx, "PHP")
+	_ = app.StartService(ctx, "MySQL")
+	_ = app.StartService(ctx, "Apache")
+	_ = app.StartService(ctx, "Nginx")
 
 	// Test SetHTTPS with running services to trigger restart
-	app.orchestrator.StartService(app.ctx, "Apache", "", nil, "")
-	_ = app.SetApacheHTTPS(true)
-	app.orchestrator.StartService(app.ctx, "Nginx", "", nil, "")
-	_ = app.SetNginxHTTPS(true)
+	app.orchestrator.StartService(ctx, "Apache", "", nil, "")
+	_ = app.SetApacheHTTPS(ctx, true)
+	app.orchestrator.StartService(ctx, "Nginx", "", nil, "")
+	_ = app.SetNginxHTTPS(ctx, true)
 
 	// Ensure dependent web servers restart when PHP starts
-	app.orchestrator.StartService(app.ctx, "Apache", "", nil, "")
+	app.orchestrator.StartService(ctx, "Apache", "", nil, "")
 	app.cfg.Proxies["mysite"] = 8080
-	_ = app.StartService("PHP")
+	_ = app.StartService(ctx, "PHP")
 
 	// Node & Python
-	_ = app.SwitchServiceVersion(serviceNodeJS, "18.0.0")
-	_ = app.StartService(serviceNodeJS)
-	_ = app.SwitchServiceVersion("Python", "3.10.0")
-	_ = app.StartService("Python")
+	_ = app.SwitchServiceVersion(ctx, serviceNodeJS, "18.0.0")
+	_ = app.StartService(ctx, serviceNodeJS)
+	_ = app.SwitchServiceVersion(ctx, "Python", "3.10.0")
+	_ = app.StartService(ctx, "Python")
 
 	// Test StartAll
-	_ = app.StartAllServices()
+	_ = app.StartAllServices(ctx)
 
 	// Test StopService for all
 	for _, s := range []string{"Apache", "MySQL", "Nginx", "PHP", serviceNodeJS, "Python", "OpenSSL"} {
-		_ = app.StopService(s)
+		_ = app.StopService(ctx, s)
 	}
 
 	// Test helper methods and stubs
@@ -451,17 +450,17 @@ func TestApp_Services_RealIsh(t *testing.T) {
 	_, _ = app.walkForExecutable(nginxDir, "nginx.exe")
 
 	// Test app_network.go
-	app.orchestrator.StartService(app.ctx, "Apache", "", nil, "")
-	app.orchestrator.StartService(app.ctx, "Nginx", "", nil, "")
-	_ = app.SaveProxyPort("mysite", 8080)
+	app.orchestrator.StartService(ctx, "Apache", "", nil, "")
+	app.orchestrator.StartService(ctx, "Nginx", "", nil, "")
+	_ = app.SaveProxyPort(ctx, "mysite", 8080)
 	_ = app.GetProxyApps()
 	_ = app.CheckProxyPorts()
 	_ = app.OpenProxyTerminal("mysite", "cmd")
 
 	// Test app_plugins.go
-	_ = app.InstallPrerequisite(plugins.DownloadTask{Name: "PHP", Target: "php/php-8.2.0"})
+	_ = app.InstallPrerequisite(ctx, plugins.DownloadTask{Name: "PHP", Target: "php/php-8.2.0"})
 	_ = app.OpenPluginFolder("PHP")
-	_ = app.InstallPluginModule("PHP", "Composer")
+	_ = app.InstallPluginModule(ctx, "PHP", "Composer")
 	_ = app.UninstallPluginModule("PHP", "Composer")
 	_ = app.DeleteVersion("PHP", "8.1.0")
 
@@ -475,11 +474,11 @@ func TestApp_Services_RealIsh(t *testing.T) {
 	// Create some files to export
 	os.MkdirAll(filepath.Join(tempDir, "www", "site1"), 0755)
 	os.WriteFile(filepath.Join(tempDir, "www", "site1", "index.php"), []byte("<?php"), 0644)
-	_ = app.ExportProfile(true, true)
+	_ = app.ExportProfile(ctx, true, true)
 
 	// ImportProfile
 	localMockR := app.runtime.(*MockRuntime)
 	localMockR.SelectedFile = filepath.Join(tempDir, "selected.txt")
 	os.WriteFile(localMockR.SelectedFile, []byte(`{"config":{"phpVersion":"8.2.0"}}`), 0644)
-	_ = app.ImportProfile()
+	_ = app.ImportProfile(ctx)
 }

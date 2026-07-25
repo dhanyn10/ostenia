@@ -34,7 +34,6 @@ type SSHConnection struct {
 	SFTP      interfaces.SFTPClient
 	Shell     io.WriteCloser
 	PTY       interfaces.SSHSession
-	Context   context.Context
 	Cancel    context.CancelFunc
 	LastSync  time.Time
 	IsWSL     bool
@@ -134,7 +133,6 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 		SessionID: session.ID,
 		Client:    client,
 		SFTP:      sftpClient,
-		Context:   cCtx,
 		Cancel:    cancel,
 		IsWSL:     isWSL,
 	}
@@ -145,7 +143,7 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 	fmt.Printf("[SSH] Connected successfully to %s@%s:%d. Initializing terminal session.\n", session.User, session.Host, session.Port)
 
 	// Start terminal session
-	m.startTerminal(ctx, conn)
+	m.startTerminal(cCtx, conn)
 
 	return nil
 }
@@ -229,7 +227,7 @@ func (m *SSHManager) processTerminalOutput(ctx context.Context, conn *SSHConnect
 
 func (m *SSHManager) handleTerminalExit(ctx context.Context, conn *SSHConnection, sshSession interfaces.SSHSession, exitChan chan struct{}) {
 	select {
-	case <-conn.Context.Done():
+	case <-ctx.Done():
 		fmt.Printf("[SSH] Context done, closing terminal session %s\n", conn.SessionID)
 		sshSession.Close()
 	case <-exitChan:
