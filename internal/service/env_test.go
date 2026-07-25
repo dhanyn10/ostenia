@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"ostenia/internal/plugins/utils"
 	"ostenia/internal/testutil"
 	"testing"
@@ -83,6 +84,64 @@ func TestSetPath(t *testing.T) {
 
 	// This will trigger elevation code on Windows if not admin
 	_ = SetPath("C:\\new\\path", "Machine")
+}
+
+func TestNotifyEnvironmentUpdate(t *testing.T) {
+	notifyEnvironmentUpdate()
+	NotifyEnvironmentUpdate()
+}
+
+func TestGetPath_Mocked(t *testing.T) {
+	origExecutor := utils.Executor
+	defer func() { utils.Executor = origExecutor }()
+
+	// 1. Success case
+	utils.Executor = &testutil.MockExecutor{Output: "C:\\bin;C:\\Windows"}
+	path, err := GetPath("User")
+	if err != nil {
+		t.Errorf("Expected success, got err: %v", err)
+	}
+	if path != "C:\\bin;C:\\Windows" {
+		t.Errorf("Expected path C:\\bin;C:\\Windows, got %s", path)
+	}
+
+	// 2. Error case
+	utils.Executor = &testutil.MockExecutor{Err: fmt.Errorf("powershell failed")}
+	_, err = GetPath("User")
+	if err == nil {
+		t.Error("Expected error from failing powershell")
+	}
+}
+
+func TestSetPath_MockedErrors(t *testing.T) {
+	origExecutor := utils.Executor
+	defer func() { utils.Executor = origExecutor }()
+
+	// 1. User target error
+	utils.Executor = &testutil.MockExecutor{Err: fmt.Errorf("powershell failed")}
+	err := SetPath("C:\\path", "User")
+	if err == nil {
+		t.Error("Expected error when SetPath fails")
+	}
+}
+
+func TestSetPath_MachineNotAdmin(t *testing.T) {
+	origExecutor := utils.Executor
+	defer func() { utils.Executor = origExecutor }()
+
+	// 1. Success case
+	utils.Executor = &testutil.MockExecutor{Output: ""}
+	err := SetPath("C:\\path", "Machine")
+	if err != nil {
+		t.Errorf("Expected SetPath Machine to succeed with MockExecutor, but got: %v", err)
+	}
+
+	// 2. Error case (powershell elevated command fails)
+	utils.Executor = &testutil.MockExecutor{Err: fmt.Errorf("powershell elevated failed")}
+	err = SetPath("C:\\path", "Machine")
+	if err == nil {
+		t.Error("Expected error when elevated command fails")
+	}
 }
 
 func TestCheckPaths(t *testing.T) {
