@@ -181,7 +181,7 @@ describe('App Component', () => {
     await waitForLoadingToFinish();
 
     const browseButtons = screen.getAllByTitle('Browse Directory');
-    expect(browseButtons.length).toBe(2);
+    expect(browseButtons).toHaveLength(2);
 
     // Browse Apps Location
     fireEvent.click(browseButtons[0]);

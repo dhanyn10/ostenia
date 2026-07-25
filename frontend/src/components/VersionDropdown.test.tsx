@@ -57,7 +57,7 @@ describe("VersionDropdown Component", () => {
 
     // There should be two elements with 'v8.3' (the button and the dropdown option)
     const elements = screen.getAllByText("v8.3");
-    expect(elements.length).toBe(2);
+    expect(elements).toHaveLength(2);
 
     expect(screen.getByText("Add Custom...")).toBeInTheDocument();
   });
