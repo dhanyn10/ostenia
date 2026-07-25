@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"ostenia/internal/config"
@@ -38,8 +37,8 @@ func (a *App) OpenPluginFolder(serviceName string) error {
 }
 
 // InstallPrerequisite downloads and installs a plugin prerequisite
-func (a *App) InstallPrerequisite(ctx context.Context, task plugins.DownloadTask) error {
-	err := a.downloader.DownloadAndExtract(ctx, task)
+func (a *App) InstallPrerequisite(task plugins.DownloadTask) error {
+	err := a.downloader.DownloadAndExtract(a.ctx, task)
 	if err == nil {
 		_, _, currentPath := a.getPluginPaths(task.Name)
 
@@ -57,7 +56,7 @@ func (a *App) InstallPrerequisite(ctx context.Context, task plugins.DownloadTask
 func (a *App) CancelDownload(taskName string) { a.downloader.CancelDownload(taskName) }
 
 // InstallPluginModule installs a sub-module for a parent plugin (e.g., Composer for PHP)
-func (a *App) InstallPluginModule(ctx context.Context, parentName, moduleName string) error {
+func (a *App) InstallPluginModule(parentName, moduleName string) error {
 	_, _, currentPath := a.getPluginPaths(parentName)
 
 	if _, err := os.Stat(currentPath); os.IsNotExist(err) {
@@ -65,18 +64,18 @@ func (a *App) InstallPluginModule(ctx context.Context, parentName, moduleName st
 	}
 
 	emitProgress := func(name string, pct float64, status string) {
-		a.runtime.EventsEmit(ctx, "download_progress", plugins.Progress{Name: name, Percentage: pct, Status: status})
+		a.runtime.EventsEmit(a.ctx, "download_progress", plugins.Progress{Name: name, Percentage: pct, Status: status})
 	}
 
 	var err error
 	switch parentName {
 	case "PHP":
-		err = php.InstallModule(ctx, a.downloader, moduleName, currentPath, emitProgress)
+		err = php.InstallModule(a.ctx, a.downloader, moduleName, currentPath, emitProgress)
 		if err == nil {
 			_ = service.UpdatePHPPath(currentPath, true)
 		}
 	case "Python":
-		err = python.InstallModule(ctx, a.downloader, moduleName, currentPath, emitProgress)
+		err = python.InstallModule(a.ctx, a.downloader, moduleName, currentPath, emitProgress)
 		if err == nil {
 			_ = service.UpdatePythonPath(currentPath, true)
 		}
@@ -117,7 +116,7 @@ func (a *App) UninstallPluginModule(parentName, moduleName string) error {
 }
 
 // SwitchServiceVersion changes the active version of a service using directory junctions
-func (a *App) SwitchServiceVersion(ctx context.Context, serviceName, version string) error {
+func (a *App) SwitchServiceVersion(serviceName, version string) error {
 	category, binDir, currentPath := a.getPluginPaths(serviceName)
 	prefix := ""
 	switch category {
@@ -140,7 +139,7 @@ func (a *App) SwitchServiceVersion(ctx context.Context, serviceName, version str
 	}
 	wasRunning := a.orchestrator.IsRunning(serviceName)
 	if wasRunning {
-		_ = a.StopService(ctx, serviceName)
+		_ = a.StopService(serviceName)
 		time.Sleep(600 * time.Millisecond)
 	}
 	_ = os.Remove(currentPath)
@@ -163,7 +162,7 @@ func (a *App) SwitchServiceVersion(ctx context.Context, serviceName, version str
 		_ = service.UpdatePythonPath(currentPath, true)
 	}
 	if wasRunning {
-		return a.StartService(ctx, serviceName)
+		return a.StartService(serviceName)
 	}
 	a.orchestrator.RequestRefresh()
 	return nil

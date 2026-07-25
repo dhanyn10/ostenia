@@ -43,18 +43,18 @@ func (w *WailsRuntime) SaveFileDialog(ctx context.Context, options wruntime.Save
 	return wruntime.SaveFileDialog(ctx, options)
 }
 
-func (a *App) EventsEmit(ctx context.Context, eventName string, optionalData ...interface{}) {
-	a.runtime.EventsEmit(ctx, eventName, optionalData...)
+func (a *App) EventsEmit(eventName string, optionalData ...interface{}) {
+	a.runtime.EventsEmit(a.ctx, eventName, optionalData...)
 }
-func (a *App) Quit(ctx context.Context) { a.runtime.Quit(ctx) }
-func (a *App) OpenFileDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) {
-	return a.runtime.OpenFileDialog(ctx, options)
+func (a *App) Quit() { a.runtime.Quit(a.ctx) }
+func (a *App) OpenFileDialog(options wruntime.OpenDialogOptions) (string, error) {
+	return a.runtime.OpenFileDialog(a.ctx, options)
 }
-func (a *App) OpenDirectoryDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) {
-	return a.runtime.OpenDirectoryDialog(ctx, options)
+func (a *App) OpenDirectoryDialog(options wruntime.OpenDialogOptions) (string, error) {
+	return a.runtime.OpenDirectoryDialog(a.ctx, options)
 }
-func (a *App) SaveFileDialog(ctx context.Context, options wruntime.SaveDialogOptions) (string, error) {
-	return a.runtime.SaveFileDialog(ctx, options)
+func (a *App) SaveFileDialog(options wruntime.SaveDialogOptions) (string, error) {
+	return a.runtime.SaveFileDialog(a.ctx, options)
 }
 
 func (a *App) GenerateRootCA(destDir string) error { return a.sslManager.GenerateRootCA(destDir) }
