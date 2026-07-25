@@ -63,6 +63,22 @@ describe("MenuBar Component", () => {
     expect(AppBackend.Close).toHaveBeenCalled();
   });
 
+  it("toggles maximize and unmaximize on subsequent clicks", () => {
+    render(<MenuBar {...mockProps} />);
+
+    const allButtons = screen.getAllByRole("button");
+    const winMaxBtn = allButtons[allButtons.length - 2];
+
+    // First click toggles maximize
+    fireEvent.click(winMaxBtn);
+    expect(AppBackend.Maximize).toHaveBeenCalled();
+    expect(AppBackend.Unmaximize).not.toHaveBeenCalled();
+
+    // Second click toggles unmaximize
+    fireEvent.click(winMaxBtn);
+    expect(AppBackend.Unmaximize).toHaveBeenCalled();
+  });
+
   it("handles settings category selection", () => {
     render(<MenuBar {...mockProps} />);
 

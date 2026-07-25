@@ -13,6 +13,7 @@ import (
 
 // App struct manages the main application state and coordinates between backend services and the frontend
 type App struct {
+	ctx          context.Context
 	downloader   interfaces.PluginManager
 	orchestrator interfaces.Orchestrator
 	symlinkMgr   *service.SymlinkManager
@@ -91,6 +92,7 @@ func (s *DefaultSSLManager) SignCertificate(caDir, domain, destDir string) error
 }
 
 func (a *App) Startup(ctx context.Context) {
+	a.ctx = ctx
 	if a.runtime == nil {
 		a.runtime = &WailsRuntime{}
 	}
