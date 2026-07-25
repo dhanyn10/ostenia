@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"ostenia/internal/backend/interfaces"
@@ -21,7 +22,7 @@ func (a *App) GetServiceStatus(serviceName string) interfaces.ServiceDetailedInf
 }
 
 // StartService starts a background service by name
-func (a *App) StartService(serviceName string) error {
+func (a *App) StartService(ctx context.Context, serviceName string) error {
 	_, binDir, currentPath := a.getPluginPaths(serviceName)
 	fmt.Printf("[App] Starting service: %s\n", serviceName)
 
@@ -31,24 +32,24 @@ func (a *App) StartService(serviceName string) error {
 	case "Python":
 		return a.startPythonService(currentPath)
 	case "OpenSSL":
-		return a.startOpenSSLService()
+		return a.startOpenSSLService(ctx)
 	case "MySQL":
-		return a.startMySQLService(binDir)
+		return a.startMySQLService(ctx, binDir)
 	case "Apache":
-		return a.startApacheService(binDir)
+		return a.startApacheService(ctx, binDir)
 	case "Nginx":
-		return a.startNginxService(binDir)
+		return a.startNginxService(ctx, binDir)
 	case "HeidiSQL":
-		return a.startHeidiSQLService()
+		return a.startHeidiSQLService(ctx)
 	case "PHP":
-		return a.startPHPService(currentPath)
+		return a.startPHPService(ctx, currentPath)
 	default:
 		return fmt.Errorf("unknown service: %s", serviceName)
 	}
 }
 
 // StopService stops a running service by name
-func (a *App) StopService(serviceName string) error {
+func (a *App) StopService(ctx context.Context, serviceName string) error {
 	_, _, currentPath := a.getPluginPaths(serviceName)
 
 	if serviceName == "OpenSSL" {
@@ -56,8 +57,8 @@ func (a *App) StopService(serviceName string) error {
 		caDir := filepath.Join(baseDir, "ssl")
 		_ = os.RemoveAll(caDir)
 		_ = os.MkdirAll(caDir, 0755)
-		_ = a.SetApacheHTTPS(false)
-		_ = a.SetNginxHTTPS(false)
+		_ = a.SetApacheHTTPS(ctx, false)
+		_ = a.SetNginxHTTPS(ctx, false)
 		a.orchestrator.RequestRefresh()
 		return nil
 	}
@@ -74,7 +75,7 @@ func (a *App) StopService(serviceName string) error {
 		a.orchestrator.RequestRefresh()
 		return nil
 	}
-	return a.orchestrator.StopService(a.ctx, serviceName)
+	return a.orchestrator.StopService(ctx, serviceName)
 }
 
 func (a *App) startNodeService(currentPath string) error {
@@ -99,7 +100,7 @@ func (a *App) startPythonService(currentPath string) error {
 	return nil
 }
 
-func (a *App) startOpenSSLService() error {
+func (a *App) startOpenSSLService(ctx context.Context) error {
 	caDir := filepath.Join(config.GetBaseDir(), "ssl")
 	if err := a.sslManager.GenerateRootCA(caDir); err != nil {
 		return err
@@ -160,7 +161,7 @@ func (a *App) walkForExecutable(binDir, exeName string) (string, string) {
 	return binPath, basePath
 }
 
-func (a *App) startMySQLService(binDir string) error {
+func (a *App) startMySQLService(ctx context.Context, binDir string) error {
 	mysqlBin, mysqlBase := a.findExecutable(binDir, exeMySQL)
 	if mysqlBin == "" {
 		return fmt.Errorf("%s not found", exeMySQL)
@@ -178,12 +179,12 @@ func (a *App) startMySQLService(binDir string) error {
 		return err
 	}
 	iniPath := filepath.Join(mysqlBase, "my.ini")
-	return a.orchestrator.StartServiceWithPort(a.ctx, "MySQL", mysqlBin, []string{"--defaults-file=" + iniPath, "--console"}, filepath.Dir(mysqlBin), port)
+	return a.orchestrator.StartServiceWithPort(ctx, "MySQL", mysqlBin, []string{"--defaults-file=" + iniPath, "--console"}, filepath.Dir(mysqlBin), port)
 }
 
-func (a *App) startApacheService(binDir string) error {
+func (a *App) startApacheService(ctx context.Context, binDir string) error {
 	if a.orchestrator.IsRunning("Nginx") {
-		_ = a.StopService("Nginx")
+		_ = a.StopService(ctx, "Nginx")
 		time.Sleep(600 * time.Millisecond)
 	}
 	apacheBin, apacheBase := a.findExecutable(binDir, exeApache)
@@ -204,12 +205,12 @@ func (a *App) startApacheService(binDir string) error {
 	if err := a.updateApacheConfig(apacheBase, port); err != nil {
 		return err
 	}
-	return a.orchestrator.StartServiceWithPort(a.ctx, "Apache", apacheBin, []string{}, apacheBase, port)
+	return a.orchestrator.StartServiceWithPort(ctx, "Apache", apacheBin, []string{}, apacheBase, port)
 }
 
-func (a *App) startNginxService(binDir string) error {
+func (a *App) startNginxService(ctx context.Context, binDir string) error {
 	if a.orchestrator.IsRunning("Apache") {
-		_ = a.StopService("Apache")
+		_ = a.StopService(ctx, "Apache")
 		time.Sleep(600 * time.Millisecond)
 	}
 	nginxBin, nginxBase := a.findExecutable(binDir, exeNginx)
@@ -227,10 +228,10 @@ func (a *App) startNginxService(binDir string) error {
 	if err := a.updateNginxConfig(nginxBase, port); err != nil {
 		return err
 	}
-	return a.orchestrator.StartServiceWithPort(a.ctx, "Nginx", nginxBin, []string{"-p", nginxBase}, nginxBase, port)
+	return a.orchestrator.StartServiceWithPort(ctx, "Nginx", nginxBin, []string{"-p", nginxBase}, nginxBase, port)
 }
 
-func (a *App) startHeidiSQLService() error {
+func (a *App) startHeidiSQLService(ctx context.Context) error {
 	exePath, _ := plugins.DetectHeidiSQLInstallation()
 	if exePath != "" {
 		a.orchestrator.RequestRefresh()
@@ -239,13 +240,13 @@ func (a *App) startHeidiSQLService() error {
 	tasks := plugins.GetLatestKnownVersions()
 	for _, t := range tasks {
 		if t.Name == "HeidiSQL" {
-			return a.downloader.DownloadAndExtract(a.ctx, t)
+			return a.downloader.DownloadAndExtract(ctx, t)
 		}
 	}
 	return fmt.Errorf("HeidiSQL task not found")
 }
 
-func (a *App) startPHPService(currentPath string) error {
+func (a *App) startPHPService(ctx context.Context, currentPath string) error {
 	phpCgi := filepath.Join(currentPath, exePHP)
 	if _, err := os.Stat(phpCgi); os.IsNotExist(err) {
 		return fmt.Errorf("%s not found", exePHP)
@@ -262,32 +263,32 @@ func (a *App) startPHPService(currentPath string) error {
 	_ = os.Setenv("PATH", currentPath+";"+os.Getenv("PATH")) // NOSONAR
 	_ = service.UpdatePHPPath(currentPath, true)
 	_ = os.Setenv("PHP_FCGI_MAX_REQUESTS", "1000")
-	err := a.orchestrator.StartServiceWithPort(a.ctx, "PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, currentPath, port)
+	err := a.orchestrator.StartServiceWithPort(ctx, "PHP", phpCgi, []string{"-b", fmt.Sprintf("127.0.0.1:%d", port)}, currentPath, port)
 	if err == nil {
-		a.restartDependentWebServers()
+		a.restartDependentWebServers(ctx)
 	}
 	return err
 }
 
-func (a *App) restartDependentWebServers() {
+func (a *App) restartDependentWebServers(ctx context.Context) {
 	for _, srv := range []string{"Apache", "Nginx"} {
 		if a.orchestrator.IsRunning(srv) {
-			_ = a.StopService(srv)
+			_ = a.StopService(ctx, srv)
 			time.Sleep(600 * time.Millisecond)
-			_ = a.StartService(srv)
+			_ = a.StartService(ctx, srv)
 		}
 	}
 }
 
 // StartAllServices starts the default stack (MySQL, PHP, Apache)
-func (a *App) StartAllServices() error {
-	_ = a.StartService("MySQL")
-	_ = a.StartService("PHP")
-	return a.StartService("Apache")
+func (a *App) StartAllServices(ctx context.Context) error {
+	_ = a.StartService(ctx, "MySQL")
+	_ = a.StartService(ctx, "PHP")
+	return a.StartService(ctx, "Apache")
 }
 
 // StopAllServices stops all currently running background services
-func (a *App) StopAllServices() { a.orchestrator.StopAll(a.ctx) }
+func (a *App) StopAllServices(ctx context.Context) { a.orchestrator.StopAll(ctx) }
 
 func (a *App) updateMySQLConfig(mysqlPath string, port int) error {
 	dataDir := filepath.Join(mysqlPath, "data")
@@ -352,31 +353,31 @@ func (a *App) updateNginxConfig(nginxPath string, port int) error {
 }
 
 // SetApacheHTTPS enables or disables HTTPS support for Apache
-func (a *App) SetApacheHTTPS(enabled bool) error {
+func (a *App) SetApacheHTTPS(ctx context.Context, enabled bool) error {
 	a.cfg.ApacheHTTPS = enabled
 	err := config.SaveConfig(a.cfg)
 	if err != nil {
 		return err
 	}
 	if a.orchestrator.IsRunning("Apache") {
-		_ = a.StopService("Apache")
+		_ = a.StopService(ctx, "Apache")
 		time.Sleep(600 * time.Millisecond)
-		return a.StartService("Apache")
+		return a.StartService(ctx, "Apache")
 	}
 	return nil
 }
 
 // SetNginxHTTPS enables or disables HTTPS support for Nginx
-func (a *App) SetNginxHTTPS(enabled bool) error {
+func (a *App) SetNginxHTTPS(ctx context.Context, enabled bool) error {
 	a.cfg.NginxHTTPS = enabled
 	err := config.SaveConfig(a.cfg)
 	if err != nil {
 		return err
 	}
 	if a.orchestrator.IsRunning("Nginx") {
-		_ = a.StopService("Nginx")
+		_ = a.StopService(ctx, "Nginx")
 		time.Sleep(600 * time.Millisecond)
-		return a.StartService("Nginx")
+		return a.StartService(ctx, "Nginx")
 	}
 	return nil
 }

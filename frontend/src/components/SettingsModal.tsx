@@ -85,11 +85,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         className="absolute inset-0 w-full h-full bg-transparent border-none p-0 cursor-default focus:outline-none"
         onClick={onClose}
       />
-      <div
-        role="dialog"
-        aria-modal="true"
+      <dialog
+        open
         className={cn(
-          "relative w-full max-w-5xl h-[80vh] flex flex-col rounded-xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] border overflow-hidden",
+          "relative w-full max-w-5xl h-[80vh] flex flex-col rounded-xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] border overflow-hidden p-0 m-0",
           "bg-white dark:bg-mui-dark-bg border-mui-grey-200 dark:border-white/10",
         )}
       >
@@ -184,7 +183,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             Close
           </button>
         </div>
-      </div>
+      </dialog>
     </div>
   );
 };

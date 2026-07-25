@@ -562,129 +562,128 @@ func TestSSHManager_Disconnect(t *testing.T) {
 	}
 }
 
-func TestSSHManager_Errors(t *testing.T) {
+func TestSSHManager_Errors_Connect(t *testing.T) {
 	m := NewSSHManager()
 	m.dialer = func(cfg *goph.Config) (interfaces.SSHClient, error) {
 		return nil, errors.New("dial error")
 	}
 
-	t.Run("Connect Error", func(t *testing.T) {
-		err := m.Connect(context.Background(), config.SSHSession{ID: "err-id"})
-		if err == nil {
-			t.Error("Expected dial error")
-		}
+	err := m.Connect(context.Background(), config.SSHSession{ID: "err-id"})
+	if err == nil {
+		t.Error("Expected dial error")
+	}
+}
+
+func TestSSHManager_Errors_NotFound(t *testing.T) {
+	m := NewSSHManager()
+	if _, err := m.GetCurrentPath("none"); err == nil {
+		t.Error("Expected error for missing session")
+	}
+	if _, err := m.ListFiles("none", "."); err == nil {
+		t.Error("Expected error for missing session")
+	}
+	if err := m.DownloadFile("none", "r", "l"); err == nil {
+		t.Error("Expected error for missing session")
+	}
+	if err := m.UploadFile("none", "l", "r"); err == nil {
+		t.Error("Expected error for missing session")
+	}
+	if err := m.ExecuteSFTPAction("none", "mkdir", "p", ""); err == nil {
+		t.Error("Expected error for missing session")
+	}
+	if err := m.EditFile("none", "p", "editor"); err == nil {
+		t.Error("Expected error for missing session")
+	}
+	if err := m.ResizeTerminal("none", 80, 24); err == nil {
+		t.Error("Expected error for missing session")
+	}
+	if err := m.SendInput("none", "abc"); err == nil {
+		t.Error("Expected error for missing session")
+	}
+}
+
+func TestSSHManager_Errors_SFTPNotConnected(t *testing.T) {
+	mgr, sessionID, _, cleanup := setupSSHTest(t)
+	defer cleanup()
+
+	mgr.mu.Lock()
+	conn := mgr.connections[sessionID]
+	conn.SFTP = nil
+	mgr.mu.Unlock()
+
+	if _, err := mgr.GetCurrentPath(sessionID); err == nil {
+		t.Error("Expected error for nil SFTP")
+	}
+	if err := mgr.DownloadFile(sessionID, "r", "l"); err == nil {
+		t.Error("Expected error for nil SFTP")
+	}
+	if err := mgr.UploadFile(sessionID, "l", "r"); err == nil {
+		t.Error("Expected error for nil SFTP")
+	}
+	if err := mgr.ExecuteSFTPAction(sessionID, "mkdir", "p", ""); err == nil {
+		t.Error("Expected error for nil SFTP")
+	}
+	if err := mgr.EditFile(sessionID, "p", "editor"); err == nil {
+		t.Error("Expected error for nil SFTP")
+	}
+}
+
+func TestSSHManager_Errors_TerminalOps(t *testing.T) {
+	mgr, sessionID, _, cleanup := setupSSHTest(t)
+	defer cleanup()
+
+	mgr.mu.Lock()
+	conn := mgr.connections[sessionID]
+	conn.PTY = nil
+	conn.Shell = nil
+	mgr.mu.Unlock()
+
+	if err := mgr.ResizeTerminal(sessionID, 80, 24); err == nil {
+		t.Error("Expected error for nil PTY")
+	}
+	if err := mgr.SendInput(sessionID, "abc"); err == nil {
+		t.Error("Expected error for nil Shell")
+	}
+}
+
+func TestSSHManager_Errors_ExecuteSFTPAction(t *testing.T) {
+	mgr, sessionID, _, cleanup := setupSSHTest(t)
+	defer cleanup()
+
+	err := mgr.ExecuteSFTPAction(sessionID, "unknown_action", "p", "")
+	if err == nil || !strings.Contains(err.Error(), "unknown action") {
+		t.Errorf("Expected 'unknown action' error, got %v", err)
+	}
+}
+
+func TestSSHManager_Errors_ConnectNewSftp(t *testing.T) {
+	mgr := NewSSHManager()
+	mgr.dialer = func(cfg *goph.Config) (interfaces.SSHClient, error) {
+		return &mockSSHClient{sftp: nil}, nil
+	}
+	err := mgr.Connect(context.Background(), config.SSHSession{ID: "newsftp-err-id", AuthMethod: "password"})
+	if err == nil {
+		t.Error("Expected Connect to fail when NewSftp fails")
+	}
+}
+
+func TestSSHManager_Errors_StartTerminal(t *testing.T) {
+	mgr := NewSSHManager()
+	mgr.dialer = func(cfg *goph.Config) (interfaces.SSHClient, error) {
+		return &mockSSHClient{session: nil, sftp: &mockSFTPClient{}}, nil
+	}
+	_ = mgr.Connect(context.Background(), config.SSHSession{ID: "newsession-err-id", AuthMethod: "password"})
+}
+
+func TestSSHManager_Errors_DefaultSSHDialer(t *testing.T) {
+	_, err := DefaultSSHDialer(&goph.Config{
+		User: "user",
+		Addr: "127.0.0.1",
+		Port: 9999,
 	})
-
-	t.Run("Not Found Errors", func(t *testing.T) {
-		if _, err := m.GetCurrentPath("none"); err == nil {
-			t.Error("Expected error for missing session")
-		}
-		if _, err := m.ListFiles("none", "."); err == nil {
-			t.Error("Expected error for missing session")
-		}
-		if err := m.DownloadFile("none", "r", "l"); err == nil {
-			t.Error("Expected error for missing session")
-		}
-		if err := m.UploadFile("none", "l", "r"); err == nil {
-			t.Error("Expected error for missing session")
-		}
-		if err := m.ExecuteSFTPAction("none", "mkdir", "p", ""); err == nil {
-			t.Error("Expected error for missing session")
-		}
-		if err := m.EditFile("none", "p", "editor"); err == nil {
-			t.Error("Expected error for missing session")
-		}
-		if err := m.ResizeTerminal("none", 80, 24); err == nil {
-			t.Error("Expected error for missing session")
-		}
-		if err := m.SendInput("none", "abc"); err == nil {
-			t.Error("Expected error for missing session")
-		}
-	})
-
-	t.Run("SFTP Not Connected Errors", func(t *testing.T) {
-		mgr, sessionID, _, cleanup := setupSSHTest(t)
-		defer cleanup()
-
-		mgr.mu.Lock()
-		conn := mgr.connections[sessionID]
-		conn.SFTP = nil
-		mgr.mu.Unlock()
-
-		if _, err := mgr.GetCurrentPath(sessionID); err == nil {
-			t.Error("Expected error for nil SFTP")
-		}
-		if err := mgr.DownloadFile(sessionID, "r", "l"); err == nil {
-			t.Error("Expected error for nil SFTP")
-		}
-		if err := mgr.UploadFile(sessionID, "l", "r"); err == nil {
-			t.Error("Expected error for nil SFTP")
-		}
-		if err := mgr.ExecuteSFTPAction(sessionID, "mkdir", "p", ""); err == nil {
-			t.Error("Expected error for nil SFTP")
-		}
-		if err := mgr.EditFile(sessionID, "p", "editor"); err == nil {
-			t.Error("Expected error for nil SFTP")
-		}
-	})
-
-	t.Run("Terminal Ops Nil PTY Shell", func(t *testing.T) {
-		mgr, sessionID, _, cleanup := setupSSHTest(t)
-		defer cleanup()
-
-		mgr.mu.Lock()
-		conn := mgr.connections[sessionID]
-		conn.PTY = nil
-		conn.Shell = nil
-		mgr.mu.Unlock()
-
-		if err := mgr.ResizeTerminal(sessionID, 80, 24); err == nil {
-			t.Error("Expected error for nil PTY")
-		}
-		if err := mgr.SendInput(sessionID, "abc"); err == nil {
-			t.Error("Expected error for nil Shell")
-		}
-	})
-
-	t.Run("ExecuteSFTPAction Unknown Action", func(t *testing.T) {
-		mgr, sessionID, _, cleanup := setupSSHTest(t)
-		defer cleanup()
-
-		err := mgr.ExecuteSFTPAction(sessionID, "unknown_action", "p", "")
-		if err == nil || !strings.Contains(err.Error(), "unknown action") {
-			t.Errorf("Expected 'unknown action' error, got %v", err)
-		}
-	})
-
-	t.Run("Connect NewSftp Error", func(t *testing.T) {
-		mgr := NewSSHManager()
-		mgr.dialer = func(cfg *goph.Config) (interfaces.SSHClient, error) {
-			return &mockSSHClient{sftp: nil}, nil
-		}
-		err := mgr.Connect(context.Background(), config.SSHSession{ID: "newsftp-err-id", AuthMethod: "password"})
-		if err == nil {
-			t.Error("Expected Connect to fail when NewSftp fails")
-		}
-	})
-
-	t.Run("startTerminal NewSession Error", func(t *testing.T) {
-		mgr := NewSSHManager()
-		mgr.dialer = func(cfg *goph.Config) (interfaces.SSHClient, error) {
-			return &mockSSHClient{session: nil, sftp: &mockSFTPClient{}}, nil
-		}
-		_ = mgr.Connect(context.Background(), config.SSHSession{ID: "newsession-err-id", AuthMethod: "password"})
-	})
-
-	t.Run("DefaultSSHDialer error", func(t *testing.T) {
-		_, err := DefaultSSHDialer(&goph.Config{
-			User: "user",
-			Addr: "127.0.0.1",
-			Port: 9999,
-		})
-		if err == nil {
-			t.Error("Expected DefaultSSHDialer to return error")
-		}
-	})
+	if err == nil {
+		t.Error("Expected DefaultSSHDialer to return error")
+	}
 }
 
 func TestSSHManager_GetResourceUsage(t *testing.T) {
@@ -784,7 +783,6 @@ func TestSSHManager_TerminalLoop(t *testing.T) {
 	conn := &SSHConnection{
 		SessionID: "loop-id",
 		PTY:       &mockSSHSession{},
-		Context:   ctx,
 		Cancel:    cancel,
 	}
 
@@ -823,7 +821,6 @@ func TestSSHManager_TerminalLoop(t *testing.T) {
 		defer cancel3()
 		conn3 := &SSHConnection{
 			SessionID: "exit-id",
-			Context:   ctx3,
 			Cancel:    cancel3,
 		}
 		m.mu.Lock()

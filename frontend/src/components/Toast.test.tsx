@@ -65,7 +65,7 @@ describe("Toast Component", () => {
     render(<Toast toasts={mockToasts} removeToast={removeToast} />);
 
     const copyButtons = screen.getAllByTitle("Copy message");
-    expect(copyButtons.length).toBe(3);
+    expect(copyButtons).toHaveLength(3);
 
     fireEvent.click(copyButtons[0]);
 

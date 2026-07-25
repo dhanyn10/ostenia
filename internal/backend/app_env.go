@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"ostenia/internal/config"
@@ -29,7 +30,7 @@ func (a *App) ensureEnvironmentStructure() {
 func (a *App) IsAdmin() bool { return service.IsAdmin() }
 
 // SetWWWRoot sets the server root directory (www)
-func (a *App) SetWWWRoot(path string) error {
+func (a *App) SetWWWRoot(ctx context.Context, path string) error {
 	fmt.Printf("[App] Setting Server Root (www) to: %s\n", path)
 	a.cfg.WWWRoot = path
 	err := config.SaveConfig(a.cfg)
@@ -38,22 +39,22 @@ func (a *App) SetWWWRoot(path string) error {
 	}
 	_ = os.MkdirAll(path, 0755)
 	if a.orchestrator.IsRunning("Apache") {
-		_ = a.StopService("Apache")
+		_ = a.StopService(ctx, "Apache")
 		time.Sleep(500 * time.Millisecond)
-		_ = a.StartService("Apache")
+		_ = a.StartService(ctx, "Apache")
 	}
 	if a.orchestrator.IsRunning("Nginx") {
-		_ = a.StopService("Nginx")
+		_ = a.StopService(ctx, "Nginx")
 		time.Sleep(500 * time.Millisecond)
-		_ = a.StartService("Nginx")
+		_ = a.StartService(ctx, "Nginx")
 	}
 	return nil
 }
 
 // SetServerRoot changes the base directory for all Ostenia apps and binaries
-func (a *App) SetServerRoot(rootPath string) error {
+func (a *App) SetServerRoot(ctx context.Context, rootPath string) error {
 	fmt.Printf("[App] Switching Apps Location to: %s\n", rootPath)
-	a.orchestrator.StopAll(a.ctx)
+	a.orchestrator.StopAll(ctx)
 	time.Sleep(1 * time.Second)
 	a.cfg.BaseDir = rootPath
 	a.cfg.WWWRoot = filepath.Join(rootPath, "www")
@@ -63,18 +64,18 @@ func (a *App) SetServerRoot(rootPath string) error {
 	}
 	a.ensureEnvironmentStructure()
 	a.orchestrator.RequestRefresh()
-	a.runtime.EventsEmit(a.ctx, "environment_changed", a.cfg)
+	a.runtime.EventsEmit(ctx, "environment_changed", a.cfg)
 	return nil
 }
 
 // SelectServerRoot opens a directory dialog to select the Ostenia apps location
-func (a *App) SelectServerRoot() (string, error) {
-	selectedDir, err := a.runtime.OpenDirectoryDialog(a.ctx, wruntime.OpenDialogOptions{Title: "Select Ostenia Apps Location"})
+func (a *App) SelectServerRoot(ctx context.Context) (string, error) {
+	selectedDir, err := a.runtime.OpenDirectoryDialog(ctx, wruntime.OpenDialogOptions{Title: "Select Ostenia Apps Location"})
 	if err != nil {
 		return "", err
 	}
 	if selectedDir != "" {
-		err = a.SetServerRoot(selectedDir)
+		err = a.SetServerRoot(ctx, selectedDir)
 		if err != nil {
 			return "", err
 		}
@@ -83,13 +84,13 @@ func (a *App) SelectServerRoot() (string, error) {
 }
 
 // SelectWWWRoot opens a directory dialog to select the server root (www)
-func (a *App) SelectWWWRoot() (string, error) {
-	selectedDir, err := a.runtime.OpenDirectoryDialog(a.ctx, wruntime.OpenDialogOptions{Title: "Select Server Root (www)"})
+func (a *App) SelectWWWRoot(ctx context.Context) (string, error) {
+	selectedDir, err := a.runtime.OpenDirectoryDialog(ctx, wruntime.OpenDialogOptions{Title: "Select Server Root (www)"})
 	if err != nil {
 		return "", err
 	}
 	if selectedDir != "" {
-		err = a.SetWWWRoot(selectedDir)
+		err = a.SetWWWRoot(ctx, selectedDir)
 		if err != nil {
 			return "", err
 		}

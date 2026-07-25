@@ -35,32 +35,32 @@ func (m *FullMockRuntime) SaveFileDialog(ctx context.Context, options wruntime.S
 
 func TestApp_WindowDelegates(t *testing.T) {
 	mockR := &FullMockRuntime{}
+	ctx := context.Background()
 	app := &App{
 		runtime: mockR,
-		ctx:     context.Background(),
 	}
 
-	app.Minimize()
+	app.Minimize(ctx)
 	if !mockR.Minimised {
 		t.Error("Expected WindowMinimise to be called")
 	}
 
-	app.Maximize()
+	app.Maximize(ctx)
 	if !mockR.Maximised {
 		t.Error("Expected WindowMaximise to be called")
 	}
 
-	app.Unmaximize()
+	app.Unmaximize(ctx)
 	if !mockR.Unmaximised {
 		t.Error("Expected WindowUnmaximise to be called")
 	}
 
-	app.Close()
+	app.Close(ctx)
 	if !mockR.QuitCalled {
 		t.Error("Expected Quit to be called")
 	}
 
-	app.ToggleDevTools()
+	app.ToggleDevTools(ctx)
 	if mockR.JS == "" {
 		t.Error("Expected WindowExecJS to be called")
 	}

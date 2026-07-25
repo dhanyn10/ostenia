@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"ostenia/internal/backend/interfaces"
 	"ostenia/internal/config"
 	"path/filepath"
 	"strings"
@@ -142,14 +143,12 @@ func TestWSLClient_SessionWithCustomUser(t *testing.T) {
 	sess.Close()
 }
 
-func TestWSLClient_SftpAndFiles(t *testing.T) {
+func setupWSLSftpTest(t *testing.T) (*WSLClient, interfaces.SFTPClient, string, func()) {
 	origGOOS := RuntimeGOOS
-	defer func() { RuntimeGOOS = origGOOS }()
 	RuntimeGOOS = "linux"
 
 	tempDir := t.TempDir()
 	origWslRootPath := wslRootPath
-	defer func() { wslRootPath = origWslRootPath }()
 	wslRootPath = func(distro string) string {
 		return filepath.Join(tempDir, distro)
 	}
@@ -159,14 +158,32 @@ func TestWSLClient_SftpAndFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create WSL SFTP Client: %v", err)
 	}
-	defer sftpClient.Close()
+
+	cleanup := func() {
+		sftpClient.Close()
+		client.Close()
+		wslRootPath = origWslRootPath
+		RuntimeGOOS = origGOOS
+	}
+
+	return client, sftpClient, tempDir, cleanup
+}
+
+func TestWSLClient_SftpAndFiles_Getwd(t *testing.T) {
+	_, sftpClient, _, cleanup := setupWSLSftpTest(t)
+	defer cleanup()
 
 	wd, err := sftpClient.Getwd()
 	if err != nil || wd != "/" {
 		t.Errorf("Expected Getwd to return '/', got '%s' (err: %v)", wd, err)
 	}
+}
 
-	err = sftpClient.Mkdir("/testdir")
+func TestWSLClient_SftpAndFiles_MkdirAndStat(t *testing.T) {
+	_, sftpClient, tempDir, cleanup := setupWSLSftpTest(t)
+	defer cleanup()
+
+	err := sftpClient.Mkdir("/testdir")
 	if err != nil {
 		t.Fatalf("Mkdir failed: %v", err)
 	}
@@ -174,6 +191,16 @@ func TestWSLClient_SftpAndFiles(t *testing.T) {
 	localDir := filepath.Join(tempDir, "Ubuntu-Test", "testdir")
 	if info, err := os.Stat(localDir); err != nil || !info.IsDir() {
 		t.Errorf("Expected local directory to be created at %s, but err: %v", localDir, err)
+	}
+}
+
+func TestWSLClient_SftpAndFiles_CreateAndWrite(t *testing.T) {
+	_, sftpClient, _, cleanup := setupWSLSftpTest(t)
+	defer cleanup()
+
+	err := sftpClient.Mkdir("/testdir")
+	if err != nil {
+		t.Fatalf("Mkdir failed: %v", err)
 	}
 
 	file, err := sftpClient.Create("/testdir/file.txt")
@@ -198,6 +225,22 @@ func TestWSLClient_SftpAndFiles(t *testing.T) {
 	if string(content) != "hello wsl sftp" {
 		t.Errorf("Expected 'hello wsl sftp', got '%s'", string(content))
 	}
+}
+
+func TestWSLClient_SftpAndFiles_StatAndReadDir(t *testing.T) {
+	_, sftpClient, _, cleanup := setupWSLSftpTest(t)
+	defer cleanup()
+
+	err := sftpClient.Mkdir("/testdir")
+	if err != nil {
+		t.Fatalf("Mkdir failed: %v", err)
+	}
+
+	file, err := sftpClient.Create("/testdir/file.txt")
+	if err != nil {
+		t.Fatalf("Create file failed: %v", err)
+	}
+	file.Close()
 
 	info, err := sftpClient.Stat("/testdir/file.txt")
 	if err != nil || info.IsDir() {
@@ -208,6 +251,22 @@ func TestWSLClient_SftpAndFiles(t *testing.T) {
 	if err != nil || len(infos) != 1 || infos[0].Name() != "file.txt" {
 		t.Errorf("ReadDir failed or length mismatch: %v (infos: %v)", err, infos)
 	}
+}
+
+func TestWSLClient_SftpAndFiles_RenameAndRemove(t *testing.T) {
+	_, sftpClient, tempDir, cleanup := setupWSLSftpTest(t)
+	defer cleanup()
+
+	err := sftpClient.Mkdir("/testdir")
+	if err != nil {
+		t.Fatalf("Mkdir failed: %v", err)
+	}
+
+	file, err := sftpClient.Create("/testdir/file.txt")
+	if err != nil {
+		t.Fatalf("Create file failed: %v", err)
+	}
+	file.Close()
 
 	err = sftpClient.Rename("/testdir/file.txt", "/testdir/file_new.txt")
 	if err != nil {
@@ -227,11 +286,10 @@ func TestWSLClient_SftpAndFiles(t *testing.T) {
 		t.Fatalf("RemoveAll failed: %v", err)
 	}
 
+	localDir := filepath.Join(tempDir, "Ubuntu-Test", "testdir")
 	if _, err := os.Stat(localDir); !os.IsNotExist(err) {
 		t.Errorf("Expected directory to be removed, but stat err was: %v", err)
 	}
-
-	client.Close()
 }
 
 func TestSSHManager_GetWSLDistros(t *testing.T) {

@@ -195,11 +195,12 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
 
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5 block">
+                <label htmlFor={`port-${app.name}`} className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5 block">
                   Target Localhost Port
                 </label>
                 <div className="flex gap-2">
                   <input
+                    id={`port-${app.name}`}
                     type="number"
                     placeholder="e.g. 3000"
                     className="flex-1 px-4 py-2 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-mono"
