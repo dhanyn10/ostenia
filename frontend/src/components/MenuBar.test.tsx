@@ -119,13 +119,13 @@ describe("MenuBar Component", () => {
       vi.advanceTimersByTime(450);
     });
 
-    // Verify Snap Window header is displayed
-    expect(screen.getByText("Snap Window")).toBeInTheDocument();
+    // Verify Snap Assist header is displayed
+    expect(screen.getByText("Snap Assist")).toBeInTheDocument();
 
     // Find and click 'Left Half' snapping option
-    const leftBtn = screen.getByText("Left Half").closest("button");
+    const leftBtn = screen.getByTitle("Snap Left Half");
     expect(leftBtn).toBeInTheDocument();
-    fireEvent.click(leftBtn!);
+    fireEvent.click(leftBtn);
 
     // Run outstanding timers and promises
     await vi.runAllTimersAsync();
