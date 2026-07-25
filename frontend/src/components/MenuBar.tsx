@@ -150,8 +150,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
 }) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
-  const [showSnapMenu, setShowSnapMenu] = useState(false);
-  const hoverTimeoutRef = useRef<any>(null);
 
   const handleMinimize = () => AppBackend.Minimize();
   const handleMaximize = () => {
@@ -163,96 +161,6 @@ const MenuBar: React.FC<MenuBarProps> = ({
     setIsMaximized(!isMaximized);
   };
   const handleClose = () => AppBackend.Close();
-
-  const handleMouseEnterMaximize = () => {
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    hoverTimeoutRef.current = setTimeout(() => {
-      setShowSnapMenu(true);
-    }, 400);
-  };
-
-  const handleMouseLeaveMaximize = () => {
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    hoverTimeoutRef.current = setTimeout(() => {
-      setShowSnapMenu(false);
-    }, 300);
-  };
-
-  const handleMouseEnterSnapMenu = () => {
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-  };
-
-  const handleMouseLeaveSnapMenu = () => {
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    hoverTimeoutRef.current = setTimeout(() => {
-      setShowSnapMenu(false);
-    }, 200);
-  };
-
-  const snapWindow = async (
-    layout:
-      | "left"
-      | "right"
-      | "left-third"
-      | "middle-third"
-      | "right-third"
-      | "left-twothirds"
-      | "top-left"
-      | "top-right"
-      | "bottom-left"
-      | "bottom-right"
-      | "full",
-  ) => {
-    if (isMaximized) {
-      AppBackend.Unmaximize();
-      setIsMaximized(false);
-    }
-    try {
-      const runtime = await import("../../wailsjs/runtime/runtime");
-      const screens = await runtime.ScreenGetAll();
-      const currentScreen = screens.find((s: any) => s.isCurrent) || screens[0] || { width: 1920, height: 1080 };
-      const screenWidth = currentScreen.width;
-      const screenHeight = currentScreen.height - 48; // Reserve pixels for system taskbar
-
-      if (layout === "left") {
-        runtime.WindowSetPosition(0, 0);
-        runtime.WindowSetSize(Math.floor(screenWidth / 2), screenHeight);
-      } else if (layout === "right") {
-        runtime.WindowSetPosition(Math.floor(screenWidth / 2), 0);
-        runtime.WindowSetSize(Math.floor(screenWidth / 2), screenHeight);
-      } else if (layout === "left-third") {
-        runtime.WindowSetPosition(0, 0);
-        runtime.WindowSetSize(Math.floor(screenWidth / 3), screenHeight);
-      } else if (layout === "middle-third") {
-        runtime.WindowSetPosition(Math.floor(screenWidth / 3), 0);
-        runtime.WindowSetSize(Math.floor(screenWidth / 3), screenHeight);
-      } else if (layout === "right-third") {
-        runtime.WindowSetPosition(Math.floor(screenWidth * 2 / 3), 0);
-        runtime.WindowSetSize(Math.floor(screenWidth / 3), screenHeight);
-      } else if (layout === "left-twothirds") {
-        runtime.WindowSetPosition(0, 0);
-        runtime.WindowSetSize(Math.floor((screenWidth * 2) / 3), screenHeight);
-      } else if (layout === "top-left") {
-        runtime.WindowSetPosition(0, 0);
-        runtime.WindowSetSize(Math.floor(screenWidth / 2), Math.floor(screenHeight / 2));
-      } else if (layout === "top-right") {
-        runtime.WindowSetPosition(Math.floor(screenWidth / 2), 0);
-        runtime.WindowSetSize(Math.floor(screenWidth / 2), Math.floor(screenHeight / 2));
-      } else if (layout === "bottom-left") {
-        runtime.WindowSetPosition(0, Math.floor(screenHeight / 2));
-        runtime.WindowSetSize(Math.floor(screenWidth / 2), Math.floor(screenHeight / 2));
-      } else if (layout === "bottom-right") {
-        runtime.WindowSetPosition(Math.floor(screenWidth / 2), Math.floor(screenHeight / 2));
-        runtime.WindowSetSize(Math.floor(screenWidth / 2), Math.floor(screenHeight / 2));
-      } else if (layout === "full") {
-        AppBackend.Maximize();
-        setIsMaximized(true);
-      }
-    } catch (e) {
-      console.error("Failed to snap window:", e);
-    }
-    setShowSnapMenu(false);
-  };
 
   const handleOpenCategory = (category: string) => {
     onOpenSettings(category);
@@ -420,147 +328,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
         >
           <Minus size={14} />
         </button>
-
-        <div
-          className="relative h-full flex items-center"
-          onMouseEnter={handleMouseEnterMaximize}
-          onMouseLeave={handleMouseLeaveMaximize}
-          data-testid="maximize-container"
+        <button
+          type="button"
+          onClick={handleMaximize}
+          className="w-12 h-full flex items-center justify-center hover:bg-mui-grey-200 dark:hover:bg-white/10 transition-colors"
         >
-          <button
-            type="button"
-            onClick={handleMaximize}
-            className="w-12 h-full flex items-center justify-center hover:bg-mui-grey-200 dark:hover:bg-white/10 transition-colors"
-          >
-            <Square size={12} />
-          </button>
-
-          {showSnapMenu && (
-            <div
-              onMouseEnter={handleMouseEnterSnapMenu}
-              onMouseLeave={handleMouseLeaveSnapMenu}
-              className={cn(
-                "absolute top-full right-0 mt-2 p-3 border shadow-2xl z-[150] rounded-lg bg-white dark:bg-mui-dark-paper border-mui-grey-200 dark:border-white/10 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-100 w-[240px]",
-              )}
-            >
-              <div className="text-[11px] font-bold text-mui-grey-500 dark:text-mui-grey-400 uppercase tracking-wider">
-                Snap Assist
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                {/* 50/50 Layout */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] text-mui-grey-400">50 / 50</span>
-                  <div className="w-[100px] h-[64px] border border-mui-grey-300 dark:border-white/10 rounded-md p-1 flex gap-1 bg-mui-grey-50 dark:bg-white/5">
-                    <button
-                      type="button"
-                      onClick={() => snapWindow("left")}
-                      className="w-1/2 h-full border border-mui-grey-200 dark:border-white/10 rounded bg-mui-grey-100/50 dark:bg-white/5 hover:bg-mui-blue-500 hover:border-mui-blue-500 transition-all duration-100"
-                      title="Snap Left Half"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => snapWindow("right")}
-                      className="w-1/2 h-full border border-mui-grey-200 dark:border-white/10 rounded bg-mui-grey-100/50 dark:bg-white/5 hover:bg-mui-blue-500 hover:border-mui-blue-500 transition-all duration-100"
-                      title="Snap Right Half"
-                    />
-                  </div>
-                </div>
-
-                {/* 2/3 & 1/3 Layout */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] text-mui-grey-400">2/3 & 1/3</span>
-                  <div className="w-[100px] h-[64px] border border-mui-grey-300 dark:border-white/10 rounded-md p-1 flex gap-1 bg-mui-grey-50 dark:bg-white/5">
-                    <button
-                      type="button"
-                      onClick={() => snapWindow("left-twothirds")}
-                      className="w-2/3 h-full border border-mui-grey-200 dark:border-white/10 rounded bg-mui-grey-100/50 dark:bg-white/5 hover:bg-mui-blue-500 hover:border-mui-blue-500 transition-all duration-100"
-                      title="Snap Left 2/3"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => snapWindow("right-third")}
-                      className="w-1/3 h-full border border-mui-grey-200 dark:border-white/10 rounded bg-mui-grey-100/50 dark:bg-white/5 hover:bg-mui-blue-500 hover:border-mui-blue-500 transition-all duration-100"
-                      title="Snap Right 1/3"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                {/* 3 Columns Layout */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] text-mui-grey-400">3 Columns</span>
-                  <div className="w-[100px] h-[64px] border border-mui-grey-300 dark:border-white/10 rounded-md p-1 flex gap-1 bg-mui-grey-50 dark:bg-white/5">
-                    <button
-                      type="button"
-                      onClick={() => snapWindow("left-third")}
-                      className="w-1/3 h-full border border-mui-grey-200 dark:border-white/10 rounded bg-mui-grey-100/50 dark:bg-white/5 hover:bg-mui-blue-500 hover:border-mui-blue-500 transition-all duration-100"
-                      title="Snap Left 1/3"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => snapWindow("middle-third")}
-                      className="w-1/3 h-full border border-mui-grey-200 dark:border-white/10 rounded bg-mui-grey-100/50 dark:bg-white/5 hover:bg-mui-blue-500 hover:border-mui-blue-500 transition-all duration-100"
-                      title="Snap Middle 1/3"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => snapWindow("right-third")}
-                      className="w-1/3 h-full border border-mui-grey-200 dark:border-white/10 rounded bg-mui-grey-100/50 dark:bg-white/5 hover:bg-mui-blue-500 hover:border-mui-blue-500 transition-all duration-100"
-                      title="Snap Right 1/3"
-                    />
-                  </div>
-                </div>
-
-                {/* 2x2 Grid Layout */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] text-mui-grey-400">2 x 2 Grid</span>
-                  <div className="w-[100px] h-[64px] border border-mui-grey-300 dark:border-white/10 rounded-md p-1 flex flex-col gap-1 bg-mui-grey-50 dark:bg-white/5">
-                    <div className="flex gap-1 h-1/2">
-                      <button
-                        type="button"
-                        onClick={() => snapWindow("top-left")}
-                        className="w-1/2 h-full border border-mui-grey-200 dark:border-white/10 rounded bg-mui-grey-100/50 dark:bg-white/5 hover:bg-mui-blue-500 hover:border-mui-blue-500 transition-all duration-100"
-                        title="Snap Top Left"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => snapWindow("top-right")}
-                        className="w-1/2 h-full border border-mui-grey-200 dark:border-white/10 rounded bg-mui-grey-100/50 dark:bg-white/5 hover:bg-mui-blue-500 hover:border-mui-blue-500 transition-all duration-100"
-                        title="Snap Top Right"
-                      />
-                    </div>
-                    <div className="flex gap-1 h-1/2">
-                      <button
-                        type="button"
-                        onClick={() => snapWindow("bottom-left")}
-                        className="w-1/2 h-full border border-mui-grey-200 dark:border-white/10 rounded bg-mui-grey-100/50 dark:bg-white/5 hover:bg-mui-blue-500 hover:border-mui-blue-500 transition-all duration-100"
-                        title="Snap Bottom Left"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => snapWindow("bottom-right")}
-                        className="w-1/2 h-full border border-mui-grey-200 dark:border-white/10 rounded bg-mui-grey-100/50 dark:bg-white/5 hover:bg-mui-blue-500 hover:border-mui-blue-500 transition-all duration-100"
-                        title="Snap Bottom Right"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => snapWindow("full")}
-                className="group w-full flex items-center justify-between p-2 rounded-md hover:bg-mui-grey-100 dark:hover:bg-white/5 border border-mui-grey-200 dark:border-white/10 transition-colors text-left"
-              >
-                <span className="text-[11px] text-mui-grey-600 dark:text-mui-grey-300">Full Maximize</span>
-                <div className="w-4 h-3 border border-mui-grey-400 dark:border-white/20 rounded-sm bg-mui-blue-500/10 group-hover:bg-mui-blue-500/30" />
-              </button>
-            </div>
-          )}
-        </div>
-
+          <Square size={12} />
+        </button>
         <button
           type="button"
           onClick={handleClose}

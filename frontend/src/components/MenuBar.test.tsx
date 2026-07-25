@@ -1,8 +1,7 @@
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import MenuBar from "./MenuBar";
 import * as AppBackend from "../../wailsjs/go/backend/App";
-import * as runtime from "../../wailsjs/runtime/runtime";
 
 // Mock Wails backend functions
 vi.mock("../../wailsjs/go/backend/App", () => ({
@@ -11,13 +10,6 @@ vi.mock("../../wailsjs/go/backend/App", () => ({
   Unmaximize: vi.fn(),
   Close: vi.fn(),
   ToggleDevTools: vi.fn(),
-}));
-
-// Mock Wails runtime functions
-vi.mock("../../wailsjs/runtime/runtime", () => ({
-  ScreenGetAll: vi.fn().mockResolvedValue([{ isCurrent: true, width: 1920, height: 1080 }]),
-  WindowSetPosition: vi.fn(),
-  WindowSetSize: vi.fn(),
 }));
 
 describe("MenuBar Component", () => {
@@ -103,38 +95,5 @@ describe("MenuBar Component", () => {
     fireEvent.click(screen.getByText("Toggle Developer Tools"));
 
     expect(AppBackend.ToggleDevTools).toHaveBeenCalled();
-  });
-
-  it("opens snap menu on hover and allows snapping window", async () => {
-    vi.useFakeTimers();
-    render(<MenuBar {...mockProps} />);
-
-    const container = screen.getByTestId("maximize-container");
-
-    // Trigger hover
-    fireEvent.mouseEnter(container);
-
-    // Fast forward timers and flush React state updates
-    act(() => {
-      vi.advanceTimersByTime(450);
-    });
-
-    // Verify Snap Assist header is displayed
-    expect(screen.getByText("Snap Assist")).toBeInTheDocument();
-
-    // Find and click 'Left Half' snapping option
-    const leftBtn = screen.getByTitle("Snap Left Half");
-    expect(leftBtn).toBeInTheDocument();
-    fireEvent.click(leftBtn);
-
-    // Run outstanding timers and promises
-    await vi.runAllTimersAsync();
-
-    // Verify that dynamic import called our mocked runtime
-    expect(runtime.ScreenGetAll).toHaveBeenCalled();
-    expect(runtime.WindowSetPosition).toHaveBeenCalledWith(0, 0);
-    expect(runtime.WindowSetSize).toHaveBeenCalledWith(960, 1032); // 1920/2 and 1080-48
-
-    vi.useRealTimers();
   });
 });
