@@ -227,21 +227,21 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
           )}
 
           {error && (
-            <div className="flex items-start gap-2.5 p-3 bg-rose-500/10 border border-rose-500/20 rounded-sm text-rose-600 dark:text-rose-400">
+            <div className="flex items-start gap-2.5 p-3 bg-rose-500/10 border border-rose-500/20 rounded-sm text-rose-600 dark:text-rose-400 select-text cursor-text">
               <AlertCircle size={16} className="shrink-0 mt-0.5" />
-              <div className="flex-1 space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-wider">
+              <div className="flex-1 space-y-1 select-text cursor-text">
+                <p className="text-[10px] font-black uppercase tracking-wider select-text cursor-text">
                   Failed to Process Version
                 </p>
-                <p className="text-[9px] font-bold leading-relaxed">{error}</p>
+                <p className="text-[9px] font-bold leading-relaxed select-text cursor-text">{error}</p>
               </div>
             </div>
           )}
 
           {success && (
-            <div className="flex items-center gap-2.5 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-sm text-emerald-600 dark:text-emerald-400">
+            <div className="flex items-center gap-2.5 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-sm text-emerald-600 dark:text-emerald-400 select-text cursor-text">
               <CheckCircle2 size={16} className="shrink-0" />
-              <span className="text-[10px] font-black uppercase tracking-wider">
+              <span className="text-[10px] font-black uppercase tracking-wider select-text cursor-text">
                 {success}
               </span>
             </div>
