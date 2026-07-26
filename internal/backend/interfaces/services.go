@@ -42,6 +42,7 @@ type DownloadTask struct {
 	IconSVG       string            `json:"iconSvg"`       // Icon for UI
 	Info          string            `json:"info"`          // Additional info (e.g., "Pip 24.0")
 	Modules       []PluginModule    `json:"modules"`       // Sub-plugins/modules (e.g., Composer, Pip)
+	ActiveVersion string            `json:"activeVersion"` // Folder name of the active version
 }
 
 type PluginModule struct {

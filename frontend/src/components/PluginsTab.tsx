@@ -15,6 +15,7 @@ function PluginsTab({
   renderIcon,
   handleInstallModule,
   handleUninstallModule,
+  onAddCustomVersion,
 }) {
   return (
     <div className="flex flex-col h-full pt-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -38,7 +39,7 @@ function PluginsTab({
               onDeleteVersion={handleDeleteVersion}
               onInstall={handleInstallSingle}
               onCancel={handleCancel}
-              onOpenFolder={(name) => OpenPluginFolder(name)}
+              onOpenFolder={(name) => onAddCustomVersion(name)}
               renderIcon={renderIcon}
               onInstallModule={handleInstallModule}
               onUninstallModule={handleUninstallModule}

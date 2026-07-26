@@ -470,6 +470,59 @@ func TestApp_Services_RealIsh(t *testing.T) {
 	_ = app.UninstallPluginModule("PHP", "Composer")
 	_ = app.DeleteVersion("PHP", "8.1.0")
 
+	// Custom custom version tests
+	customSrc := filepath.Join(tempDir, "custom-php-src")
+	_ = os.MkdirAll(customSrc, 0755)
+	_ = os.WriteFile(filepath.Join(customSrc, "php.exe"), []byte(""), 0755)
+	_ = app.ProcessCustomVersion("PHP", customSrc)
+	_ = app.ProcessCustomVersion("PHP", "/nonexistent")
+	_ = app.ProcessCustomVersion("PHP", filepath.Join(tempDir, "selected.txt"))
+	_ = app.ProcessCustomVersionBytes("PHP", "php-test.zip", []byte(""))
+	_ = app.ProcessCustomVersionBytes("PHP", "invalid.txt", []byte(""))
+
+	// Coverage for executable validation on other services
+	_ = app.validateExecutable("php", customSrc)
+	_ = app.validateExecutable("apache", customSrc)
+	_ = app.validateExecutable("mysql", customSrc)
+	_ = app.validateExecutable("nginx", customSrc)
+	_ = app.validateExecutable("nodejs", customSrc)
+	_ = app.validateExecutable("python", customSrc)
+	_ = app.validateExecutable("unknown", customSrc)
+
+	// Create valid custom sources for other services to test success paths
+	mysqlSrc := filepath.Join(tempDir, "custom-mysql")
+	_ = os.MkdirAll(filepath.Join(mysqlSrc, "bin"), 0755)
+	_ = os.WriteFile(filepath.Join(mysqlSrc, "bin", "mysqld.exe"), []byte(""), 0755)
+	_ = app.validateExecutable("mysql", mysqlSrc)
+	_ = app.ProcessCustomVersion("MySQL", mysqlSrc)
+
+	apacheSrc := filepath.Join(tempDir, "custom-apache")
+	_ = os.MkdirAll(filepath.Join(apacheSrc, "Apache24", "bin"), 0755)
+	_ = os.WriteFile(filepath.Join(apacheSrc, "Apache24", "bin", "httpd.exe"), []byte(""), 0755)
+	_ = app.validateExecutable("apache", apacheSrc)
+	_ = app.ProcessCustomVersion("Apache", apacheSrc)
+
+	nginxSrc := filepath.Join(tempDir, "custom-nginx")
+	_ = os.MkdirAll(nginxSrc, 0755)
+	_ = os.WriteFile(filepath.Join(nginxSrc, "nginx.exe"), []byte(""), 0755)
+	_ = app.validateExecutable("nginx", nginxSrc)
+	_ = app.ProcessCustomVersion("Nginx", nginxSrc)
+
+	nodeSrc := filepath.Join(tempDir, "custom-node")
+	_ = os.MkdirAll(nodeSrc, 0755)
+	_ = os.WriteFile(filepath.Join(nodeSrc, "node.exe"), []byte(""), 0755)
+	_ = app.validateExecutable("nodejs", nodeSrc)
+	_ = app.ProcessCustomVersion("Node.js", nodeSrc)
+
+	pythonSrc := filepath.Join(tempDir, "custom-python")
+	_ = os.MkdirAll(pythonSrc, 0755)
+	_ = os.WriteFile(filepath.Join(pythonSrc, "python.exe"), []byte(""), 0755)
+	_ = app.validateExecutable("python", pythonSrc)
+	_ = app.ProcessCustomVersion("Python", pythonSrc)
+
+	// Extra zip extraction failure cases
+	_ = app.extractAndProcessZip("PHP", "php", tempDir, filepath.Join(tempDir, "selected.txt"), "php-invalid-zip")
+
 	// Coverage for getServiceTargetDir
 	_ = app.getServiceTargetDir("nginx", nginxDir)
 	_ = app.getServiceTargetDir("apache", apacheDir)

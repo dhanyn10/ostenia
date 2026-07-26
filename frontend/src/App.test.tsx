@@ -60,6 +60,8 @@ vi.mock('../wailsjs/runtime/runtime', () => ({
   LogInfo: vi.fn(),
   LogError: vi.fn(),
   WindowSetTitle: vi.fn(),
+  OnFileDrop: vi.fn(),
+  OnFileDropOff: vi.fn(),
 }));
 
 describe('App Component', () => {

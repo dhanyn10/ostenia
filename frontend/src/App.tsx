@@ -18,6 +18,7 @@ import ProxyTab from './components/ProxyTab';
 import SSHTab from './components/ssh/SSHTab';
 import Icons from './components/Icons';
 import ConfirmationModal from './components/ConfirmationModal';
+import AddCustomVersionModal from './components/AddCustomVersionModal';
 
 function cn(...inputs: ClassValue[]) {
  return twMerge(clsx(inputs));
@@ -73,6 +74,7 @@ function App() {
  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
  const [loading, setLoading] = useState(true);
  const [selectedVersions, setSelectedVersions] = useState<Record<string, string>>({});
+ const [customVersionModal, setCustomVersionModal] = useState({ isOpen: false, serviceName: "" });
  const [isAddingPlugin, setIsAddingPlugin] = useState(false);
  const [transitioningServices, setTransitioningServices] = useState<Set<string>>(new Set());
  const [settingsModal, setSettingsModal] = useState({ isOpen: false, category: 'profile' });
@@ -173,7 +175,9 @@ function App() {
          next[t.name] = t.installedVers[0];
          continue;
        }
-       if (!next[t.name]) {
+       if (t.activeVersion) {
+         next[t.name] = t.activeVersion;
+       } else if (!next[t.name]) {
          if (t.installedVers?.length > 0) {
            next[t.name] = t.installedVers[0];
          } else if (t.version) {
@@ -496,6 +500,7 @@ function App() {
  renderIcon={renderIcon}
  handleInstallModule={handleInstallModule}
  handleUninstallModule={handleUninstallModule}
+ onAddCustomVersion={(name) => setCustomVersionModal({ isOpen: true, serviceName: name })}
  />
  </div>
 
@@ -539,6 +544,14 @@ function App() {
  type={confirmModal.type}
  onConfirm={confirmModal.onConfirm}
  onCancel={handleCloseConfirmModal}
+ />
+
+ <AddCustomVersionModal
+ isOpen={customVersionModal.isOpen}
+ onClose={() => setCustomVersionModal(prev => ({ ...prev, isOpen: false }))}
+ serviceName={customVersionModal.serviceName}
+ onSuccess={refreshPrerequisites}
+   appsLocation={appsLocation}
  />
  </div>
  );

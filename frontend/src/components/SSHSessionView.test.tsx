@@ -42,6 +42,8 @@ vi.mock("../../wailsjs/runtime/runtime", () => ({
     eventCallbacks[event] = cb;
   }),
   EventsOff: vi.fn(),
+  OnFileDrop: vi.fn(),
+  OnFileDropOff: vi.fn(),
 }));
 
 // Mock Wails backend functions
