@@ -169,6 +169,82 @@ func (a *App) SwitchServiceVersion(serviceName, version string) error {
 	return nil
 }
 
+// ProcessCustomVersionBytes receives zip bytes from frontend and processes them
+func (a *App) ProcessCustomVersionBytes(serviceName, fileName string, fileBytes []byte) error {
+	category, binDir, _ := a.getPluginPaths(serviceName)
+
+	if !strings.HasSuffix(strings.ToLower(fileName), ".zip") && !strings.HasSuffix(strings.ToLower(fileName), ".nupkg") {
+		return fmt.Errorf("unsupported file format. Please drop a .zip or .nupkg file")
+	}
+
+	// Save to a temporary file
+	tmpFile := filepath.Join(os.TempDir(), "ostenia_dropped_"+fileName)
+	_ = os.Remove(tmpFile)
+	if err := os.WriteFile(tmpFile, fileBytes, 0644); err != nil {
+		return fmt.Errorf("failed to save temp file: %w", err)
+	}
+	defer os.Remove(tmpFile)
+
+	targetName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+	targetDir := filepath.Join(binDir, targetName)
+	extractTmp := targetDir + ".tmp"
+	_ = os.RemoveAll(extractTmp)
+
+	emitProgress := func(ctx context.Context, name string, optionalData ...interface{}) {
+		// no-op
+	}
+
+	if err := plugins.Unzip(a.ctx, tmpFile, extractTmp, serviceName, emitProgress); err != nil {
+		return fmt.Errorf("failed to extract ZIP: %w", err)
+	}
+
+	var err error
+	if mgr, ok := a.downloader.(*plugins.Manager); ok {
+		err = mgr.PostProcessExtractionManual(extractTmp, targetDir)
+	} else {
+		_ = os.RemoveAll(targetDir)
+		err = os.Rename(extractTmp, targetDir)
+	}
+	if err != nil {
+		_ = os.RemoveAll(extractTmp)
+		return fmt.Errorf("failed to post-process extraction: %w", err)
+	}
+
+	// Verify required executable exists under targetDir
+	var checkFile string
+	switch category {
+	case "php":
+		checkFile = "php.exe"
+	case "apache":
+		checkFile = "bin/httpd.exe"
+	case "mysql":
+		checkFile = "bin/mysqld.exe"
+	case "nginx":
+		checkFile = "nginx.exe"
+	case "nodejs":
+		checkFile = "node.exe"
+	case "python":
+		checkFile = "python.exe"
+	}
+
+	if checkFile != "" {
+		cf := filepath.Join(targetDir, checkFile)
+		if category == "apache" {
+			if _, err := os.Stat(cf); os.IsNotExist(err) {
+				cf = filepath.Join(targetDir, "Apache24", "bin", "httpd.exe")
+			}
+		}
+
+		if _, err := os.Stat(cf); os.IsNotExist(err) {
+			_ = os.RemoveAll(targetDir)
+			return fmt.Errorf("invalid folder structure: executable (%s) not found in the custom folder", checkFile)
+		}
+	}
+
+	a.orchestrator.RequestRefresh()
+	return nil
+}
+
 // DeleteVersion deletes a specific version folder of a plugin
 func (a *App) DeleteVersion(serviceName, version string) error {
 	return a.downloader.DeleteVersion(serviceName, version)

@@ -477,6 +477,8 @@ func TestApp_Services_RealIsh(t *testing.T) {
 	_ = app.ProcessCustomVersion("PHP", customSrc)
 	_ = app.ProcessCustomVersion("PHP", "/nonexistent")
 	_ = app.ProcessCustomVersion("PHP", filepath.Join(tempDir, "selected.txt"))
+	_ = app.ProcessCustomVersionBytes("PHP", "php-test.zip", []byte(""))
+	_ = app.ProcessCustomVersionBytes("PHP", "invalid.txt", []byte(""))
 
 	// Coverage for getServiceTargetDir
 	_ = app.getServiceTargetDir("nginx", nginxDir)

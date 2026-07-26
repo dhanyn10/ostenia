@@ -113,12 +113,46 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
-      const path = (file as any).path;
-      // If HTML5 provides the absolute path on disk, process it directly.
-      // Otherwise, let the native OnFileDrop listener handle it safely.
-      if (path && (path.includes("/") || path.includes("\\"))) {
-        setSelectedPath(path);
-        await processPath(path);
+      const lowerName = file.name.toLowerCase();
+
+      // If it's a ZIP/Nupkg, process its bytes directly! This is 100% immune to OS path issues!
+      if (lowerName.endsWith(".zip") || lowerName.endsWith(".nupkg")) {
+        setSelectedPath(file.name);
+        setProcessing(true);
+        setError(null);
+        setSuccess(null);
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          try {
+            const arrayBuffer = event.target?.result as ArrayBuffer;
+            if (!arrayBuffer) {
+              throw new Error("Failed to read file bytes");
+            }
+            const uint8Array = new Uint8Array(arrayBuffer);
+            const byteArray = Array.from(uint8Array);
+            await AppBackend.ProcessCustomVersionBytes(serviceName, file.name, byteArray);
+
+            setSuccess(`Successfully processed kustom ZIP version for ${serviceName}!`);
+            onSuccess();
+            setTimeout(() => {
+              setSuccess(null);
+              setSelectedPath("");
+              onClose();
+            }, 2000);
+          } catch (err: any) {
+            setError(err.message || err.toString());
+          } finally {
+            setProcessing(false);
+          }
+        };
+        reader.onerror = () => {
+          setError("Failed to read dropped file.");
+          setProcessing(false);
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        setError("For custom folder addition, please use the 'Select Folder' button to select and copy the folder directly.");
       }
     }
   };
