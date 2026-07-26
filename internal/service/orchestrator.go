@@ -199,7 +199,7 @@ func (o *Orchestrator) updateNodeInfo(info *ServiceDetailedInfo, baseDir string)
 	if IsPathInSystemPath(currentPath) {
 		info.Status = "Running"
 	}
-	if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
+	if resolved, err := filepath.EvalSymlinks(currentPath); err == nil && filepath.Base(resolved) != "current" {
 		info.ActiveVersion = filepath.Base(resolved)
 	} else {
 		ver, err := GetNodeVersion(currentPath)
@@ -214,7 +214,7 @@ func (o *Orchestrator) updatePythonInfo(info *ServiceDetailedInfo, baseDir strin
 	if IsPathInSystemPath(currentPath) {
 		info.Status = "Running"
 	}
-	if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
+	if resolved, err := filepath.EvalSymlinks(currentPath); err == nil && filepath.Base(resolved) != "current" {
 		info.ActiveVersion = filepath.Base(resolved)
 	} else {
 		ver, err := GetPythonVersion(currentPath)
@@ -269,7 +269,7 @@ func (o *Orchestrator) resolveServiceVersion(info *ServiceDetailedInfo, name, cu
 		if IsPathInUserPath(currentPath) {
 			info.Status = "Running"
 		}
-		if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
+		if resolved, err := filepath.EvalSymlinks(currentPath); err == nil && filepath.Base(resolved) != "current" {
 			info.ActiveVersion = filepath.Base(resolved)
 		} else {
 			ver, err := GetPHPVersion(currentPath)
@@ -277,7 +277,7 @@ func (o *Orchestrator) resolveServiceVersion(info *ServiceDetailedInfo, name, cu
 				info.ActiveVersion = ver
 			}
 		}
-	} else if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
+	} else if resolved, err := filepath.EvalSymlinks(currentPath); err == nil && filepath.Base(resolved) != "current" {
 		info.ActiveVersion = filepath.Base(resolved)
 	}
 }
