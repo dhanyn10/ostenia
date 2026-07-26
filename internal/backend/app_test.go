@@ -488,3 +488,49 @@ func TestApp_Services_RealIsh(t *testing.T) {
 	os.WriteFile(localMockR.SelectedFile, []byte(`{"config":{"phpVersion":"8.2.0"}}`), 0644)
 	_ = app.ImportProfile()
 }
+
+func TestApp_ExposedMethods_ContextSafety(t *testing.T) {
+	tempDir := t.TempDir()
+	mockR := &MockRuntime{
+		SelectedFile: filepath.Join(tempDir, "uploaded.txt"),
+	}
+	_ = os.WriteFile(mockR.SelectedFile, []byte("test content"), 0644)
+
+	app := &App{
+		ctx:          context.Background(),
+		runtime:      mockR,
+		cfg:          &config.Config{BaseDir: tempDir, WWWRoot: filepath.Join(tempDir, "www")},
+		sshManager:   &MockSSHManager{},
+		orchestrator: &MockOrchestrator{Running: make(map[string]bool)},
+	}
+
+	t.Run("ConnectSSH uses stored context", func(t *testing.T) {
+		err := app.ConnectSSH(config.SSHSession{ID: "test-session"})
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+	})
+
+	t.Run("DownloadRemoteFile uses stored context", func(t *testing.T) {
+		err := app.DownloadRemoteFile("test-session", "/remote/path/file.txt")
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+	})
+
+	t.Run("UploadRemoteFile uses stored context", func(t *testing.T) {
+		err := app.UploadRemoteFile("test-session", "/remote/dir")
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+	})
+
+	t.Run("SetWWWRoot triggers restart of active services without ctx param", func(t *testing.T) {
+		app.orchestrator.(*MockOrchestrator).Running["Apache"] = true
+		app.orchestrator.(*MockOrchestrator).Running["Nginx"] = true
+		err := app.SetWWWRoot(filepath.Join(tempDir, "new-www"))
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+	})
+}
