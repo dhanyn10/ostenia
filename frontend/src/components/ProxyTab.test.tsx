@@ -70,7 +70,7 @@ describe("ProxyTab Component", () => {
     });
   });
 
-  it("opens terminal dropdown", async () => {
+  it("opens terminal dropdown and clicks CMD", async () => {
     render(<ProxyTab {...mockProps} />);
 
     await waitFor(() => {
@@ -85,5 +85,55 @@ describe("ProxyTab Component", () => {
 
     fireEvent.click(screen.getByText("CMD"));
     expect(AppBackend.OpenProxyTerminal).toHaveBeenCalledWith("app1", "cmd");
+  });
+
+  it("opens terminal dropdown and clicks PowerShell", async () => {
+    render(<ProxyTab {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("app1")).toBeInTheDocument();
+    });
+
+    const terminalBtn = screen.getAllByTitle("Terminal")[0];
+    fireEvent.click(terminalBtn);
+
+    expect(screen.getByText("PowerShell")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("PowerShell"));
+    expect(AppBackend.OpenProxyTerminal).toHaveBeenCalledWith("app1", "powershell");
+  });
+
+  it("handles dropdown backdrop dismissal", async () => {
+    render(<ProxyTab {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("app1")).toBeInTheDocument();
+    });
+
+    const terminalBtn = screen.getAllByTitle("Terminal")[0];
+    fireEvent.click(terminalBtn); // Open dropdown
+
+    const backdrop = document.querySelector(".fixed.inset-0.z-10");
+    expect(backdrop).toBeInTheDocument();
+
+    fireEvent.click(backdrop!); // Dismiss dropdown
+    expect(screen.queryByText("CMD")).not.toBeInTheDocument();
+  });
+
+  it("handles save port failure case gracefully", async () => {
+    vi.mocked(AppBackend.SaveProxyPort).mockRejectedValueOnce(new Error("Failed to save proxy port"));
+
+    render(<ProxyTab {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("app1")).toBeInTheDocument();
+    });
+
+    const saveBtn = screen.getAllByRole("button", { name: /Save/i })[0];
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(mockProps.addToast).toHaveBeenCalledWith("Error", "Error: Failed to save proxy port", "error");
+    });
   });
 });
