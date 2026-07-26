@@ -31,6 +31,8 @@ describe("PluginsTab Component", () => {
     { name: "MySQL", version: "8.0" },
   ];
 
+  const mockOnAddCustomVersion = vi.fn();
+
   const defaultProps = {
     prerequisites: mockPrerequisites,
     downloadProgress: {},
@@ -44,6 +46,7 @@ describe("PluginsTab Component", () => {
     renderIcon: vi.fn(),
     handleInstallModule: vi.fn(),
     handleUninstallModule: vi.fn(),
+    onAddCustomVersion: mockOnAddCustomVersion,
   };
 
   it("renders a list of plugin items based on prerequisites", () => {
@@ -69,12 +72,12 @@ describe("PluginsTab Component", () => {
     expect(screen.queryByTestId("plugin-item-null")).not.toBeInTheDocument();
   });
 
-  it("calls OpenPluginFolder backend API when clicking Open Folder in PluginItem", () => {
+  it("calls onAddCustomVersion when clicking Open Folder in PluginItem", () => {
     render(<PluginsTab {...defaultProps} />);
 
     const folderBtn = screen.getByTestId("btn-folder-PHP");
     fireEvent.click(folderBtn);
 
-    expect(OpenPluginFolder).toHaveBeenCalledWith("PHP");
+    expect(mockOnAddCustomVersion).toHaveBeenCalledWith("PHP");
   });
 });

@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"ostenia/internal/config"
@@ -196,4 +197,124 @@ func (a *App) getServiceTargetDir(category, binDir string) string {
 		return nil
 	})
 	return targetDir
+}
+
+// CopyDir recursively copies a directory tree from src to dst.
+func CopyDir(src, dst string) error {
+	info, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dst, info.Mode()); err != nil {
+		return err
+	}
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+		if entry.IsDir() {
+			if err := CopyDir(srcPath, dstPath); err != nil {
+				return err
+			}
+		} else {
+			if err := plugins_utils.CopyFile(srcPath, dstPath); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// ProcessCustomVersion extracts custom plugin archive or copies direct folder
+func (a *App) ProcessCustomVersion(serviceName, sourcePath string) error {
+	category, binDir, _ := a.getPluginPaths(serviceName)
+
+	info, err := os.Stat(sourcePath)
+	if err != nil {
+		return fmt.Errorf("invalid path: %w", err)
+	}
+
+	baseName := filepath.Base(sourcePath)
+	var targetName string
+	var targetDir string
+
+	if info.IsDir() {
+		targetName = baseName
+		targetDir = filepath.Join(binDir, targetName)
+		if err := os.MkdirAll(binDir, 0755); err != nil {
+			return err
+		}
+		if filepath.Clean(sourcePath) != filepath.Clean(targetDir) {
+			_ = os.RemoveAll(targetDir)
+			if err := CopyDir(sourcePath, targetDir); err != nil {
+				return fmt.Errorf("failed to copy directory: %w", err)
+			}
+		}
+	} else {
+		ext := strings.ToLower(filepath.Ext(sourcePath))
+		if ext != ".zip" && ext != ".nupkg" {
+			return fmt.Errorf("unsupported file format. Please drop/select a .zip or .nupkg file")
+		}
+
+		targetName = strings.TrimSuffix(baseName, filepath.Ext(baseName))
+		targetDir = filepath.Join(binDir, targetName)
+		extractTmp := targetDir + ".tmp"
+		_ = os.RemoveAll(extractTmp)
+
+		emitProgress := func(ctx context.Context, name string, optionalData ...interface{}) {
+			// no-op or optional progress emit
+		}
+
+		if err := plugins.Unzip(a.ctx, sourcePath, extractTmp, serviceName, emitProgress); err != nil {
+			return fmt.Errorf("failed to extract ZIP: %w", err)
+		}
+
+		if mgr, ok := a.downloader.(*plugins.Manager); ok {
+			err = mgr.PostProcessExtractionManual(extractTmp, targetDir)
+		} else {
+			_ = os.RemoveAll(targetDir)
+			err = os.Rename(extractTmp, targetDir)
+		}
+		if err != nil {
+			_ = os.RemoveAll(extractTmp)
+			return fmt.Errorf("failed to post-process extraction: %w", err)
+		}
+	}
+
+	// Verify required executable exists under targetDir
+	var checkFile string
+	switch category {
+	case "php":
+		checkFile = "php.exe"
+	case "apache":
+		checkFile = "bin/httpd.exe"
+	case "mysql":
+		checkFile = "bin/mysqld.exe"
+	case "nginx":
+		checkFile = "nginx.exe"
+	case "nodejs":
+		checkFile = "node.exe"
+	case "python":
+		checkFile = "python.exe"
+	}
+
+	if checkFile != "" {
+		cf := filepath.Join(targetDir, checkFile)
+		if category == "apache" {
+			if _, err := os.Stat(cf); os.IsNotExist(err) {
+				cf = filepath.Join(targetDir, "Apache24", "bin", "httpd.exe")
+			}
+		}
+
+		if _, err := os.Stat(cf); os.IsNotExist(err) {
+			_ = os.RemoveAll(targetDir)
+			return fmt.Errorf("invalid folder structure: executable (%s) not found in the custom folder", checkFile)
+		}
+	}
+
+	a.orchestrator.RequestRefresh()
+	return nil
 }

@@ -274,3 +274,19 @@ func (m *Manager) ensureCurrentLink(task DownloadTask) error {
 	utils.SetHideWindow(c)
 	return c.Run()
 }
+
+// PostProcessExtractionManual promotes nested directories to parent for custom plugin addition
+func (m *Manager) PostProcessExtractionManual(extractTmp, targetDir string) error {
+	es, _ := os.ReadDir(extractTmp)
+	if len(es) == 1 && es[0].IsDir() {
+		sDir := filepath.Join(extractTmp, es[0].Name())
+		ses, _ := os.ReadDir(sDir)
+		for _, se := range ses {
+			_ = os.Rename(filepath.Join(sDir, se.Name()), filepath.Join(extractTmp, se.Name()))
+		}
+		_ = os.Remove(sDir)
+	}
+
+	_ = os.RemoveAll(targetDir)
+	return os.Rename(extractTmp, targetDir)
+}

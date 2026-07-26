@@ -470,6 +470,14 @@ func TestApp_Services_RealIsh(t *testing.T) {
 	_ = app.UninstallPluginModule("PHP", "Composer")
 	_ = app.DeleteVersion("PHP", "8.1.0")
 
+	// Custom custom version tests
+	customSrc := filepath.Join(tempDir, "custom-php-src")
+	_ = os.MkdirAll(customSrc, 0755)
+	_ = os.WriteFile(filepath.Join(customSrc, "php.exe"), []byte(""), 0755)
+	_ = app.ProcessCustomVersion("PHP", customSrc)
+	_ = app.ProcessCustomVersion("PHP", "/nonexistent")
+	_ = app.ProcessCustomVersion("PHP", filepath.Join(tempDir, "selected.txt"))
+
 	// Coverage for getServiceTargetDir
 	_ = app.getServiceTargetDir("nginx", nginxDir)
 	_ = app.getServiceTargetDir("apache", apacheDir)
