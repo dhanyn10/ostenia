@@ -15,28 +15,59 @@ import { clsx } from "clsx";
 import { handleActionKey } from "../../utils/a11y";
 
 interface SSHTabProps {
+  /** Callback to trigger user-visible toast notifications */
   addToast: (
     title: string,
     message: string,
     type?: "info" | "success" | "warn" | "error",
   ) => void;
+  /** Active UI color theme ('light' or 'dark') */
   theme?: string;
+  /** Action handler to trigger global modal settings window category */
   onOpenSettings: (category: string) => void;
 }
 
+/**
+ * SSHTab Component
+ *
+ * Manages the main SSH dashboard interface, including:
+ * 1. Creating, editing, and deleting saved SSH and WSL sessions.
+ * 2. Connecting to and disconnecting from SSH/WSL terminals.
+ * 3. A multi-tab interface where active connection sessions are toggled via CSS hidden styles
+ *    instead of unmounting, thereby preserving terminal history, metrics charts, and processes.
+ */
 const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
+  // --- Persistent & Local States ---
   const [sessions, setSessions] = useState<any[]>([]);
   const [activeSessionIds, setActiveSessionIds] = useState<string[]>([]);
-  const contextMenuRef = React.useRef<HTMLDivElement>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingSession, setEditingSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [contextMenu, setContextMenu] = useState<any>(null);
 
+  const contextMenuRef = React.useRef<HTMLDivElement>(null);
+
+  // Load saved configurations upon mounting
   useEffect(() => {
     loadSessions();
   }, []);
 
+  // Dismiss context menu when clicking anywhere else
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (contextMenuRef.current?.contains(e.target as Node)) {
+        return;
+      }
+      setContextMenu(null);
+    };
+    window.addEventListener("click", handleClick);
+    return () => window.removeEventListener("click", handleClick);
+  }, []);
+
+  /**
+   * Fetches saved connection profiles from persistent backend storage.
+   */
   const loadSessions = async () => {
     setLoading(true);
     try {
@@ -50,6 +81,9 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
     }
   };
 
+  /**
+   * Registers a target connection session into the multi-tab layout and focuses on it.
+   */
   const handleConnect = (session: any) => {
     if (!activeSessionIds.includes(session.id)) {
       setActiveSessionIds([...activeSessionIds, session.id]);
@@ -57,10 +91,15 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
     setCurrentSessionId(session.id);
   };
 
+  /**
+   * Requests backend disconnection and removes the target tab from the layout.
+   */
   const handleCloseSession = (id: string) => {
     AppBackend.DisconnectSSH(id);
     const nextActive = activeSessionIds.filter((sid) => sid !== id);
     setActiveSessionIds(nextActive);
+
+    // Autofocus another active tab or default to main Dashboard
     if (currentSessionId === id) {
       setCurrentSessionId(
         nextActive.length > 0 ? nextActive[nextActive.length - 1] : null,
@@ -68,6 +107,9 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
     }
   };
 
+  /**
+   * Confirms and deletes a saved connection profile from persistent storage.
+   */
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this session?")) {
       try {
@@ -80,6 +122,21 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
     }
   };
 
+  /**
+   * Spawns a custom contextual action menu on right-click.
+   */
+  const handleContextMenu = (e: React.MouseEvent, session: any) => {
+    e.preventDefault();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      sessionId: session.id,
+    });
+  };
+
+  /**
+   * Renders the loading animation, empty dashboard state, or list of connection cards.
+   */
   const renderDashboardContent = () => {
     if (loading) {
       return (
@@ -169,32 +226,12 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
     );
   };
 
-  const [contextMenu, setContextMenu] = useState<any>(null);
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (contextMenuRef.current?.contains(e.target as Node)) {
-        return;
-      }
-      setContextMenu(null);
-    };
-    window.addEventListener("click", handleClick);
-    return () => window.removeEventListener("click", handleClick);
-  }, []);
-
-  const handleContextMenu = (e: React.MouseEvent, session: any) => {
-    e.preventDefault();
-    setContextMenu({
-      x: e.clientX,
-      y: e.clientY,
-      sessionId: session.id,
-    });
-  };
-
   return (
     <div className="relative flex h-full overflow-hidden bg-white dark:bg-mui-dark-bg transition-colors duration-300">
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        {/* --- Top Tabbed Bar --- */}
         <div className="flex items-center gap-[2px] overflow-x-auto no-scrollbar shrink-0 pt-2 px-6 bg-mui-grey-50 dark:bg-mui-grey-900 border-b border-mui-grey-200 dark:border-white/5">
+          {/* Main Dashboard Tab-Button */}
           <button
               type="button"
               onClick={() => setCurrentSessionId(null)}
@@ -211,6 +248,8 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                 <div className="absolute -bottom-[1px] left-0 right-0 h-[1px] bg-white dark:bg-mui-dark-bg z-20" />
               )}
             </button>
+
+            {/* Render dynamically created connection tabs */}
             {activeSessionIds.map((id) => {
               const session = sessions.find((s) => s.id === id);
               if (!session) return null;
@@ -281,18 +320,21 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
             )}
           </div>
 
+        {/* --- Main Content Panel --- */}
         <div
           className={clsx(
             "flex-1 min-h-0 relative",
             currentSessionId === null && "p-6",
           )}
         >
-          {/* Dashboard container - kept alive but hidden if not selected */}
+          {/* Dashboard container - kept alive but hidden if not selected to retain state */}
           <div className={clsx("h-full flex flex-col", currentSessionId !== null && "hidden")}>
             {renderDashboardContent()}
           </div>
 
-          {/* Active SSH sessions container - kept alive but hidden if Dashboard is selected */}
+          {/* Active SSH sessions container - kept alive but hidden if Dashboard is selected.
+              Toggling via CSS 'hidden' preserves terminal interactions, history buffer,
+              and active resource history charts. */}
           <div className={clsx("h-full", currentSessionId === null && "hidden")}>
             {activeSessionIds.map((id) => (
               <div
@@ -313,6 +355,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
         </div>
       </div>
 
+      {/* --- Overlay Form Modal --- */}
       {showForm && (
         <SSHSessionForm
           session={editingSession}
@@ -325,6 +368,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
         />
       )}
 
+      {/* --- Left Panel Context Action Menu --- */}
       {contextMenu && (
         <div
           ref={contextMenuRef}

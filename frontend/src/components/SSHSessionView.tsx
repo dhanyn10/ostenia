@@ -22,17 +22,28 @@ import SSHFileExplorer from "./ssh/SSHFileExplorer";
 import { handleActionKey } from "../utils/a11y";
 
 interface ResourceLineChartProps {
+  /** Sequential historical data of resource metrics containing CPU, Memory, and Disk ratios */
   data: Array<{ cpu: number | null; mem: number | null; disk: number | null }>;
+  /** Metric type to parse and plot */
   metric: "cpu" | "mem" | "disk";
+  /** Stroke color of the plotted sparkline */
   color: string;
+  /** Background area gradient or fill color of the sparkline */
   fillColor: string;
 }
 
+/**
+ * ResourceLineChart Component
+ *
+ * Renders a lightweight SVG-based real-time line and area sparkline chart.
+ * Automatically aligns historical datapoints and renders dotted grid guidelines.
+ */
 const ResourceLineChart: React.FC<ResourceLineChartProps> = ({ data, metric, color, fillColor }) => {
   const width = 120;
   const height = 30;
   const pointsCount = 30;
 
+  // Ensure chart has exactly pointsCount items by padding missing slots with null values
   const paddedData = [...new Array(pointsCount).fill({ cpu: null, mem: null, disk: null }), ...data].slice(-pointsCount);
 
   const getX = (index: number) => {
@@ -62,6 +73,7 @@ const ResourceLineChart: React.FC<ResourceLineChartProps> = ({ data, metric, col
     segments.push(currentSegment);
   }
 
+  // Draw sparkline paths
   segments.forEach((seg) => {
     if (seg.length > 0) {
       let segLine = `M ${seg[0][0]} ${seg[0][1]}`;
@@ -72,6 +84,7 @@ const ResourceLineChart: React.FC<ResourceLineChartProps> = ({ data, metric, col
     }
   });
 
+  // Draw area path underneath the sparkline
   segments.forEach((seg) => {
     if (seg.length > 0) {
       let segArea = `M ${seg[0][0]} ${height} L ${seg[0][0]} ${seg[0][1]}`;
@@ -101,18 +114,30 @@ const ResourceLineChart: React.FC<ResourceLineChartProps> = ({ data, metric, col
 };
 
 interface SSHSessionViewProps {
+  /** The current active SSH/WSL session profile */
   session: any;
+  /** Close callback to terminate active connection panel */
   onClose: () => void;
+  /** Toast callback to show contextual alert popups */
   addToast: (
     title: string,
     message: string,
     type?: "info" | "success" | "warn" | "error",
   ) => void;
+  /** Focus indicator indicating if this terminal tab is currently visible */
   isActive: boolean;
+  /** Layout theme selector ('light' or 'dark') */
   theme?: string;
+  /** Opens global settings dialog corresponding to the selected category */
   onOpenSettings: (category: string) => void;
 }
 
+/**
+ * SSHSessionView Component
+ *
+ * Implements the interactive terminal session view. Hooks up an xterm.js instance
+ * directly to backend pseudo-terminals (PTY) and coordinates remote sftp file explorer access.
+ */
 const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   session,
   onClose,
@@ -121,11 +146,15 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   theme,
   onOpenSettings,
 }) => {
+  // --- Refs ---
   const terminalRef = useRef<HTMLDivElement>(null);
   const xterm = useRef<XTerm | null>(null);
   const fitAddon = useRef(new FitAddon());
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const currentPathRef = useRef("");
+  const isFetchingUsageRef = useRef(false);
+
+  // --- State Hooks ---
   const [connecting, setConnecting] = useState(true);
   const [remotePath, setRemotePath] = useState("");
   const [editingPath, setEditingPath] = useState("");
@@ -162,13 +191,13 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const [displayMode, setDisplayMode] = useState<string>(() => {
     return localStorage.getItem('ostenia_ssh_monitor_display_mode') || 'tooltip';
   });
-  const isFetchingUsageRef = useRef(false);
   const [history, setHistory] = useState<Array<{
     cpu: number | null;
     mem: number | null;
     disk: number | null;
   }>>([]);
 
+  // Load and apply SSH monitoring parameters from client preferences on mount/modification
   useEffect(() => {
     const handleSettingsChanged = () => {
       setIsMonitoringEnabled(localStorage.getItem('ostenia_ssh_monitor_enabled') !== 'false');
@@ -185,6 +214,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     };
   }, []);
 
+  // Set up background resource utilization queries
   useEffect(() => {
     if (!isMonitoringEnabled || connecting) {
       setResourceUsage(null);
@@ -227,6 +257,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     setEditingPath(remotePath);
   }, [remotePath]);
 
+  /**
+   * Helper utility to convert raw file sizes into readable units.
+   */
   const formatSize = (bytes: number) => {
     if (!bytes) return "-";
     const units = ["B", "KB", "MB", "GB", "TB"];
@@ -239,6 +272,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     return `${size.toFixed(1)} ${units[unitIndex]}`;
   };
 
+  // Close context menus when clicking outside
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (contextMenuRef.current?.contains(e.target as Node)) {
@@ -252,6 +286,10 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     return () => window.removeEventListener("click", handleClick);
   }, []);
 
+  /**
+   * Triggers the custom contextual action menu on remote files/folders.
+   * Adjusts top Y position upwards near viewport limits to prevent layout clipping.
+   */
   const handleFileContextMenu = (e: React.MouseEvent, file: any) => {
     e.preventDefault();
     e.stopPropagation();
@@ -271,6 +309,10 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     setTerminalContextMenu(null);
   };
 
+  /**
+   * Triggers the custom background action menu for the SFTP explorer.
+   * Adjusts Y positioning near bottom edges.
+   */
   const handleExplorerContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
 
@@ -288,6 +330,10 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     setTerminalContextMenu(null);
   };
 
+  /**
+   * Triggers the custom terminal utilities action menu (Copy/Paste/Refresh layout).
+   * Adjusts Y positioning near bottom edges.
+   */
   const handleTerminalContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
 
@@ -305,6 +351,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     setExplorerContextMenu(null);
   };
 
+  /**
+   * Reads selected text segments from the xterm.js instance and saves to clipboard.
+   */
   const handleTerminalCopy = async () => {
     if (xterm.current) {
       const selection = xterm.current.getSelection();
@@ -315,6 +364,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     }
   };
 
+  /**
+   * Reads text from system clipboard and emits directly to active PTY channel.
+   */
   const handleTerminalPaste = async () => {
     try {
       const text = await navigator.clipboard.readText();
@@ -330,6 +382,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     performFit();
   };
 
+  /**
+   * Forces re-fit on xterm grid layout matching visible shell dimensions.
+   */
   const performFit = () => {
     if (!terminalRef.current || !xterm.current || !isActive) return;
     if (terminalRef.current.offsetParent === null) return;
@@ -349,6 +404,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     }
   };
 
+  // Adjust xterm theme configuration dynamically when theme options change
   useEffect(() => {
     if (xterm.current) {
       const newTheme =
@@ -369,6 +425,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     }
   }, [theme]);
 
+  // Handle lazy PTY alignment upon focused view toggles
   useEffect(() => {
     if (isActive) {
       setTimeout(performFit, 100);
@@ -377,6 +434,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     }
   }, [isActive]);
 
+  // Hook up full xterm.js instance and register Wails event listeners
   useEffect(() => {
     xterm.current = new XTerm({
       cursorBlink: true,
@@ -422,6 +480,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     if (terminalRef.current) ro.observe(terminalRef.current);
     setTimeout(performFit, 500);
 
+    // Forward local user keystrokes straight to back-end shell stream
     xterm.current.onData((data) => AppBackend.SendSSHInput(session.id, data));
     xterm.current.onTitleChange((title) => {
       if (title.includes(":")) {
@@ -470,6 +529,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     };
   }, [session.id]);
 
+  /**
+   * Registers a fresh connection with the Go backend
+   */
   const connectSSH = async () => {
     if (!xterm.current) return;
     setConnecting(true);
@@ -487,6 +549,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     }
   };
 
+  /**
+   * Disconnects current session and starts connection flow afresh.
+   */
   const handleReconnect = async () => {
     try {
       await AppBackend.DisconnectSSH(session.id);
@@ -497,6 +562,15 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     connectSSH();
   };
 
+  /**
+   * Queries directory listings from remote target via SFTP.
+   *
+   * @param path Target remote directory path to load.
+   * @param isManualEntry Boolean indicating if navigation was explicitly typed by the user.
+   * @param isAutoSync Boolean flag indicating automatic sync events. Auto-sync silently absorbs
+   *                   any permissions/access/EOF errors to prevent annoying toast interruptions
+   *                   while the user is busy interacting with the terminal.
+   */
   const loadRemoteFiles = async (path: string, isManualEntry = false, isAutoSync = false) => {
     setLoadingFiles(true);
     try {
@@ -519,7 +593,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         setEditingPath(remotePath);
       } else {
         if (isAutoSync) {
-          // Completely suppress all Toast errors during background/automatic sync
+          // Suppress Toast errors during background/automatic sync silently
           return;
         }
         const errStr = String(err).toLowerCase();
@@ -538,6 +612,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     }
   };
 
+  /**
+   * Synchronizes the remote sftp explorer view with terminal working directories.
+   */
   const syncExplorer = async (forcedPath: string | null = null) => {
     try {
       let current =
@@ -550,6 +627,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     } catch (e) {}
   };
 
+  /**
+   * Trigger folder traversal or edits the file locally.
+   */
   const handleFileDoubleClick = (file: any) => {
     if (file.isDir) {
       const current = remotePath || "/";
@@ -563,6 +643,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     }
   };
 
+  /**
+   * Navigates up to the parent directory path level.
+   */
   const navigateUp = () => {
     if (remotePath === "/" || remotePath === "") return;
     const normalized = remotePath.endsWith("/")
@@ -575,6 +658,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     AppBackend.SendSSHInput(session.id, `cd "${newPath}"\r`);
   };
 
+  /**
+   * Downloads a remote file using native save dialog prompts.
+   */
   const handleDownload = async (file: any) => {
     try {
       await AppBackend.DownloadRemoteFile(
@@ -587,6 +673,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     }
   };
 
+  /**
+   * Uploads a file via file picker prompts and updates listing.
+   */
   const handleUpload = async () => {
     try {
       await AppBackend.UploadRemoteFile(session.id, remotePath);
@@ -597,6 +686,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     }
   };
 
+  /**
+   * Initiates local editing wrapper for the selected file.
+   */
   const handleEdit = async (file: any) => {
     try {
       addToast("Editor", "Opening " + file.name + "...", "info");
@@ -608,6 +700,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     }
   };
 
+  /**
+   * Deletes target files/folders recursively on the remote machine.
+   */
   const handleDelete = async (file: any) => {
     if (confirm(`Are you sure you want to delete ${file.name}?`)) {
       try {
@@ -625,6 +720,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     }
   };
 
+  // Perform search, hidden filters, and sort order calculation over files list
   const sortedFiles = [...files]
     .filter((f) => {
       const matchesSearch = f.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -706,6 +802,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           />
         )}
 
+        {/* --- Interactive Terminal Container --- */}
         <div className="flex-1 bg-white dark:bg-mui-dark-bg relative overflow-hidden">
           <div
             ref={terminalRef}
@@ -726,7 +823,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         </div>
       </div>
 
-      {/* Resource Usage Monitoring Bar */}
+      {/* --- Bottom Resource Usage Monitoring Bar --- */}
       <div className="h-12 flex items-center justify-between px-3 bg-mui-grey-50 dark:bg-mui-grey-900 border-t border-mui-grey-200 dark:border-white/5 shrink-0 relative select-none">
         <div className="flex items-center gap-4 text-xs">
           <div className="relative">
@@ -742,7 +839,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
 
           {isMonitoringEnabled ? (
             <div className="flex items-center gap-6 text-[10px] font-bold text-mui-grey-600 dark:text-mui-grey-400">
-              {/* CPU */}
+              {/* CPU Metric Container */}
               <div
                 className="relative py-1 cursor-help group flex items-center gap-2"
                 onMouseEnter={() => setHoveredMetric("cpu")}
@@ -762,7 +859,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
                 )}
               </div>
 
-              {/* RAM */}
+              {/* RAM Metric Container */}
               <div
                 className="relative py-1 cursor-help group flex items-center gap-2"
                 onMouseEnter={() => setHoveredMetric("mem")}
@@ -782,7 +879,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
                 )}
               </div>
 
-              {/* Disk */}
+              {/* Disk Metric Container */}
               <div
                 className="relative py-1 cursor-help group flex items-center gap-2"
                 onMouseEnter={() => setHoveredMetric("disk")}
@@ -808,6 +905,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         </div>
       </div>
 
+      {/* --- File/Folder Item Right-Click Context Menu --- */}
       {fileContextMenu && (
         <div
           ref={contextMenuRef}
@@ -902,6 +1000,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         </div>
       )}
 
+      {/* --- File Explorer Background Right-Click Context Menu --- */}
       {explorerContextMenu && (
         <div
           ref={contextMenuRef}
@@ -949,6 +1048,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         </div>
       )}
 
+      {/* --- Terminal Right-Click Context Menu --- */}
       {terminalContextMenu && (
         <div
           ref={contextMenuRef}
