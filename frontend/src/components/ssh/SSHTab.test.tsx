@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import SSHTab from "./SSHTab";
 import React from "react";
@@ -59,10 +59,8 @@ describe("SSHTab Component", () => {
       <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
     );
 
-    await waitFor(() => {
-      expect(screen.getByText(TEST_IP_1)).toBeInTheDocument();
-      expect(screen.getByText(TEST_IP_2)).toBeInTheDocument();
-    });
+    expect(await screen.findByText(TEST_IP_1)).toBeInTheDocument();
+    expect(await screen.findByText(TEST_IP_2)).toBeInTheDocument();
   });
 
   it("opens new connection form", async () => {
@@ -85,12 +83,60 @@ describe("SSHTab Component", () => {
       <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
     );
 
-    await waitFor(() => screen.getByText(TEST_IP_1));
+    await screen.findByText(TEST_IP_1);
 
     const card = screen.getByText(TEST_IP_1).closest("div").parentElement;
     fireEvent.doubleClick(card);
 
     expect(screen.getByTestId("ssh-session-view")).toBeInTheDocument();
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
+  });
+
+  it("handles right-click context menu and delete actions", async () => {
+    window.confirm = vi.fn().mockReturnValue(true);
+    AppBackend.GetSSHSessions.mockImplementation(() =>
+      Promise.resolve(mockSessions),
+    );
+    AppBackend.DeleteSSHSession.mockResolvedValue(null);
+
+    render(
+      <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
+    );
+
+    await screen.findByText(TEST_IP_1);
+
+    const card = screen.getByText(TEST_IP_1).closest("div").parentElement;
+    fireEvent.contextMenu(card);
+
+    // Verify context menu is displayed
+    const deleteBtn = screen.getByText("Delete Session");
+    expect(deleteBtn).toBeInTheDocument();
+
+    // Click on context menu button to delete session
+    fireEvent.click(deleteBtn);
+    expect(window.confirm).toHaveBeenCalled();
+    expect(AppBackend.DeleteSSHSession).toHaveBeenCalledWith("1");
+  });
+
+  it("dismisses right-click context menu when clicking elsewhere", async () => {
+    AppBackend.GetSSHSessions.mockImplementation(() =>
+      Promise.resolve(mockSessions),
+    );
+
+    render(
+      <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
+    );
+
+    await screen.findByText(TEST_IP_1);
+
+    const card = screen.getByText(TEST_IP_1).closest("div").parentElement;
+    fireEvent.contextMenu(card);
+
+    // Verify context menu is displayed
+    expect(screen.getByText("Delete Session")).toBeInTheDocument();
+
+    // Click somewhere else to dismiss it
+    fireEvent.click(document.body);
+    expect(screen.queryByText("Delete Session")).not.toBeInTheDocument();
   });
 });

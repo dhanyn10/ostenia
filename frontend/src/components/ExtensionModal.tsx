@@ -15,7 +15,7 @@ function ExtensionModal({
   onToggle,
   serviceName,
 }) {
-  const [searchTerm, setSearchString] = React.useState("");
+  const [searchTerm, setSearchTerm] = React.useState("");
 
   if (!isOpen) return null;
 
@@ -70,7 +70,7 @@ function ExtensionModal({
               type="text"
               placeholder="Search extensions..."
               value={searchTerm}
-              onChange={(e) => setSearchString(e.target.value)}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/5 rounded-sm pl-9 pr-4 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all"
             />
           </div>

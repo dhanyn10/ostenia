@@ -150,6 +150,35 @@ describe("AddCustomVersionModal Component", () => {
     });
   });
 
+  it("handles dropping a valid ZIP file and processes bytes", async () => {
+    const onSuccess = vi.fn();
+    render(
+      <AddCustomVersionModal
+        isOpen={true}
+        onClose={() => {}}
+        serviceName="PHP"
+        onSuccess={onSuccess}
+        appsLocation="C:\\Ostenia"
+      />,
+    );
+
+    const dropzone = screen.getByText("Drag & Drop ZIP / Folder here").closest(".wails-drop-target")!;
+
+    const file = new File(["zip-content"], "test-file.zip", { type: "application/zip" });
+    file.arrayBuffer = vi.fn().mockResolvedValue(new ArrayBuffer(11));
+
+    fireEvent.drop(dropzone, {
+      dataTransfer: {
+        files: [file],
+      },
+    });
+
+    await waitFor(() => {
+      expect(AppBackend.ProcessCustomVersionBytes).toHaveBeenCalled();
+      expect(onSuccess).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("displays error message if manual dialog selection throws an error", async () => {
     vi.spyOn(AppBackend, "OpenFileDialog").mockRejectedValueOnce(new Error("User cancelled"));
 

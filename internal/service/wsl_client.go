@@ -15,9 +15,12 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// secureEnv constructs a safe execution environment by filtering out unsafe variables
+// and setting standard secure search path variables (PATH) for Windows and non-Windows hosts.
 func secureEnv() []string {
 	var cleanEnv []string
 	for _, envVar := range os.Environ() {
+		// Strip volatile or user-modifiable variables to ensure command isolation.
 		if !strings.HasPrefix(strings.ToUpper(envVar), "PATH=") && !strings.HasPrefix(strings.ToUpper(envVar), "TERM=") {
 			cleanEnv = append(cleanEnv, envVar)
 		}
@@ -45,6 +48,8 @@ func secureEnv() []string {
 	return cleanEnv
 }
 
+// wslCommand builds and configures a wsl.exe process runner.
+// Includes mock fallbacks for Unix/macOS environments to keep unit tests stable in CI/CD pipelines.
 var wslCommand = func(distro string, args ...string) *exec.Cmd {
 	var cmd *exec.Cmd
 	if RuntimeGOOS == "windows" {
@@ -69,6 +74,7 @@ var wslCommand = func(distro string, args ...string) *exec.Cmd {
 	return cmd
 }
 
+// wslRootPath maps the WSL virtual root path format to local directory trees depending on the host OS.
 var wslRootPath = func(distro string) string {
 	if RuntimeGOOS == "windows" {
 		return `\\wsl.localhost\` + distro
@@ -76,6 +82,7 @@ var wslRootPath = func(distro string) string {
 	return "/tmp/wsl/" + distro
 }
 
+// toWSLPath translates standard SFTP paths to physical folders mapped inside the host computer.
 func toWSLPath(wslRoot, remotePath string) string {
 	cleaned := path.Clean(filepath.ToSlash(remotePath))
 	if cleaned == "." || cleaned == "/" {
@@ -85,11 +92,13 @@ func toWSLPath(wslRoot, remotePath string) string {
 	return filepath.Join(wslRoot, filepath.FromSlash(trimmed))
 }
 
+// decodeUTF16LE converts binary arrays containing UTF-16 Little Endian encoded strings (as output by wsl.exe)
+// into standard UTF-8 text representation.
 func decodeUTF16LE(b []byte) (string, error) {
 	if len(b) < 2 {
 		return string(b), nil
 	}
-	// Check for BOM (0xFF, 0xFE)
+	// Detect and skip UTF-16 Byte Order Mark (BOM) [0xFF, 0xFE] if present
 	hasBOM := b[0] == 0xFF && b[1] == 0xFE
 	startIdx := 0
 	if hasBOM {
@@ -108,15 +117,18 @@ func decodeUTF16LE(b []byte) (string, error) {
 	return string(utf16.Decode(u16)), nil
 }
 
+// WSLClient manages integration with local WSL distributions by mocking SSH / SFTP APIs locally.
 type WSLClient struct {
-	Distro string
-	User   string
+	Distro string // Name of the target WSL distribution (e.g., Ubuntu, Debian)
+	User   string // Execution user context (e.g., root, ubuntu)
 }
 
+// NewWSLClient creates a new WSLClient instance.
 func NewWSLClient(distro, user string) *WSLClient {
 	return &WSLClient{Distro: distro, User: user}
 }
 
+// NewSession starts and spawns a WSL interactive shell process.
 func (c *WSLClient) NewSession() (interfaces.SSHSession, error) {
 	var cmd *exec.Cmd
 	if c.User != "" && c.User != "root" {
@@ -131,6 +143,7 @@ func (c *WSLClient) NewSession() (interfaces.SSHSession, error) {
 	}, nil
 }
 
+// NewSftp initiates a mock SFTP handler pointing to the distro's virtual folder mapping.
 func (c *WSLClient) NewSftp(opts ...sftp.ClientOption) (interfaces.SFTPClient, error) {
 	root := wslRootPath(c.Distro)
 	if RuntimeGOOS != "windows" {
@@ -142,19 +155,22 @@ func (c *WSLClient) NewSftp(opts ...sftp.ClientOption) (interfaces.SFTPClient, e
 	}, nil
 }
 
+// Close closes any active state inside the WSL client handler (no-op).
 func (c *WSLClient) Close() error {
 	return nil
 }
 
+// WSLSession wraps a running WSL shell subprocess, acting as an interactive terminal stream wrapper.
 type WSLSession struct {
-	cmd    *exec.Cmd
-	stdout io.Reader
-	stdin  io.WriteCloser
-	pipeW  io.WriteCloser
-	distro string
-	user   string
+	cmd    *exec.Cmd      // Active command runner
+	stdout io.Reader      // Read pipe for stdout redirection
+	stdin  io.WriteCloser // Write pipe for stdin input feeding
+	pipeW  io.WriteCloser // Helper stream writer to capture background outputs
+	distro string         // Target WSL distro identifier
+	user   string         // Specific Linux system execution user
 }
 
+// StdoutPipe sets up and hooks up stdout/stderr output pipes of the WSL subprocess.
 func (s *WSLSession) StdoutPipe() (io.Reader, error) {
 	if s.stdout != nil {
 		return s.stdout, nil
@@ -167,6 +183,7 @@ func (s *WSLSession) StdoutPipe() (io.Reader, error) {
 	return pr, nil
 }
 
+// StdinPipe retrieves the writable input stdin channel of the active WSL subprocess.
 func (s *WSLSession) StdinPipe() (io.WriteCloser, error) {
 	if s.stdin != nil {
 		return s.stdin, nil
@@ -179,10 +196,12 @@ func (s *WSLSession) StdinPipe() (io.WriteCloser, error) {
 	return stdin, nil
 }
 
+// RequestPty mocks virtual terminal PTY requests (not required for direct subprocess streams).
 func (s *WSLSession) RequestPty(term string, h, w int, modes ssh.TerminalModes) error {
 	return nil
 }
 
+// Shell launches the underlying interactive bash subprocess command stream.
 func (s *WSLSession) Shell() error {
 	err := s.cmd.Start()
 	if err != nil {
@@ -197,6 +216,7 @@ func (s *WSLSession) Shell() error {
 	return nil
 }
 
+// Run executes a separate single WSL command and blocks until completion.
 func (s *WSLSession) Run(cmd string) error {
 	if cmd != "" {
 		var newCmd *exec.Cmd
@@ -225,10 +245,12 @@ func (s *WSLSession) Run(cmd string) error {
 	return s.cmd.Wait()
 }
 
+// WindowChange mocks PTY resize events for Windows CMD/PowerShell subshells.
 func (s *WSLSession) WindowChange(h, w int) error {
 	return nil
 }
 
+// Close terminates and kills the underlying WSL subprocess.
 func (s *WSLSession) Close() error {
 	if s.cmd != nil && s.cmd.Process != nil {
 		_ = s.cmd.Process.Kill()
@@ -239,11 +261,13 @@ func (s *WSLSession) Close() error {
 	return nil
 }
 
+// WSLSFTPClient implements SFTP APIs directly on the local host to expose WSL container filesystem exploration.
 type WSLSFTPClient struct {
-	Distro string
-	Root   string
+	Distro string // Name of the target WSL distribution
+	Root   string // Local root mapping directory to query files from
 }
 
+// ReadDir returns the contents of a directory on the local WSL path.
 func (w *WSLSFTPClient) ReadDir(p string) ([]os.FileInfo, error) {
 	localPath := toWSLPath(w.Root, p)
 	f, err := os.Open(localPath)
@@ -254,46 +278,55 @@ func (w *WSLSFTPClient) ReadDir(p string) ([]os.FileInfo, error) {
 	return f.Readdir(-1)
 }
 
+// Stat retrieves system details of a WSL file or directory.
 func (w *WSLSFTPClient) Stat(p string) (os.FileInfo, error) {
 	localPath := toWSLPath(w.Root, p)
 	return os.Stat(localPath)
 }
 
+// RemoveAll recursively removes files and subdirectories.
 func (w *WSLSFTPClient) RemoveAll(p string) error {
 	localPath := toWSLPath(w.Root, p)
 	return os.RemoveAll(localPath)
 }
 
+// Remove deletes a single file in the WSL tree.
 func (w *WSLSFTPClient) Remove(p string) error {
 	localPath := toWSLPath(w.Root, p)
 	return os.Remove(localPath)
 }
 
+// Rename moves or renames a WSL file pathway.
 func (w *WSLSFTPClient) Rename(oldpath, newpath string) error {
 	localOld := toWSLPath(w.Root, oldpath)
 	localNew := toWSLPath(w.Root, newpath)
 	return os.Rename(localOld, localNew)
 }
 
+// Mkdir creates a new folder pathway inside WSL.
 func (w *WSLSFTPClient) Mkdir(p string) error {
 	localPath := toWSLPath(w.Root, p)
 	return os.Mkdir(localPath, 0755)
 }
 
+// Open reads a specific file pathway from the WSL tree.
 func (w *WSLSFTPClient) Open(p string) (interfaces.SFTPFile, error) {
 	localPath := toWSLPath(w.Root, p)
 	return os.Open(localPath)
 }
 
+// Create generates a new file pathway on the WSL tree.
 func (w *WSLSFTPClient) Create(p string) (interfaces.SFTPFile, error) {
 	localPath := toWSLPath(w.Root, p)
 	return os.Create(localPath)
 }
 
+// Getwd returns the current active home/root directory of the mock SFTP client.
 func (w *WSLSFTPClient) Getwd() (string, error) {
 	return "/", nil
 }
 
+// Close gracefully closes the WSL SFTP client.
 func (w *WSLSFTPClient) Close() error {
 	return nil
 }

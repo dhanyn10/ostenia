@@ -57,10 +57,10 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
   isOpenRef.current = isOpen;
 
   useEffect(() => {
-    if (isOpen && (window as any).runtime) {
+    if (isOpen && (window as any)?.runtime) {
       OnFileDrop((x, y, paths) => {
         if (!isOpenRef.current) return;
-        if (paths && paths.length > 0) {
+        if (paths?.length > 0) {
           const path = paths[0];
           setSelectedPath(path);
           processPath(path);
@@ -68,7 +68,7 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
       }, true);
     }
     return () => {
-      if ((window as any).runtime) {
+      if ((window as any)?.runtime) {
         OnFileDropOff();
       }
     };
@@ -113,7 +113,7 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
 
     if (processing) return;
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+    if (e.dataTransfer?.files?.[0]) {
       const file = e.dataTransfer.files[0];
       const lowerName = file.name.toLowerCase();
 
@@ -124,35 +124,24 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
         setError(null);
         setSuccess(null);
 
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-          try {
-            const arrayBuffer = event.target?.result as ArrayBuffer;
-            if (!arrayBuffer) {
-              throw new Error("Failed to read file bytes");
-            }
-            const uint8Array = new Uint8Array(arrayBuffer);
-            const byteArray = Array.from(uint8Array);
-            await AppBackend.ProcessCustomVersionBytes(serviceName, file.name, byteArray);
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const uint8Array = new Uint8Array(arrayBuffer);
+          const byteArray = Array.from(uint8Array);
+          await AppBackend.ProcessCustomVersionBytes(serviceName, file.name, byteArray);
 
-            setSuccess(`Successfully processed kustom ZIP version for ${serviceName}!`);
-            onSuccess();
-            setTimeout(() => {
-              setSuccess(null);
-              setSelectedPath("");
-              onClose();
-            }, 2000);
-          } catch (err: any) {
-            setError(err.message || err.toString());
-          } finally {
-            setProcessing(false);
-          }
-        };
-        reader.onerror = () => {
-          setError("Failed to read dropped file.");
+          setSuccess(`Successfully processed kustom ZIP version for ${serviceName}!`);
+          onSuccess();
+          setTimeout(() => {
+            setSuccess(null);
+            setSelectedPath("");
+            onClose();
+          }, 2000);
+        } catch (err: any) {
+          setError(err.message || err.toString());
+        } finally {
           setProcessing(false);
-        };
-        reader.readAsArrayBuffer(file);
+        }
       } else {
         setError("For custom folder addition, please use the 'Select Folder' button to select and copy the folder directly.");
       }

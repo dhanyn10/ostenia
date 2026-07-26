@@ -1,3 +1,5 @@
+// Package service provides system-level service management, background orchestrations,
+// symlink maintenance, SSH connections, and WSL client execution integrations for Ostenia.
 package service
 
 import (
@@ -24,30 +26,39 @@ import (
 	"unicode/utf16"
 )
 
+// wslPrefix is the scheme identifier used to detect local WSL quick-select connection hosts.
 const wslPrefix = "wsl://"
 
+// RemoteFile is an alias pointing to the backend's standard remote file description struct.
 type RemoteFile = interfaces.RemoteFile
 
+// SSHConnection wraps the complete active network connection state for a target session,
+// including its SSH client, SFTP helper, interactive terminal stdin/stdout channels, and cancellable context.
 type SSHConnection struct {
-	SessionID string
-	Client    interfaces.SSHClient
-	SFTP      interfaces.SFTPClient
-	Shell     io.WriteCloser
-	PTY       interfaces.SSHSession
-	Cancel    context.CancelFunc
-	LastSync  time.Time
-	IsWSL     bool
+	SessionID string                  // Unique identifier of the SSH session
+	Client    interfaces.SSHClient    // SSH client wrapper (goph or custom WSL client)
+	SFTP      interfaces.SFTPClient   // SFTP client wrapper for file operations
+	Shell     io.WriteCloser          // Stdin pipe to send interactive commands to the shell
+	PTY       interfaces.SSHSession   // Interactive terminal session (with PTY requested)
+	Cancel    context.CancelFunc      // Function to cancel context and teardown this session
+	LastSync  time.Time               // Timestamp of the last interactive synchronisation
+	IsWSL     bool                    // Boolean flag indicating if this is a WSL loopback connection
 }
 
+// SSHManager coordinates active SSH and WSL interactive terminal and SFTP connections.
+// It maintains a thread-safe registry of sessions, handles dialing/authentication,
+// and manages dimensions/resizing of active virtual terminals (PTY).
 type SSHManager struct {
-	connections map[string]*SSHConnection
-	mu          sync.RWMutex
-	dialer      SSHDialer
-	runtime     interfaces.Runtime
+	connections map[string]*SSHConnection // Registry mapping Session ID to active SSH connection
+	mu          sync.RWMutex              // Read-Write Mutex to protect concurrent access to the registry
+	dialer      SSHDialer                 // Extensible dialer function for mocking during tests
+	runtime     interfaces.Runtime        // Wails runtime instance to emit output/disconnect events to the frontend
 }
 
+// SSHDialer is a function type representing standard SSH dial connections via goph.
 type SSHDialer func(config *goph.Config) (interfaces.SSHClient, error)
 
+// DefaultSSHDialer is the standard production implementation of SSHDialer using goph.NewConn.
 var DefaultSSHDialer SSHDialer = func(config *goph.Config) (interfaces.SSHClient, error) {
 	client, err := goph.NewConn(config)
 	if err != nil {
@@ -56,6 +67,7 @@ var DefaultSSHDialer SSHDialer = func(config *goph.Config) (interfaces.SSHClient
 	return &gophSSHClient{client}, nil
 }
 
+// NewSSHManager initializes and returns a new SSHManager instance.
 func NewSSHManager() *SSHManager {
 	return &SSHManager{
 		connections: make(map[string]*SSHConnection),
@@ -63,25 +75,31 @@ func NewSSHManager() *SSHManager {
 	}
 }
 
+// SetRuntime registers the Wails runtime context within the SSH manager to enable frontend event emissions.
 func (m *SSHManager) SetRuntime(r interfaces.Runtime) {
 	m.runtime = r
 }
 
+// GetSessions retrieves the list of saved SSH sessions from the persistent global configuration.
 func (m *SSHManager) GetSessions() ([]config.SSHSession, error) {
 	return config.LoadSSHSessions()
 }
 
+// SaveSessions writes the complete list of SSH sessions back to the persistent global configuration.
 func (m *SSHManager) SaveSessions(sessions []config.SSHSession) error {
 	return config.SaveSSHSessions(sessions)
 }
 
+// Connect establishes a connection to a remote SSH server or initiates a local WSL distribution terminal.
+// It sets up the corresponding SFTP file explorer and triggers background terminal initialization.
 func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) error {
-	// Set UTF-8 environment for the session
+	// Set UTF-8 environment variables for the current system process to avoid encoding mismatches.
 	os.Setenv("LANG", "en_US.UTF-8")
 	os.Setenv("LC_ALL", "en_US.UTF-8")
 
 	m.mu.Lock()
 
+	// If connection already exists, return early without reconnecting.
 	if _, ok := m.connections[session.ID]; ok {
 		m.mu.Unlock()
 		return nil
@@ -92,10 +110,12 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 	var client interfaces.SSHClient
 	var err error
 
+	// WSL local connection detected via custom 'wsl://' host prefix.
 	if strings.HasPrefix(session.Host, wslPrefix) {
 		distro := strings.TrimPrefix(session.Host, wslPrefix)
 		client = NewWSLClient(distro, session.User)
 	} else {
+		// Standard remote SSH connection. Retrieve authentication details first.
 		auth, err := m.getAuth(session)
 		if err != nil {
 			fmt.Printf("[SSH] Authentication retrieval failed: %v\n", err)
@@ -119,6 +139,7 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 		return err
 	}
 
+	// Initialize SFTP Client for back-channel file exploration & transfers.
 	sftpClient, err := client.NewSftp()
 	if err != nil {
 		fmt.Printf("[SSH] SFTP initialization failed: %v\n", err)
@@ -142,12 +163,14 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 
 	fmt.Printf("[SSH] Connected successfully to %s@%s:%d. Initializing terminal session.\n", session.User, session.Host, session.Port)
 
-	// Start terminal session
+	// Spin up the interactive PTY terminal stream in the background.
 	m.startTerminal(cCtx, conn)
 
 	return nil
 }
 
+// startTerminal creates an interactive shell session, requests a virtual PTY terminal,
+// hooks up stdin/stdout piping, and starts the background stdout listener.
 func (m *SSHManager) startTerminal(ctx context.Context, conn *SSHConnection) {
 	fmt.Printf("[SSH] Requesting new SSH session for terminal (SessionID: %s)...\n", conn.SessionID)
 	sshSession, err := conn.Client.NewSession()
@@ -178,21 +201,25 @@ func (m *SSHManager) startTerminal(ctx context.Context, conn *SSHConnection) {
 		return
 	}
 
+	// To prevent initial WSL interactive shell hangs or connection delays, write an initial newline.
 	if conn.IsWSL && conn.Shell != nil {
 		_, _ = conn.Shell.Write([]byte("\n"))
 	}
 
 	exitChan := make(chan struct{})
+	// Read and broadcast stdout outputs to the Wails frontend.
 	go m.processTerminalOutput(ctx, conn, stdout, exitChan)
+	// Monitor terminal termination or disconnect events.
 	go m.handleTerminalExit(ctx, conn, sshSession, exitChan)
 }
 
+// setupPTY requests a standard pseudo-terminal (PTY) wrapper with basic echo/canonical rules configured.
 func (m *SSHManager) setupPTY(sshSession interfaces.SSHSession) error {
 	modes := ssh.TerminalModes{
-		ssh.ECHO:          1,
-		ssh.TTY_OP_ISPEED: 14400,
-		ssh.TTY_OP_OSPEED: 14400,
-		ssh.ICANON:        0,
+		ssh.ECHO:          1,     // Enable echoing of characters
+		ssh.TTY_OP_ISPEED: 14400, // Input speed
+		ssh.TTY_OP_OSPEED: 14400, // Output speed
+		ssh.ICANON:        0,     // Disable canonical mode to handle input byte-by-byte
 	}
 
 	if err := sshSession.RequestPty("xterm-256color", 50, 200, modes); err != nil {
@@ -202,12 +229,15 @@ func (m *SSHManager) setupPTY(sshSession interfaces.SSHSession) error {
 	return sshSession.Shell()
 }
 
+// processTerminalOutput continuously reads from the shell stdout pipe and broadcasts content
+// directly to the frontend React view via Wails event emissions.
 func (m *SSHManager) processTerminalOutput(ctx context.Context, conn *SSHConnection, stdout io.Reader, exitChan chan struct{}) {
 	buf := make([]byte, 2048)
 	for {
 		n, err := stdout.Read(buf)
 		if n > 0 {
 			if m.runtime != nil {
+				// Emit SSH chunk output to corresponding session terminal
 				m.runtime.EventsEmit(ctx, "ssh_output", map[string]interface{}{
 					"sessionId": conn.SessionID,
 					"data":      string(buf[:n]),
@@ -215,6 +245,7 @@ func (m *SSHManager) processTerminalOutput(ctx context.Context, conn *SSHConnect
 			}
 		}
 		if err != nil {
+			// Trigger exit signaling when read loop encounters EOF or socket disconnect
 			select {
 			case <-exitChan:
 			default:
@@ -225,6 +256,8 @@ func (m *SSHManager) processTerminalOutput(ctx context.Context, conn *SSHConnect
 	}
 }
 
+// handleTerminalExit handles graceful session cleanup upon termination, context cancellation,
+// or unexpected connection dropouts.
 func (m *SSHManager) handleTerminalExit(ctx context.Context, conn *SSHConnection, sshSession interfaces.SSHSession, exitChan chan struct{}) {
 	select {
 	case <-ctx.Done():
@@ -241,6 +274,8 @@ func (m *SSHManager) handleTerminalExit(ctx context.Context, conn *SSHConnection
 	}
 }
 
+// ResizeTerminal updates the width/height dimensions of the remote PTY terminal session.
+// Enforces hard guards to maintain terminal stability.
 func (m *SSHManager) ResizeTerminal(sessionID string, cols, rows int) error {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
@@ -253,10 +288,10 @@ func (m *SSHManager) ResizeTerminal(sessionID string, cols, rows int) error {
 		return fmt.Errorf("session not connected")
 	}
 
-	// Logging to debug dimension issues in the sandbox
+	// Logging to debug dimension issues in the sandbox.
 	fmt.Printf("[SSH] Resizing session %s to Cols: %d, Rows: %d\n", sessionID, cols, rows)
 
-	// HARD GUARD: Never allow width to go below 100 to prevent erratic wrapping.
+	// HARD GUARD: Never allow dimensions to drop below minimal levels to prevent erratic wrapping.
 	if cols < 100 {
 		cols = 100
 	}
@@ -264,10 +299,10 @@ func (m *SSHManager) ResizeTerminal(sessionID string, cols, rows int) error {
 		rows = 10
 	}
 
-	// WindowChange(rows, cols) - SSH standard order is h, w
 	return conn.PTY.WindowChange(rows, cols)
 }
 
+// SendInput writes raw keyboard / text input from the frontend terminal pane directly to the shell stdin.
 func (m *SSHManager) SendInput(sessionID, data string) error {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
@@ -284,6 +319,7 @@ func (m *SSHManager) SendInput(sessionID, data string) error {
 	return err
 }
 
+// Disconnect cleans up and closes active shell processes, SFTP sockets, and root SSH connections.
 func (m *SSHManager) Disconnect(sessionID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -304,6 +340,7 @@ func (m *SSHManager) Disconnect(sessionID string) {
 	}
 }
 
+// resolveRemotePath translates tilde-style paths (~/ atau ~) to absolute remote paths based on SFTP home directory.
 func (m *SSHManager) resolveRemotePath(conn *SSHConnection, p string) string {
 	if strings.HasPrefix(p, "~") {
 		wd, err := conn.SFTP.Getwd()
@@ -318,6 +355,9 @@ func (m *SSHManager) resolveRemotePath(conn *SSHConnection, p string) string {
 	return p
 }
 
+// ListFiles returns files and directories inside the specified path.
+// Gracefully absorbs typical missing or empty directory SFTP errors as successful empty listings
+// to prevent disruptive front-end alert popups.
 func (m *SSHManager) ListFiles(sessionID, pathStr string) ([]RemoteFile, error) {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
@@ -332,6 +372,7 @@ func (m *SSHManager) ListFiles(sessionID, pathStr string) ([]RemoteFile, error) 
 
 	pathStr = m.resolveRemotePath(conn, pathStr)
 
+	// Fallback to active SFTP working directory if directory path is blank
 	if pathStr == "" {
 		wd, err := conn.SFTP.Getwd()
 		if err == nil && wd != "" {
@@ -344,6 +385,7 @@ func (m *SSHManager) ListFiles(sessionID, pathStr string) ([]RemoteFile, error) 
 	entries, err := conn.SFTP.ReadDir(pathStr)
 	if err != nil {
 		errStr := err.Error()
+		// Intercept expected connection EOF or missing directory messages and return empty slice
 		if err == io.EOF || os.IsNotExist(err) ||
 			strings.Contains(errStr, "EOF") ||
 			strings.Contains(errStr, "does not exist") ||
@@ -371,6 +413,7 @@ func (m *SSHManager) ListFiles(sessionID, pathStr string) ([]RemoteFile, error) 
 	return files, nil
 }
 
+// ExecuteSFTPAction handles remote mutations: 'delete' (files/recursive directories), 'rename' (move/rename), and 'mkdir'.
 func (m *SSHManager) ExecuteSFTPAction(sessionID, action, remotePath, target string) error {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
@@ -392,7 +435,6 @@ func (m *SSHManager) ExecuteSFTPAction(sessionID, action, remotePath, target str
 
 	switch action {
 	case "delete":
-		// Check if it's a directory
 		info, err := conn.SFTP.Stat(remotePath)
 		if err != nil {
 			return err
@@ -410,6 +452,7 @@ func (m *SSHManager) ExecuteSFTPAction(sessionID, action, remotePath, target str
 	}
 }
 
+// DownloadFile copies a file from the remote host down to the local user's storage path.
 func (m *SSHManager) DownloadFile(sessionID, remotePath, localPath string) error {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
@@ -441,6 +484,7 @@ func (m *SSHManager) DownloadFile(sessionID, remotePath, localPath string) error
 	return err
 }
 
+// UploadFile transmits a file from local disk up to the targeted remote path on the host.
 func (m *SSHManager) UploadFile(sessionID, localPath, remotePath string) error {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
@@ -453,7 +497,6 @@ func (m *SSHManager) UploadFile(sessionID, localPath, remotePath string) error {
 		return fmt.Errorf("SFTP not connected")
 	}
 
-	// Use path.Join for remote paths
 	remotePath = m.resolveRemotePath(conn, remotePath)
 	remotePath = path.Clean(remotePath)
 
@@ -473,6 +516,8 @@ func (m *SSHManager) UploadFile(sessionID, localPath, remotePath string) error {
 	return err
 }
 
+// EditFile downloads a remote file to a safe local temporary file, triggers the preferred local text editor,
+// and automatically transmits modified versions back to the remote server on save.
 func (m *SSHManager) EditFile(sessionID, remotePath, defaultEditor string) error {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
@@ -488,6 +533,7 @@ func (m *SSHManager) EditFile(sessionID, remotePath, defaultEditor string) error
 	remotePath = m.resolveRemotePath(conn, remotePath)
 	remotePath = path.Clean(remotePath)
 
+	// Create a safe unique temporary folder to prevent colliding edits
 	tempDir, err := os.MkdirTemp("", "ostenia-ssh-edit-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp dir: %w", err)
@@ -506,6 +552,7 @@ func (m *SSHManager) EditFile(sessionID, remotePath, defaultEditor string) error
 		return err
 	}
 
+	// Only upload back to remote if file modtime was actually updated during the edit session
 	finalInfo, err := os.Stat(localPath)
 	if err == nil && finalInfo.ModTime().After(initialInfo.ModTime()) {
 		return m.UploadFile(sessionID, localPath, remotePath)
@@ -514,6 +561,8 @@ func (m *SSHManager) EditFile(sessionID, remotePath, defaultEditor string) error
 	return nil
 }
 
+// runEditor attempts to execute the editor program configured in user preferences,
+// falling back to standard OS notepad/open defaults.
 func (m *SSHManager) runEditor(localPath, defaultEditor string) error {
 	var cmd *exec.Cmd
 	if defaultEditor != "" {
@@ -529,6 +578,7 @@ func (m *SSHManager) runEditor(localPath, defaultEditor string) error {
 	return cmd.Run()
 }
 
+// getCustomEditorCmd formats command arguments to call custom editors on Windows / Linux hosts securely.
 func (m *SSHManager) getCustomEditorCmd(editor, localPath string) *exec.Cmd {
 	if runtime.GOOS == "windows" {
 		cmdPath := filepath.Join(utils.GetSystemDirectory(), "cmd.exe")
@@ -542,6 +592,7 @@ func (m *SSHManager) getCustomEditorCmd(editor, localPath string) *exec.Cmd {
 	return cmd
 }
 
+// getDefaultEditorCmd triggers standard system-integrated text viewers (notepad, TextEdit, etc).
 func (m *SSHManager) getDefaultEditorCmd(localPath string) *exec.Cmd {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
@@ -557,6 +608,7 @@ func (m *SSHManager) getDefaultEditorCmd(localPath string) *exec.Cmd {
 	return cmd
 }
 
+// findLinuxEditor attempts to query general Linux text editors like xdg-open, gedit, nano.
 func (m *SSHManager) findLinuxEditor(localPath string) *exec.Cmd {
 	editors := []string{"xdg-open", "gnome-text-editor", "kwrite", "gedit", "nano"}
 	for _, e := range editors {
@@ -569,6 +621,7 @@ func (m *SSHManager) findLinuxEditor(localPath string) *exec.Cmd {
 	return nil
 }
 
+// GetCurrentPath retrieves the remote path string of the current SFTP working directory.
 func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
@@ -585,6 +638,7 @@ func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
 	return pathStr, err
 }
 
+// getAuth builds standard password-based, agent-based, or SSH key authentication setups.
 func (m *SSHManager) getAuth(session config.SSHSession) (goph.Auth, error) {
 	if session.AuthMethod == "agent" {
 		return goph.UseAgent()
@@ -610,6 +664,7 @@ func (m *SSHManager) getAuth(session config.SSHSession) (goph.Auth, error) {
 	return goph.Key(session.KeyPath, passphrase)
 }
 
+// getHostKeyCallback verifies remote host keys, automatically writing unknown hosts to 'known_hosts'.
 func (m *SSHManager) getHostKeyCallback() ssh.HostKeyCallback {
 	knownHostsPath := filepath.Join(config.GetBaseDir(), "known_hosts")
 	if _, err := os.Stat(knownHostsPath); os.IsNotExist(err) {
@@ -630,6 +685,8 @@ func (m *SSHManager) getHostKeyCallback() ssh.HostKeyCallback {
 	}
 }
 
+// GetWSLDistros executes a silent query requesting active Windows WSL distributions,
+// decoding output from raw UTF-16LE.
 func (m *SSHManager) GetWSLDistros() ([]string, error) {
 	if RuntimeGOOS != "windows" {
 		return []string{}, nil
@@ -657,6 +714,9 @@ func (m *SSHManager) GetWSLDistros() ([]string, error) {
 	return distros, nil
 }
 
+// GetResourceUsage gathers real-time CPU, RAM, and Disk metrics from remote machines.
+// Spins up a lightweight concurrent session executing combined command strings so interactive terminal
+// performance is completely unaffected.
 func (m *SSHManager) GetResourceUsage(sessionID string) (interfaces.ResourceUsage, error) {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
@@ -677,6 +737,7 @@ func (m *SSHManager) GetResourceUsage(sessionID string) (interfaces.ResourceUsag
 		return interfaces.ResourceUsage{}, err
 	}
 
+	// Combined commands to parse core system stats
 	command := `cat /proc/stat; sleep 0.1; cat /proc/stat; cat /proc/meminfo; df -m /`
 
 	err = sess.Run(command)
@@ -692,6 +753,7 @@ func (m *SSHManager) GetResourceUsage(sessionID string) (interfaces.ResourceUsag
 	return parseResourceUsage(decodeMaybeUTF16(outputBytes)), nil
 }
 
+// decodeMaybeUTF16 dynamically converts UTF-16LE binary payloads into standard UTF-8 strings.
 func decodeMaybeUTF16(b []byte) string {
 	if len(b) < 2 {
 		return string(b)
@@ -725,6 +787,7 @@ func decodeMaybeUTF16(b []byte) string {
 	return string(utf16.Decode(u16))
 }
 
+// parseResourceUsage processes standard Unix '/proc/stat', '/proc/meminfo', and 'df' command dumps.
 func parseResourceUsage(output string) interfaces.ResourceUsage {
 	var usage interfaces.ResourceUsage
 	lines := strings.Split(output, "\n")
@@ -741,6 +804,7 @@ func parseResourceUsage(output string) interfaces.ResourceUsage {
 
 		fields := strings.Fields(line)
 
+		// Parse CPU stats from consecutive /proc/stat checks
 		if strings.HasPrefix(line, "cpu ") && len(fields) >= 5 {
 			var user, nice, system, idle, iowait, irq, softirq, steal float64
 			fmt.Sscanf(fields[1], "%f", &user)
@@ -765,6 +829,7 @@ func parseResourceUsage(output string) interfaces.ResourceUsage {
 			cpuTicks = append(cpuTicks, []float64{total, idleVal})
 		}
 
+		// Parse memory thresholds
 		if strings.HasPrefix(line, "MemTotal:") {
 			fmt.Sscanf(line, "MemTotal: %f kB", &memTotal)
 		} else if strings.HasPrefix(line, "MemAvailable:") {
@@ -777,6 +842,7 @@ func parseResourceUsage(output string) interfaces.ResourceUsage {
 			fmt.Sscanf(line, "Cached: %f kB", &cached)
 		}
 
+		// Parse mount file systems ('df')
 		if len(fields) >= 5 && fields[len(fields)-1] == "/" {
 			if len(fields) >= 6 {
 				var tot, usd float64
@@ -798,6 +864,7 @@ func parseResourceUsage(output string) interfaces.ResourceUsage {
 		}
 	}
 
+	// Calculate overall CPU utilization percentage
 	if len(cpuTicks) >= 2 {
 		diffTotal := cpuTicks[1][0] - cpuTicks[0][0]
 		diffIdle := cpuTicks[1][1] - cpuTicks[0][1]
@@ -806,6 +873,7 @@ func parseResourceUsage(output string) interfaces.ResourceUsage {
 		}
 	}
 
+	// Calculate RAM utilization percentages
 	if memTotal > 0 {
 		usage.MemTotal = memTotal / 1024
 		var used float64
@@ -818,6 +886,7 @@ func parseResourceUsage(output string) interfaces.ResourceUsage {
 		usage.Mem = (used / memTotal) * 100
 	}
 
+	// Calculate overall disk usage percentage
 	if diskTotal > 0 {
 		usage.DiskTotal = diskTotal
 		usage.DiskUsed = diskUsed
@@ -827,12 +896,16 @@ func parseResourceUsage(output string) interfaces.ResourceUsage {
 	return usage
 }
 
-// Wrappers
+// ============================================================================
+// Interfaces & Wrappers
+// ============================================================================
 
+// gophSSHClient wraps an active *goph.Client instance to fulfill the standard SSHClient interface.
 type gophSSHClient struct {
 	client *goph.Client
 }
 
+// NewSession starts and configures a new interactive shell session on top of the client.
 func (c *gophSSHClient) NewSession() (interfaces.SSHSession, error) {
 	s, err := c.client.NewSession()
 	if err != nil {
@@ -841,6 +914,7 @@ func (c *gophSSHClient) NewSession() (interfaces.SSHSession, error) {
 	return &sshSessionWrapper{s}, nil
 }
 
+// NewSftp hooks up a secure FTP transfer socket on top of the connection channel.
 func (c *gophSSHClient) NewSftp(opts ...sftp.ClientOption) (interfaces.SFTPClient, error) {
 	s, err := c.client.NewSftp(opts...)
 	if err != nil {
@@ -849,10 +923,12 @@ func (c *gophSSHClient) NewSftp(opts ...sftp.ClientOption) (interfaces.SFTPClien
 	return &sftpClientWrapper{s}, nil
 }
 
+// Close gracefully closes the client network connection.
 func (c *gophSSHClient) Close() error {
 	return c.client.Close()
 }
 
+// sshSessionWrapper wraps a standard *ssh.Session instance to fulfill the standard SSHSession interface.
 type sshSessionWrapper struct {
 	session *ssh.Session
 }
@@ -867,6 +943,7 @@ func (sw *sshSessionWrapper) Run(cmd string) error        { return sw.session.Ru
 func (sw *sshSessionWrapper) WindowChange(h, w int) error { return sw.session.WindowChange(h, w) }
 func (sw *sshSessionWrapper) Close() error                { return sw.session.Close() }
 
+// sftpClientWrapper wraps an active *sftp.Client instance to fulfill the standard SFTPClient interface.
 type sftpClientWrapper struct {
 	client *sftp.Client
 }
