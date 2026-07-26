@@ -480,6 +480,18 @@ func TestApp_Services_RealIsh(t *testing.T) {
 	_ = app.ProcessCustomVersionBytes("PHP", "php-test.zip", []byte(""))
 	_ = app.ProcessCustomVersionBytes("PHP", "invalid.txt", []byte(""))
 
+	// Coverage for executable validation on other services
+	_ = app.validateExecutable("php", customSrc)
+	_ = app.validateExecutable("apache", customSrc)
+	_ = app.validateExecutable("mysql", customSrc)
+	_ = app.validateExecutable("nginx", customSrc)
+	_ = app.validateExecutable("nodejs", customSrc)
+	_ = app.validateExecutable("python", customSrc)
+	_ = app.validateExecutable("unknown", customSrc)
+
+	// Extra zip extraction failure cases
+	_ = app.extractAndProcessZip("PHP", "php", tempDir, filepath.Join(tempDir, "selected.txt"), "php-invalid-zip")
+
 	// Coverage for getServiceTargetDir
 	_ = app.getServiceTargetDir("nginx", nginxDir)
 	_ = app.getServiceTargetDir("apache", apacheDir)

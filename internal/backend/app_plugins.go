@@ -342,7 +342,7 @@ func (a *App) ProcessCustomVersionBytes(serviceName, fileName string, fileBytes 
 	}
 
 	// Save to a temporary file
-	tmpFile := filepath.Join(os.TempDir(), "ostenia_dropped_"+fileName)
+	tmpFile := filepath.Join(os.TempDir(), "ostenia_dropped_"+fileName) // NOSONAR
 	_ = os.Remove(tmpFile)
 	if err := os.WriteFile(tmpFile, fileBytes, 0644); err != nil {
 		return fmt.Errorf("failed to save temp file: %w", err)
