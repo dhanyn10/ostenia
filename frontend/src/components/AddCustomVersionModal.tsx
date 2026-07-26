@@ -9,7 +9,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import * as AppBackend from "../../wailsjs/go/backend/App";
-import { OnFileDrop } from "../../wailsjs/runtime/runtime";
+import { OnFileDrop, OnFileDropOff } from "../../wailsjs/runtime/runtime";
 import { handleActionKey } from "../utils/a11y";
 
 interface AddCustomVersionModalProps {
@@ -67,6 +67,9 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
         }
       }, true);
     }
+    return () => {
+      OnFileDropOff();
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -194,6 +197,14 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
             We will automatically extract and process it as a ready-to-use version.
           </p>
 
+          {/* Universal CSS for Nested Drop Targets */}
+          <style dangerouslySetInnerHTML={{ __html: `
+            .wails-drop-target,
+            .wails-drop-target * {
+              --wails-drop-target: drop !important;
+            }
+          ` }} />
+
           {/* Dropzone Area */}
           <div
             onDragEnter={handleDrag}
@@ -202,7 +213,7 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
             onDrop={handleDrop}
             style={{ "--wails-drop-target": "drop" } as React.CSSProperties}
             data-file-drop-target="drop"
-            className={`border-2 border-dashed rounded-sm p-8 flex flex-col items-center justify-center gap-4 transition-all ${
+            className={`wails-drop-target border-2 border-dashed rounded-sm p-8 flex flex-col items-center justify-center gap-4 transition-all ${
               dragActive
                 ? "border-blue-500 bg-blue-500/10 scale-[1.02]"
                 : "border-slate-300 dark:border-white/10 hover:border-slate-400 dark:hover:border-white/20 bg-slate-50 dark:bg-white/5"

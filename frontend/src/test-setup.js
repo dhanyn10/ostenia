@@ -52,6 +52,8 @@ const mockRuntime = {
   WindowIsMaximized: vi.fn().mockResolvedValue(false),
   WindowIsMinimized: vi.fn().mockResolvedValue(false),
   WindowIsFullscreen: vi.fn().mockResolvedValue(false),
+  OnFileDrop: vi.fn(),
+  OnFileDropOff: vi.fn(),
 };
 
 // Mock Wails runtime globals
