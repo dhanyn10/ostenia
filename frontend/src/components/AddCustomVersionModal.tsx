@@ -84,8 +84,10 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
-      const path = (file as any).path || file.name;
-      if (path) {
+      const path = (file as any).path;
+      // If HTML5 provides the absolute path on disk, process it directly.
+      // Otherwise, let the native OnFileDrop listener handle it safely.
+      if (path && (path.includes("/") || path.includes("\\"))) {
         setSelectedPath(path);
         await processPath(path);
       }
