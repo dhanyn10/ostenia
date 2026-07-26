@@ -82,11 +82,11 @@ func TestApp_WindowDelegates(t *testing.T) {
 		t.Error("Expected WindowExecJS to be called")
 	}
 
-	app.EventsEmit(context.Background(), "test")
-	app.Quit(context.Background())
-	_, _ = app.OpenFileDialog(context.Background(), wruntime.OpenDialogOptions{})
-	_, _ = app.OpenDirectoryDialog(context.Background(), wruntime.OpenDialogOptions{})
-	_, _ = app.SaveFileDialog(context.Background(), wruntime.SaveDialogOptions{})
+	app.EventsEmit("test")
+	app.Quit()
+	_, _ = app.OpenFileDialog(wruntime.OpenDialogOptions{})
+	_, _ = app.OpenDirectoryDialog(wruntime.OpenDialogOptions{})
+	_, _ = app.SaveFileDialog(wruntime.SaveDialogOptions{})
 }
 
 func TestApp_WindowDelegatesWithStartupContext(t *testing.T) {

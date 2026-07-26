@@ -1,15 +1,14 @@
 package backend
 
 import (
-	"context"
 	"ostenia/internal/config"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // SelectDefaultEditor opens a file dialog to choose the default text editor
-func (a *App) SelectDefaultEditor(ctx context.Context) (string, error) {
-	selected, err := a.runtime.OpenFileDialog(ctx, wruntime.OpenDialogOptions{
+func (a *App) SelectDefaultEditor() (string, error) {
+	selected, err := a.runtime.OpenFileDialog(a.ctx, wruntime.OpenDialogOptions{
 		Title: "Select Default Text Editor",
 		Filters: []wruntime.FileFilter{
 			{DisplayName: "Executables (*.exe;*.app)", Pattern: "*.exe;*.app"},

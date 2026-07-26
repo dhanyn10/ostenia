@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"ostenia/internal/backend/interfaces"
+	plugins_utils "ostenia/internal/plugins/utils"
 	"path"
 	"path/filepath"
 	"strings"
@@ -64,6 +65,7 @@ var wslCommand = func(distro string, args ...string) *exec.Cmd {
 		}
 	}
 	cmd.Env = secureEnv()
+	plugins_utils.SetHideWindow(cmd)
 	return cmd
 }
 
