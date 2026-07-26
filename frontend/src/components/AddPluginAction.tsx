@@ -42,7 +42,7 @@ function AddPluginAction({
         <div className="absolute left-0 right-0 top-full mt-2 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-sm shadow-3xl z-50 animate-in fade-in slide-in-from-top-1">
           <div className="grid grid-cols-2 gap-1.5">
             {prerequisites
-              .filter((p) => !services.find((s) => s.name === p.name))
+              .filter((p) => !services.some((s) => s.name === p.name))
               .map((task) => {
                 return (
                   <button
@@ -62,7 +62,7 @@ function AddPluginAction({
                 );
               })}
             {prerequisites.filter(
-              (p) => !services.find((s) => s.name === p.name),
+              (p) => !services.some((s) => s.name === p.name),
             ).length === 0 && (
               <div className="col-span-2 py-4 text-center text-[10px] font-bold text-slate-400 uppercase italic">
                 All plugins are already pinned

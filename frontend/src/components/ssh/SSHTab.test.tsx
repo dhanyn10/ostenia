@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import SSHTab from "./SSHTab";
 import React from "react";
@@ -59,10 +59,8 @@ describe("SSHTab Component", () => {
       <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
     );
 
-    await waitFor(() => {
-      expect(screen.getByText(TEST_IP_1)).toBeInTheDocument();
-      expect(screen.getByText(TEST_IP_2)).toBeInTheDocument();
-    });
+    expect(await screen.findByText(TEST_IP_1)).toBeInTheDocument();
+    expect(await screen.findByText(TEST_IP_2)).toBeInTheDocument();
   });
 
   it("opens new connection form", async () => {
@@ -85,7 +83,7 @@ describe("SSHTab Component", () => {
       <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
     );
 
-    await waitFor(() => screen.getByText(TEST_IP_1));
+    await screen.findByText(TEST_IP_1);
 
     const card = screen.getByText(TEST_IP_1).closest("div").parentElement;
     fireEvent.doubleClick(card);
