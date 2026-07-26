@@ -57,7 +57,7 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
   isOpenRef.current = isOpen;
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && (window as any).runtime) {
       OnFileDrop((x, y, paths) => {
         if (!isOpenRef.current) return;
         if (paths && paths.length > 0) {
@@ -68,7 +68,9 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
       }, true);
     }
     return () => {
-      OnFileDropOff();
+      if ((window as any).runtime) {
+        OnFileDropOff();
+      }
     };
   }, [isOpen]);
 
