@@ -43,7 +43,7 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
           setSelectedPath(path);
           processPath(path);
         }
-      }, false);
+      }, true);
     }
   }, [isOpen]);
 
