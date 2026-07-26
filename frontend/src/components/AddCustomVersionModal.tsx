@@ -31,15 +31,19 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
   const [success, setSuccess] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string>("");
 
+  const isOpenRef = React.useRef(isOpen);
+  isOpenRef.current = isOpen;
+
   useEffect(() => {
     if (isOpen) {
       OnFileDrop((x, y, paths) => {
+        if (!isOpenRef.current) return;
         if (paths && paths.length > 0) {
           const path = paths[0];
           setSelectedPath(path);
           processPath(path);
         }
-      }, true);
+      }, false);
     }
   }, [isOpen]);
 
@@ -172,6 +176,8 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
             onDragOver={handleDrag}
             onDragLeave={handleDrag}
             onDrop={handleDrop}
+            style={{ "--wails-drop-target": "drop" } as React.CSSProperties}
+            data-file-drop-target="drop"
             className={`border-2 border-dashed rounded-sm p-8 flex flex-col items-center justify-center gap-4 transition-all ${
               dragActive
                 ? "border-blue-500 bg-blue-500/10 scale-[1.02]"
