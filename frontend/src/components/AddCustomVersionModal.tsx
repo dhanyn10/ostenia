@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   X,
   UploadCloud,
@@ -9,6 +9,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import * as AppBackend from "../../wailsjs/go/backend/App";
+import { OnFileDrop } from "../../wailsjs/runtime/runtime";
 import { handleActionKey } from "../utils/a11y";
 
 interface AddCustomVersionModalProps {
@@ -29,6 +30,18 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string>("");
+
+  useEffect(() => {
+    if (isOpen) {
+      OnFileDrop((x, y, paths) => {
+        if (paths && paths.length > 0) {
+          const path = paths[0];
+          setSelectedPath(path);
+          processPath(path);
+        }
+      }, true);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
