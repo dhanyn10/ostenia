@@ -551,6 +551,7 @@ function App() {
  onClose={() => setCustomVersionModal(prev => ({ ...prev, isOpen: false }))}
  serviceName={customVersionModal.serviceName}
  onSuccess={refreshPrerequisites}
+   appsLocation={appsLocation}
  />
  </div>
  );

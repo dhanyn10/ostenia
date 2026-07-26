@@ -17,6 +17,7 @@ interface AddCustomVersionModalProps {
   onClose: () => void;
   serviceName: string;
   onSuccess: () => void;
+  appsLocation: string;
 }
 
 const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
@@ -24,12 +25,33 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
   onClose,
   serviceName,
   onSuccess,
+  appsLocation,
 }) => {
   const [dragActive, setDragActive] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string>("");
+
+  const getCategoryAndDefaultDir = () => {
+    let category = serviceName.toLowerCase();
+    if (category === "node.js") {
+      category = "nodejs";
+    }
+    const isWindows = appsLocation.includes("\\") || !appsLocation.includes("/");
+    const sep = isWindows ? "\\" : "/";
+    const defaultDir = appsLocation ? `${appsLocation}${sep}bin${sep}${category}` : "";
+    return { category, defaultDir };
+  };
+
+  const getProcessingMessage = () => {
+    if (!selectedPath) return "Processing and validating version...";
+    const lower = selectedPath.toLowerCase();
+    if (lower.endsWith(".zip") || lower.endsWith(".nupkg")) {
+      return "Processing and extracting ZIP file...";
+    }
+    return "Processing and copying folder...";
+  };
 
   const isOpenRef = React.useRef(isOpen);
   isOpenRef.current = isOpen;
@@ -124,8 +146,10 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
     if (processing) return;
     setError(null);
     try {
+      const { defaultDir } = getCategoryAndDefaultDir();
       const res = await AppBackend.OpenDirectoryDialog({
         Title: `Select Custom ${serviceName} Folder`,
+        DefaultDirectory: defaultDir,
       });
       if (res) {
         setSelectedPath(res);
@@ -242,7 +266,7 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
             <div className="flex items-center justify-center gap-2 text-blue-500 py-2">
               <Loader2 size={16} className="animate-spin" />
               <span className="text-[10px] font-black uppercase tracking-widest animate-pulse">
-                Processing and validating version...
+                {getProcessingMessage()}
               </span>
             </div>
           )}
