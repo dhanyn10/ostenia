@@ -9,6 +9,8 @@ import { vi, describe, it, expect, beforeEach } from "vitest";
 import SSHSessionView from "./SSHSessionView";
 import * as AppBackend from "../../wailsjs/go/backend/App";
 
+let attachedKeyHandler: any = null;
+
 // Mock xterm
 vi.mock("@xterm/xterm", () => {
   return {
@@ -23,6 +25,9 @@ vi.mock("@xterm/xterm", () => {
       focus: vi.fn(),
       clear: vi.fn(),
       getSelection: vi.fn().mockReturnValue("selected terminal text"),
+      attachCustomKeyEventHandler: vi.fn((fn) => {
+        attachedKeyHandler = fn;
+      }),
     })),
   };
 });
@@ -775,8 +780,8 @@ describe("SSHSessionView Component", () => {
     expect(gearBtn).toBeInTheDocument();
     fireEvent.click(gearBtn);
 
-    // Should call onOpenSettings with "ssh-monitor"
-    expect(mockProps.onOpenSettings).toHaveBeenCalledWith("ssh-monitor");
+    // Should call onOpenSettings with "ssh"
+    expect(mockProps.onOpenSettings).toHaveBeenCalledWith("ssh");
   });
 
   it("handles connection drop and displays offline gray zone", async () => {
@@ -834,5 +839,70 @@ describe("SSHSessionView Component", () => {
 
     // Chart SVG elements should render inline immediately
     expect(document.querySelectorAll('svg line').length).toBeGreaterThan(0);
+  });
+
+  it("renders zoom buttons and handles zoom click actions", async () => {
+    localStorage.setItem('ostenia_ssh_zoom_enabled', 'true');
+    render(<SSHSessionView {...mockProps} />);
+
+    // Verify zoom control overlay is visible
+    const zoomInBtn = screen.getByTitle("Zoom In (Ctrl + Plus)");
+    const zoomResetBtn = screen.getByTitle("Reset Zoom (Ctrl + 0)");
+    const zoomOutBtn = screen.getByTitle("Zoom Out (Ctrl + Minus)");
+
+    expect(zoomInBtn).toBeInTheDocument();
+    expect(zoomResetBtn).toBeInTheDocument();
+    expect(zoomOutBtn).toBeInTheDocument();
+
+    // Trigger zoom actions
+    fireEvent.click(zoomInBtn);
+    fireEvent.click(zoomOutBtn);
+    fireEvent.click(zoomResetBtn);
+  });
+
+  it("hides zoom buttons when zoom is disabled in settings", async () => {
+    localStorage.setItem('ostenia_ssh_zoom_enabled', 'false');
+    render(<SSHSessionView {...mockProps} />);
+
+    expect(screen.queryByTitle("Zoom In (Ctrl + Plus)")).not.toBeInTheDocument();
+  });
+
+  it("handles keyboard shortcuts via attachCustomKeyEventHandler", async () => {
+    localStorage.setItem('ostenia_ssh_zoom_enabled', 'true');
+    render(<SSHSessionView {...mockProps} />);
+
+    expect(attachedKeyHandler).not.toBeNull();
+
+    // Simulate keydown event for Ctrl + Plus ('=')
+    const preventZoomIn = attachedKeyHandler({
+      type: "keydown",
+      ctrlKey: true,
+      key: "=",
+    });
+    expect(preventZoomIn).toBe(false);
+
+    // Simulate keydown event for Ctrl + Minus ('-')
+    const preventZoomOut = attachedKeyHandler({
+      type: "keydown",
+      ctrlKey: true,
+      key: "-",
+    });
+    expect(preventZoomOut).toBe(false);
+
+    // Simulate keydown event for Ctrl + 0 ('0')
+    const preventZoomReset = attachedKeyHandler({
+      type: "keydown",
+      ctrlKey: true,
+      key: "0",
+    });
+    expect(preventZoomReset).toBe(false);
+
+    // Non-zoom keys should propagate normally
+    const normalPropagate = attachedKeyHandler({
+      type: "keydown",
+      ctrlKey: false,
+      key: "a",
+    });
+    expect(normalPropagate).toBe(true);
   });
 });

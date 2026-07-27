@@ -16,6 +16,8 @@ import {
   Copy,
   Clipboard,
   Settings,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import SSHToolbar from "./ssh/SSHToolbar";
 import SSHFileExplorer from "./ssh/SSHFileExplorer";
@@ -170,6 +172,46 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     key: string;
     direction: "asc" | "desc";
   }>({ key: "name", direction: "asc" });
+
+  const [isZoomEnabled, setIsZoomEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('ostenia_ssh_zoom_enabled') !== 'false';
+  });
+  const [zoomFontSize, setZoomFontSize] = useState<number>(14);
+
+  const handleZoomIn = () => {
+    setZoomFontSize((prev) => Math.min(prev + 2, 40));
+  };
+
+  const handleZoomOut = () => {
+    setZoomFontSize((prev) => Math.max(prev - 2, 8));
+  };
+
+  const handleZoomReset = () => {
+    setZoomFontSize(14);
+  };
+
+  const handlersRef = useRef({ handleZoomIn, handleZoomOut, handleZoomReset });
+  useEffect(() => {
+    handlersRef.current = { handleZoomIn, handleZoomOut, handleZoomReset };
+  });
+
+  useEffect(() => {
+    const handleZoomSettingsChanged = () => {
+      setIsZoomEnabled(localStorage.getItem('ostenia_ssh_zoom_enabled') !== 'false');
+    };
+
+    window.addEventListener('ostenia_ssh_zoom_settings_changed', handleZoomSettingsChanged);
+    return () => {
+      window.removeEventListener('ostenia_ssh_zoom_settings_changed', handleZoomSettingsChanged);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (xterm.current) {
+      xterm.current.options.fontSize = zoomFontSize;
+      setTimeout(performFit, 50);
+    }
+  }, [zoomFontSize]);
 
   const [resourceUsage, setResourceUsage] = useState<{
     cpu: number;
@@ -439,7 +481,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     xterm.current = new XTerm({
       cursorBlink: true,
       convertEol: true,
-      fontSize: 14,
+      fontSize: zoomFontSize,
       lineHeight: 1.2,
       fontFamily:
         'JetBrains Mono, Menlo, Monaco, Consolas, "Courier New", monospace',
@@ -463,7 +505,34 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     });
 
     xterm.current.loadAddon(fitAddon.current);
-    if (terminalRef.current) xterm.current.open(terminalRef.current);
+    if (terminalRef.current) {
+      xterm.current.open(terminalRef.current);
+
+      // Custom key event handler for zoom keyboard shortcuts (Ctrl + Plus, Ctrl + Minus, Ctrl + 0)
+      xterm.current.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+        if (event.type === "keydown") {
+          const isCtrlOrCmd = event.ctrlKey || event.metaKey;
+          if (isCtrlOrCmd) {
+            const enabled = localStorage.getItem('ostenia_ssh_zoom_enabled') !== 'false';
+            if (enabled) {
+              if (event.key === "=" || event.key === "+") {
+                handlersRef.current.handleZoomIn();
+                return false;
+              }
+              if (event.key === "-") {
+                handlersRef.current.handleZoomOut();
+                return false;
+              }
+              if (event.key === "0") {
+                handlersRef.current.handleZoomReset();
+                return false;
+              }
+            }
+          }
+        }
+        return true;
+      });
+    }
 
     let resizeTimeout: any;
     const handleWindowResize = () => {
@@ -820,6 +889,35 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
               </div>
             </div>
           )}
+
+          {isZoomEnabled && (
+            <div className="absolute bottom-4 right-4 z-10 flex flex-col rounded-lg shadow-lg border border-mui-grey-200 dark:border-white/10 bg-white/90 dark:bg-mui-grey-900/90 overflow-hidden divide-y divide-mui-grey-200 dark:divide-white/10">
+              <button
+                type="button"
+                onClick={() => handleZoomIn()}
+                className="p-2 text-mui-grey-600 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 transition-colors focus:outline-none flex items-center justify-center"
+                title="Zoom In (Ctrl + Plus)"
+              >
+                <ZoomIn size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleZoomReset()}
+                className="p-2 text-mui-grey-600 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 transition-colors focus:outline-none flex items-center justify-center"
+                title="Reset Zoom (Ctrl + 0)"
+              >
+                <RefreshCw size={14} className="mx-auto" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleZoomOut()}
+                className="p-2 text-mui-grey-600 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 transition-colors focus:outline-none flex items-center justify-center"
+                title="Zoom Out (Ctrl + Minus)"
+              >
+                <ZoomOut size={16} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -829,7 +927,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           <div className="relative">
             <button
               type="button"
-              onClick={() => onOpenSettings("ssh-monitor")}
+              onClick={() => onOpenSettings("ssh")}
               className="p-1 rounded text-mui-grey-500 dark:text-mui-grey-400 hover:text-mui-blue-600 dark:hover:text-white transition-colors"
               title="Monitoring Settings"
             >
