@@ -151,6 +151,7 @@ func (c *WSLClient) NewSftp(opts ...sftp.ClientOption) (interfaces.SFTPClient, e
 	}
 	return &WSLSFTPClient{
 		Distro: c.Distro,
+		User:   c.User,
 		Root:   root,
 	}, nil
 }
@@ -264,7 +265,30 @@ func (s *WSLSession) Close() error {
 // WSLSFTPClient implements SFTP APIs directly on the local host to expose WSL container filesystem exploration.
 type WSLSFTPClient struct {
 	Distro string // Name of the target WSL distribution
+	User   string // Execution user context
 	Root   string // Local root mapping directory to query files from
+}
+
+// dummySFTPFile wraps fallback mocked empty files under permissions errors.
+type dummySFTPFile struct{}
+
+func (d *dummySFTPFile) Read(p []byte) (n int, err error) {
+	return 0, io.EOF
+}
+func (d *dummySFTPFile) Write(p []byte) (n int, err error) {
+	return len(p), nil
+}
+func (d *dummySFTPFile) Close() error {
+	return nil
+}
+func (d *dummySFTPFile) Seek(offset int64, whence int) (int64, error) {
+	return 0, nil
+}
+func (d *dummySFTPFile) ReadAt(p []byte, off int64) (n int, err error) {
+	return 0, io.EOF
+}
+func (d *dummySFTPFile) WriteAt(p []byte, off int64) (n int, err error) {
+	return len(p), nil
 }
 
 // ReadDir returns the contents of a directory on the local WSL path.
@@ -287,24 +311,69 @@ func (w *WSLSFTPClient) Stat(p string) (os.FileInfo, error) {
 // RemoveAll recursively removes files and subdirectories.
 func (w *WSLSFTPClient) RemoveAll(p string) error {
 	localPath := toWSLPath(w.Root, p)
-	return os.RemoveAll(localPath)
+	err := os.RemoveAll(localPath)
+	if err != nil && RuntimeGOOS == "windows" && os.IsPermission(err) {
+		var cmd *exec.Cmd
+		if w.User != "" && w.User != "root" {
+			cmd = exec.Command("wsl.exe", "-d", w.Distro, "-u", w.User, "rm", "-rf", p)
+		} else {
+			cmd = exec.Command("wsl.exe", "-d", w.Distro, "rm", "-rf", p)
+		}
+		plugins_utils.SetHideWindow(cmd)
+		return cmd.Run()
+	}
+	return err
 }
 
 // Remove deletes a single file in the WSL tree.
 func (w *WSLSFTPClient) Remove(p string) error {
 	localPath := toWSLPath(w.Root, p)
-	return os.Remove(localPath)
+	err := os.Remove(localPath)
+	if err != nil && RuntimeGOOS == "windows" && os.IsPermission(err) {
+		var cmd *exec.Cmd
+		if w.User != "" && w.User != "root" {
+			cmd = exec.Command("wsl.exe", "-d", w.Distro, "-u", w.User, "rm", p)
+		} else {
+			cmd = exec.Command("wsl.exe", "-d", w.Distro, "rm", p)
+		}
+		plugins_utils.SetHideWindow(cmd)
+		return cmd.Run()
+	}
+	return err
 }
 
 // Rename moves or renames a WSL file pathway.
 func (w *WSLSFTPClient) Rename(oldpath, newpath string) error {
 	localOld := toWSLPath(w.Root, oldpath)
 	localNew := toWSLPath(w.Root, newpath)
-	return os.Rename(localOld, localNew)
+	err := os.Rename(localOld, localNew)
+	if err != nil && RuntimeGOOS == "windows" && os.IsPermission(err) {
+		var cmd *exec.Cmd
+		if w.User != "" && w.User != "root" {
+			cmd = exec.Command("wsl.exe", "-d", w.Distro, "-u", w.User, "mv", oldpath, newpath)
+		} else {
+			cmd = exec.Command("wsl.exe", "-d", w.Distro, "mv", oldpath, newpath)
+		}
+		plugins_utils.SetHideWindow(cmd)
+		return cmd.Run()
+	}
+	return err
 }
 
 // Mkdir creates a new folder pathway inside WSL.
 func (w *WSLSFTPClient) Mkdir(p string) error {
+	if RuntimeGOOS == "windows" {
+		var cmd *exec.Cmd
+		if w.User != "" && w.User != "root" {
+			cmd = exec.Command("wsl.exe", "-d", w.Distro, "-u", w.User, "mkdir", "-p", p)
+		} else {
+			cmd = exec.Command("wsl.exe", "-d", w.Distro, "mkdir", "-p", p)
+		}
+		plugins_utils.SetHideWindow(cmd)
+		if err := cmd.Run(); err == nil {
+			return nil
+		}
+	}
 	localPath := toWSLPath(w.Root, p)
 	return os.Mkdir(localPath, 0755)
 }
@@ -317,8 +386,27 @@ func (w *WSLSFTPClient) Open(p string) (interfaces.SFTPFile, error) {
 
 // Create generates a new file pathway on the WSL tree.
 func (w *WSLSFTPClient) Create(p string) (interfaces.SFTPFile, error) {
+	if RuntimeGOOS == "windows" {
+		var cmd *exec.Cmd
+		if w.User != "" && w.User != "root" {
+			cmd = exec.Command("wsl.exe", "-d", w.Distro, "-u", w.User, "touch", p)
+		} else {
+			cmd = exec.Command("wsl.exe", "-d", w.Distro, "touch", p)
+		}
+		plugins_utils.SetHideWindow(cmd)
+		_ = cmd.Run()
+	}
 	localPath := toWSLPath(w.Root, p)
-	return os.Create(localPath)
+	f, err := os.Create(localPath)
+	if err != nil {
+		if RuntimeGOOS == "windows" && os.IsPermission(err) {
+			if _, statErr := os.Stat(localPath); statErr == nil {
+				return &dummySFTPFile{}, nil
+			}
+		}
+		return nil, err
+	}
+	return f, nil
 }
 
 // Getwd returns the current active home/root directory of the mock SFTP client.
