@@ -564,8 +564,47 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       if (title.includes(":")) {
         const parts = title.split(":");
         const potentialPath = parts.at(-1).trim();
-        if (potentialPath.startsWith("/") || potentialPath.startsWith("~")) {
-          syncExplorer(potentialPath);
+
+        let resolved = potentialPath;
+        if (!potentialPath.startsWith("/") && !potentialPath.startsWith("~")) {
+          if (potentialPath.includes("/")) {
+            if (potentialPath.startsWith("...")) {
+              const pParts = potentialPath.split("...").filter(Boolean);
+              if (pParts.length > 0) {
+                const suffix = pParts[0];
+                const suffixSegments = suffix.split("/").filter(Boolean);
+                const currentSegments = remotePath.split("/").filter(Boolean);
+                if (suffixSegments.length > 0) {
+                  const matchSegment = suffixSegments[0];
+                  const matchIndex = currentSegments.indexOf(matchSegment);
+                  if (matchIndex !== -1) {
+                    const base = currentSegments.slice(0, matchIndex).join("/");
+                    const isAbsolute = remotePath.startsWith("/");
+                    resolved = (isAbsolute ? "/" : "") + [base, ...suffixSegments].filter(Boolean).join("/");
+                  }
+                }
+              }
+            } else {
+              const suffixSegments = potentialPath.split("/").filter(Boolean);
+              const currentSegments = remotePath.split("/").filter(Boolean);
+              if (suffixSegments.length > 0) {
+                const matchSegment = suffixSegments[0];
+                const matchIndex = currentSegments.indexOf(matchSegment);
+                if (matchIndex !== -1) {
+                  const base = currentSegments.slice(0, matchIndex).join("/");
+                  const isAbsolute = remotePath.startsWith("/");
+                  resolved = (isAbsolute ? "/" : "") + [base, ...suffixSegments].filter(Boolean).join("/");
+                } else {
+                  const dir = remotePath.endsWith("/") ? remotePath : `${remotePath}/`;
+                  resolved = `${dir}${potentialPath}`;
+                }
+              }
+            }
+          }
+        }
+
+        if (resolved.startsWith("/") || resolved.startsWith("~")) {
+          syncExplorer(resolved);
         }
       }
     });
