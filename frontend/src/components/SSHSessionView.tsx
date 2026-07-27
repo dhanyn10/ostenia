@@ -833,15 +833,33 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     }));
   };
 
-  const openNewFileModal = (targetDir: string) => {
-    setCreateTargetDir(targetDir || remotePath || "/");
+  const openNewFileModal = async (targetDir: string | null = null) => {
+    let dir = targetDir;
+    if (!dir) {
+      try {
+        const current = await AppBackend.GetRemoteCurrentPath(session.id);
+        if (current) {
+          dir = current;
+        }
+      } catch (e) {}
+    }
+    setCreateTargetDir(dir || remotePath || "/");
     setNewFileName("");
     setSelectedExtension("");
     setIsNewFileModalOpen(true);
   };
 
-  const openNewFolderModal = (targetDir: string) => {
-    setCreateTargetDir(targetDir || remotePath || "/");
+  const openNewFolderModal = async (targetDir: string | null = null) => {
+    let dir = targetDir;
+    if (!dir) {
+      try {
+        const current = await AppBackend.GetRemoteCurrentPath(session.id);
+        if (current) {
+          dir = current;
+        }
+      } catch (e) {}
+    }
+    setCreateTargetDir(dir || remotePath || "/");
     setNewFolderName("");
     setIsNewFolderModalOpen(true);
   };
@@ -922,7 +940,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             onUpload={handleUpload}
-            onNewFolder={() => openNewFolderModal(remotePath)}
+            onNewFolder={() => openNewFolderModal()}
             loadingFiles={loadingFiles}
             sortedFiles={sortedFiles}
             onFileDoubleClick={handleFileDoubleClick}
@@ -1227,7 +1245,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           <button
             type="button"
             onClick={() => {
-              openNewFileModal(remotePath);
+              openNewFileModal();
               setExplorerContextMenu(null);
             }}
             className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
@@ -1238,7 +1256,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           <button
             type="button"
             onClick={() => {
-              openNewFolderModal(remotePath);
+              openNewFolderModal();
               setExplorerContextMenu(null);
             }}
             className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
@@ -1309,7 +1327,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           <button
             type="button"
             onClick={() => {
-              openNewFileModal(remotePath);
+              openNewFileModal();
               setTerminalContextMenu(null);
             }}
             className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
@@ -1320,7 +1338,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           <button
             type="button"
             onClick={() => {
-              openNewFolderModal(remotePath);
+              openNewFolderModal();
               setTerminalContextMenu(null);
             }}
             className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"

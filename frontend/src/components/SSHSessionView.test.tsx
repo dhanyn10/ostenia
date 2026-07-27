@@ -942,7 +942,9 @@ describe("SSHSessionView Component", () => {
     fireEvent.click(newFileOption);
 
     // Modal should render
-    expect(screen.getByText("Create New File")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Create New File")).toBeInTheDocument();
+    });
     const fileInput = screen.getByPlaceholderText("e.g. index");
     fireEvent.change(fileInput, { target: { value: "index" } });
 
@@ -974,7 +976,9 @@ describe("SSHSessionView Component", () => {
     expect(newFolderOption).toBeInTheDocument();
     fireEvent.click(newFolderOption);
 
-    expect(screen.getByText("Create New Folder")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Create New Folder")).toBeInTheDocument();
+    });
     const folderInput = screen.getByPlaceholderText("e.g. assets");
     fireEvent.change(folderInput, { target: { value: "assets" } });
 
@@ -1002,7 +1006,9 @@ describe("SSHSessionView Component", () => {
     const newFileInFolderOption = screen.getByText("New File");
     fireEvent.click(newFileInFolderOption);
 
-    expect(screen.getByText("Create New File")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Create New File")).toBeInTheDocument();
+    });
     const fileInput2 = screen.getByPlaceholderText("e.g. index");
     fireEvent.change(fileInput2, { target: { value: "script" } });
     const extensionSelect2 = screen.getByRole("combobox");
@@ -1032,7 +1038,9 @@ describe("SSHSessionView Component", () => {
       const termNewFileBtn = screen.getByText("New File");
       fireEvent.click(termNewFileBtn);
 
-      expect(screen.getByText("Create New File")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText("Create New File")).toBeInTheDocument();
+      });
       const fileInput3 = screen.getByPlaceholderText("e.g. index");
       fireEvent.change(fileInput3, { target: { value: "config.yaml" } });
       const extensionSelect3 = screen.getByRole("combobox");
