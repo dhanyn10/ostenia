@@ -840,6 +840,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         const current = await AppBackend.GetRemoteCurrentPath(session.id);
         if (current) {
           dir = current;
+          loadRemoteFiles(current, false, true);
         }
       } catch (e) {}
     }
@@ -856,6 +857,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         const current = await AppBackend.GetRemoteCurrentPath(session.id);
         if (current) {
           dir = current;
+          loadRemoteFiles(current, false, true);
         }
       } catch (e) {}
     }
@@ -884,7 +886,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       await AppBackend.ExecuteSFTPAction(session.id, "create_file", finalPath, "");
       addToast("Success", `File "${finalName}" created successfully`, "success");
       setIsNewFileModalOpen(false);
-      loadRemoteFiles(remotePath);
+      loadRemoteFiles(createTargetDir);
     } catch (err: any) {
       addToast("Error", err.toString(), "error");
     }
@@ -905,7 +907,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       await AppBackend.ExecuteSFTPAction(session.id, "mkdir", finalPath, "");
       addToast("Success", `Folder "${name}" created successfully`, "success");
       setIsNewFolderModalOpen(false);
-      loadRemoteFiles(remotePath);
+      loadRemoteFiles(createTargetDir);
     } catch (err: any) {
       addToast("Error", err.toString(), "error");
     }
