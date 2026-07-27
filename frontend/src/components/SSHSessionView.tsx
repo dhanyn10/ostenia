@@ -18,6 +18,9 @@ import {
   Settings,
   ZoomIn,
   ZoomOut,
+  X,
+  Folder,
+  File,
 } from "lucide-react";
 import SSHToolbar from "./ssh/SSHToolbar";
 import SSHFileExplorer from "./ssh/SSHFileExplorer";
@@ -158,6 +161,12 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
 
   // --- State Hooks ---
   const [connecting, setConnecting] = useState(true);
+  const [isNewFileModalOpen, setIsNewFileModalOpen] = useState(false);
+  const [isNewFolderModalOpen, setIsNewFolderModalOpen] = useState(false);
+  const [newFileName, setNewFileName] = useState("");
+  const [newFolderName, setNewFolderName] = useState("");
+  const [selectedExtension, setSelectedExtension] = useState("");
+  const [createTargetDir, setCreateTargetDir] = useState("");
   const [remotePath, setRemotePath] = useState("");
   const [editingPath, setEditingPath] = useState("");
   const [files, setFiles] = useState<any[]>([]);
@@ -824,6 +833,66 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     }));
   };
 
+  const openNewFileModal = (targetDir: string) => {
+    setCreateTargetDir(targetDir || remotePath || "/");
+    setNewFileName("");
+    setSelectedExtension("");
+    setIsNewFileModalOpen(true);
+  };
+
+  const openNewFolderModal = (targetDir: string) => {
+    setCreateTargetDir(targetDir || remotePath || "/");
+    setNewFolderName("");
+    setIsNewFolderModalOpen(true);
+  };
+
+  const handleCreateFileSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const name = newFileName.trim();
+    if (!name) {
+      addToast("Error", "File name cannot be empty", "error");
+      return;
+    }
+
+    let finalName = name;
+    if (selectedExtension && !name.toLowerCase().endsWith(selectedExtension.toLowerCase())) {
+      finalName = name + selectedExtension;
+    }
+
+    const dir = createTargetDir.endsWith("/") ? createTargetDir : `${createTargetDir}/`;
+    const finalPath = `${dir}${finalName}`;
+
+    try {
+      await AppBackend.ExecuteSFTPAction(session.id, "create_file", finalPath, "");
+      addToast("Success", `File "${finalName}" created successfully`, "success");
+      setIsNewFileModalOpen(false);
+      loadRemoteFiles(remotePath);
+    } catch (err: any) {
+      addToast("Error", err.toString(), "error");
+    }
+  };
+
+  const handleCreateFolderSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const name = newFolderName.trim();
+    if (!name) {
+      addToast("Error", "Folder name cannot be empty", "error");
+      return;
+    }
+
+    const dir = createTargetDir.endsWith("/") ? createTargetDir : `${createTargetDir}/`;
+    const finalPath = `${dir}${name}`;
+
+    try {
+      await AppBackend.ExecuteSFTPAction(session.id, "mkdir", finalPath, "");
+      addToast("Success", `Folder "${name}" created successfully`, "success");
+      setIsNewFolderModalOpen(false);
+      loadRemoteFiles(remotePath);
+    } catch (err: any) {
+      addToast("Error", err.toString(), "error");
+    }
+  };
+
   const handleManualNavigation = (path: string) => {
     const p = path.trim();
     if (p && p !== remotePath) {
@@ -853,22 +922,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             onUpload={handleUpload}
-            onNewFolder={async () => {
-              const name = prompt("Folder Name:");
-              if (name) {
-                try {
-                  await AppBackend.ExecuteSFTPAction(
-                    session.id,
-                    "mkdir",
-                    `${remotePath}/${name}`,
-                    "",
-                  );
-                  loadRemoteFiles(remotePath);
-                } catch (e: any) {
-                  addToast("Error", e.toString(), "error");
-                }
-              }
-            }}
+            onNewFolder={() => openNewFolderModal(remotePath)}
             loadingFiles={loadingFiles}
             sortedFiles={sortedFiles}
             onFileDoubleClick={handleFileDoubleClick}
@@ -1020,6 +1074,36 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           className="fixed z-50 bg-white dark:bg-mui-grey-800 shadow-xl border border-mui-grey-200 dark:border-white/10 rounded-lg py-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-100 cursor-default p-0"
           style={{ top: fileContextMenu.y, left: fileContextMenu.x }}
         >
+          {fileContextMenu.file?.isDir && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  const targetDir = `${remotePath}/${fileContextMenu.file.name}`;
+                  openNewFileModal(targetDir);
+                  setFileContextMenu(null);
+                }}
+                className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+              >
+                <File size={14} /> New File
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const targetDir = `${remotePath}/${fileContextMenu.file.name}`;
+                  openNewFolderModal(targetDir);
+                  setFileContextMenu(null);
+                }}
+                className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+              >
+                <Folder size={14} /> New Folder
+              </button>
+
+              <div className="h-px bg-mui-grey-100 dark:bg-white/5 my-1" />
+            </>
+          )}
+
           <button
             type="button"
             onClick={async () => {
@@ -1143,6 +1227,30 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           <button
             type="button"
             onClick={() => {
+              openNewFileModal(remotePath);
+              setExplorerContextMenu(null);
+            }}
+            className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+          >
+            <File size={14} /> New File
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              openNewFolderModal(remotePath);
+              setExplorerContextMenu(null);
+            }}
+            className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+          >
+            <Folder size={14} /> New Folder
+          </button>
+
+          <div className="h-px bg-mui-grey-100 dark:bg-white/5 my-1" />
+
+          <button
+            type="button"
+            onClick={() => {
               setShowHiddenFiles(!showHiddenFiles);
               setExplorerContextMenu(null);
             }}
@@ -1195,6 +1303,210 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           >
             <RefreshCw size={14} /> Refresh
           </button>
+
+          <div className="h-px bg-mui-grey-100 dark:bg-white/5 my-1" />
+
+          <button
+            type="button"
+            onClick={() => {
+              openNewFileModal(remotePath);
+              setTerminalContextMenu(null);
+            }}
+            className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+          >
+            <File size={14} /> New File
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              openNewFolderModal(remotePath);
+              setTerminalContextMenu(null);
+            }}
+            className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+          >
+            <Folder size={14} /> New Folder
+          </button>
+        </div>
+      )}
+
+      {/* --- Create New File Modal --- */}
+      {isNewFileModalOpen && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6">
+          {/* Backdrop */}
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-900/60 animate-in fade-in duration-300 w-full h-full border-none p-0 cursor-default focus:outline-none"
+            onClick={() => setIsNewFileModalOpen(false)}
+            onKeyDown={handleActionKey(() => setIsNewFileModalOpen(false))}
+          />
+
+          {/* Modal */}
+          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-sm shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden animate-in zoom-in-95 fade-in duration-200 text-left">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-slate-50 dark:bg-white/5">
+              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase italic tracking-tighter flex items-center gap-2">
+                <File size={16} className="text-blue-500" />
+                Create New File
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsNewFileModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest block">
+                  File Name
+                </label>
+                <input
+                  type="text"
+                  className="w-full bg-mui-grey-50 dark:bg-mui-grey-850 border border-mui-grey-200 dark:border-mui-grey-700 rounded py-2 px-3 text-xs text-mui-grey-700 dark:text-mui-grey-300 outline-none focus:border-mui-blue-500 transition-all font-mono"
+                  placeholder="e.g. index"
+                  value={newFileName}
+                  onChange={(e) => setNewFileName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleCreateFileSubmit();
+                    } else if (e.key === "Escape") {
+                      setIsNewFileModalOpen(false);
+                    }
+                  }}
+                  autoFocus
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest block">
+                  Extension
+                </label>
+                <select
+                  className="w-full bg-mui-grey-50 dark:bg-mui-grey-850 border border-mui-grey-200 dark:border-mui-grey-700 rounded py-2 px-3 text-xs text-mui-grey-700 dark:text-mui-grey-300 outline-none focus:border-mui-blue-500 transition-all font-sans"
+                  value={selectedExtension}
+                  onChange={(e) => setSelectedExtension(e.target.value)}
+                >
+                  <option value="">All Files (*.*)</option>
+                  <option value=".txt">Text File (*.txt)</option>
+                  <option value=".html">HTML Document (*.html)</option>
+                  <option value=".css">CSS Stylesheet (*.css)</option>
+                  <option value=".js">JavaScript Script (*.js)</option>
+                  <option value=".ts">TypeScript Script (*.ts)</option>
+                  <option value=".json">JSON Config (*.json)</option>
+                  <option value=".php">PHP Script (*.php)</option>
+                  <option value=".py">Python Script (*.py)</option>
+                  <option value=".sh">Shell Script (*.sh)</option>
+                  <option value=".sql">SQL Query (*.sql)</option>
+                  <option value=".md">Markdown Document (*.md)</option>
+                </select>
+              </div>
+
+              <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-relaxed">
+                Target Dir: <span className="font-mono text-slate-500 dark:text-slate-300 lowercase">{createTargetDir}</span>
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-slate-50 dark:bg-white/5 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsNewFileModalOpen(false)}
+                className="px-4 py-2 rounded-sm text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                data-testid="create-file-btn"
+                onClick={() => handleCreateFileSubmit()}
+                className="px-5 py-2 rounded-sm text-[10px] font-black uppercase tracking-widest text-white shadow-lg transition-all hover:scale-105 active:scale-95 bg-blue-600 hover:bg-blue-500 shadow-blue-500/20"
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- Create New Folder Modal --- */}
+      {isNewFolderModalOpen && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 sm:p-6">
+          {/* Backdrop */}
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-900/60 animate-in fade-in duration-300 w-full h-full border-none p-0 cursor-default focus:outline-none"
+            onClick={() => setIsNewFolderModalOpen(false)}
+            onKeyDown={handleActionKey(() => setIsNewFolderModalOpen(false))}
+          />
+
+          {/* Modal */}
+          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-sm shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden animate-in zoom-in-95 fade-in duration-200 text-left">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-slate-50 dark:bg-white/5">
+              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase italic tracking-tighter flex items-center gap-2">
+                <Folder size={16} className="text-blue-500" />
+                Create New Folder
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsNewFolderModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest block">
+                  Folder Name
+                </label>
+                <input
+                  type="text"
+                  className="w-full bg-mui-grey-50 dark:bg-mui-grey-850 border border-mui-grey-200 dark:border-mui-grey-700 rounded py-2 px-3 text-xs text-mui-grey-700 dark:text-mui-grey-300 outline-none focus:border-mui-blue-500 transition-all font-mono"
+                  placeholder="e.g. assets"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleCreateFolderSubmit();
+                    } else if (e.key === "Escape") {
+                      setIsNewFolderModalOpen(false);
+                    }
+                  }}
+                  autoFocus
+                />
+              </div>
+
+              <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-relaxed">
+                Target Dir: <span className="font-mono text-slate-500 dark:text-slate-300 lowercase">{createTargetDir}</span>
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-slate-50 dark:bg-white/5 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsNewFolderModalOpen(false)}
+                className="px-4 py-2 rounded-sm text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                data-testid="create-folder-btn"
+                onClick={() => handleCreateFolderSubmit()}
+                className="px-5 py-2 rounded-sm text-[10px] font-black uppercase tracking-widest text-white shadow-lg transition-all hover:scale-105 active:scale-95 bg-blue-600 hover:bg-blue-500 shadow-blue-500/20"
+              >
+                Create
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

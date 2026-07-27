@@ -427,6 +427,12 @@ func TestSSHManager_SFTP_Actions(t *testing.T) {
 		t.Errorf("Mkdir failed: %v", err)
 	}
 
+	mockClient.sftp.createFile = &mockSFTPFile{Writer: io.Discard, Closer: io.NopCloser(nil)}
+	err = m.ExecuteSFTPAction(sessionID, "create_file", "newfile.txt", "")
+	if err != nil {
+		t.Errorf("create_file failed: %v", err)
+	}
+
 	err = m.ExecuteSFTPAction(sessionID, "unknown", "p", "")
 	if err == nil {
 		t.Error("Expected error for unknown action")

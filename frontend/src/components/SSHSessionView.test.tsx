@@ -339,9 +339,19 @@ describe("SSHSessionView Component", () => {
     });
 
     // 2. New Folder
-    window.prompt = vi.fn().mockReturnValue("new_folder_name");
     const newBtn = screen.getByText("New");
     fireEvent.click(newBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText("Create New Folder")).toBeInTheDocument();
+    });
+
+    const folderInput = screen.getByPlaceholderText("e.g. assets");
+    fireEvent.change(folderInput, { target: { value: "new_folder_name" } });
+
+    const createFolderBtn = screen.getByTestId("create-folder-btn");
+    fireEvent.click(createFolderBtn);
+
     await waitFor(() => {
       expect(AppBackend.ExecuteSFTPAction).toHaveBeenCalledWith(mockSession.id, "mkdir", "/home/user/new_folder_name", "");
     });
@@ -430,9 +440,19 @@ describe("SSHSessionView Component", () => {
     AppBackend.ExecuteSFTPAction.mockRejectedValueOnce(new Error("SFTP action failed"));
 
     // 1. New Folder failure
-    window.prompt = vi.fn().mockReturnValue("fail_folder");
     const newBtn = screen.getByText("New");
     fireEvent.click(newBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText("Create New Folder")).toBeInTheDocument();
+    });
+
+    const folderInput = screen.getByPlaceholderText("e.g. assets");
+    fireEvent.change(folderInput, { target: { value: "fail_folder" } });
+
+    const createFolderBtn = screen.getByTestId("create-folder-btn");
+    fireEvent.click(createFolderBtn);
+
     await waitFor(() => {
       expect(mockProps.addToast).toHaveBeenCalledWith("Error", expect.stringContaining("SFTP action failed"), "error");
     });
@@ -904,5 +924,131 @@ describe("SSHSessionView Component", () => {
       key: "a",
     });
     expect(normalPropagate).toBe(true);
+  });
+
+  it("handles creating a new file and a new folder via modals", async () => {
+    render(<SSHSessionView {...mockProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("test.txt")).toBeInTheDocument();
+    });
+
+    // 1. Create file from background context menu
+    const nameHeader = screen.getByText("Name");
+    fireEvent.contextMenu(nameHeader);
+
+    const newFileOption = screen.getByText("New File");
+    expect(newFileOption).toBeInTheDocument();
+    fireEvent.click(newFileOption);
+
+    // Modal should render
+    expect(screen.getByText("Create New File")).toBeInTheDocument();
+    const fileInput = screen.getByPlaceholderText("e.g. index");
+    fireEvent.change(fileInput, { target: { value: "index" } });
+
+    // Select extension
+    const extensionSelect = screen.getByRole("combobox");
+    fireEvent.change(extensionSelect, { target: { value: ".js" } });
+
+    // Click Create
+    const createBtn = screen.getByTestId("create-file-btn");
+    fireEvent.click(createBtn);
+
+    await waitFor(() => {
+      expect(AppBackend.ExecuteSFTPAction).toHaveBeenCalledWith(
+        mockSession.id,
+        "create_file",
+        "/home/user/index.js",
+        "",
+      );
+    });
+
+    // Wait for file modal to close fully from the screen
+    await waitFor(() => {
+      expect(screen.queryByText("Create New File")).not.toBeInTheDocument();
+    });
+
+    // 2. Create folder from background context menu
+    fireEvent.contextMenu(nameHeader);
+    const newFolderOption = screen.getByText("New Folder");
+    expect(newFolderOption).toBeInTheDocument();
+    fireEvent.click(newFolderOption);
+
+    expect(screen.getByText("Create New Folder")).toBeInTheDocument();
+    const folderInput = screen.getByPlaceholderText("e.g. assets");
+    fireEvent.change(folderInput, { target: { value: "assets" } });
+
+    const createFolderBtn = screen.getByTestId("create-folder-btn");
+    fireEvent.click(createFolderBtn);
+
+    await waitFor(() => {
+      expect(AppBackend.ExecuteSFTPAction).toHaveBeenCalledWith(
+        mockSession.id,
+        "mkdir",
+        "/home/user/assets",
+        "",
+      );
+    });
+
+    // Wait for folder modal to close fully from the screen
+    await waitFor(() => {
+      expect(screen.queryByText("Create New Folder")).not.toBeInTheDocument();
+    });
+
+    // 3. Create file inside a specific directory via folder context menu
+    const folderItem = screen.getByText("folder");
+    fireEvent.contextMenu(folderItem);
+
+    const newFileInFolderOption = screen.getByText("New File");
+    fireEvent.click(newFileInFolderOption);
+
+    expect(screen.getByText("Create New File")).toBeInTheDocument();
+    const fileInput2 = screen.getByPlaceholderText("e.g. index");
+    fireEvent.change(fileInput2, { target: { value: "script" } });
+    const extensionSelect2 = screen.getByRole("combobox");
+    fireEvent.change(extensionSelect2, { target: { value: ".py" } });
+
+    const createBtn2 = screen.getByTestId("create-file-btn");
+    fireEvent.click(createBtn2);
+
+    await waitFor(() => {
+      expect(AppBackend.ExecuteSFTPAction).toHaveBeenCalledWith(
+        mockSession.id,
+        "create_file",
+        "/home/user/folder/script.py",
+        "",
+      );
+    });
+
+    // Wait for file modal to close fully from the screen
+    await waitFor(() => {
+      expect(screen.queryByText("Create New File")).not.toBeInTheDocument();
+    });
+
+    // 4. Create file from terminal context menu
+    const terminalDiv = document.querySelector(".absolute.inset-0.px-2.pt-2");
+    if (terminalDiv) {
+      fireEvent.contextMenu(terminalDiv);
+      const termNewFileBtn = screen.getByText("New File");
+      fireEvent.click(termNewFileBtn);
+
+      expect(screen.getByText("Create New File")).toBeInTheDocument();
+      const fileInput3 = screen.getByPlaceholderText("e.g. index");
+      fireEvent.change(fileInput3, { target: { value: "config.yaml" } });
+      const extensionSelect3 = screen.getByRole("combobox");
+      fireEvent.change(extensionSelect3, { target: { value: "" } }); // All Files
+
+      const createBtn3 = screen.getByTestId("create-file-btn");
+      fireEvent.click(createBtn3);
+
+      await waitFor(() => {
+        expect(AppBackend.ExecuteSFTPAction).toHaveBeenCalledWith(
+          mockSession.id,
+          "create_file",
+          "/home/user/config.yaml",
+          "",
+        );
+      });
+    }
   });
 });

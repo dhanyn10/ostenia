@@ -447,6 +447,12 @@ func (m *SSHManager) ExecuteSFTPAction(sessionID, action, remotePath, target str
 		return conn.SFTP.Rename(remotePath, target)
 	case "mkdir":
 		return conn.SFTP.Mkdir(remotePath)
+	case "create_file":
+		f, err := conn.SFTP.Create(remotePath)
+		if err != nil {
+			return err
+		}
+		return f.Close()
 	default:
 		return fmt.Errorf("unknown action: %s", action)
 	}
