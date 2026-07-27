@@ -85,4 +85,78 @@ describe('SSHManagementCategory Component', () => {
     });
     expect(preElement).toBeInTheDocument();
   });
+
+  it('renders and toggles zoom setting in local storage and dispatches event', async () => {
+    AppBackend.GetSSHSessions.mockResolvedValue([]);
+    localStorage.clear();
+
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+    render(<SSHManagementCategory />);
+
+    // Verify checkbox is rendered and checked by default
+    const checkbox = screen.getByRole('checkbox', { name: /Enable Terminal Zoom/i }) as HTMLInputElement;
+    expect(checkbox).toBeInTheDocument();
+    expect(checkbox.checked).toBe(true);
+
+    // Toggle setting off
+    fireEvent.click(checkbox);
+    await waitFor(() => {
+      expect(checkbox.checked).toBe(false);
+    });
+    expect(localStorage.getItem('ostenia_ssh_zoom_enabled')).toBe('false');
+    expect(dispatchSpy).toHaveBeenCalled();
+
+    // Toggle setting back on
+    fireEvent.click(checkbox);
+    await waitFor(() => {
+      expect(checkbox.checked).toBe(true);
+    });
+    expect(localStorage.getItem('ostenia_ssh_zoom_enabled')).toBe('true');
+  });
+
+  it('renders and toggles monitoring settings in local storage and dispatches events', async () => {
+    AppBackend.GetSSHSessions.mockResolvedValue([]);
+    localStorage.clear();
+
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+    render(<SSHManagementCategory />);
+
+    // 1. Enable Resource Tracking checkbox
+    const trackingCheckbox = screen.getByRole('checkbox', { name: /Enable Resource Tracking/i }) as HTMLInputElement;
+    expect(trackingCheckbox).toBeInTheDocument();
+    expect(trackingCheckbox.checked).toBe(true); // default true
+
+    fireEvent.click(trackingCheckbox);
+    await waitFor(() => {
+      expect(trackingCheckbox.checked).toBe(false);
+    });
+    expect(localStorage.getItem('ostenia_ssh_monitor_enabled')).toBe('false');
+    expect(dispatchSpy).toHaveBeenCalled();
+
+    // 2. Interval input
+    fireEvent.click(trackingCheckbox); // re-enable so input is active
+    await waitFor(() => {
+      expect(trackingCheckbox.checked).toBe(true);
+    });
+    const intervalInput = screen.getByLabelText(/Interval/i) as HTMLInputElement;
+    expect(intervalInput).toBeInTheDocument();
+    expect(intervalInput.disabled).toBe(false);
+
+    fireEvent.change(intervalInput, { target: { value: '5' } });
+    expect(localStorage.getItem('ostenia_ssh_monitor_interval')).toBe('5');
+
+    // Interval should be clamped
+    fireEvent.change(intervalInput, { target: { value: '100' } });
+    expect(localStorage.getItem('ostenia_ssh_monitor_interval')).toBe('60');
+
+    // 3. Display style select
+    const displaySelect = screen.getByLabelText(/Display Style/i) as HTMLSelectElement;
+    expect(displaySelect).toBeInTheDocument();
+    expect(displaySelect.disabled).toBe(false);
+
+    fireEvent.change(displaySelect, { target: { value: 'always' } });
+    expect(localStorage.getItem('ostenia_ssh_monitor_display_mode')).toBe('always');
+  });
 });
