@@ -564,47 +564,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       if (title.includes(":")) {
         const parts = title.split(":");
         const potentialPath = parts.at(-1).trim();
-
-        let resolved = potentialPath;
-        if (!potentialPath.startsWith("/") && !potentialPath.startsWith("~")) {
-          if (potentialPath.includes("/")) {
-            if (potentialPath.startsWith("...")) {
-              const pParts = potentialPath.split("...").filter(Boolean);
-              if (pParts.length > 0) {
-                const suffix = pParts[0];
-                const suffixSegments = suffix.split("/").filter(Boolean);
-                const currentSegments = remotePath.split("/").filter(Boolean);
-                if (suffixSegments.length > 0) {
-                  const matchSegment = suffixSegments[0];
-                  const matchIndex = currentSegments.indexOf(matchSegment);
-                  if (matchIndex !== -1) {
-                    const base = currentSegments.slice(0, matchIndex).join("/");
-                    const isAbsolute = remotePath.startsWith("/");
-                    resolved = (isAbsolute ? "/" : "") + [base, ...suffixSegments].filter(Boolean).join("/");
-                  }
-                }
-              }
-            } else {
-              const suffixSegments = potentialPath.split("/").filter(Boolean);
-              const currentSegments = remotePath.split("/").filter(Boolean);
-              if (suffixSegments.length > 0) {
-                const matchSegment = suffixSegments[0];
-                const matchIndex = currentSegments.indexOf(matchSegment);
-                if (matchIndex !== -1) {
-                  const base = currentSegments.slice(0, matchIndex).join("/");
-                  const isAbsolute = remotePath.startsWith("/");
-                  resolved = (isAbsolute ? "/" : "") + [base, ...suffixSegments].filter(Boolean).join("/");
-                } else {
-                  const dir = remotePath.endsWith("/") ? remotePath : `${remotePath}/`;
-                  resolved = `${dir}${potentialPath}`;
-                }
-              }
-            }
-          }
-        }
-
-        if (resolved.startsWith("/") || resolved.startsWith("~")) {
-          syncExplorer(resolved);
+        if (potentialPath.startsWith("/") || potentialPath.startsWith("~")) {
+          syncExplorer(potentialPath);
         }
       }
     });
@@ -872,37 +833,41 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     }));
   };
 
-  const openNewFileModal = async (targetDir: string | null = null) => {
-    let dir = targetDir;
-    if (!dir) {
-      try {
-        const current = await AppBackend.GetRemoteCurrentPath(session.id);
-        if (current) {
-          dir = current;
-          loadRemoteFiles(current, false, true);
-        }
-      } catch (e) {}
-    }
-    setCreateTargetDir(dir || remotePath || "/");
+  const openNewFileModal = (targetDir: string | null = null) => {
+    const dir = targetDir || remotePath || "/";
+    setCreateTargetDir(dir);
     setNewFileName("");
     setSelectedExtension("");
     setIsNewFileModalOpen(true);
   };
 
-  const openNewFolderModal = async (targetDir: string | null = null) => {
-    let dir = targetDir;
-    if (!dir) {
-      try {
-        const current = await AppBackend.GetRemoteCurrentPath(session.id);
-        if (current) {
-          dir = current;
-          loadRemoteFiles(current, false, true);
-        }
-      } catch (e) {}
-    }
-    setCreateTargetDir(dir || remotePath || "/");
+  const openNewFolderModal = (targetDir: string | null = null) => {
+    const dir = targetDir || remotePath || "/";
+    setCreateTargetDir(dir);
     setNewFolderName("");
     setIsNewFolderModalOpen(true);
+  };
+
+  const openNewFileFromTerminal = async () => {
+    let dir = "";
+    try {
+      const current = await AppBackend.GetRemoteCurrentPath(session.id);
+      if (current) {
+        dir = current;
+      }
+    } catch (e) {}
+    openNewFileModal(dir);
+  };
+
+  const openNewFolderFromTerminal = async () => {
+    let dir = "";
+    try {
+      const current = await AppBackend.GetRemoteCurrentPath(session.id);
+      if (current) {
+        dir = current;
+      }
+    } catch (e) {}
+    openNewFolderModal(dir);
   };
 
   const handleCreateFileSubmit = async (e?: React.FormEvent) => {
@@ -925,7 +890,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       await AppBackend.ExecuteSFTPAction(session.id, "create_file", finalPath, "");
       addToast("Success", `File "${finalName}" created successfully`, "success");
       setIsNewFileModalOpen(false);
-      loadRemoteFiles(createTargetDir);
+      loadRemoteFiles(remotePath);
     } catch (err: any) {
       addToast("Error", err.toString(), "error");
     }
@@ -946,7 +911,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       await AppBackend.ExecuteSFTPAction(session.id, "mkdir", finalPath, "");
       addToast("Success", `Folder "${name}" created successfully`, "success");
       setIsNewFolderModalOpen(false);
-      loadRemoteFiles(createTargetDir);
+      loadRemoteFiles(remotePath);
     } catch (err: any) {
       addToast("Error", err.toString(), "error");
     }
@@ -1368,7 +1333,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           <button
             type="button"
             onClick={() => {
-              openNewFileModal();
+              openNewFileFromTerminal();
               setTerminalContextMenu(null);
             }}
             className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
@@ -1379,7 +1344,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           <button
             type="button"
             onClick={() => {
-              openNewFolderModal();
+              openNewFolderFromTerminal();
               setTerminalContextMenu(null);
             }}
             className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"

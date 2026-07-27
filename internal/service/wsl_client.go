@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -276,7 +277,7 @@ func (d *dummySFTPFile) Read(p []byte) (n int, err error) {
 	return 0, io.EOF
 }
 func (d *dummySFTPFile) Write(p []byte) (n int, err error) {
-	return len(p), nil
+	return 0, fmt.Errorf("write not supported on dummy sftp file: access denied")
 }
 func (d *dummySFTPFile) Close() error {
 	return nil
@@ -288,7 +289,7 @@ func (d *dummySFTPFile) ReadAt(p []byte, off int64) (n int, err error) {
 	return 0, io.EOF
 }
 func (d *dummySFTPFile) WriteAt(p []byte, off int64) (n int, err error) {
-	return len(p), nil
+	return 0, fmt.Errorf("write not supported on dummy sftp file: access denied")
 }
 
 // ReadDir returns the contents of a directory on the local WSL path.
