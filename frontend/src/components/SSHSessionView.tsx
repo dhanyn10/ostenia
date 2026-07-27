@@ -632,6 +632,34 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   };
 
   /**
+   * Helper to handle file loading errors separately to minimize Cognitive Complexity.
+   */
+  const handleLoadFilesError = (err: any, isManualEntry: boolean, isAutoSync: boolean) => {
+    if (isManualEntry) {
+      addToast("Navigation", "Directory not available", "error");
+      setEditingPath(remotePath);
+      return;
+    }
+
+    if (isAutoSync) {
+      // Suppress Toast errors during background/automatic sync silently
+      return;
+    }
+
+    const errStr = String(err).toLowerCase();
+    if (
+      errStr.includes("eof") ||
+      errStr.includes("session not found") ||
+      errStr.includes("session not connected") ||
+      errStr.includes("sftp not connected")
+    ) {
+      return;
+    }
+
+    addToast("Explorer", "Failed to list files: " + err, "error");
+  };
+
+  /**
    * Queries directory listings from remote target via SFTP.
    *
    * @param path Target remote directory path to load.
@@ -657,25 +685,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       setRemotePath(targetPath);
       currentPathRef.current = targetPath;
     } catch (err: any) {
-      if (isManualEntry) {
-        addToast("Navigation", "Directory not available", "error");
-        setEditingPath(remotePath);
-      } else {
-        if (isAutoSync) {
-          // Suppress Toast errors during background/automatic sync silently
-          return;
-        }
-        const errStr = String(err).toLowerCase();
-        if (
-          errStr.includes("eof") ||
-          errStr.includes("session not found") ||
-          errStr.includes("session not connected") ||
-          errStr.includes("sftp not connected")
-        ) {
-          return;
-        }
-        addToast("Explorer", "Failed to list files: " + err, "error");
-      }
+      handleLoadFilesError(err, isManualEntry, isAutoSync);
     } finally {
       setLoadingFiles(false);
     }

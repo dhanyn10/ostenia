@@ -7,7 +7,6 @@ import {
   Search,
   ChevronRight,
   Settings,
-  Activity,
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
