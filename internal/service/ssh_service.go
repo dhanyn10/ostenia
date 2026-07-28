@@ -636,38 +636,43 @@ func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
 
 	// Try to query the interactive shell's active working directory
 	if conn.Client != nil {
-		sess, err := conn.Client.NewSession()
-		if err == nil {
-			defer sess.Close()
-			stdout, err := sess.StdoutPipe()
+		// Only execute for real production clients to avoid blocking on mock pipes in unit tests
+		_, isGoph := conn.Client.(*gophSSHClient)
+		_, isWSL := conn.Client.(*WSLClient)
+		if isGoph || isWSL {
+			sess, err := conn.Client.NewSession()
 			if err == nil {
-				// Layered command: first try /proc-based loop, then fallback to ps/pwdx
-				cmdStr := `for d in /proc/[0-9]*/; do if [ -r "$d/cwd" ] && [ -r "$d/stat" ]; then comm=$(cut -d' ' -f2 "$d/stat" 2>/dev/null | tr -d '()'); if [ "$comm" = "bash" ] || [ "$comm" = "sh" ] || [ "$comm" = "zsh" ] || [ "$comm" = "ash" ]; then tty=$(cut -d' ' -f7 "$d/stat" 2>/dev/null); if [ "$tty" -ne 0 ] && [ "$tty" -ne -1 ]; then readlink "$d/cwd" 2>/dev/null; exit 0; fi; fi; fi; done; ps -o pid,tty,comm -u $(whoami) 2>/dev/null | grep -E "bash|zsh|sh|ash" | grep -v '?' | awk '{print $1}' | while read pid; do if [ -d "/proc/$pid/cwd" ]; then readlink "/proc/$pid/cwd" 2>/dev/null; exit 0; elif command -v pwdx >/dev/null 2>&1; then pwdx "$pid" 2>/dev/null | cut -d' ' -f2-; exit 0; fi; done`
-				err = sess.Run(cmdStr)
+				defer sess.Close()
+				stdout, err := sess.StdoutPipe()
 				if err == nil {
-					// Read stdout with a short timeout to prevent hanging on mock pipes in tests
-					outputChan := make(chan []byte, 1)
-					errChan := make(chan error, 1)
-					go func() {
-						b, e := io.ReadAll(stdout)
-						if e != nil {
-							errChan <- e
-						} else {
-							outputChan <- b
+					// Layered command: first try /proc-based loop (excluding query process PIDs), then fallback to ps/pwdx
+					cmdStr := `curr_pid=$$; curr_ppid=$(awk '{print $4}' /proc/$$/stat 2>/dev/null); for d in /proc/[0-9]*/; do pid=$(basename "$d"); if [ "$pid" != "$curr_pid" ] && [ "$pid" != "$curr_ppid" ]; then if [ -r "$d/cwd" ] && [ -r "$d/stat" ]; then comm=$(cut -d' ' -f2 "$d/stat" 2>/dev/null | tr -d '()'); if [ "$comm" = "bash" ] || [ "$comm" = "sh" ] || [ "$comm" = "zsh" ] || [ "$comm" = "ash" ]; then readlink "$d/cwd" 2>/dev/null; exit 0; fi; fi; fi; done; ps -o pid,comm -u $(whoami) 2>/dev/null | grep -E "bash|zsh|sh|ash" | awk '{print $1}' | while read pid; do if [ "$pid" != "$curr_pid" ] && [ "$pid" != "$curr_ppid" ]; then if [ -d "/proc/$pid/cwd" ]; then readlink "/proc/$pid/cwd" 2>/dev/null; exit 0; elif command -v pwdx >/dev/null 2>&1; then pwdx "$pid" 2>/dev/null | cut -d' ' -f2-; exit 0; fi; fi; done`
+					err = sess.Run(cmdStr)
+					if err == nil {
+						// Use a generous 3-second timeout for real environments to avoid process-spawning latency failures
+						outputChan := make(chan []byte, 1)
+						errChan := make(chan error, 1)
+						go func() {
+							b, e := io.ReadAll(stdout)
+							if e != nil {
+								errChan <- e
+							} else {
+								outputChan <- b
+							}
+						}()
+
+						var outputBytes []byte
+						select {
+						case outputBytes = <-outputChan:
+						case <-errChan:
+						case <-time.After(3 * time.Second):
+							// Timeout
 						}
-					}()
 
-					var outputBytes []byte
-					select {
-					case outputBytes = <-outputChan:
-					case <-errChan:
-					case <-time.After(250 * time.Millisecond):
-						// Timed out (e.g. mock pipe waiting for input in unit tests)
-					}
-
-					resolvedPath := strings.TrimSpace(string(outputBytes))
-					if resolvedPath != "" {
-						return resolvedPath, nil
+						resolvedPath := strings.TrimSpace(string(outputBytes))
+						if resolvedPath != "" {
+							return resolvedPath, nil
+						}
 					}
 				}
 			}
