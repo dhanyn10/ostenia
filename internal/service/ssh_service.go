@@ -645,35 +645,55 @@ func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
 				defer sess.Close()
 				stdout, err := sess.StdoutPipe()
 				if err == nil {
-					// Layered command: first try /proc-based loop (excluding query process PIDs), then fallback to ps/pwdx
-					cmdStr := `curr_pid=$$; curr_ppid=$(awk '{print $4}' /proc/$$/stat 2>/dev/null); for d in /proc/[0-9]*/; do pid=$(basename "$d"); if [ "$pid" != "$curr_pid" ] && [ "$pid" != "$curr_ppid" ]; then if [ -r "$d/cwd" ] && [ -r "$d/stat" ]; then comm=$(cut -d' ' -f2 "$d/stat" 2>/dev/null | tr -d '()'); if [ "$comm" = "bash" ] || [ "$comm" = "sh" ] || [ "$comm" = "zsh" ] || [ "$comm" = "ash" ]; then readlink "$d/cwd" 2>/dev/null; exit 0; fi; fi; fi; done; ps -o pid,comm -u $(whoami) 2>/dev/null | grep -E "bash|zsh|sh|ash" | awk '{print $1}' | while read pid; do if [ "$pid" != "$curr_pid" ] && [ "$pid" != "$curr_ppid" ]; then if [ -d "/proc/$pid/cwd" ]; then readlink "/proc/$pid/cwd" 2>/dev/null; exit 0; elif command -v pwdx >/dev/null 2>&1; then pwdx "$pid" 2>/dev/null | cut -d' ' -f2-; exit 0; fi; fi; done`
-					err = sess.Run(cmdStr)
-					if err == nil {
-						// Use a generous 3-second timeout for real environments to avoid process-spawning latency failures
-						outputChan := make(chan []byte, 1)
-						errChan := make(chan error, 1)
-						go func() {
-							b, e := io.ReadAll(stdout)
-							if e != nil {
-								errChan <- e
-							} else {
-								outputChan <- b
-							}
-						}()
-
-						var outputBytes []byte
-						select {
-						case outputBytes = <-outputChan:
-						case <-errChan:
-						case <-time.After(3 * time.Second):
-							// Timeout
+				// Layered quote-free command: first try to exclude our query process PIDs and pgrep shell CWDs
+				cmdStr := "echo $$; pgrep -u $(whoami) bash; pgrep -u $(whoami) sh; pgrep -u $(whoami) zsh; pgrep -u $(whoami) ash"
+				err = sess.Run(cmdStr)
+				if err == nil {
+					// Use a generous 3-second timeout for real environments to avoid process-spawning latency failures
+					outputChan := make(chan []byte, 1)
+					errChan := make(chan error, 1)
+					go func() {
+						b, e := io.ReadAll(stdout)
+						if e != nil {
+							errChan <- e
+						} else {
+							outputChan <- b
 						}
+					}()
 
-						resolvedPath := strings.TrimSpace(string(outputBytes))
-						if resolvedPath != "" {
-							return resolvedPath, nil
+					var outputBytes []byte
+					select {
+					case outputBytes = <-outputChan:
+					case <-errChan:
+					case <-time.After(3 * time.Second):
+						// Timeout
+					}
+
+					lines := strings.Split(strings.TrimSpace(string(outputBytes)), "\n")
+					if len(lines) > 0 {
+						queryPID := strings.TrimSpace(lines[0])
+						// Query each other shell PID for its CWD using a quote-free command
+						for _, line := range lines[1:] {
+							pid := strings.TrimSpace(line)
+							if pid != "" && pid != queryPID {
+								subSess, err := conn.Client.NewSession()
+								if err == nil {
+									subStdout, err := subSess.StdoutPipe()
+									if err == nil {
+										subSess.Run("readlink /proc/" + pid + "/cwd")
+										subBytes, _ := io.ReadAll(subStdout)
+										resolvedPath := strings.TrimSpace(string(subBytes))
+										if resolvedPath != "" {
+											subSess.Close()
+											return resolvedPath, nil
+										}
+									}
+									subSess.Close()
+								}
+							}
 						}
 					}
+				}
 				}
 			}
 		}
