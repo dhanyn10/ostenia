@@ -240,8 +240,8 @@ func TestWSLClient_SftpAndFiles_Getwd(t *testing.T) {
 	defer cleanup()
 
 	wd, err := sftpClient.Getwd()
-	if err != nil || wd != "/" {
-		t.Errorf("Expected Getwd to return '/', got '%s' (err: %v)", wd, err)
+	if err != nil || wd != "/root" {
+		t.Errorf("Expected Getwd to return '/root', got '%s' (err: %v)", wd, err)
 	}
 }
 

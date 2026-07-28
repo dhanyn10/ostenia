@@ -152,6 +152,7 @@ func (c *WSLClient) NewSftp(opts ...sftp.ClientOption) (interfaces.SFTPClient, e
 	return &WSLSFTPClient{
 		Distro: c.Distro,
 		Root:   root,
+		User:   c.User,
 	}, nil
 }
 
@@ -265,6 +266,7 @@ func (s *WSLSession) Close() error {
 type WSLSFTPClient struct {
 	Distro string // Name of the target WSL distribution
 	Root   string // Local root mapping directory to query files from
+	User   string // Specific execution user context
 }
 
 // ReadDir returns the contents of a directory on the local WSL path.
@@ -323,7 +325,10 @@ func (w *WSLSFTPClient) Create(p string) (interfaces.SFTPFile, error) {
 
 // Getwd returns the current active home/root directory of the mock SFTP client.
 func (w *WSLSFTPClient) Getwd() (string, error) {
-	return "/", nil
+	if w.User == "" || w.User == "root" {
+		return "/root", nil
+	}
+	return "/home/" + w.User, nil
 }
 
 // Close gracefully closes the WSL SFTP client.
