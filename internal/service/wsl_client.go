@@ -412,6 +412,21 @@ func (w *WSLSFTPClient) Create(p string) (interfaces.SFTPFile, error) {
 
 // Getwd returns the current active home/root directory of the mock SFTP client.
 func (w *WSLSFTPClient) Getwd() (string, error) {
+	if RuntimeGOOS == "windows" {
+		userStr := "root"
+		if w.User != "" {
+			userStr = w.User
+		}
+		cmd := exec.Command("wsl.exe", "-d", w.Distro, "-u", userStr, "sh", "-c", "echo $HOME")
+		plugins_utils.SetHideWindow(cmd)
+		output, err := cmd.Output()
+		if err == nil {
+			trimmed := strings.TrimSpace(string(output))
+			if trimmed != "" && strings.HasPrefix(trimmed, "/") {
+				return trimmed, nil
+			}
+		}
+	}
 	return "/", nil
 }
 

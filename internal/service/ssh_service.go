@@ -640,6 +640,26 @@ func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
 		return "", fmt.Errorf("SFTP not connected")
 	}
 
+	// For WSL sessions on Windows, dynamically fetch the active shell's CWD from proc
+	if conn.IsWSL && RuntimeGOOS == "windows" {
+		if wslCli, ok := conn.Client.(*WSLClient); ok {
+			userStr := "root"
+			if wslCli.User != "" {
+				userStr = wslCli.User
+			}
+			cmdStr := fmt.Sprintf("readlink -e /proc/$(pgrep -u %s -n bash || pgrep -u %s -n sh)/cwd", userStr, userStr)
+			cmd := exec.Command("wsl.exe", "-d", wslCli.Distro, "sh", "-c", cmdStr)
+			utils.SetHideWindow(cmd)
+			output, err := cmd.Output()
+			if err == nil {
+				trimmed := strings.TrimSpace(string(output))
+				if trimmed != "" && strings.HasPrefix(trimmed, "/") {
+					return trimmed, nil
+				}
+			}
+		}
+	}
+
 	pathStr, err := conn.SFTP.Getwd()
 	return pathStr, err
 }

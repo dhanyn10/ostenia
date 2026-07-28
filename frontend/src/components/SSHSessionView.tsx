@@ -559,7 +559,15 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     setTimeout(performFit, 500);
 
     // Forward local user keystrokes straight to back-end shell stream
-    xterm.current.onData((data) => AppBackend.SendSSHInput(session.id, data));
+    xterm.current.onData((data) => {
+      AppBackend.SendSSHInput(session.id, data);
+      // Auto-sync the sidebar file explorer with the terminal when the user presses Enter
+      if (data.includes("\r") || data.includes("\n")) {
+        setTimeout(() => {
+          syncExplorer();
+        }, 400);
+      }
+    });
     xterm.current.onTitleChange((title) => {
       if (title.includes(":")) {
         const parts = title.split(":");
