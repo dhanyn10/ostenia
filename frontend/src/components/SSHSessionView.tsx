@@ -155,6 +155,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const currentPathRef = useRef("");
   const isFetchingUsageRef = useRef(false);
+  const syncExplorerRef = useRef<any>(null);
+  const lastEnterSyncRef = useRef<number>(0);
 
   // --- State Hooks ---
   const [connecting, setConnecting] = useState(true);
@@ -298,6 +300,32 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   useEffect(() => {
     setEditingPath(remotePath);
   }, [remotePath]);
+
+  useEffect(() => {
+    syncExplorerRef.current = syncExplorer;
+  });
+
+  // Periodically synchronize the remote sidebar file explorer with the active terminal working directory
+  useEffect(() => {
+    if (connecting) return;
+
+    let isMounted = true;
+    const syncInterval = setInterval(async () => {
+      if (!isMounted) return;
+      try {
+        if (syncExplorerRef.current) {
+          await syncExplorerRef.current();
+        }
+      } catch (e) {
+        // Silently absorb errors during auto-sync to avoid intrusive alerts
+      }
+    }, 3000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(syncInterval);
+    };
+  }, [session.id, connecting]);
 
   /**
    * Helper utility to convert raw file sizes into readable units.
@@ -549,8 +577,21 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     if (terminalRef.current) ro.observe(terminalRef.current);
     setTimeout(performFit, 500);
 
-    // Forward local user keystrokes straight to back-end shell stream
-    xterm.current.onData((data) => AppBackend.SendSSHInput(session.id, data));
+    // Forward local user keystrokes straight to back-end shell stream and sync path on Enter keypress (throttled)
+    xterm.current.onData((data) => {
+      AppBackend.SendSSHInput(session.id, data);
+      if (data.includes("\r") || data.includes("\n")) {
+        const now = Date.now();
+        if (now - lastEnterSyncRef.current > 1500) {
+          lastEnterSyncRef.current = now;
+          setTimeout(() => {
+            if (syncExplorerRef.current) {
+              syncExplorerRef.current();
+            }
+          }, 150);
+        }
+      }
+    });
     xterm.current.onTitleChange((title) => {
       if (title.includes(":")) {
         const parts = title.split(":");
