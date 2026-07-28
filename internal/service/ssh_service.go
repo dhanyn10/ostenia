@@ -643,11 +643,7 @@ func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
 	// For WSL sessions on Windows, dynamically fetch the active shell's CWD from proc
 	if conn.IsWSL && RuntimeGOOS == "windows" {
 		if wslCli, ok := conn.Client.(*WSLClient); ok {
-			userStr := "root"
-			if wslCli.User != "" {
-				userStr = wslCli.User
-			}
-			cmdStr := fmt.Sprintf("readlink -e /proc/$(pgrep -u %s -n bash || pgrep -u %s -n sh)/cwd", userStr, userStr)
+			cmdStr := "readlink -e /proc/$(pgrep -n bash || pgrep -n zsh || pgrep -n sh)/cwd"
 			cmd := exec.Command("wsl.exe", "-d", wslCli.Distro, "sh", "-c", cmdStr)
 			utils.SetHideWindow(cmd)
 			output, err := cmd.Output()
