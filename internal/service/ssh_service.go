@@ -646,7 +646,7 @@ func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
 				stdout, err := sess.StdoutPipe()
 				if err == nil {
 				// Pure-bash quote-free /proc loop command: zero-dependency, highly compatible, and fully immune to quote mangling
-				cmdStr := `curr_pid=$$; curr_ppid=$(awk {print\ \$4} /proc/$$/stat 2>/dev/null); for d in /proc/[0-9]*/; do temp=${d%/}; pid=${temp##*/}; if [ $pid -ne $curr_pid ] && [ $pid -ne $curr_ppid ]; then if [ -r $d/cwd ] && [ -r $d/stat ]; then comm=$(cut -d\  -f2 $d/stat 2>/dev/null | tr -d '()'); if [ $comm = \(bash\) ] || [ $comm = \(sh\) ] || [ $comm = \(zsh\) ] || [ $comm = \(ash\) ]; then readlink $d/cwd 2>/dev/null; exit 0; fi; fi; fi; done`
+				cmdStr := `curr_pid=$$; curr_ppid=$(awk {print\ \$4} /proc/$$/stat 2>/dev/null); for d in /proc/[0-9]*/; do temp=${d%/}; pid=${temp##*/}; if [ $pid -ne $curr_pid ] && [ $pid -ne $curr_ppid ]; then if [ -r $d/cwd ] && [ -r $d/stat ]; then comm=$(cut -d\  -f2 $d/stat 2>/dev/null); comm=${comm#\(}; comm=${comm%\)}; if [ $comm = bash ] || [ $comm = sh ] || [ $comm = zsh ] || [ $comm = ash ]; then readlink $d/cwd 2>/dev/null; exit 0; fi; fi; fi; done`
 				err = sess.Run(cmdStr)
 				if err == nil {
 					// Use a generous 3-second timeout for real environments to avoid process-spawning latency failures
