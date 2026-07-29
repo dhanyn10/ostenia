@@ -651,7 +651,11 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       setConnecting(false);
       xterm.current.write("\x1b[32mConnected successfully.\x1b[0m\r\n\r\n");
       performFit();
-      loadRemoteFiles("", false, true);
+      // Wait for the terminal to be fully ready before taking its path to explore in the sidebar
+      const delay = (window as any).vitest || process.env.NODE_ENV === 'test' ? 0 : 800;
+      setTimeout(() => {
+        loadRemoteFiles("", false, true);
+      }, delay);
     } catch (err) {
       setConnecting(false);
       xterm.current.write(`\x1b[31mConnection failed: ${err}\x1b[0m\r\n`);
