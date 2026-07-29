@@ -88,6 +88,19 @@ func toWSLPath(wslRoot, remotePath string) string {
 	if cleaned == "." || cleaned == "/" {
 		return wslRoot
 	}
+
+	// On Windows, if the path is a mount point under /mnt/ (e.g., /mnt/c/... or /mnt/d/...),
+	// we directly map it to local Windows drive paths (e.g., C:\... or D:\...)
+	// to avoid P9 virtual network share loopback access blocks.
+	if RuntimeGOOS == "windows" && strings.HasPrefix(cleaned, "/mnt/") {
+		parts := strings.Split(strings.TrimPrefix(cleaned, "/mnt/"), "/")
+		if len(parts) > 0 && len(parts[0]) == 1 {
+			driveLetter := strings.ToUpper(parts[0])
+			rest := strings.Join(parts[1:], string(filepath.Separator))
+			return driveLetter + ":\\" + rest
+		}
+	}
+
 	trimmed := strings.TrimPrefix(cleaned, "/")
 	return filepath.Join(wslRoot, filepath.FromSlash(trimmed))
 }
