@@ -621,7 +621,8 @@ func (m *SSHManager) findLinuxEditor(localPath string) *exec.Cmd {
 	return nil
 }
 
-// GetCurrentPath retrieves the remote path string of the current SFTP working directory.
+// GetCurrentPath retrieves the remote path string of the current SFTP working directory or active WSL/SSH shell.
+// For WSL distribution shells on Windows, it queries `/proc` inside WSL without quote mangling.
 func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
 	m.mu.RLock()
 	conn, ok := m.connections[sessionID]
@@ -632,6 +633,23 @@ func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
 	}
 	if conn.SFTP == nil {
 		return "", fmt.Errorf("SFTP not connected")
+	}
+
+	// If this is a WSL connection, we can try to query the distro process via wslCommand to read the shell CWD.
+	if conn.IsWSL {
+		// Use a quote-free bash script leveraging pure parameter expansion and /proc/<pid>/stat parsing.
+		// Pure parameter expansion pattern like ${d%/} and ${pid##*/} allows identifying target shell pids.
+		// By loop-scanning directories in /proc we locate processes matching sh, bash, zsh, fish,
+		// checking if their tty is active, and readlink their cwd.
+		script := `for d in /proc/[0-9]*/; do d=${d%/}; pid=${d##*/}; if [ -r /proc/$pid/stat ]; then read -r p comm s ppid pgrp sess tty < /proc/$pid/stat; c=${comm#\(}; c=${c%\)}; if [ "$c" = "bash" ] || [ "$c" = "zsh" ] || [ "$c" = "sh" ] || [ "$c" = "fish" ]; then readlink /proc/$pid/cwd; break; fi; fi; done`
+		cmd := wslCommand(strings.TrimPrefix(conn.Client.(*WSLClient).Distro, wslPrefix), "sh", "-c", script)
+		output, err := cmd.Output()
+		if err == nil {
+			decoded := strings.TrimSpace(decodeMaybeUTF16(output))
+			if decoded != "" && strings.HasPrefix(decoded, "/") {
+				return decoded, nil
+			}
+		}
 	}
 
 	pathStr, err := conn.SFTP.Getwd()
