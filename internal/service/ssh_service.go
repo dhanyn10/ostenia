@@ -35,14 +35,14 @@ type RemoteFile = interfaces.RemoteFile
 // SSHConnection wraps the complete active network connection state for a target session,
 // including its SSH client, SFTP helper, interactive terminal stdin/stdout channels, and cancellable context.
 type SSHConnection struct {
-	SessionID string                  // Unique identifier of the SSH session
-	Client    interfaces.SSHClient    // SSH client wrapper (goph or custom WSL client)
-	SFTP      interfaces.SFTPClient   // SFTP client wrapper for file operations
-	Shell     io.WriteCloser          // Stdin pipe to send interactive commands to the shell
-	PTY       interfaces.SSHSession   // Interactive terminal session (with PTY requested)
-	Cancel    context.CancelFunc      // Function to cancel context and teardown this session
-	LastSync  time.Time               // Timestamp of the last interactive synchronisation
-	IsWSL     bool                    // Boolean flag indicating if this is a WSL loopback connection
+	SessionID string                // Unique identifier of the SSH session
+	Client    interfaces.SSHClient  // SSH client wrapper (goph or custom WSL client)
+	SFTP      interfaces.SFTPClient // SFTP client wrapper for file operations
+	Shell     io.WriteCloser        // Stdin pipe to send interactive commands to the shell
+	PTY       interfaces.SSHSession // Interactive terminal session (with PTY requested)
+	Cancel    context.CancelFunc    // Function to cancel context and teardown this session
+	LastSync  time.Time             // Timestamp of the last interactive synchronisation
+	IsWSL     bool                  // Boolean flag indicating if this is a WSL loopback connection
 }
 
 // SSHManager coordinates active SSH and WSL interactive terminal and SFTP connections.
