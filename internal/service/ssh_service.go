@@ -637,12 +637,20 @@ func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
 
 	// If this is a WSL connection, we can query the distro process via wslCommand to read the active shell CWD.
 	if conn.IsWSL {
-		// Use a quote-free bash script leveraging pure parameter expansion, active TTY filtering, and /proc/<pid>/stat parsing.
+		// Use a quote-free bash script leveraging pure parameter expansion and /proc/<pid>/stat parsing.
 		// Pure parameter expansion pattern like ${d%/} and ${pid##*/} allows identifying target shell pids.
 		// By loop-scanning directories in /proc we locate processes matching sh, bash, zsh, fish,
-		// filtering for active TTYs, sorting by PID, and selecting the highest PID (the latest terminal shell).
-		script := `for d in /proc/[0-9]*/; do d=${d%/}; pid=${d##*/}; if [ -r "/proc/$pid/stat" ]; then stat_content=$(cat "/proc/$pid/stat"); rest="${stat_content##*) }"; read -r state ppid pgrp sess tty_nr _ <<< "$rest"; comm="${stat_content%%)*}"; comm="${comm##*\(}"; if [ "$comm" = "bash" ] || [ "$comm" = "zsh" ] || [ "$comm" = "sh" ] || [ "$comm" = "fish" ]; then if [ "$tty_nr" != "0" ] && [ "$tty_nr" != "-1" ] && [ -d "/proc/$pid/cwd" ]; then cwd=$(readlink "/proc/$pid/cwd"); if [ -n "$cwd" ]; then echo "$pid $cwd"; fi; fi; fi; fi; done | sort -n | tail -n 1 | cut -d" " -f2-`
-		cmd := wslCommand(strings.TrimPrefix(conn.Client.(*WSLClient).Distro, wslPrefix), "sh", "-c", script)
+		// sorting by PID, and selecting the highest PID (the latest terminal shell).
+		script := `for d in /proc/[0-9]*/; do d=${d%/}; pid=${d##*/}; if [ -r "/proc/$pid/stat" ]; then stat_content=$(cat "/proc/$pid/stat"); comm="${stat_content%%)*}"; comm="${comm##*\(}"; if [ "$comm" = "bash" ] || [ "$comm" = "zsh" ] || [ "$comm" = "sh" ] || [ "$comm" = "fish" ]; then if [ -d "/proc/$pid/cwd" ]; then cwd=$(readlink "/proc/$pid/cwd"); if [ -n "$cwd" ]; then echo "$pid $cwd"; fi; fi; fi; fi; done | sort -n | tail -n 1 | cut -d" " -f2-`
+
+		var cmd *exec.Cmd
+		wslCli := conn.Client.(*WSLClient)
+		if wslCli.User != "" && wslCli.User != "root" {
+			cmd = wslCommand(wslCli.Distro, "-u", wslCli.User, "sh", "-c", script)
+		} else {
+			cmd = wslCommand(wslCli.Distro, "sh", "-c", script)
+		}
+
 		output, err := cmd.Output()
 		if err == nil {
 			decoded := strings.TrimSpace(decodeMaybeUTF16(output))
@@ -650,6 +658,8 @@ func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
 				return decoded, nil
 			}
 		}
+		// DO NOT fall back to conn.SFTP.Getwd() which always returns "/" on WSL!
+		return "", fmt.Errorf("could not determine terminal CWD for WSL")
 	}
 
 	pathStr, err := conn.SFTP.Getwd()
