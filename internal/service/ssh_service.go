@@ -664,28 +664,38 @@ func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
 
 	// For standard/other remote SSH connections, attempt to query CWD via background SSH session execution.
 	if conn.Client != nil {
-		sess, err := conn.Client.NewSession()
-		if err == nil {
-			defer sess.Close()
-			stdout, errPipe := sess.StdoutPipe()
-			if errPipe == nil {
-				script := `for d in /proc/[0-9]*/; do d=${d%/}; pid=${d##*/}; if [ -r "/proc/$pid/stat" ]; then stat_content=$(cat "/proc/$pid/stat"); comm="${stat_content%%)*}"; comm="${comm##*\(}"; if [ "$comm" = "bash" ] || [ "$comm" = "zsh" ] || [ "$comm" = "sh" ] || [ "$comm" = "fish" ]; then if [ -d "/proc/$pid/cwd" ]; then cwd=$(readlink "/proc/$pid/cwd"); if [ -n "$cwd" ]; then echo "$pid $cwd"; fi; fi; fi; fi; done | sort -n | tail -n 1 | cut -d" " -f2-`
-				errRun := sess.Run(script)
-				if errRun == nil {
-					outputBytes, errRead := io.ReadAll(stdout)
-					if errRead == nil {
-						decoded := strings.TrimSpace(string(outputBytes))
-						if decoded != "" && strings.HasPrefix(decoded, "/") {
-							return decoded, nil
-						}
-					}
-				}
-			}
+		decoded, errQuery := queryRemoteCWD(conn.Client)
+		if errQuery == nil && decoded != "" && strings.HasPrefix(decoded, "/") {
+			return decoded, nil
 		}
 	}
 
 	pathStr, err := conn.SFTP.Getwd()
 	return pathStr, err
+}
+
+// queryRemoteCWD executes the /proc-based CWD lookup over a background SSH session on standard remote hosts.
+// This is defined as a package-level variable to allow unit tests to mock remote execution safely.
+var queryRemoteCWD = func(client interfaces.SSHClient) (string, error) {
+	sess, err := client.NewSession()
+	if err != nil {
+		return "", err
+	}
+	defer sess.Close()
+	stdout, errPipe := sess.StdoutPipe()
+	if errPipe != nil {
+		return "", errPipe
+	}
+	script := `for d in /proc/[0-9]*/; do d=${d%/}; pid=${d##*/}; if [ -r "/proc/$pid/stat" ]; then stat_content=$(cat "/proc/$pid/stat"); comm="${stat_content%%)*}"; comm="${comm##*\(}"; if [ "$comm" = "bash" ] || [ "$comm" = "zsh" ] || [ "$comm" = "sh" ] || [ "$comm" = "fish" ]; then if [ -d "/proc/$pid/cwd" ]; then cwd=$(readlink "/proc/$pid/cwd"); if [ -n "$cwd" ]; then echo "$pid $cwd"; fi; fi; fi; fi; done | sort -n | tail -n 1 | cut -d" " -f2-`
+	errRun := sess.Run(script)
+	if errRun != nil {
+		return "", errRun
+	}
+	outputBytes, errRead := io.ReadAll(stdout)
+	if errRead != nil {
+		return "", errRead
+	}
+	return strings.TrimSpace(string(outputBytes)), nil
 }
 
 // getAuth builds standard password-based, agent-based, or SSH key authentication setups.
