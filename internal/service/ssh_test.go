@@ -230,6 +230,29 @@ func TestSSHManager_PathAndFiles(t *testing.T) {
 	}
 }
 
+func TestSSHManager_GetCurrentPath_RemoteSSH(t *testing.T) {
+	m, sessionID, mockClient, cleanup := setupSSHTest(t)
+	defer cleanup()
+
+	// Write custom directory path to the mock session's output stream
+	pr, pw := io.Pipe()
+	mockClient.session.stdout = pr
+	mockClient.session.runErr = nil
+
+	go func() {
+		pw.Write([]byte("/var/www/html\n"))
+		pw.Close()
+	}()
+
+	path, err := m.GetCurrentPath(sessionID)
+	if err != nil {
+		t.Fatalf("GetCurrentPath failed: %v", err)
+	}
+	if path != "/var/www/html" {
+		t.Errorf("Expected /var/www/html, got %s", path)
+	}
+}
+
 func TestSSHManager_ListFiles_EOF(t *testing.T) {
 	m, sessionID, mockClient, cleanup := setupSSHTest(t)
 	defer cleanup()
@@ -877,12 +900,14 @@ func TestSSHManager_AuthMethods(t *testing.T) {
 }
 
 type mockAddr struct{}
+
 func (mockAddr) Network() string { return "tcp" }
 func (mockAddr) String() string  { return "127.0.0.1:22" }
 
 type mockPublicKey struct{}
-func (mockPublicKey) Type() string { return "ssh-rsa" }
-func (mockPublicKey) Marshal() []byte { return []byte("mock-key-bytes") }
+
+func (mockPublicKey) Type() string                                 { return "ssh-rsa" }
+func (mockPublicKey) Marshal() []byte                              { return []byte("mock-key-bytes") }
 func (mockPublicKey) Verify(data []byte, sig *ssh.Signature) error { return nil }
 
 func TestSSHManager_HostKeyCallback(t *testing.T) {
