@@ -483,6 +483,49 @@ func TestSSHManager_WSLConnect(t *testing.T) {
 	}
 }
 
+func TestSSHManager_WSLConnect_GetCurrentPath_ErrorFallback(t *testing.T) {
+	origGOOS := RuntimeGOOS
+	defer func() { RuntimeGOOS = origGOOS }()
+	RuntimeGOOS = "linux"
+
+	origWslCommand := wslCommand
+	defer func() { wslCommand = origWslCommand }()
+	// Mock wslCommand to return an error / empty output to simulate failed CWD query
+	wslCommand = func(distro string, args ...string) *exec.Cmd {
+		for _, arg := range args {
+			if strings.Contains(arg, "readlink") {
+				return exec.Command("sh", "-c", "exit 1") // NOSONAR
+			}
+		}
+		return exec.Command("sh", "-c", "echo 'connected'") // NOSONAR
+	}
+
+	m := NewSSHManager()
+	sess := config.SSHSession{
+		ID:   "wsl-session-id-err",
+		Name: "My WSL Err",
+		Host: "wsl://Ubuntu",
+		Port: 22,
+		User: "root",
+	}
+
+	ctx := context.Background()
+	err := m.Connect(ctx, sess)
+	if err != nil {
+		t.Fatalf("Failed to Connect to WSL session: %v", err)
+	}
+	defer m.Disconnect("wsl-session-id-err")
+
+	// Test GetCurrentPath which should return error and NOT fallback to "/"
+	_, err = m.GetCurrentPath("wsl-session-id-err")
+	if err == nil {
+		t.Error("Expected GetCurrentPath to return error when CWD query fails, got nil")
+	}
+	if err != nil && !strings.Contains(err.Error(), "could not determine terminal CWD for WSL") {
+		t.Errorf("Expected error to mention CWD for WSL, got '%v'", err)
+	}
+}
+
 func TestWSLClient_SftpErrors(t *testing.T) {
 	origGOOS := RuntimeGOOS
 	defer func() { RuntimeGOOS = origGOOS }()
