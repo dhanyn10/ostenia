@@ -472,57 +472,59 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
             </button>
           </div>
 
-          {/* --- "New Host" & Search bookmark-like bar directly below the tabbed bar --- */}
-          <div className="flex items-center justify-start gap-4 px-6 py-2 bg-mui-grey-100 dark:bg-mui-grey-950 border-b border-mui-grey-200 dark:border-white/5 shrink-0 select-none">
-            {/* New Host button */}
-            <button
-              type="button"
-              onClick={() => {
-                setEditingSession(null);
-                setShowForm(true);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1 bg-mui-blue-600 hover:bg-mui-blue-700 text-white text-xs font-bold rounded shadow transition-all duration-200 border-none cursor-pointer shrink-0"
-              title="Add New Host"
-            >
-              <Plus size={14} />
-              <span>New Host</span>
-            </button>
-
-            {/* Resizable Search input */}
-            <div
-              className="flex items-center gap-1 bg-white dark:bg-mui-grey-900 px-1 py-0.5 rounded border border-mui-grey-200 dark:border-white/10 shrink-0"
-              style={{ width: searchWidth + 24 }}
-            >
-              <div className="relative flex-1 flex items-center min-w-0" style={{ width: searchWidth }}>
-                <input
-                  type="text"
-                  placeholder="Search host..."
-                  value={hostSearchQuery}
-                  onChange={(e) => setHostSearchQuery(e.target.value)}
-                  className="w-full px-3 py-1 text-xs rounded border border-transparent bg-white dark:bg-mui-grey-900 text-mui-grey-900 dark:text-white focus:outline-none"
-                />
-                {hostSearchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setHostSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mui-grey-400 hover:text-mui-grey-600 dark:hover:text-white border-none bg-transparent cursor-pointer flex items-center justify-center"
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-              </div>
-
-              {/* Resizer handle */}
-              <div
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  setIsResizing(true);
+          {/* --- "New Host" & Search bookmark-like bar directly below the tabbed bar (only visible on Dashboard or New Tab selection screens) --- */}
+          {(currentSessionId === null || currentSessionId.startsWith("new-tab-")) && (
+            <div className="flex items-center justify-start gap-4 px-6 py-2 bg-mui-grey-100 dark:bg-mui-grey-950 border-b border-mui-grey-200 dark:border-white/5 shrink-0 select-none">
+              {/* New Host button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingSession(null);
+                  setShowForm(true);
                 }}
-                className="w-1.5 h-6 bg-mui-grey-300 dark:bg-white/10 hover:bg-mui-blue-500 active:bg-mui-blue-600 cursor-col-resize rounded shrink-0 transition-colors ml-1"
-                title="Resize Search horizontally"
-              />
+                className="flex items-center gap-1.5 px-3 py-1 bg-mui-blue-600 hover:bg-mui-blue-700 text-white text-xs font-bold rounded shadow transition-all duration-200 border-none cursor-pointer shrink-0"
+                title="Add New Host"
+              >
+                <Plus size={14} />
+                <span>New Host</span>
+              </button>
+
+              {/* Resizable Search input */}
+              <div
+                className="flex items-center gap-1 bg-white dark:bg-mui-grey-900 px-1 py-0.5 rounded border border-mui-grey-200 dark:border-white/10 shrink-0"
+                style={{ width: searchWidth + 24 }}
+              >
+                <div className="relative flex-1 flex items-center min-w-0" style={{ width: searchWidth }}>
+                  <input
+                    type="text"
+                    placeholder="Search host..."
+                    value={hostSearchQuery}
+                    onChange={(e) => setHostSearchQuery(e.target.value)}
+                    className="w-full px-3 py-1 text-xs rounded border border-transparent bg-white dark:bg-mui-grey-900 text-mui-grey-900 dark:text-white focus:outline-none"
+                  />
+                  {hostSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setHostSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mui-grey-400 hover:text-mui-grey-600 dark:hover:text-white border-none bg-transparent cursor-pointer flex items-center justify-center"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Resizer handle */}
+                <div
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setIsResizing(true);
+                  }}
+                  className="w-1.5 h-6 bg-mui-grey-300 dark:bg-white/10 hover:bg-mui-blue-500 active:bg-mui-blue-600 cursor-col-resize rounded shrink-0 transition-colors ml-1"
+                  title="Resize Search horizontally"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
         {/* --- Main Content Panel --- */}
         <div
