@@ -147,6 +147,41 @@ func CompareVersions(v1, v2 string) int {
 	return c1 - c2
 }
 
+// NormalizeVersion strips common product prefixes to return a clean version string.
+func NormalizeVersion(v string) string {
+	v = strings.TrimPrefix(v, "php-")
+	v = strings.TrimPrefix(v, "httpd-")
+	v = strings.TrimPrefix(v, "mysql-")
+	v = strings.TrimPrefix(v, "nginx-")
+	v = strings.TrimPrefix(v, "node-v")
+	v = strings.TrimPrefix(v, "python-")
+	v = strings.TrimPrefix(v, "heidisql-")
+	v = strings.TrimPrefix(v, "openssl-")
+	return v
+}
+
+// GetVersionPrefix returns the standard folder name prefix for a given plugin category.
+func GetVersionPrefix(category string) string {
+	switch strings.ToLower(category) {
+	case "php":
+		return "php-"
+	case "apache":
+		return "httpd-"
+	case "mysql":
+		return "mysql-"
+	case "nginx":
+		return "nginx-"
+	case "openssl":
+		return "openssl-"
+	case "nodejs", "node.js":
+		return "node-v"
+	case "python":
+		return "python-"
+	default:
+		return ""
+	}
+}
+
 // GetInstalledVersionPaths returns a map of version strings to their absolute paths for a given category.
 // It scans the bin/[category] directory for subfolders containing the specified check file.
 func GetInstalledVersionPaths(baseDir, category, checkFile string) map[string]string {
@@ -169,16 +204,7 @@ func GetInstalledVersionPaths(baseDir, category, checkFile string) map[string]st
 			}
 
 			if _, err := os.Stat(checkPath); err == nil {
-				// Normalize version string by removing common prefixes
-				v := entry.Name()
-				v = strings.TrimPrefix(v, "php-")
-				v = strings.TrimPrefix(v, "httpd-")
-				v = strings.TrimPrefix(v, "mysql-")
-				v = strings.TrimPrefix(v, "nginx-")
-				v = strings.TrimPrefix(v, "node-v")
-				v = strings.TrimPrefix(v, "python-")
-				v = strings.TrimPrefix(v, "heidisql-")
-				versions[v] = filepath.Join(binDir, entry.Name())
+				versions[NormalizeVersion(entry.Name())] = filepath.Join(binDir, entry.Name())
 			}
 		}
 	}

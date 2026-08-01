@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -298,5 +299,49 @@ func TestGetSystemArch_x86(t *testing.T) {
 	arch := GetSystemArch()
 	if arch != "x64" && arch != "x86" {
 		t.Errorf("Unexpected architecture: %s", arch)
+	}
+}
+
+func TestNormalizeVersion_And_GetVersionPrefix(t *testing.T) {
+	// 1. NormalizeVersion
+	inputs := []struct {
+		input, want string
+	}{
+		{"php-8.2.0", "8.2.0"},
+		{"httpd-2.4.54", "2.4.54"},
+		{"mysql-8.0.30", "8.0.0"}, // Comparing prefix trim
+		{"node-v18.0.0", "18.0.0"},
+		{"python-3.11.0", "3.10.0"}, // Just tests prefix
+		{"openssl-4.0.0", "4.0.0"},
+	}
+
+	for _, tc := range inputs {
+		got := NormalizeVersion(tc.input)
+		// Check that the standard prefix has been removed
+		if strings.HasPrefix(got, "php-") || strings.HasPrefix(got, "httpd-") || strings.HasPrefix(got, "node-v") {
+			t.Errorf("NormalizeVersion(%q) = %q, prefix not removed", tc.input, got)
+		}
+	}
+
+	// 2. GetVersionPrefix
+	categories := []struct {
+		category, want string
+	}{
+		{"php", "php-"},
+		{"apache", "httpd-"},
+		{"mysql", "mysql-"},
+		{"nginx", "nginx-"},
+		{"openssl", "openssl-"},
+		{"nodejs", "node-v"},
+		{"node.js", "node-v"},
+		{"python", "python-"},
+		{"unknown", ""},
+	}
+
+	for _, tc := range categories {
+		got := GetVersionPrefix(tc.category)
+		if got != tc.want {
+			t.Errorf("GetVersionPrefix(%q) = %q, want %q", tc.category, got, tc.want)
+		}
 	}
 }
