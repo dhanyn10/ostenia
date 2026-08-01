@@ -91,12 +91,8 @@ func (m *Manager) DeleteVersion(taskName, version string) error {
 	if cat == "node.js" {
 		cat = "nodejs"
 	}
-	pMap := map[string]string{
-		"php": "php-", "apache": "httpd-", "mysql": "mysql-",
-		"nginx": "nginx-", "openssl": "openssl-", "nodejs": "node-v",
-		"python": "python-",
-	}
-	dir := filepath.Join(baseDir, "bin", cat, pMap[cat]+version)
+	prefix := utils.GetVersionPrefix(cat)
+	dir := filepath.Join(baseDir, "bin", cat, prefix+version)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		dir = filepath.Join(baseDir, "bin", cat, version)
 	}

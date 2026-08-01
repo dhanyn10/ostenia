@@ -2,7 +2,6 @@ package plugins
 
 import (
 	"os"
-	"strings"
 	"ostenia/internal/config"
 	"ostenia/internal/plugins/apache"
 	"ostenia/internal/plugins/heidisql"
@@ -138,14 +137,7 @@ func createDownloadTask(def pluginDefinition, baseDir string) DownloadTask {
 		if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
 			activeFolder := filepath.Base(resolved)
 			if activeFolder != "current" {
-				activeVer := activeFolder
-				activeVer = strings.TrimPrefix(activeVer, "php-")
-				activeVer = strings.TrimPrefix(activeVer, "httpd-")
-				activeVer = strings.TrimPrefix(activeVer, "mysql-")
-				activeVer = strings.TrimPrefix(activeVer, "nginx-")
-				activeVer = strings.TrimPrefix(activeVer, "node-v")
-				activeVer = strings.TrimPrefix(activeVer, "python-")
-				activeVer = strings.TrimPrefix(activeVer, "heidisql-")
+				activeVer := utils.NormalizeVersion(activeFolder)
 				if activeVer != "current" {
 					t.ActiveVersion = activeVer
 				}

@@ -119,21 +119,7 @@ func (a *App) UninstallPluginModule(parentName, moduleName string) error {
 // SwitchServiceVersion changes the active version of a service using directory junctions
 func (a *App) SwitchServiceVersion(serviceName, version string) error {
 	category, binDir, currentPath := a.getPluginPaths(serviceName)
-	prefix := ""
-	switch category {
-	case "php":
-		prefix = "php-"
-	case "apache":
-		prefix = "httpd-"
-	case "mysql":
-		prefix = "mysql-"
-	case "nginx":
-		prefix = "nginx-"
-	case "nodejs":
-		prefix = "node-v"
-	case "python":
-		prefix = "python-"
-	}
+	prefix := plugins_utils.GetVersionPrefix(category)
 	targetDir := filepath.Join(binDir, prefix+version)
 	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
 		targetDir = filepath.Join(binDir, version)

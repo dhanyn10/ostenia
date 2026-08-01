@@ -313,3 +313,91 @@ func TestDownloadAndExtract_AlreadyInstalled(t *testing.T) {
 		t.Error("isAlreadyInstalled failed for Apache special case")
 	}
 }
+
+func TestNewManager_ProdEmit(t *testing.T) {
+	mgr := NewManager(context.Background())
+	// Let's use a nil context to avoid hitting actual wruntime.EventsEmit, which panics in tests.
+	mgr.emit(nil, "test-event-dummy")
+}
+
+func TestManager_PostProcessExtractionManual(t *testing.T) {
+	m := &Manager{}
+	tmpDir := t.TempDir()
+
+	// Nested dir test
+	extractTmp := filepath.Join(tmpDir, "extract")
+	targetDir := filepath.Join(tmpDir, "target")
+	os.MkdirAll(filepath.Join(extractTmp, "nested"), 0755)
+	err := os.WriteFile(filepath.Join(extractTmp, "nested", "file.txt"), []byte("data"), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write: %v", err)
+	}
+
+	err = m.PostProcessExtractionManual(extractTmp, targetDir)
+	if err != nil {
+		t.Fatalf("PostProcessExtractionManual failed: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(targetDir, "file.txt")); err != nil {
+		t.Errorf("Expected file.txt to exist in targetDir, error: %v", err)
+	}
+}
+
+func TestDownloadAndExtract_Installer_CopyError(t *testing.T) {
+	m, cleanup := setupTestManager(t)
+	defer cleanup()
+
+	tempDir := t.TempDir()
+	oldEnv := os.Getenv("OSTENIA_HOME")
+	os.Setenv("OSTENIA_HOME", tempDir)
+	defer os.Setenv("OSTENIA_HOME", oldEnv)
+
+	task := DownloadTask{
+		Name:      "HeidiSQL",
+		Version:   "12.0",
+		URL:       "http://example.com/installer.exe",
+		Target:    "heidisql/12.0",
+		CheckFile: "heidisql.exe",
+	}
+
+	err := m.handleInstaller(context.Background(), task, filepath.Join(tempDir, "non_existent_installer.exe"), "/invalid_target_dir/")
+	if err == nil {
+		t.Error("Expected error from handleInstaller due to copy failure")
+	}
+}
+
+func TestDiscovery_DetectModules_Extended(t *testing.T) {
+	tmpDir := t.TempDir()
+	oldEnv := os.Getenv("OSTENIA_HOME")
+	os.Setenv("OSTENIA_HOME", tmpDir)
+	defer os.Setenv("OSTENIA_HOME", oldEnv)
+
+	binDir := filepath.Join(tmpDir, "bin")
+	phpDir := filepath.Join(binDir, "php", "current")
+	os.MkdirAll(phpDir, 0755)
+	os.WriteFile(filepath.Join(phpDir, "php.exe"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(phpDir, "composer.phar"), []byte(""), 0644)
+
+	tasks := GetLatestKnownVersions()
+	foundComposer := false
+	for _, t := range tasks {
+		if t.Name == "PHP" {
+			for _, m := range t.Modules {
+				if m.Name == "Composer" && m.IsInstalled {
+					foundComposer = true
+				}
+			}
+		}
+	}
+	if !foundComposer {
+		t.Error("Expected Composer module to be detected as installed under php/current")
+	}
+}
+
+func TestExtractor_Unzip_Errors(t *testing.T) {
+	tmpDir := t.TempDir()
+	err := unzipFunc(context.Background(), "non_existent_archive.zip", tmpDir, "TestZip", nil)
+	if err == nil {
+		t.Error("Expected Unzip to fail for a non-existent archive")
+	}
+}
