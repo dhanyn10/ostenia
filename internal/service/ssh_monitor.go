@@ -82,6 +82,69 @@ func decodeMaybeUTF16(b []byte) string {
 	return string(utf16.Decode(u16))
 }
 
+func parseCPULine(line string, fields []string) ([]float64, bool) {
+	if strings.HasPrefix(line, "cpu ") && len(fields) >= 5 {
+		var user, nice, system, idle, iowait, irq, softirq, steal float64
+		fmt.Sscanf(fields[1], "%f", &user)
+		fmt.Sscanf(fields[2], "%f", &nice)
+		fmt.Sscanf(fields[3], "%f", &system)
+		fmt.Sscanf(fields[4], "%f", &idle)
+		if len(fields) >= 6 {
+			fmt.Sscanf(fields[5], "%f", &iowait)
+		}
+		if len(fields) >= 7 {
+			fmt.Sscanf(fields[6], "%f", &irq)
+		}
+		if len(fields) >= 8 {
+			fmt.Sscanf(fields[7], "%f", &softirq)
+		}
+		if len(fields) >= 9 {
+			fmt.Sscanf(fields[8], "%f", &steal)
+		}
+
+		total := user + nice + system + idle + iowait + irq + softirq + steal
+		idleVal := idle + iowait
+		return []float64{total, idleVal}, true
+	}
+	return nil, false
+}
+
+func parseMemLine(line string, memTotal, memAvailable, memFree, buffers, cached *float64) {
+	if strings.HasPrefix(line, "MemTotal:") {
+		fmt.Sscanf(line, "MemTotal: %f kB", memTotal)
+	} else if strings.HasPrefix(line, "MemAvailable:") {
+		fmt.Sscanf(line, "MemAvailable: %f kB", memAvailable)
+	} else if strings.HasPrefix(line, "MemFree:") {
+		fmt.Sscanf(line, "MemFree: %f kB", memFree)
+	} else if strings.HasPrefix(line, "Buffers:") {
+		fmt.Sscanf(line, "Buffers: %f kB", buffers)
+	} else if strings.HasPrefix(line, "Cached:") {
+		fmt.Sscanf(line, "Cached: %f kB", cached)
+	}
+}
+
+func parseDiskLine(fields []string, diskTotal, diskUsed *float64) {
+	if len(fields) >= 5 && fields[len(fields)-1] == "/" {
+		if len(fields) >= 6 {
+			var tot, usd float64
+			fmt.Sscanf(fields[1], "%f", &tot)
+			fmt.Sscanf(fields[2], "%f", &usd)
+			if tot > 0 {
+				*diskTotal = tot
+				*diskUsed = usd
+			}
+		} else if len(fields) == 5 {
+			var tot, usd float64
+			fmt.Sscanf(fields[0], "%f", &tot)
+			fmt.Sscanf(fields[1], "%f", &usd)
+			if tot > 0 {
+				*diskTotal = tot
+				*diskUsed = usd
+			}
+		}
+	}
+}
+
 // parseResourceUsage processes standard Unix '/proc/stat', '/proc/meminfo', and 'df' command dumps.
 func parseResourceUsage(output string) interfaces.ResourceUsage {
 	var usage interfaces.ResourceUsage
@@ -99,64 +162,11 @@ func parseResourceUsage(output string) interfaces.ResourceUsage {
 
 		fields := strings.Fields(line)
 
-		// Parse CPU stats from consecutive /proc/stat checks
-		if strings.HasPrefix(line, "cpu ") && len(fields) >= 5 {
-			var user, nice, system, idle, iowait, irq, softirq, steal float64
-			fmt.Sscanf(fields[1], "%f", &user)
-			fmt.Sscanf(fields[2], "%f", &nice)
-			fmt.Sscanf(fields[3], "%f", &system)
-			fmt.Sscanf(fields[4], "%f", &idle)
-			if len(fields) >= 6 {
-				fmt.Sscanf(fields[5], "%f", &iowait)
-			}
-			if len(fields) >= 7 {
-				fmt.Sscanf(fields[6], "%f", &irq)
-			}
-			if len(fields) >= 8 {
-				fmt.Sscanf(fields[7], "%f", &softirq)
-			}
-			if len(fields) >= 9 {
-				fmt.Sscanf(fields[8], "%f", &steal)
-			}
-
-			total := user + nice + system + idle + iowait + irq + softirq + steal
-			idleVal := idle + iowait
-			cpuTicks = append(cpuTicks, []float64{total, idleVal})
+		if ticks, ok := parseCPULine(line, fields); ok {
+			cpuTicks = append(cpuTicks, ticks)
 		}
-
-		// Parse memory thresholds
-		if strings.HasPrefix(line, "MemTotal:") {
-			fmt.Sscanf(line, "MemTotal: %f kB", &memTotal)
-		} else if strings.HasPrefix(line, "MemAvailable:") {
-			fmt.Sscanf(line, "MemAvailable: %f kB", &memAvailable)
-		} else if strings.HasPrefix(line, "MemFree:") {
-			fmt.Sscanf(line, "MemFree: %f kB", &memFree)
-		} else if strings.HasPrefix(line, "Buffers:") {
-			fmt.Sscanf(line, "Buffers: %f kB", &buffers)
-		} else if strings.HasPrefix(line, "Cached:") {
-			fmt.Sscanf(line, "Cached: %f kB", &cached)
-		}
-
-		// Parse mount file systems ('df')
-		if len(fields) >= 5 && fields[len(fields)-1] == "/" {
-			if len(fields) >= 6 {
-				var tot, usd float64
-				fmt.Sscanf(fields[1], "%f", &tot)
-				fmt.Sscanf(fields[2], "%f", &usd)
-				if tot > 0 {
-					diskTotal = tot
-					diskUsed = usd
-				}
-			} else if len(fields) == 5 {
-				var tot, usd float64
-				fmt.Sscanf(fields[0], "%f", &tot)
-				fmt.Sscanf(fields[1], "%f", &usd)
-				if tot > 0 {
-					diskTotal = tot
-					diskUsed = usd
-				}
-			}
-		}
+		parseMemLine(line, &memTotal, &memAvailable, &memFree, &buffers, &cached)
+		parseDiskLine(fields, &diskTotal, &diskUsed)
 	}
 
 	// Calculate overall CPU utilization percentage
