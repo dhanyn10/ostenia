@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import SSHToolbar from "./ssh/SSHToolbar";
 import SSHFileExplorer from "./ssh/SSHFileExplorer";
-import { handleActionKey } from "../utils/a11y";
 
 interface ResourceLineChartProps {
   /** Sequential historical data of resource metrics containing CPU, Memory, and Disk ratios */
@@ -113,6 +112,45 @@ const ResourceLineChart: React.FC<ResourceLineChartProps> = ({ data, metric, col
       {linePath && <path d={linePath} fill="none" stroke={color} strokeWidth={1.5} />}
     </svg>
   );
+};
+
+/**
+ * Helper utility to convert raw file sizes into readable units.
+ */
+const formatSize = (bytes: number) => {
+  if (!bytes) return "-";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let size = bytes;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex++;
+  }
+  return `${size.toFixed(1)} ${units[unitIndex]}`;
+};
+
+const filterAndSortFiles = (
+  files: any[],
+  searchQuery: string,
+  showHiddenFiles: boolean,
+  sortConfig: { key: string; direction: "asc" | "desc" }
+) => {
+  return [...files]
+    .filter((f) => {
+      const matchesSearch = f.name.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!showHiddenFiles) {
+        return matchesSearch && !f.name.startsWith(".");
+      }
+      return matchesSearch;
+    })
+    .sort((a, b) => {
+      if (a.isDir !== b.isDir) return b.isDir ? 1 : -1;
+      const comparison =
+        sortConfig.key === "name"
+          ? a.name.localeCompare(b.name)
+          : (a.size || 0) - (b.size || 0);
+      return sortConfig.direction === "asc" ? comparison : -comparison;
+    });
 };
 
 interface SSHSessionViewProps {
@@ -298,21 +336,6 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   useEffect(() => {
     setEditingPath(remotePath);
   }, [remotePath]);
-
-  /**
-   * Helper utility to convert raw file sizes into readable units.
-   */
-  const formatSize = (bytes: number) => {
-    if (!bytes) return "-";
-    const units = ["B", "KB", "MB", "GB", "TB"];
-    let size = bytes;
-    let unitIndex = 0;
-    while (size >= 1024 && unitIndex < units.length - 1) {
-      size /= 1024;
-      unitIndex++;
-    }
-    return `${size.toFixed(1)} ${units[unitIndex]}`;
-  };
 
   // Close context menus when clicking outside
   useEffect(() => {
@@ -851,22 +874,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   };
 
   // Perform search, hidden filters, and sort order calculation over files list
-  const sortedFiles = [...files]
-    .filter((f) => {
-      const matchesSearch = f.name.toLowerCase().includes(searchQuery.toLowerCase());
-      if (!showHiddenFiles) {
-        return matchesSearch && !f.name.startsWith(".");
-      }
-      return matchesSearch;
-    })
-    .sort((a, b) => {
-      if (a.isDir !== b.isDir) return b.isDir ? 1 : -1;
-      let comparison =
-        sortConfig.key === "name"
-          ? a.name.localeCompare(b.name)
-          : (a.size || 0) - (b.size || 0);
-      return sortConfig.direction === "asc" ? comparison : -comparison;
-    });
+  const sortedFiles = filterAndSortFiles(files, searchQuery, showHiddenFiles, sortConfig);
 
   const toggleSort = (key: string) => {
     setSortConfig((prev) => ({

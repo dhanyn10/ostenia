@@ -75,70 +75,71 @@ func TestWSLClient_SessionAndShell(t *testing.T) {
 	sess.Close()
 }
 
-func TestWSLCommand_RealImplementation(t *testing.T) {
+func TestWSLCommand_RealImplementation_Windows(t *testing.T) {
 	origGOOS := RuntimeGOOS
 	defer func() { RuntimeGOOS = origGOOS }()
 
-	t.Run("Windows wslCommand secure environment and path", func(t *testing.T) {
-		RuntimeGOOS = "windows"
-		cmd := wslCommand("Ubuntu-Test-HideWindow", "ls")
-		if cmd == nil {
-			t.Fatal("Expected non-nil command")
-		}
+	RuntimeGOOS = "windows"
+	cmd := wslCommand("Ubuntu-Test-HideWindow", "ls")
+	if cmd == nil {
+		t.Fatal("Expected non-nil command")
+	}
 
-		termFound := false
-		pathFound := false
-		for _, env := range cmd.Env {
-			if strings.HasPrefix(env, "TERM=") {
-				termFound = true
-				if env != "TERM=xterm-256color" {
-					t.Errorf("Expected TERM=xterm-256color, got %s", env)
-				}
-			}
-			if strings.HasPrefix(env, "PATH=") {
-				pathFound = true
-				if !strings.Contains(env, "System32") {
-					t.Errorf("Expected secure Windows path, got %s", env)
-				}
+	termFound := false
+	pathFound := false
+	for _, env := range cmd.Env {
+		if strings.HasPrefix(env, "TERM=") {
+			termFound = true
+			if env != "TERM=xterm-256color" {
+				t.Errorf("Expected TERM=xterm-256color, got %s", env)
 			}
 		}
-
-		if !termFound {
-			t.Error("Expected TERM environment variable to be set")
-		}
-		if !pathFound {
-			t.Error("Expected PATH environment variable to be set")
-		}
-	})
-
-	t.Run("Linux wslCommand secure environment", func(t *testing.T) {
-		RuntimeGOOS = "linux"
-		cmd := wslCommand("Ubuntu-Test-HideWindow", "ls")
-		if cmd == nil {
-			t.Fatal("Expected non-nil command")
-		}
-
-		termFound := false
-		pathFound := false
-		for _, env := range cmd.Env {
-			if strings.HasPrefix(env, "TERM=") {
-				termFound = true
-			}
-			if strings.HasPrefix(env, "PATH=") {
-				pathFound = true
-				if env != "PATH=/usr/bin:/bin:/usr/sbin:/sbin" {
-					t.Errorf("Expected secure Linux path, got %s", env)
-				}
+		if strings.HasPrefix(env, "PATH=") {
+			pathFound = true
+			if !strings.Contains(env, "System32") {
+				t.Errorf("Expected secure Windows path, got %s", env)
 			}
 		}
+	}
 
-		if !termFound {
-			t.Error("Expected TERM environment variable to be set")
+	if !termFound {
+		t.Error("Expected TERM environment variable to be set")
+	}
+	if !pathFound {
+		t.Error("Expected PATH environment variable to be set")
+	}
+}
+
+func TestWSLCommand_RealImplementation_Linux(t *testing.T) {
+	origGOOS := RuntimeGOOS
+	defer func() { RuntimeGOOS = origGOOS }()
+
+	RuntimeGOOS = "linux"
+	cmd := wslCommand("Ubuntu-Test-HideWindow", "ls")
+	if cmd == nil {
+		t.Fatal("Expected non-nil command")
+	}
+
+	termFound := false
+	pathFound := false
+	for _, env := range cmd.Env {
+		if strings.HasPrefix(env, "TERM=") {
+			termFound = true
 		}
-		if !pathFound {
-			t.Error("Expected PATH environment variable to be set")
+		if strings.HasPrefix(env, "PATH=") {
+			pathFound = true
+			if env != "PATH=/usr/bin:/bin:/usr/sbin:/sbin" {
+				t.Errorf("Expected secure Linux path, got %s", env)
+			}
 		}
-	})
+	}
+
+	if !termFound {
+		t.Error("Expected TERM environment variable to be set")
+	}
+	if !pathFound {
+		t.Error("Expected PATH environment variable to be set")
+	}
 }
 
 func TestWSLSession_Run(t *testing.T) {

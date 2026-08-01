@@ -300,6 +300,35 @@ func (m *SSHManager) findLinuxEditor(localPath string) *exec.Cmd {
 	return nil
 }
 
+func (m *SSHManager) getWSLCurrentPath(conn *SSHConnection) (string, error) {
+	var cmd *exec.Cmd
+	wslCli := conn.Client.(*WSLClient)
+	if wslCli.User != "" && wslCli.User != "root" {
+		cmd = wslCommand(wslCli.Distro, "-u", wslCli.User, "sh", "-c", getCWDScript)
+	} else {
+		cmd = wslCommand(wslCli.Distro, "sh", "-c", getCWDScript)
+	}
+
+	output, err := cmd.Output()
+	if err == nil {
+		decoded := strings.TrimSpace(decodeMaybeUTF16(output))
+		if decoded != "" && strings.HasPrefix(decoded, "/") {
+			return decoded, nil
+		}
+	}
+	return "", fmt.Errorf("could not determine terminal CWD for WSL")
+}
+
+func (m *SSHManager) getSSHCurrentPath(conn *SSHConnection) (string, error) {
+	if conn.Client != nil {
+		decoded, errQuery := queryRemoteCWD(conn.Client)
+		if errQuery == nil && decoded != "" && strings.HasPrefix(decoded, "/") {
+			return decoded, nil
+		}
+	}
+	return "", fmt.Errorf("could not determine terminal CWD for SSH")
+}
+
 // GetCurrentPath retrieves the remote path string of the current SFTP working directory or active WSL/SSH shell.
 // For WSL distribution shells on Windows, it queries `/proc` inside WSL without quote mangling.
 func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
@@ -316,31 +345,12 @@ func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
 
 	// If this is a WSL connection, we can query the distro process via wslCommand to read the active shell CWD.
 	if conn.IsWSL {
-		var cmd *exec.Cmd
-		wslCli := conn.Client.(*WSLClient)
-		if wslCli.User != "" && wslCli.User != "root" {
-			cmd = wslCommand(wslCli.Distro, "-u", wslCli.User, "sh", "-c", getCWDScript)
-		} else {
-			cmd = wslCommand(wslCli.Distro, "sh", "-c", getCWDScript)
-		}
-
-		output, err := cmd.Output()
-		if err == nil {
-			decoded := strings.TrimSpace(decodeMaybeUTF16(output))
-			if decoded != "" && strings.HasPrefix(decoded, "/") {
-				return decoded, nil
-			}
-		}
-		// DO NOT fall back to conn.SFTP.Getwd() which always returns "/" on WSL!
-		return "", fmt.Errorf("could not determine terminal CWD for WSL")
+		return m.getWSLCurrentPath(conn)
 	}
 
 	// For standard/other remote SSH connections, attempt to query CWD via background SSH session execution.
-	if conn.Client != nil {
-		decoded, errQuery := queryRemoteCWD(conn.Client)
-		if errQuery == nil && decoded != "" && strings.HasPrefix(decoded, "/") {
-			return decoded, nil
-		}
+	if decoded, err := m.getSSHCurrentPath(conn); err == nil {
+		return decoded, nil
 	}
 
 	pathStr, err := conn.SFTP.Getwd()

@@ -278,6 +278,31 @@ func (a *App) extractAndProcessZip(serviceName, category, binDir, zipFilePath, t
 	return nil
 }
 
+func (a *App) processCustomFolder(category, binDir, sourcePath, targetDir string) error {
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		return err
+	}
+	if filepath.Clean(sourcePath) != filepath.Clean(targetDir) {
+		_ = os.RemoveAll(targetDir)
+		if err := CopyDir(sourcePath, targetDir); err != nil {
+			return fmt.Errorf("failed to copy directory: %w", err)
+		}
+	}
+	if err := a.validateExecutable(category, targetDir); err != nil {
+		_ = os.RemoveAll(targetDir)
+		return err
+	}
+	return nil
+}
+
+func (a *App) processCustomArchive(serviceName, category, binDir, sourcePath, targetName string) error {
+	ext := strings.ToLower(filepath.Ext(sourcePath))
+	if ext != ".zip" && ext != ".nupkg" {
+		return fmt.Errorf("unsupported file format. Please drop/select a .zip or .nupkg file")
+	}
+	return a.extractAndProcessZip(serviceName, category, binDir, sourcePath, targetName)
+}
+
 // ProcessCustomVersion extracts custom plugin archive or copies direct folder
 func (a *App) ProcessCustomVersion(serviceName, sourcePath string) error {
 	category, binDir, _ := a.getPluginPaths(serviceName)
@@ -292,25 +317,11 @@ func (a *App) ProcessCustomVersion(serviceName, sourcePath string) error {
 	targetDir := filepath.Join(binDir, targetName)
 
 	if info.IsDir() {
-		if err := os.MkdirAll(binDir, 0755); err != nil {
-			return err
-		}
-		if filepath.Clean(sourcePath) != filepath.Clean(targetDir) {
-			_ = os.RemoveAll(targetDir)
-			if err := CopyDir(sourcePath, targetDir); err != nil {
-				return fmt.Errorf("failed to copy directory: %w", err)
-			}
-		}
-		if err := a.validateExecutable(category, targetDir); err != nil {
-			_ = os.RemoveAll(targetDir)
+		if err := a.processCustomFolder(category, binDir, sourcePath, targetDir); err != nil {
 			return err
 		}
 	} else {
-		ext := strings.ToLower(filepath.Ext(sourcePath))
-		if ext != ".zip" && ext != ".nupkg" {
-			return fmt.Errorf("unsupported file format. Please drop/select a .zip or .nupkg file")
-		}
-		if err := a.extractAndProcessZip(serviceName, category, binDir, sourcePath, targetName); err != nil {
+		if err := a.processCustomArchive(serviceName, category, binDir, sourcePath, targetName); err != nil {
 			return err
 		}
 	}
