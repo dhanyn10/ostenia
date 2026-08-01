@@ -19,6 +19,7 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import * as AppBackend from "../../wailsjs/go/backend/App";
 import { handleActionKey } from "../utils/a11y";
+import AlertModal from "./AlertModal";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -150,6 +151,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
 }) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
 
   const handleMinimize = () => AppBackend.Minimize();
   const handleMaximize = () => {
@@ -248,11 +250,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
             label="About Ostenia"
             icon={HelpCircle}
             onClick={() => {
-              alert("Ostenia v1.0.0\nPortable Development Environment");
+              setIsAboutOpen(true);
               setOpenMenu(null);
             }}
             onKeyDown={handleActionKey(() => {
-              alert("Ostenia v1.0.0\nPortable Development Environment");
+              setIsAboutOpen(true);
               setOpenMenu(null);
             })}
           />
@@ -343,6 +345,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <X size={16} />
         </button>
       </div>
+
+      <AlertModal
+        isOpen={isAboutOpen}
+        title="About Ostenia"
+        message={"Ostenia v1.0.0\nPortable Development Environment"}
+        onClose={() => setIsAboutOpen(false)}
+      />
     </div>
   );
 };

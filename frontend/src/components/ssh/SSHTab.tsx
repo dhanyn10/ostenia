@@ -12,6 +12,7 @@ import {
 import SSHSessionView from "../SSHSessionView";
 import SSHSessionForm from "./SSHSessionForm";
 import { clsx } from "clsx";
+import ConfirmationModal from "../ConfirmationModal";
 import { handleActionKey } from "../../utils/a11y";
 
 interface SSHTabProps {
@@ -48,6 +49,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
   const [hostSearchQuery, setHostSearchQuery] = useState("");
   const [searchWidth, setSearchWidth] = useState<number>(180);
   const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
 
   const contextMenuRef = React.useRef<HTMLDivElement>(null);
 
@@ -134,16 +136,25 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
   /**
    * Confirms and deletes a saved connection profile from persistent storage.
    */
-  const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this session?")) {
-      try {
-        await AppBackend.DeleteSSHSession(id);
-        loadSessions();
-        addToast("Success", "Session deleted successfully", "success");
-      } catch (err) {
-        addToast("Error", "Failed to delete session", "error");
-      }
+  const handleDelete = (id: string) => {
+    setDeleteSessionId(id);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteSessionId) return;
+    const id = deleteSessionId;
+    setDeleteSessionId(null);
+    try {
+      await AppBackend.DeleteSSHSession(id);
+      loadSessions();
+      addToast("Success", "Session deleted successfully", "success");
+    } catch (err) {
+      addToast("Error", "Failed to delete session", "error");
     }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteSessionId(null);
   };
 
   /**
@@ -603,6 +614,17 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
           </button>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={deleteSessionId !== null}
+        title="Delete Session Profile"
+        message="Are you sure you want to delete this session?"
+        type="danger"
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </div>
   );
 };
