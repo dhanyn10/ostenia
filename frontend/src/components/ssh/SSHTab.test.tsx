@@ -39,8 +39,8 @@ describe("SSHTab Component", () => {
   const TEST_IP_2 = generateRandomIP();
 
   const mockSessions = [
-    { id: "1", name: "Server 1", host: TEST_IP_1, authMethod: "password" },
-    { id: "2", name: "Server 2", host: TEST_IP_2, authMethod: "key" },
+    { id: "1", name: "Server 1", host: "127.0.0.1", authMethod: "password" },
+    { id: "2", name: "Server 2", host: "127.0.0.2", authMethod: "key" },
   ];
 
   it("renders loading state initially", async () => {
@@ -59,23 +59,23 @@ describe("SSHTab Component", () => {
       <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
     );
 
-    expect(await screen.findByText(TEST_IP_1)).toBeInTheDocument();
-    expect(await screen.findByText(TEST_IP_2)).toBeInTheDocument();
+    expect(await screen.findByText("Server 1")).toBeInTheDocument();
+    expect(await screen.findByText("Server 2")).toBeInTheDocument();
   });
 
-  it("opens new connection form", async () => {
+  it("opens new connection form when Add New Host button is clicked", async () => {
     AppBackend.GetSSHSessions.mockImplementation(() => Promise.resolve([]));
     render(
       <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
     );
 
-    const newBtn = screen.getByTitle("New Connection");
-    fireEvent.click(newBtn);
+    const newHostBtn = screen.getByTitle("Add New Host");
+    fireEvent.click(newHostBtn);
 
     expect(screen.getByTestId("ssh-session-form")).toBeInTheDocument();
   });
 
-  it("connects on double click", async () => {
+  it("adds a virtual tab when + is clicked and allows selecting a host", async () => {
     AppBackend.GetSSHSessions.mockImplementation(() =>
       Promise.resolve(mockSessions),
     );
@@ -83,9 +83,40 @@ describe("SSHTab Component", () => {
       <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
     );
 
-    await screen.findByText(TEST_IP_1);
+    const plusBtn = screen.getByTitle("New Connection");
+    fireEvent.click(plusBtn);
 
-    const card = screen.getByText(TEST_IP_1).closest("div").parentElement;
+    // Should find the "New Tab" tab-button and the Select Host/Connect to a Host title
+    expect(await screen.findByText("New Tab")).toBeInTheDocument();
+    expect(screen.getByText("Connect to a Host")).toBeInTheDocument();
+
+    // Under new-tab we have a grid of hosts, select the Server 1 card.
+    // In our simplified host selection grid, each session card has a button with the text session.name || session.host
+    // Find the button with text "Server 1" inside the renderHostSelectionScreen component container
+    const serverBtn = screen.getAllByRole("button").find(b => b.textContent?.includes("Server 1") && b.closest(".p-6") !== null);
+    if (serverBtn) {
+      fireEvent.click(serverBtn);
+    } else {
+      const selectHostBtns = screen.getAllByText("Server 1");
+      const selectHostBtn = selectHostBtns[0].closest("button") || selectHostBtns[0];
+      fireEvent.click(selectHostBtn);
+    }
+
+    // Should now render the connection session view
+    expect(screen.getByTestId("ssh-session-view")).toBeInTheDocument();
+  });
+
+  it("connects on double click from Dashboard", async () => {
+    AppBackend.GetSSHSessions.mockImplementation(() =>
+      Promise.resolve(mockSessions),
+    );
+    render(
+      <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
+    );
+
+    await screen.findByText("Server 1");
+
+    const card = screen.getByText("Server 1").closest("button");
     fireEvent.doubleClick(card);
 
     expect(screen.getByTestId("ssh-session-view")).toBeInTheDocument();
@@ -103,9 +134,9 @@ describe("SSHTab Component", () => {
       <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
     );
 
-    await screen.findByText(TEST_IP_1);
+    await screen.findByText("Server 1");
 
-    const card = screen.getByText(TEST_IP_1).closest("div").parentElement;
+    const card = screen.getByText("Server 1").closest("button");
     fireEvent.contextMenu(card);
 
     // Verify context menu is displayed
@@ -127,9 +158,9 @@ describe("SSHTab Component", () => {
       <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
     );
 
-    await screen.findByText(TEST_IP_1);
+    await screen.findByText("Server 1");
 
-    const card = screen.getByText(TEST_IP_1).closest("div").parentElement;
+    const card = screen.getByText("Server 1").closest("button");
     fireEvent.contextMenu(card);
 
     // Verify context menu is displayed
@@ -138,5 +169,90 @@ describe("SSHTab Component", () => {
     // Click somewhere else to dismiss it
     fireEvent.click(document.body);
     expect(screen.queryByText("Delete Session")).not.toBeInTheDocument();
+  });
+
+  it("hides New Host and Search bar when viewing an active SSH session", async () => {
+    AppBackend.GetSSHSessions.mockImplementation(() =>
+      Promise.resolve(mockSessions),
+    );
+    render(
+      <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
+    );
+
+    // Wait for sessions to load
+    await screen.findByText("Server 1");
+
+    // Initially on Dashboard: New Host bar is visible
+    expect(screen.getByTitle("Add New Host")).toBeInTheDocument();
+
+    // Click "+" to open a new virtual tab: New Host bar remains visible
+    const plusBtn = screen.getByTitle("New Connection");
+    fireEvent.click(plusBtn);
+    expect(screen.getByTitle("Add New Host")).toBeInTheDocument();
+
+    // Select a host to connect: New Host bar should become hidden
+    const buttons = screen.getAllByRole("button");
+    const serverBtn = buttons.find(b => b.textContent?.includes("Server 1") && b.closest(".p-6") !== null);
+    if (serverBtn) {
+      fireEvent.click(serverBtn);
+    } else {
+      const selectHostBtns = screen.getAllByText("Server 1");
+      const selectHostBtn = selectHostBtns[0].closest("button") || selectHostBtns[0];
+      fireEvent.click(selectHostBtn);
+    }
+
+    expect(screen.queryByTitle("Add New Host")).not.toBeInTheDocument();
+  });
+
+  it("filters hosts list on Dashboard in real-time when typing in search input", async () => {
+    AppBackend.GetSSHSessions.mockImplementation(() =>
+      Promise.resolve(mockSessions),
+    );
+    render(
+      <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
+    );
+
+    // Initially both Server 1 and Server 2 are visible
+    expect(await screen.findByText("Server 1")).toBeInTheDocument();
+    expect(await screen.findByText("Server 2")).toBeInTheDocument();
+
+    // Search for "Server 1"
+    const searchInput = screen.getByPlaceholderText("Search host...");
+    fireEvent.change(searchInput, { target: { value: "Server 1" } });
+
+    // Server 1 should be visible, Server 2 should be hidden
+    expect(screen.getAllByText("Server 1")[0]).toBeInTheDocument();
+    expect(screen.queryByText("Server 2")).not.toBeInTheDocument();
+
+    // Clear search input directly
+    fireEvent.change(searchInput, { target: { value: "" } });
+
+    // Both should be visible again, wait for Server 2 to re-appear
+    expect(await screen.findByText("Server 2")).toBeInTheDocument();
+    expect(screen.getAllByText("Server 1")[0]).toBeInTheDocument();
+  });
+
+  it("handles mouse resizing events on the search bar horizontally", async () => {
+    AppBackend.GetSSHSessions.mockImplementation(() =>
+      Promise.resolve(mockSessions),
+    );
+    render(
+      <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
+    );
+
+    const resizer = screen.getByTitle("Resize Search horizontally");
+    expect(resizer).toBeInTheDocument();
+
+    // Dispatch mousedown on resizer to initiate resizing state
+    fireEvent.mouseDown(resizer);
+
+    // Dispatch mousemove on window to trigger width change
+    const mouseMoveEvent = new MouseEvent("mousemove", { bubbles: true, cancelable: true });
+    Object.defineProperty(mouseMoveEvent, "movementX", { value: 50 });
+    window.dispatchEvent(mouseMoveEvent);
+
+    // Dispatch mouseup on window to end resizing state
+    const mouseUpEvent = new MouseEvent("mouseup", { bubbles: true, cancelable: true });
+    window.dispatchEvent(mouseUpEvent);
   });
 });

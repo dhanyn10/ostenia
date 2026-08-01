@@ -193,6 +193,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const currentPathRef = useRef("");
   const isFetchingUsageRef = useRef(false);
+  const lastTerminalPathRef = useRef("");
 
   // --- State Hooks ---
   const [connecting, setConnecting] = useState(true);
@@ -578,7 +579,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       if (title.includes(":")) {
         const parts = title.split(":");
         const potentialPath = parts.at(-1).trim();
-        if (potentialPath.startsWith("/") || potentialPath.startsWith("~")) {
+        if (potentialPath.startsWith("/")) {
           syncExplorer(potentialPath);
         }
       }
@@ -717,68 +718,34 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   /**
    * Synchronizes the remote sftp explorer view with terminal working directories.
    */
-  const syncExplorer = async (forcedPath: string | null = null) => {
+  const syncExplorer = async (forcedPath: string | null = null, isManualTrigger = false) => {
     try {
+      const actualForcedPath = typeof forcedPath === "string" ? forcedPath : null;
       let current =
-        forcedPath || (await AppBackend.GetRemoteCurrentPath(session.id));
+        actualForcedPath || (await AppBackend.GetRemoteCurrentPath(session.id));
       if (!current) return;
       let normalized = current.trim();
       if (normalized.length > 1 && normalized.endsWith("/"))
         normalized = normalized.slice(0, -1);
-      if (normalized !== currentPathRef.current) loadRemoteFiles(normalized, false, true);
+
+      if (isManualTrigger) {
+        lastTerminalPathRef.current = normalized;
+        loadRemoteFiles(normalized, false, false);
+        return;
+      }
+
+      if (lastTerminalPathRef.current === "") {
+        lastTerminalPathRef.current = normalized;
+        if (normalized !== currentPathRef.current) {
+          loadRemoteFiles(normalized, false, true);
+        }
+      } else if (normalized !== lastTerminalPathRef.current) {
+        lastTerminalPathRef.current = normalized;
+        loadRemoteFiles(normalized, false, true);
+      }
     } catch (e) {}
   };
 
-  const syncExplorerRef = useRef(syncExplorer);
-  useEffect(() => {
-    syncExplorerRef.current = syncExplorer;
-  });
-
-  // Periodic sync of 3 seconds
-  useEffect(() => {
-    if (connecting) return;
-    const intervalId = setInterval(() => {
-      syncExplorerRef.current();
-    }, 3000);
-    return () => clearInterval(intervalId);
-  }, [connecting]);
-
-  // Throttled 1.5-second Enter keypress trigger
-  const lastEnterSyncRef = useRef<number>(0);
-  const enterTimeoutRef = useRef<any>(null);
-
-  useEffect(() => {
-    if (connecting) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Enter" && isActive) {
-        const now = Date.now();
-        const delay = 1500;
-        if (now - lastEnterSyncRef.current >= delay) {
-          lastEnterSyncRef.current = now;
-          if (enterTimeoutRef.current) {
-            clearTimeout(enterTimeoutRef.current);
-            enterTimeoutRef.current = null;
-          }
-          syncExplorerRef.current();
-        } else if (!enterTimeoutRef.current) {
-          enterTimeoutRef.current = setTimeout(() => {
-            lastEnterSyncRef.current = Date.now();
-            enterTimeoutRef.current = null;
-            syncExplorerRef.current();
-          }, delay - (now - lastEnterSyncRef.current));
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      if (enterTimeoutRef.current) {
-        clearTimeout(enterTimeoutRef.current);
-      }
-    };
-  }, [connecting, isActive]);
 
   /**
    * Trigger folder traversal or edits the file locally.
@@ -908,7 +875,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             editingPath={editingPath}
             setEditingPath={setEditingPath}
             onNavigateUp={navigateUp}
-            onSync={syncExplorer}
+            onSync={() => syncExplorer(null, true)}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             onUpload={handleUpload}
