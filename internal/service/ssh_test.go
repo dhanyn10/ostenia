@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"ostenia/internal/backend/interfaces"
@@ -47,6 +48,7 @@ type mockSSHSession struct {
 	ptyErr   error
 	shellErr error
 	runErr   error
+	runFunc  func(cmd string) error
 	winErr   error
 	closed   bool
 }
@@ -56,8 +58,13 @@ func (m *mockSSHSession) StdinPipe() (io.WriteCloser, error) { return m.stdin, n
 func (m *mockSSHSession) RequestPty(term string, h, w int, modes ssh.TerminalModes) error {
 	return m.ptyErr
 }
-func (m *mockSSHSession) Shell() error                { return m.shellErr }
-func (m *mockSSHSession) Run(cmd string) error        { return m.runErr }
+func (m *mockSSHSession) Shell() error { return m.shellErr }
+func (m *mockSSHSession) Run(cmd string) error {
+	if m.runFunc != nil {
+		return m.runFunc(cmd)
+	}
+	return m.runErr
+}
 func (m *mockSSHSession) WindowChange(h, w int) error { return m.winErr }
 func (m *mockSSHSession) Close() error                { m.closed = true; return nil }
 
@@ -163,13 +170,34 @@ func setupSSHTest(t *testing.T) (*SSHManager, string, *mockSSHClient, func()) {
 	rt := &mockSSHRuntime{}
 	m.SetRuntime(rt)
 
+	origQueryRemoteCWD := queryRemoteCWD
+	queryRemoteCWD = func(client interfaces.SSHClient) (string, error) {
+		return "", fmt.Errorf("fallback to sftp Getwd in unit tests")
+	}
+	t.Cleanup(func() {
+		queryRemoteCWD = origQueryRemoteCWD
+	})
+
 	pr, pw := io.Pipe()
 
+	sess := &mockSSHSession{
+		stdout: pr,
+		stdin:  &mockWriteCloser{},
+	}
+	sess.runFunc = func(cmd string) error {
+		if sess.runErr != nil {
+			return sess.runErr
+		}
+		if strings.Contains(cmd, "readlink") {
+			go func() {
+				pw.Write([]byte("/home/user\n"))
+			}()
+		}
+		return nil
+	}
+
 	mockClient := &mockSSHClient{
-		session: &mockSSHSession{
-			stdout: pr,
-			stdin:  &mockWriteCloser{},
-		},
+		session: sess,
 		sftp: &mockSFTPClient{
 			wd: "/home/user",
 		},
@@ -227,6 +255,28 @@ func TestSSHManager_PathAndFiles(t *testing.T) {
 	}
 	if len(files) != 2 {
 		t.Errorf("Expected 2 files, got %d", len(files))
+	}
+}
+
+func TestSSHManager_GetCurrentPath_RemoteSSH(t *testing.T) {
+	m, sessionID, _, cleanup := setupSSHTest(t)
+	defer cleanup()
+
+	// Override queryRemoteCWD directly inside the test
+	origQueryRemoteCWD := queryRemoteCWD
+	queryRemoteCWD = func(client interfaces.SSHClient) (string, error) {
+		return "/var/www/html", nil
+	}
+	defer func() {
+		queryRemoteCWD = origQueryRemoteCWD
+	}()
+
+	path, err := m.GetCurrentPath(sessionID)
+	if err != nil {
+		t.Fatalf("GetCurrentPath failed: %v", err)
+	}
+	if path != "/var/www/html" {
+		t.Errorf("Expected /var/www/html, got %s", path)
 	}
 }
 
@@ -877,12 +927,14 @@ func TestSSHManager_AuthMethods(t *testing.T) {
 }
 
 type mockAddr struct{}
+
 func (mockAddr) Network() string { return "tcp" }
 func (mockAddr) String() string  { return "127.0.0.1:22" }
 
 type mockPublicKey struct{}
-func (mockPublicKey) Type() string { return "ssh-rsa" }
-func (mockPublicKey) Marshal() []byte { return []byte("mock-key-bytes") }
+
+func (mockPublicKey) Type() string                                 { return "ssh-rsa" }
+func (mockPublicKey) Marshal() []byte                              { return []byte("mock-key-bytes") }
 func (mockPublicKey) Verify(data []byte, sig *ssh.Signature) error { return nil }
 
 func TestSSHManager_HostKeyCallback(t *testing.T) {

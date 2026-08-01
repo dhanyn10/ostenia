@@ -706,6 +706,57 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     } catch (e) {}
   };
 
+  const syncExplorerRef = useRef(syncExplorer);
+  useEffect(() => {
+    syncExplorerRef.current = syncExplorer;
+  });
+
+  // Periodic sync of 3 seconds
+  useEffect(() => {
+    if (connecting) return;
+    const intervalId = setInterval(() => {
+      syncExplorerRef.current();
+    }, 3000);
+    return () => clearInterval(intervalId);
+  }, [connecting]);
+
+  // Throttled 1.5-second Enter keypress trigger
+  const lastEnterSyncRef = useRef<number>(0);
+  const enterTimeoutRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (connecting) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter" && isActive) {
+        const now = Date.now();
+        const delay = 1500;
+        if (now - lastEnterSyncRef.current >= delay) {
+          lastEnterSyncRef.current = now;
+          if (enterTimeoutRef.current) {
+            clearTimeout(enterTimeoutRef.current);
+            enterTimeoutRef.current = null;
+          }
+          syncExplorerRef.current();
+        } else if (!enterTimeoutRef.current) {
+          enterTimeoutRef.current = setTimeout(() => {
+            lastEnterSyncRef.current = Date.now();
+            enterTimeoutRef.current = null;
+            syncExplorerRef.current();
+          }, delay - (now - lastEnterSyncRef.current));
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (enterTimeoutRef.current) {
+        clearTimeout(enterTimeoutRef.current);
+      }
+    };
+  }, [connecting, isActive]);
+
   /**
    * Trigger folder traversal or edits the file locally.
    */

@@ -245,6 +245,28 @@ func TestWSLClient_SftpAndFiles_Getwd(t *testing.T) {
 	}
 }
 
+func TestWSLClient_toWSLPath_MountPoints(t *testing.T) {
+	origGOOS := RuntimeGOOS
+	defer func() { RuntimeGOOS = origGOOS }()
+
+	RuntimeGOOS = "windows"
+	p := toWSLPath(`\\wsl.localhost\Ubuntu`, "/mnt/d/koding/ostenia")
+	if !strings.HasPrefix(p, "d:\\") && !strings.HasPrefix(p, "D:\\") {
+		t.Errorf("Expected path mapped to D:\\, got '%s'", p)
+	}
+
+	p2 := toWSLPath(`\\wsl.localhost\Ubuntu`, "/mnt/c")
+	if !strings.HasPrefix(p2, "c:\\") && !strings.HasPrefix(p2, "C:\\") {
+		t.Errorf("Expected path mapped to C:\\, got '%s'", p2)
+	}
+
+	RuntimeGOOS = "linux"
+	p3 := toWSLPath(`/tmp/wsl/Ubuntu`, "/mnt/d/koding/ostenia")
+	if strings.Contains(p3, "d:\\") || strings.Contains(p3, "D:\\") {
+		t.Errorf("Expected Linux to not map drive letter, got '%s'", p3)
+	}
+}
+
 func TestWSLClient_SftpAndFiles_MkdirAndStat(t *testing.T) {
 	_, sftpClient, tempDir, cleanup := setupWSLSftpTest(t)
 	defer cleanup()
@@ -411,6 +433,11 @@ func TestSSHManager_WSLConnect(t *testing.T) {
 	origWslCommand := wslCommand
 	defer func() { wslCommand = origWslCommand }()
 	wslCommand = func(distro string, args ...string) *exec.Cmd {
+		for _, arg := range args {
+			if strings.Contains(arg, "readlink") {
+				return exec.Command("echo", "/mnt/d/koding/ostenia") // NOSONAR
+			}
+		}
 		return exec.Command("sh", "-c", "echo 'connected'") // NOSONAR
 	}
 
@@ -444,6 +471,58 @@ func TestSSHManager_WSLConnect(t *testing.T) {
 
 	if !conn.IsWSL {
 		t.Error("Expected IsWSL to be true on WSL connection")
+	}
+
+	// Test GetCurrentPath for WSL CWD query
+	cwd, err := m.GetCurrentPath("wsl-session-id")
+	if err != nil {
+		t.Fatalf("GetCurrentPath failed: %v", err)
+	}
+	if cwd != "/mnt/d/koding/ostenia" {
+		t.Errorf("Expected current path to be '/mnt/d/koding/ostenia', got '%s'", cwd)
+	}
+}
+
+func TestSSHManager_WSLConnect_GetCurrentPath_ErrorFallback(t *testing.T) {
+	origGOOS := RuntimeGOOS
+	defer func() { RuntimeGOOS = origGOOS }()
+	RuntimeGOOS = "linux"
+
+	origWslCommand := wslCommand
+	defer func() { wslCommand = origWslCommand }()
+	// Mock wslCommand to return an error / empty output to simulate failed CWD query
+	wslCommand = func(distro string, args ...string) *exec.Cmd {
+		for _, arg := range args {
+			if strings.Contains(arg, "readlink") {
+				return exec.Command("sh", "-c", "exit 1") // NOSONAR
+			}
+		}
+		return exec.Command("sh", "-c", "echo 'connected'") // NOSONAR
+	}
+
+	m := NewSSHManager()
+	sess := config.SSHSession{
+		ID:   "wsl-session-id-err",
+		Name: "My WSL Err",
+		Host: "wsl://Ubuntu",
+		Port: 22,
+		User: "root",
+	}
+
+	ctx := context.Background()
+	err := m.Connect(ctx, sess)
+	if err != nil {
+		t.Fatalf("Failed to Connect to WSL session: %v", err)
+	}
+	defer m.Disconnect("wsl-session-id-err")
+
+	// Test GetCurrentPath which should return error and NOT fallback to "/"
+	_, err = m.GetCurrentPath("wsl-session-id-err")
+	if err == nil {
+		t.Error("Expected GetCurrentPath to return error when CWD query fails, got nil")
+	}
+	if err != nil && !strings.Contains(err.Error(), "could not determine terminal CWD for WSL") {
+		t.Errorf("Expected error to mention CWD for WSL, got '%v'", err)
 	}
 }
 

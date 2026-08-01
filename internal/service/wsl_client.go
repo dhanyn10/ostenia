@@ -83,8 +83,25 @@ var wslRootPath = func(distro string) string {
 }
 
 // toWSLPath translates standard SFTP paths to physical folders mapped inside the host computer.
+// It maps WSL mount points like /mnt/d/... directly to local host Windows paths (e.g. D:\...) on Windows hosts
+// to avoid "Access is denied" or "Not Found" permission issues over \\wsl.localhost network share.
 func toWSLPath(wslRoot, remotePath string) string {
 	cleaned := path.Clean(filepath.ToSlash(remotePath))
+	if RuntimeGOOS == "windows" {
+		// Detect /mnt/[drive-letter]/...
+		if strings.HasPrefix(cleaned, "/mnt/") && len(cleaned) >= 6 {
+			driveLetter := string(cleaned[5])
+			// Next char must be '/' or end of string
+			if len(cleaned) == 6 || cleaned[6] == '/' {
+				rest := ""
+				if len(cleaned) > 7 {
+					rest = cleaned[7:]
+				}
+				// e.g. D:\rest
+				return filepath.Join(driveLetter+":\\", filepath.FromSlash(rest))
+			}
+		}
+	}
 	if cleaned == "." || cleaned == "/" {
 		return wslRoot
 	}
