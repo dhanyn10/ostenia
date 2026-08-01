@@ -311,10 +311,26 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
       );
     }
 
+    const filteredSessions = sessions.filter((session) => {
+      const nameMatch = (session.name || "").toLowerCase().includes(hostSearchQuery.toLowerCase());
+      const hostMatch = (session.host || "").toLowerCase().includes(hostSearchQuery.toLowerCase());
+      return nameMatch || hostMatch;
+    });
+
+    if (filteredSessions.length === 0 && hostSearchQuery) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+          <p className="text-sm text-mui-grey-500 dark:text-mui-grey-400">
+            No hosts match your search query.
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div className="flex-1 overflow-y-auto pr-2 pb-4 custom-scrollbar">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
-          {sessions.map((session) => (
+          {filteredSessions.map((session) => (
             <div
               key={session.id}
               className="group bg-mui-grey-50 dark:bg-mui-dark-paper border border-mui-grey-200 dark:border-white/10 rounded-lg p-3 hover:border-mui-blue-500/50 hover:shadow-md transition-all relative overflow-hidden flex items-center gap-3 select-none"
@@ -324,7 +340,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                 onDoubleClick={() => handleConnect(session)}
                 onKeyDown={handleActionKey(() => handleConnect(session))}
                 onContextMenu={(e) => handleContextMenu(e, session)}
-                className="flex-1 flex items-center gap-3 outline-none text-left min-w-0 bg-transparent border-none p-0"
+                className="flex-1 flex items-center gap-3 outline-none text-left min-w-0 bg-transparent border-none p-0 cursor-pointer"
               >
                 <div className="bg-mui-blue-600 text-white p-2 rounded-md shrink-0">
                   <Server size={18} />
@@ -332,7 +348,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
 
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold text-mui-grey-900 dark:text-white truncate text-sm leading-tight">
-                    {session.host}
+                    {session.name || session.host}
                   </h4>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-[9px] font-black text-mui-blue-500 uppercase tracking-tighter">
@@ -354,7 +370,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                     setEditingSession(session);
                     setShowForm(true);
                   }}
-                  className="p-1.5 hover:bg-mui-grey-200 dark:hover:bg-white/10 rounded-md text-mui-grey-500"
+                  className="p-1.5 hover:bg-mui-grey-200 dark:hover:bg-white/10 rounded-md text-mui-grey-500 border-none bg-transparent cursor-pointer"
                   title="Edit"
                 >
                   <Edit2 size={12} />

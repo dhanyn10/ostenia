@@ -39,8 +39,8 @@ describe("SSHTab Component", () => {
   const TEST_IP_2 = generateRandomIP();
 
   const mockSessions = [
-    { id: "1", name: "Server 1", host: TEST_IP_1, authMethod: "password" },
-    { id: "2", name: "Server 2", host: TEST_IP_2, authMethod: "key" },
+    { id: "1", name: "Server 1", host: "127.0.0.1", authMethod: "password" },
+    { id: "2", name: "Server 2", host: "127.0.0.2", authMethod: "key" },
   ];
 
   it("renders loading state initially", async () => {
@@ -59,8 +59,8 @@ describe("SSHTab Component", () => {
       <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
     );
 
-    expect(await screen.findByText(TEST_IP_1)).toBeInTheDocument();
-    expect(await screen.findByText(TEST_IP_2)).toBeInTheDocument();
+    expect(await screen.findByText("Server 1")).toBeInTheDocument();
+    expect(await screen.findByText("Server 2")).toBeInTheDocument();
   });
 
   it("opens new connection form when Add New Host button is clicked", async () => {
@@ -90,9 +90,17 @@ describe("SSHTab Component", () => {
     expect(await screen.findByText("New Tab")).toBeInTheDocument();
     expect(screen.getByText("Connect to a Host")).toBeInTheDocument();
 
-    // Click on a host within the selection list of the new tab
-    const selectHostBtn = screen.getByText("Server 1");
-    fireEvent.click(selectHostBtn);
+    // Under new-tab we have a grid of hosts, select the Server 1 card.
+    // In our simplified host selection grid, each session card has a button with the text session.name || session.host
+    // Find the button with text "Server 1" inside the renderHostSelectionScreen component container
+    const serverBtn = screen.getAllByRole("button").find(b => b.textContent?.includes("Server 1") && b.closest(".p-6") !== null);
+    if (serverBtn) {
+      fireEvent.click(serverBtn);
+    } else {
+      const selectHostBtns = screen.getAllByText("Server 1");
+      const selectHostBtn = selectHostBtns[0].closest("button") || selectHostBtns[0];
+      fireEvent.click(selectHostBtn);
+    }
 
     // Should now render the connection session view
     expect(screen.getByTestId("ssh-session-view")).toBeInTheDocument();
@@ -106,9 +114,9 @@ describe("SSHTab Component", () => {
       <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
     );
 
-    await screen.findByText(TEST_IP_1);
+    await screen.findByText("Server 1");
 
-    const card = screen.getByText(TEST_IP_1).closest("div").parentElement;
+    const card = screen.getByText("Server 1").closest("button");
     fireEvent.doubleClick(card);
 
     expect(screen.getByTestId("ssh-session-view")).toBeInTheDocument();
@@ -126,9 +134,9 @@ describe("SSHTab Component", () => {
       <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
     );
 
-    await screen.findByText(TEST_IP_1);
+    await screen.findByText("Server 1");
 
-    const card = screen.getByText(TEST_IP_1).closest("div").parentElement;
+    const card = screen.getByText("Server 1").closest("button");
     fireEvent.contextMenu(card);
 
     // Verify context menu is displayed
@@ -150,9 +158,9 @@ describe("SSHTab Component", () => {
       <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
     );
 
-    await screen.findByText(TEST_IP_1);
+    await screen.findByText("Server 1");
 
-    const card = screen.getByText(TEST_IP_1).closest("div").parentElement;
+    const card = screen.getByText("Server 1").closest("button");
     fireEvent.contextMenu(card);
 
     // Verify context menu is displayed
