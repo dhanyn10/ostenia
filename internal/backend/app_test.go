@@ -1,8 +1,9 @@
 package backend
 
 import (
+	"archive/zip"
 	"context"
-	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"errors"
 	"os"
 	"os/exec"
 	"ostenia/internal/backend/interfaces"
@@ -12,6 +13,8 @@ import (
 	"ostenia/internal/ssl"
 	"path/filepath"
 	"testing"
+
+	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 func TestMain(m *testing.M) {
@@ -586,4 +589,243 @@ func TestApp_ExposedMethods_ContextSafety(t *testing.T) {
 			t.Errorf("Unexpected error: %v", err)
 		}
 	})
+}
+
+type FailingRuntime struct {
+	interfaces.Runtime
+}
+
+func (f *FailingRuntime) OpenFileDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) {
+	return "", errors.New("failed open file dialog")
+}
+
+func (f *FailingRuntime) OpenDirectoryDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) {
+	return "", errors.New("failed open directory dialog")
+}
+
+func (f *FailingRuntime) SaveFileDialog(ctx context.Context, options wruntime.SaveDialogOptions) (string, error) {
+	return "", errors.New("failed save file dialog")
+}
+
+func (f *FailingRuntime) EventsEmit(ctx context.Context, eventName string, optionalData ...interface{}) {}
+
+func TestApp_WailsDelegates_And_Errors(t *testing.T) {
+	tempDir := t.TempDir()
+	app := &App{
+		ctx:          context.Background(),
+		runtime:      &FailingRuntime{},
+		cfg:          &config.Config{BaseDir: tempDir, WWWRoot: filepath.Join(tempDir, "www")},
+		sshManager:   &MockSSHManager{},
+		orchestrator: &MockOrchestrator{Running: make(map[string]bool)},
+	}
+
+	// 1. Save dialog error on DownloadRemoteFile
+	err := app.DownloadRemoteFile("session-1", "remote-file.txt")
+	if err == nil || err.Error() != "failed save file dialog" {
+		t.Errorf("Expected SaveFileDialog error, got: %v", err)
+	}
+
+	// 2. Open dialog error on UploadRemoteFile
+	err = app.UploadRemoteFile("session-1", "remote-dir")
+	if err == nil || err.Error() != "failed open file dialog" {
+		t.Errorf("Expected OpenFileDialog error, got: %v", err)
+	}
+
+	// 3. SelectServerRoot with dialog error
+	_, err = app.SelectServerRoot()
+	if err == nil || err.Error() != "failed open directory dialog" {
+		t.Errorf("Expected SelectServerRoot to propagate error, got: %v", err)
+	}
+
+	// 4. SelectWWWRoot with dialog error
+	_, err = app.SelectWWWRoot()
+	if err == nil || err.Error() != "failed open directory dialog" {
+		t.Errorf("Expected SelectWWWRoot to propagate error, got: %v", err)
+	}
+
+	// 5. SelectDefaultEditor with dialog error
+	_, err = app.SelectDefaultEditor()
+	if err == nil || err.Error() != "failed open file dialog" {
+		t.Errorf("Expected SelectDefaultEditor to propagate error, got: %v", err)
+	}
+}
+
+func TestApp_Env_Errors_And_EdgeCases(t *testing.T) {
+	tempDir := t.TempDir()
+	app := &App{
+		ctx:          context.Background(),
+		runtime:      &MockRuntime{},
+		cfg:          &config.Config{BaseDir: tempDir, WWWRoot: filepath.Join(tempDir, "www")},
+		orchestrator: &MockOrchestrator{Running: make(map[string]bool)},
+	}
+
+	// SetWWWRoot
+	err := app.SetWWWRoot(filepath.Join(tempDir, "another-www"))
+	if err != nil {
+		t.Errorf("Expected SetWWWRoot to succeed, got %v", err)
+	}
+
+	// SetServerRoot
+	err = app.SetServerRoot(tempDir)
+	if err != nil {
+		t.Errorf("Expected SetServerRoot to succeed, got %v", err)
+	}
+
+	// OpenTerminalAtPath with empty path (should use BaseDir)
+	app.OpenTerminalAtPath("cmd", "")
+}
+
+func TestApp_PHP_Extension_Failures_And_Success(t *testing.T) {
+	tempDir := t.TempDir()
+	oldHome := os.Getenv("OSTENIA_HOME")
+	os.Setenv("OSTENIA_HOME", tempDir)
+	defer os.Setenv("OSTENIA_HOME", oldHome)
+
+	oldConfigPath := config.SetConfigFile(filepath.Join(tempDir, "config.json"))
+	defer config.SetConfigFile(oldConfigPath)
+
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	app := &App{
+		ctx:          context.Background(),
+		cfg:          cfg,
+		orchestrator: &MockOrchestrator{Running: make(map[string]bool)},
+	}
+
+	// Non-existent php.ini to trigger toggle failure
+	err = app.TogglePHPExtension("openssl", true)
+	if err == nil {
+		t.Error("Expected TogglePHPExtension to fail when php.ini does not exist")
+	}
+
+	_, err = app.GetPHPExtensions()
+	if err == nil {
+		t.Error("Expected GetPHPExtensions to fail when php.ini does not exist")
+	}
+
+	// 2. Success path: php.ini exists
+	phpCurrent := filepath.Join(tempDir, "bin", "php", "current")
+	os.MkdirAll(phpCurrent, 0755)
+	iniPath := filepath.Join(phpCurrent, "php.ini")
+	_ = os.WriteFile(iniPath, []byte("extension=openssl\n;extension=curl\n"), 0644)
+
+	err = app.TogglePHPExtension("curl", true)
+	if err != nil {
+		t.Errorf("Expected TogglePHPExtension to succeed, got: %v", err)
+	}
+
+	exts, err := app.GetPHPExtensions()
+	if err != nil {
+		t.Fatalf("Expected GetPHPExtensions to succeed, got: %v", err)
+	}
+	if len(exts) == 0 {
+		t.Error("Expected extensions list to contain entries")
+	}
+}
+
+func createDummyZip(t *testing.T, dest string, fileName, fileContent string) {
+	zipFile, err := os.Create(dest)
+	if err != nil {
+		t.Fatalf("failed to create zip file: %v", err)
+	}
+	defer zipFile.Close()
+
+	archive := zip.NewWriter(zipFile)
+	defer archive.Close()
+
+	f, err := archive.Create(fileName)
+	if err != nil {
+		t.Fatalf("failed to add file to zip: %v", err)
+	}
+	_, _ = f.Write([]byte(fileContent))
+}
+
+func TestApp_Plugins_Zip_Failures_And_Success(t *testing.T) {
+	tempDir := t.TempDir()
+	oldHome := os.Getenv("OSTENIA_HOME")
+	os.Setenv("OSTENIA_HOME", tempDir)
+	defer os.Setenv("OSTENIA_HOME", oldHome)
+
+	app := &App{
+		ctx:        context.Background(),
+		cfg:        &config.Config{BaseDir: tempDir},
+		downloader: plugins.NewManager(context.Background()),
+	}
+
+	// Zip file path points to a directory, should fail extraction
+	err := app.extractAndProcessZip("PHP", "php", tempDir, tempDir, "invalid-ver")
+	if err == nil {
+		t.Error("Expected extractAndProcessZip to fail when zip is a directory")
+	}
+
+	// Create a valid dummy zip
+	zipPath := filepath.Join(tempDir, "custom.zip")
+	createDummyZip(t, zipPath, "php.exe", "fake-php-executable")
+
+	err = app.extractAndProcessZip("PHP", "php", filepath.Join(tempDir, "bin", "php"), zipPath, "php-8.3.0")
+	if err != nil {
+		t.Errorf("Expected extractAndProcessZip to succeed, got: %v", err)
+	}
+
+	// Check that php-8.3.0 directory exists with php.exe inside
+	cf := filepath.Join(tempDir, "bin", "php", "php-8.3.0", "php.exe")
+	if _, err := os.Stat(cf); err != nil {
+		t.Errorf("Expected php.exe to exist at %s, got: %v", cf, err)
+	}
+}
+
+func TestApp_Profile_IO_Failures(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Setup app with non-existent or unwriteable files for profile testing
+	mockR := &MockRuntime{
+		SelectedFile: filepath.Join(tempDir, "non_existent_subdir", "profile.json"),
+	}
+	app := &App{
+		ctx:        context.Background(),
+		runtime:    mockR,
+		cfg:        &config.Config{BaseDir: tempDir, WWWRoot: filepath.Join(tempDir, "www")},
+		sshManager: &MockSSHManager{},
+	}
+
+	// Export fails because subdir doesn't exist
+	err := app.ExportProfile(true, true)
+	if err == nil {
+		t.Error("Expected ExportProfile to fail when save path is invalid")
+	}
+
+	// Import fails because file doesn't exist
+	mockR.SelectedFile = filepath.Join(tempDir, "does-not-exist.json")
+	err = app.ImportProfile()
+	if err == nil {
+		t.Error("Expected ImportProfile to fail for non-existent file")
+	}
+
+	// Import fails because of invalid json
+	invalidFile := filepath.Join(tempDir, "invalid.json")
+	_ = os.WriteFile(invalidFile, []byte("invalid-json"), 0644)
+	mockR.SelectedFile = invalidFile
+	err = app.ImportProfile()
+	if err == nil {
+		t.Error("Expected ImportProfile to fail for invalid JSON content")
+	}
+}
+
+func TestApp_SwitchVersion_EdgeCases(t *testing.T) {
+	tempDir := t.TempDir()
+	app := &App{
+		ctx:          context.Background(),
+		cfg:          &config.Config{BaseDir: tempDir},
+		downloader:   &MockPluginManager{},
+		orchestrator: &MockOrchestrator{Running: make(map[string]bool)},
+	}
+
+	// Switching to a version that is not installed (should succeed if manager returns nil)
+	err := app.SwitchServiceVersion("PHP", "9.0.0")
+	if err != nil {
+		t.Errorf("Expected SwitchServiceVersion to succeed with MockPluginManager, got: %v", err)
+	}
 }

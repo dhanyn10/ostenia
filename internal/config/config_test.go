@@ -125,3 +125,141 @@ func TestLoadConfig_InvalidJSON(t *testing.T) {
 		t.Errorf("LoadConfig should have failed with invalid JSON")
 	}
 }
+
+func TestGetBaseDir_Fallback(t *testing.T) {
+	oldHome := os.Getenv("OSTENIA_HOME")
+	os.Setenv("OSTENIA_HOME", "")
+	defer os.Setenv("OSTENIA_HOME", oldHome)
+
+	oldGlobalConfig := globalConfig
+	globalConfig = nil
+	defer func() { globalConfig = oldGlobalConfig }()
+
+	baseDir := GetBaseDir()
+	if baseDir == "" {
+		t.Error("Expected GetBaseDir() fallback to not be empty")
+	}
+}
+
+func TestLoadConfig_IOError(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.json")
+
+	err := os.Mkdir(configPath, 0755)
+	if err != nil {
+		t.Fatalf("failed to create directory: %v", err)
+	}
+
+	oldOverride := configPathOverride
+	SetConfigFile(configPath)
+	oldGlobalConfig := globalConfig
+	globalConfig = nil
+	defer func() {
+		SetConfigFile(oldOverride)
+		globalConfig = oldGlobalConfig
+	}()
+
+	_, err = LoadConfig()
+	if err == nil {
+		t.Error("Expected LoadConfig to fail with a directory instead of file")
+	}
+}
+
+func TestSaveConfig_MarshalError(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "non_existent_subdir", "config.json")
+
+	oldOverride := configPathOverride
+	SetConfigFile(configPath)
+	oldGlobalConfig := globalConfig
+	globalConfig = nil
+	defer func() {
+		SetConfigFile(oldOverride)
+		globalConfig = oldGlobalConfig
+	}()
+
+	cfg := &Config{
+		BaseDir: tmpDir,
+	}
+	err := SaveConfig(cfg)
+	if err == nil {
+		t.Error("Expected SaveConfig to fail when folder does not exist")
+	}
+}
+
+func TestLoadSSHSessions_InvalidJSON(t *testing.T) {
+	tmpDir := t.TempDir()
+	oldHome := os.Getenv("OSTENIA_HOME")
+	os.Setenv("OSTENIA_HOME", tmpDir)
+	oldGlobalConfig := globalConfig
+	globalConfig = nil
+	defer func() {
+		os.Setenv("OSTENIA_HOME", oldHome)
+		globalConfig = oldGlobalConfig
+	}()
+
+	err := os.WriteFile(filepath.Join(tmpDir, "ssh_sessions.json"), []byte("{invalid"), 0644)
+	if err != nil {
+		t.Fatalf("failed to write: %v", err)
+	}
+
+	_, err = LoadSSHSessions()
+	if err == nil {
+		t.Error("Expected LoadSSHSessions to fail with invalid json")
+	}
+}
+
+func TestLoadSSHSessions_IOError(t *testing.T) {
+	tmpDir := t.TempDir()
+	oldHome := os.Getenv("OSTENIA_HOME")
+	os.Setenv("OSTENIA_HOME", tmpDir)
+	oldGlobalConfig := globalConfig
+	globalConfig = nil
+	defer func() {
+		os.Setenv("OSTENIA_HOME", oldHome)
+		globalConfig = oldGlobalConfig
+	}()
+
+	err := os.Mkdir(filepath.Join(tmpDir, "ssh_sessions.json"), 0755)
+	if err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
+
+	_, err = LoadSSHSessions()
+	if err == nil {
+		t.Error("Expected LoadSSHSessions to fail with folder")
+	}
+}
+
+func TestSaveSSHSessions_JSONError(t *testing.T) {
+	tmpDir := t.TempDir()
+	oldHome := os.Getenv("OSTENIA_HOME")
+	os.Setenv("OSTENIA_HOME", filepath.Join(tmpDir, "non_existent"))
+	oldGlobalConfig := globalConfig
+	globalConfig = nil
+	defer func() {
+		os.Setenv("OSTENIA_HOME", oldHome)
+		globalConfig = oldGlobalConfig
+	}()
+
+	err := SaveSSHSessions([]SSHSession{{ID: "1"}})
+	if err == nil {
+		t.Error("Expected SaveSSHSessions to fail with invalid destination path")
+	}
+}
+
+func TestEncryptDecrypt_AESError(t *testing.T) {
+	oldKey := encryptionKey
+	encryptionKey = []byte("short")
+	defer func() { encryptionKey = oldKey }()
+
+	_, err := Encrypt("hello")
+	if err == nil {
+		t.Error("Expected Encrypt to fail with short key")
+	}
+
+	_, err = Decrypt("hello")
+	if err == nil {
+		t.Error("Expected Decrypt to fail with short key")
+	}
+}

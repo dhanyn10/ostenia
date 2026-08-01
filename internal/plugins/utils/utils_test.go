@@ -2,12 +2,32 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+type mockUtilsHTTPClient struct {
+	doFunc  func(req *http.Request) (*http.Response, error)
+	getFunc func(url string) (*http.Response, error)
+}
+
+func (m *mockUtilsHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	if m.doFunc != nil {
+		return m.doFunc(req)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockUtilsHTTPClient) Get(url string) (*http.Response, error) {
+	if m.getFunc != nil {
+		return m.getFunc(url)
+	}
+	return nil, errors.New("not implemented")
+}
 
 func TestCompareVersions(t *testing.T) {
 	tests := []struct {
@@ -188,5 +208,95 @@ func TestFormatBytes(t *testing.T) {
 		if got := FormatBytes(tt.bytes); got != tt.want {
 			t.Errorf("FormatBytes(%d) = %v, want %v", tt.bytes, got, tt.want)
 		}
+	}
+}
+
+func TestDefaultHTTPClient(t *testing.T) {
+	client := &DefaultHTTPClient{}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	resp, err := client.Get(ts.URL)
+	if err != nil {
+		t.Fatalf("DefaultHTTPClient.Get failed: %v", err)
+	}
+	resp.Body.Close()
+
+	req, _ := http.NewRequest("GET", ts.URL, nil)
+	resp2, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("DefaultHTTPClient.Do failed: %v", err)
+	}
+	resp2.Body.Close()
+}
+
+func TestDownloadFile_Errors(t *testing.T) {
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "test.txt")
+
+	// 1. Invalid file creation
+	err := DownloadFile(context.Background(), "http://example.com", filepath.Join(tmpDir, "non_existent_subdir", "test.txt"), "test", nil)
+	if err == nil {
+		t.Error("Expected DownloadFile to fail with invalid file path")
+	}
+
+	// 2. Client.Do error
+	oldClient := Client
+	defer func() { Client = oldClient }()
+
+	mockCli := &mockUtilsHTTPClient{
+		doFunc: func(req *http.Request) (*http.Response, error) {
+			return nil, errors.New("network error")
+		},
+	}
+	Client = mockCli
+
+	err = DownloadFile(context.Background(), "http://example.com", filePath, "test", nil)
+	if err == nil || err.Error() != "network error" {
+		t.Errorf("Expected network error, got: %v", err)
+	}
+
+	// 3. Status not OK error
+	mockCli.doFunc = func(req *http.Request) (*http.Response, error) {
+		resp := httptest.NewRecorder()
+		resp.WriteHeader(http.StatusNotFound)
+		return resp.Result(), nil
+	}
+
+	err = DownloadFile(context.Background(), "http://example.com", filePath, "test", nil)
+	if err == nil || err.Error() != "HTTP 404" {
+		t.Errorf("Expected HTTP 404, got: %v", err)
+	}
+}
+
+func TestGetInstalledVersionPaths_Apache(t *testing.T) {
+	tmpDir := t.TempDir()
+	binDir := filepath.Join(tmpDir, "bin", "apache")
+	os.MkdirAll(filepath.Join(binDir, "httpd-2.4.54", "Apache24", "bin"), 0755)
+
+	err := os.WriteFile(filepath.Join(binDir, "httpd-2.4.54", "Apache24", "bin", "httpd.exe"), []byte("exe"), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write file: %v", err)
+	}
+
+	paths := GetInstalledVersionPaths(tmpDir, "apache", "bin/httpd.exe")
+	if _, ok := paths["2.4.54"]; !ok {
+		t.Errorf("Expected version 2.4.54 to be detected for Apache, paths: %v", paths)
+	}
+
+	// 2. Test GetInstalledVersionPaths with a non-existent base directory (triggers ReadDir error)
+	pathsEmpty := GetInstalledVersionPaths(filepath.Join(tmpDir, "non_existent"), "apache", "bin/httpd.exe")
+	if len(pathsEmpty) != 0 {
+		t.Errorf("Expected empty paths map for non-existent base directory, got %v", pathsEmpty)
+	}
+}
+
+func TestGetSystemArch_x86(t *testing.T) {
+	// Simple sanity test for GetSystemArch
+	arch := GetSystemArch()
+	if arch != "x64" && arch != "x86" {
+		t.Errorf("Unexpected architecture: %s", arch)
 	}
 }
