@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import SSHToolbar from "./ssh/SSHToolbar";
 import SSHFileExplorer from "./ssh/SSHFileExplorer";
+import ConfirmationModal from "./ConfirmationModal";
+import PromptModal from "./PromptModal";
 
 interface ResourceLineChartProps {
   /** Sequential historical data of resource metrics containing CPU, Memory, and Disk ratios */
@@ -216,6 +218,10 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     return localStorage.getItem('ostenia_ssh_zoom_enabled') !== 'false';
   });
   const [zoomFontSize, setZoomFontSize] = useState<number>(14);
+
+  const [deleteFile, setDeleteFile] = useState<any | null>(null);
+  const [newFolderModalOpen, setNewFolderModalOpen] = useState(false);
+  const [renameFile, setRenameFile] = useState<any | null>(null);
 
   const handleZoomIn = () => {
     setZoomFontSize((prev) => Math.min(prev + 2, 40));
@@ -824,18 +830,59 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
    * Deletes target files/folders recursively on the remote machine.
    */
   const handleDelete = async (file: any) => {
-    if (confirm(`Are you sure you want to delete ${file.name}?`)) {
+    setDeleteFile(file);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteFile) return;
+    const file = deleteFile;
+    setDeleteFile(null);
+    try {
+      await AppBackend.ExecuteSFTPAction(
+        session.id,
+        "delete",
+        `${remotePath}/${file.name}`,
+        "",
+      );
+      addToast("Success", "Deleted " + file.name, "success");
+      loadRemoteFiles(remotePath);
+    } catch (err: any) {
+      addToast("Error", "Delete failed: " + err, "error");
+    }
+  };
+
+  const handleConfirmNewFolder = async (name: string) => {
+    setNewFolderModalOpen(false);
+    if (name) {
       try {
         await AppBackend.ExecuteSFTPAction(
           session.id,
-          "delete",
-          `${remotePath}/${file.name}`,
+          "mkdir",
+          `${remotePath}/${name}`,
           "",
         );
-        addToast("Success", "Deleted " + file.name, "success");
+        loadRemoteFiles(remotePath);
+      } catch (e: any) {
+        addToast("Error", e.toString(), "error");
+      }
+    }
+  };
+
+  const handleConfirmRename = async (name: string) => {
+    if (!renameFile) return;
+    const file = renameFile;
+    setRenameFile(null);
+    if (name && name !== file.name) {
+      try {
+        await AppBackend.ExecuteSFTPAction(
+          session.id,
+          "rename",
+          `${remotePath}/${file.name}`,
+          `${remotePath}/${name}`,
+        );
         loadRemoteFiles(remotePath);
       } catch (err: any) {
-        addToast("Error", "Delete failed: " + err, "error");
+        addToast("Error", err.toString(), "error");
       }
     }
   };
@@ -879,21 +926,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             onUpload={handleUpload}
-            onNewFolder={async () => {
-              const name = prompt("Folder Name:");
-              if (name) {
-                try {
-                  await AppBackend.ExecuteSFTPAction(
-                    session.id,
-                    "mkdir",
-                    `${remotePath}/${name}`,
-                    "",
-                  );
-                  loadRemoteFiles(remotePath);
-                } catch (e: any) {
-                  addToast("Error", e.toString(), "error");
-                }
-              }
+            onNewFolder={() => {
+              setNewFolderModalOpen(true);
             }}
             loadingFiles={loadingFiles}
             sortedFiles={sortedFiles}
@@ -1048,21 +1082,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         >
           <button
             type="button"
-            onClick={async () => {
-              const name = prompt("Rename:", fileContextMenu.file.name);
-              if (name && name !== fileContextMenu.file.name) {
-                try {
-                  await AppBackend.ExecuteSFTPAction(
-                    session.id,
-                    "rename",
-                    `${remotePath}/${fileContextMenu.file.name}`,
-                    `${remotePath}/${name}`,
-                  );
-                  loadRemoteFiles(remotePath);
-                } catch (err: any) {
-                  addToast("Error", err.toString(), "error");
-                }
-              }
+            onClick={() => {
+              setRenameFile(fileContextMenu.file);
               setFileContextMenu(null);
             }}
             className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
@@ -1223,6 +1244,40 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           </button>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={deleteFile !== null}
+        title="Delete File / Folder"
+        message={`Are you sure you want to delete ${deleteFile?.name}?`}
+        type="danger"
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteFile(null)}
+      />
+
+      <PromptModal
+        isOpen={newFolderModalOpen}
+        title="New Folder"
+        message="Enter folder name:"
+        placeholder="Folder Name"
+        confirmText="Create"
+        cancelText="Cancel"
+        onConfirm={handleConfirmNewFolder}
+        onCancel={() => setNewFolderModalOpen(false)}
+      />
+
+      <PromptModal
+        isOpen={renameFile !== null}
+        title="Rename"
+        message={`Rename ${renameFile?.name} to:`}
+        defaultValue={renameFile?.name || ""}
+        placeholder="New Name"
+        confirmText="Rename"
+        cancelText="Cancel"
+        onConfirm={handleConfirmRename}
+        onCancel={() => setRenameFile(null)}
+      />
     </div>
   );
 };

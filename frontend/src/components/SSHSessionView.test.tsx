@@ -159,7 +159,10 @@ describe("SSHSessionView Component", () => {
     const deleteBtn = screen.getByText(/Delete/i);
     fireEvent.click(deleteBtn);
 
-    expect(window.confirm).toHaveBeenCalled();
+    // Click confirm/delete in the ConfirmationModal
+    const confirmDeleteBtn = screen.getByRole("button", { name: "Delete" });
+    fireEvent.click(confirmDeleteBtn);
+
     expect(AppBackend.ExecuteSFTPAction).toHaveBeenCalledWith(
       mockSession.id,
       "delete",
@@ -339,9 +342,13 @@ describe("SSHSessionView Component", () => {
     });
 
     // 2. New Folder
-    window.prompt = vi.fn().mockReturnValue("new_folder_name");
     const newBtn = screen.getByText("New");
     fireEvent.click(newBtn);
+    const input = screen.getByPlaceholderText("Folder Name");
+    fireEvent.change(input, { target: { value: "new_folder_name" } });
+    const createBtn = screen.getByRole("button", { name: "Create" });
+    fireEvent.click(createBtn);
+
     await waitFor(() => {
       expect(AppBackend.ExecuteSFTPAction).toHaveBeenCalledWith(mockSession.id, "mkdir", "/home/user/new_folder_name", "");
     });
@@ -402,9 +409,14 @@ describe("SSHSessionView Component", () => {
     expect(screen.queryByText("Open With")).not.toBeInTheDocument();
 
     // 2. Click Rename and perform rename successfully
-    window.prompt = vi.fn().mockReturnValue("new_archive_name.zip");
     const renameBtn = screen.getByText("Rename");
     fireEvent.click(renameBtn);
+
+    const input = screen.getByPlaceholderText("New Name");
+    fireEvent.change(input, { target: { value: "new_archive_name.zip" } });
+    const confirmRenameBtn = screen.getByRole("button", { name: "Rename" });
+    fireEvent.click(confirmRenameBtn);
+
     expect(AppBackend.ExecuteSFTPAction).toHaveBeenCalledWith(
       mockSession.id,
       "rename",
@@ -414,9 +426,11 @@ describe("SSHSessionView Component", () => {
 
     // 3. Test Rename with prompt cancellation (no input)
     fireEvent.contextMenu(archiveItem);
-    window.prompt = vi.fn().mockReturnValue("");
     const renameBtn2 = screen.getByText("Rename");
     fireEvent.click(renameBtn2);
+    // Click Cancel on PromptModal
+    const cancelRenameBtn = screen.getByRole("button", { name: "Cancel" });
+    fireEvent.click(cancelRenameBtn);
   });
 
   it("handles New Folder and Rename action failures", async () => {
@@ -430,9 +444,13 @@ describe("SSHSessionView Component", () => {
     AppBackend.ExecuteSFTPAction.mockRejectedValueOnce(new Error("SFTP action failed"));
 
     // 1. New Folder failure
-    window.prompt = vi.fn().mockReturnValue("fail_folder");
     const newBtn = screen.getByText("New");
     fireEvent.click(newBtn);
+    const input = screen.getByPlaceholderText("Folder Name");
+    fireEvent.change(input, { target: { value: "fail_folder" } });
+    const createBtn = screen.getByRole("button", { name: "Create" });
+    fireEvent.click(createBtn);
+
     await waitFor(() => {
       expect(mockProps.addToast).toHaveBeenCalledWith("Error", expect.stringContaining("SFTP action failed"), "error");
     });
@@ -442,9 +460,14 @@ describe("SSHSessionView Component", () => {
     fireEvent.contextMenu(archiveItem);
 
     AppBackend.ExecuteSFTPAction.mockRejectedValueOnce(new Error("Rename failed"));
-    window.prompt = vi.fn().mockReturnValue("fail_rename.zip");
     const renameBtn = screen.getByText("Rename");
     fireEvent.click(renameBtn);
+
+    const renameInput = screen.getByPlaceholderText("New Name");
+    fireEvent.change(renameInput, { target: { value: "fail_rename.zip" } });
+    const confirmRenameBtn = screen.getByRole("button", { name: "Rename" });
+    fireEvent.click(confirmRenameBtn);
+
     await waitFor(() => {
       expect(mockProps.addToast).toHaveBeenCalledWith("Error", expect.stringContaining("Rename failed"), "error");
     });
@@ -502,6 +525,10 @@ describe("SSHSessionView Component", () => {
     fireEvent.contextMenu(fileItem);
     const deleteBtn = screen.getByText("Delete");
     fireEvent.click(deleteBtn);
+
+    // Click Delete on the ConfirmationModal
+    const confirmDeleteBtn = screen.getByRole("button", { name: "Delete" });
+    fireEvent.click(confirmDeleteBtn);
 
     await waitFor(() => {
       expect(mockProps.addToast).toHaveBeenCalledWith("Error", expect.stringContaining("Delete failed"), "error");

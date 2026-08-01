@@ -145,7 +145,8 @@ describe("SSHTab Component", () => {
 
     // Click on context menu button to delete session
     fireEvent.click(deleteBtn);
-    expect(window.confirm).toHaveBeenCalled();
+    const confirmDeleteBtn = screen.getByRole("button", { name: "Delete" });
+    fireEvent.click(confirmDeleteBtn);
     expect(AppBackend.DeleteSSHSession).toHaveBeenCalledWith("1");
   });
 
