@@ -63,19 +63,42 @@ describe("SSHTab Component", () => {
     expect(await screen.findByText(TEST_IP_2)).toBeInTheDocument();
   });
 
-  it("opens new connection form", async () => {
+  it("opens new connection form when Add New Host button is clicked", async () => {
     AppBackend.GetSSHSessions.mockImplementation(() => Promise.resolve([]));
     render(
       <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
     );
 
-    const newBtn = screen.getByTitle("New Connection");
-    fireEvent.click(newBtn);
+    const newHostBtn = screen.getByTitle("Add New Host");
+    fireEvent.click(newHostBtn);
 
     expect(screen.getByTestId("ssh-session-form")).toBeInTheDocument();
   });
 
-  it("connects on double click", async () => {
+  it("adds a virtual tab when + is clicked and allows selecting a host", async () => {
+    AppBackend.GetSSHSessions.mockImplementation(() =>
+      Promise.resolve(mockSessions),
+    );
+    render(
+      <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
+    );
+
+    const plusBtn = screen.getByTitle("New Connection");
+    fireEvent.click(plusBtn);
+
+    // Should find the "New Tab" tab-button and the Select Host/Connect to a Host title
+    expect(await screen.findByText("New Tab")).toBeInTheDocument();
+    expect(screen.getByText("Connect to a Host")).toBeInTheDocument();
+
+    // Click on a host within the selection list of the new tab
+    const selectHostBtn = screen.getByText("Server 1");
+    fireEvent.click(selectHostBtn);
+
+    // Should now render the connection session view
+    expect(screen.getByTestId("ssh-session-view")).toBeInTheDocument();
+  });
+
+  it("connects on double click from Dashboard", async () => {
     AppBackend.GetSSHSessions.mockImplementation(() =>
       Promise.resolve(mockSessions),
     );

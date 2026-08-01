@@ -135,6 +135,109 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
   };
 
   /**
+   * Adds a new empty/virtual tab.
+   */
+  const handleAddNewTab = () => {
+    const newTabId = `new-tab-${Date.now()}`;
+    setActiveSessionIds([...activeSessionIds, newTabId]);
+    setCurrentSessionId(newTabId);
+  };
+
+  /**
+   * Binds a host session to a virtual tab.
+   */
+  const handleSelectHostForTab = (virtualTabId: string, session: any) => {
+    if (activeSessionIds.includes(session.id)) {
+      addToast("Info", `${session.name || session.host} is already open in another tab.`, "info");
+      setCurrentSessionId(session.id);
+      setActiveSessionIds(activeSessionIds.filter((id) => id !== virtualTabId));
+      return;
+    }
+
+    const nextActive = activeSessionIds.map((id) => (id === virtualTabId ? session.id : id));
+    setActiveSessionIds(nextActive);
+    setCurrentSessionId(session.id);
+  };
+
+  /**
+   * Renders host selection cards inside a virtual tab.
+   */
+  const renderHostSelectionScreen = (virtualTabId: string) => {
+    if (sessions.length === 0) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-mui-grey-200 dark:border-white/5 rounded-xl p-12 text-center h-full">
+          <div className="bg-mui-grey-100 dark:bg-white/5 p-4 rounded-full mb-4">
+            <Server size={32} className="text-mui-grey-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-mui-grey-900 dark:text-white">
+            No sessions found
+          </h3>
+          <p className="text-mui-grey-600 dark:text-mui-grey-400 mt-1 max-w-sm">
+            Add your first SSH connection to start managing remote servers and files.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setEditingSession(null);
+              setShowForm(true);
+            }}
+            className="mt-6 text-mui-blue-500 hover:text-mui-blue-600 font-medium flex items-center gap-1 bg-transparent border-none"
+          >
+            Create session now <ChevronRight size={18} />
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col h-full overflow-y-auto pr-2 pb-4 custom-scrollbar">
+        <div className="mb-6">
+          <h3 className="text-lg font-bold text-mui-grey-900 dark:text-white">
+            Connect to a Host
+          </h3>
+          <p className="text-xs text-mui-grey-500 dark:text-mui-grey-400 mt-1">
+            Select a saved host below to establish a connection in this tab.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+          {sessions.map((session) => (
+            <div
+              key={session.id}
+              className="group bg-mui-grey-50 dark:bg-mui-dark-paper border border-mui-grey-200 dark:border-white/10 rounded-lg p-3 hover:border-mui-blue-500/50 hover:shadow-md transition-all relative overflow-hidden flex items-center gap-3 select-none"
+            >
+              <button
+                type="button"
+                onClick={() => handleSelectHostForTab(virtualTabId, session)}
+                className="flex-1 flex items-center gap-3 outline-none text-left min-w-0 bg-transparent border-none p-0 cursor-pointer"
+              >
+                <div className="bg-mui-blue-600 text-white p-2 rounded-md shrink-0">
+                  <Server size={18} />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-mui-grey-900 dark:text-white truncate text-sm leading-tight">
+                    {session.name || session.host}
+                  </h4>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[9px] font-black text-mui-blue-500 uppercase tracking-tighter">
+                      SSH
+                    </span>
+                    <div className="w-1 h-1 bg-mui-grey-300 dark:bg-mui-grey-600 rounded-full" />
+                    <span className="text-[9px] font-medium text-mui-grey-400 uppercase">
+                      {session.authMethod}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  /**
    * Renders the loading animation, empty dashboard state, or list of connection cards.
    */
   const renderDashboardContent = () => {
@@ -252,9 +355,9 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
             {/* Render dynamically created connection tabs */}
             {activeSessionIds.map((id) => {
               const session = sessions.find((s) => s.id === id);
-              if (!session) return null;
+              const isVirtualTab = id.startsWith("new-tab-");
               const isActive = currentSessionId === id;
-              const displayName = session.name || session.host;
+              const displayName = isVirtualTab ? "New Tab" : (session?.name || session?.host || id);
               return (
                 <div
                   key={id}
@@ -269,7 +372,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                     type="button"
                     onClick={() => setCurrentSessionId(id)}
                     onKeyDown={handleActionKey(() => setCurrentSessionId(id))}
-                    className="flex-1 min-w-0 pl-4 pr-1 h-full text-left outline-none bg-transparent border-none p-0"
+                    className="flex-1 min-w-0 pl-4 pr-1 h-full text-left outline-none bg-transparent border-none p-0 cursor-pointer"
                   >
                     <span
                       className={clsx(
@@ -286,7 +389,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                       e.stopPropagation();
                       handleCloseSession(id);
                     }}
-                    className="p-0.5 rounded-full transition-all ml-2 opacity-50 group-hover:opacity-100 hover:bg-mui-grey-200 dark:hover:bg-white/10 flex items-center justify-center cursor-pointer select-none"
+                    className="p-0.5 rounded-full transition-all ml-2 opacity-50 group-hover:opacity-100 hover:bg-mui-grey-200 dark:hover:bg-white/10 flex items-center justify-center cursor-pointer select-none border-none bg-transparent"
                     title="Close Connection"
                   >
                     <X
@@ -304,20 +407,31 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
               );
             })}
 
-            {/* New connection '+' tab-button */}
-            {!showForm && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingSession(null);
-                  setShowForm(true);
-                }}
-                className="p-1 rounded-full text-mui-grey-500 hover:text-mui-blue-600 dark:hover:text-white hover:bg-mui-grey-200 dark:hover:bg-white/10 transition-all ml-2 flex items-center justify-center cursor-pointer shrink-0"
-                title="New Connection"
-              >
-                <Plus size={14} />
-              </button>
-            )}
+            {/* "+" tab-button to add an empty/virtual new tab */}
+            <button
+              type="button"
+              onClick={handleAddNewTab}
+              className="p-1 rounded-full text-mui-grey-500 hover:text-mui-blue-600 dark:hover:text-white hover:bg-mui-grey-200 dark:hover:bg-white/10 transition-all ml-2 flex items-center justify-center cursor-pointer shrink-0 border-none bg-transparent"
+              title="New Connection"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+
+          {/* --- "New Host" bookmark-like bar directly below the tabbed bar --- */}
+          <div className="flex items-center gap-2 px-6 py-2 bg-mui-grey-100 dark:bg-mui-grey-950 border-b border-mui-grey-200 dark:border-white/5 shrink-0 select-none">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingSession(null);
+                setShowForm(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1 bg-mui-blue-600 hover:bg-mui-blue-700 text-white text-xs font-bold rounded shadow transition-all duration-200 border-none cursor-pointer"
+              title="Add New Host"
+            >
+              <Plus size={14} />
+              <span>New Host</span>
+            </button>
           </div>
 
         {/* --- Main Content Panel --- */}
@@ -336,21 +450,30 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
               Toggling via CSS 'hidden' preserves terminal interactions, history buffer,
               and active resource history charts. */}
           <div className={clsx("h-full", currentSessionId === null && "hidden")}>
-            {activeSessionIds.map((id) => (
-              <div
-                key={id}
-                className={currentSessionId === id ? "h-full" : "hidden"}
-              >
-                <SSHSessionView
-                  session={sessions.find((s) => s.id === id)}
-                  onClose={() => handleCloseSession(id)}
-                  addToast={addToast}
-                  isActive={currentSessionId === id}
-                  theme={theme}
-                  onOpenSettings={onOpenSettings}
-                />
-              </div>
-            ))}
+            {activeSessionIds.map((id) => {
+              const isVirtualTab = id.startsWith("new-tab-");
+              return (
+                <div
+                  key={id}
+                  className={clsx("h-full", currentSessionId === id ? "block" : "hidden")}
+                >
+                  {isVirtualTab ? (
+                    <div className="p-6 h-full flex flex-col">
+                      {renderHostSelectionScreen(id)}
+                    </div>
+                  ) : (
+                    <SSHSessionView
+                      session={sessions.find((s) => s.id === id)}
+                      onClose={() => handleCloseSession(id)}
+                      addToast={addToast}
+                      isActive={currentSessionId === id}
+                      theme={theme}
+                      onOpenSettings={onOpenSettings}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
