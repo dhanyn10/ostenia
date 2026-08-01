@@ -1,6 +1,7 @@
 package service
 
 import (
+	_ "embed"
 	"fmt"
 	"io"
 	"log"
@@ -14,6 +15,9 @@ import (
 	"strings"
 	"time"
 )
+
+//go:embed scripts/get_cwd.sh
+var getCWDScript string
 
 // resolveRemotePath translates tilde-style paths (~/ atau ~) to absolute remote paths based on SFTP home directory.
 func (m *SSHManager) resolveRemotePath(conn *SSHConnection, p string) string {
@@ -312,18 +316,12 @@ func (m *SSHManager) GetCurrentPath(sessionID string) (string, error) {
 
 	// If this is a WSL connection, we can query the distro process via wslCommand to read the active shell CWD.
 	if conn.IsWSL {
-		// Use a quote-free bash script leveraging pure parameter expansion and /proc/<pid>/stat parsing.
-		// Pure parameter expansion pattern like ${d%/} and ${pid##*/} allows identifying target shell pids.
-		// By loop-scanning directories in /proc we locate processes matching sh, bash, zsh, fish,
-		// sorting by PID, and selecting the highest PID (the latest terminal shell).
-		script := `for d in /proc/[0-9]*/; do d=${d%/}; pid=${d##*/}; if [ -r "/proc/$pid/stat" ]; then stat_content=$(cat "/proc/$pid/stat"); comm="${stat_content%%)*}"; comm="${comm##*\(}"; if [ "$comm" = "bash" ] || [ "$comm" = "zsh" ] || [ "$comm" = "sh" ] || [ "$comm" = "fish" ]; then if [ -d "/proc/$pid/cwd" ]; then cwd=$(readlink "/proc/$pid/cwd"); if [ -n "$cwd" ]; then echo "$pid $cwd"; fi; fi; fi; fi; done | sort -n | tail -n 1 | cut -d" " -f2-`
-
 		var cmd *exec.Cmd
 		wslCli := conn.Client.(*WSLClient)
 		if wslCli.User != "" && wslCli.User != "root" {
-			cmd = wslCommand(wslCli.Distro, "-u", wslCli.User, "sh", "-c", script)
+			cmd = wslCommand(wslCli.Distro, "-u", wslCli.User, "sh", "-c", getCWDScript)
 		} else {
-			cmd = wslCommand(wslCli.Distro, "sh", "-c", script)
+			cmd = wslCommand(wslCli.Distro, "sh", "-c", getCWDScript)
 		}
 
 		output, err := cmd.Output()
@@ -361,8 +359,7 @@ var queryRemoteCWD = func(client interfaces.SSHClient) (string, error) {
 	if errPipe != nil {
 		return "", errPipe
 	}
-	script := `for d in /proc/[0-9]*/; do d=${d%/}; pid=${d##*/}; if [ -r "/proc/$pid/stat" ]; then stat_content=$(cat "/proc/$pid/stat"); comm="${stat_content%%)*}"; comm="${comm##*\(}"; if [ "$comm" = "bash" ] || [ "$comm" = "zsh" ] || [ "$comm" = "sh" ] || [ "$comm" = "fish" ]; then if [ -d "/proc/$pid/cwd" ]; then cwd=$(readlink "/proc/$pid/cwd"); if [ -n "$cwd" ]; then echo "$pid $cwd"; fi; fi; fi; fi; done | sort -n | tail -n 1 | cut -d" " -f2-`
-	errRun := sess.Run(script)
+	errRun := sess.Run(getCWDScript)
 	if errRun != nil {
 		return "", errRun
 	}

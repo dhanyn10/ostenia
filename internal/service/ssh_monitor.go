@@ -1,12 +1,16 @@
 package service
 
 import (
+	_ "embed"
 	"fmt"
 	"io"
 	"ostenia/internal/backend/interfaces"
 	"strings"
 	"unicode/utf16"
 )
+
+//go:embed scripts/get_resource_usage.sh
+var getResourceUsageScript string
 
 // GetResourceUsage gathers real-time CPU, RAM, and Disk metrics from remote machines.
 // Spins up a lightweight concurrent session executing combined command strings so interactive terminal
@@ -31,10 +35,7 @@ func (m *SSHManager) GetResourceUsage(sessionID string) (interfaces.ResourceUsag
 		return interfaces.ResourceUsage{}, err
 	}
 
-	// Combined commands to parse core system stats
-	command := `cat /proc/stat; sleep 0.1; cat /proc/stat; cat /proc/meminfo; df -m /`
-
-	err = sess.Run(command)
+	err = sess.Run(getResourceUsageScript)
 	if err != nil {
 		return interfaces.ResourceUsage{}, err
 	}
