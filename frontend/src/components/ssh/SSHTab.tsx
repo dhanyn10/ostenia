@@ -45,6 +45,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
   const [editingSession, setEditingSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [contextMenu, setContextMenu] = useState<any>(null);
+  const [hostSearchQuery, setHostSearchQuery] = useState("");
 
   const contextMenuRef = React.useRef<HTMLDivElement>(null);
 
@@ -189,6 +190,12 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
       );
     }
 
+    const filteredSessions = sessions.filter((session) => {
+      const nameMatch = (session.name || "").toLowerCase().includes(hostSearchQuery.toLowerCase());
+      const hostMatch = (session.host || "").toLowerCase().includes(hostSearchQuery.toLowerCase());
+      return nameMatch || hostMatch;
+    });
+
     return (
       <div className="flex flex-col h-full overflow-y-auto pr-2 pb-4 custom-scrollbar">
         <div className="mb-6">
@@ -200,39 +207,47 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
-          {sessions.map((session) => (
-            <div
-              key={session.id}
-              className="group bg-mui-grey-50 dark:bg-mui-dark-paper border border-mui-grey-200 dark:border-white/10 rounded-lg p-3 hover:border-mui-blue-500/50 hover:shadow-md transition-all relative overflow-hidden flex items-center gap-3 select-none"
-            >
-              <button
-                type="button"
-                onClick={() => handleSelectHostForTab(virtualTabId, session)}
-                className="flex-1 flex items-center gap-3 outline-none text-left min-w-0 bg-transparent border-none p-0 cursor-pointer"
+        {filteredSessions.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+            <p className="text-sm text-mui-grey-500 dark:text-mui-grey-400">
+              No hosts match your search query.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+            {filteredSessions.map((session) => (
+              <div
+                key={session.id}
+                className="group bg-mui-grey-50 dark:bg-mui-dark-paper border border-mui-grey-200 dark:border-white/10 rounded-lg p-3 hover:border-mui-blue-500/50 hover:shadow-md transition-all relative overflow-hidden flex items-center gap-3 select-none"
               >
-                <div className="bg-mui-blue-600 text-white p-2 rounded-md shrink-0">
-                  <Server size={18} />
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-mui-grey-900 dark:text-white truncate text-sm leading-tight">
-                    {session.name || session.host}
-                  </h4>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[9px] font-black text-mui-blue-500 uppercase tracking-tighter">
-                      SSH
-                    </span>
-                    <div className="w-1 h-1 bg-mui-grey-300 dark:bg-mui-grey-600 rounded-full" />
-                    <span className="text-[9px] font-medium text-mui-grey-400 uppercase">
-                      {session.authMethod}
-                    </span>
+                <button
+                  type="button"
+                  onClick={() => handleSelectHostForTab(virtualTabId, session)}
+                  className="flex-1 flex items-center gap-3 outline-none text-left min-w-0 bg-transparent border-none p-0 cursor-pointer"
+                >
+                  <div className="bg-mui-blue-600 text-white p-2 rounded-md shrink-0">
+                    <Server size={18} />
                   </div>
-                </div>
-              </button>
-            </div>
-          ))}
-        </div>
+
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-mui-grey-900 dark:text-white truncate text-sm leading-tight">
+                      {session.name || session.host}
+                    </h4>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[9px] font-black text-mui-blue-500 uppercase tracking-tighter">
+                        SSH
+                      </span>
+                      <div className="w-1 h-1 bg-mui-grey-300 dark:bg-mui-grey-600 rounded-full" />
+                      <span className="text-[9px] font-medium text-mui-grey-400 uppercase">
+                        {session.authMethod}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -418,8 +433,8 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
             </button>
           </div>
 
-          {/* --- "New Host" bookmark-like bar directly below the tabbed bar --- */}
-          <div className="flex items-center gap-2 px-6 py-2 bg-mui-grey-100 dark:bg-mui-grey-950 border-b border-mui-grey-200 dark:border-white/5 shrink-0 select-none">
+          {/* --- "New Host" & Search bookmark-like bar directly below the tabbed bar --- */}
+          <div className="flex items-center justify-between gap-4 px-6 py-2 bg-mui-grey-100 dark:bg-mui-grey-950 border-b border-mui-grey-200 dark:border-white/5 shrink-0 select-none">
             <button
               type="button"
               onClick={() => {
@@ -432,6 +447,25 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
               <Plus size={14} />
               <span>New Host</span>
             </button>
+
+            <div className="relative max-w-xs w-full">
+              <input
+                type="text"
+                placeholder="Search host..."
+                value={hostSearchQuery}
+                onChange={(e) => setHostSearchQuery(e.target.value)}
+                className="w-full px-3 py-1 text-xs rounded border border-mui-grey-300 dark:border-white/10 bg-white dark:bg-mui-grey-900 text-mui-grey-900 dark:text-white focus:outline-none focus:border-mui-blue-500"
+              />
+              {hostSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setHostSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mui-grey-400 hover:text-mui-grey-600 dark:hover:text-white border-none bg-transparent cursor-pointer flex items-center justify-center"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
           </div>
 
         {/* --- Main Content Panel --- */}
