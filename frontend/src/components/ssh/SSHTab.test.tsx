@@ -170,4 +170,89 @@ describe("SSHTab Component", () => {
     fireEvent.click(document.body);
     expect(screen.queryByText("Delete Session")).not.toBeInTheDocument();
   });
+
+  it("hides New Host and Search bar when viewing an active SSH session", async () => {
+    AppBackend.GetSSHSessions.mockImplementation(() =>
+      Promise.resolve(mockSessions),
+    );
+    render(
+      <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
+    );
+
+    // Wait for sessions to load
+    await screen.findByText("Server 1");
+
+    // Initially on Dashboard: New Host bar is visible
+    expect(screen.getByTitle("Add New Host")).toBeInTheDocument();
+
+    // Click "+" to open a new virtual tab: New Host bar remains visible
+    const plusBtn = screen.getByTitle("New Connection");
+    fireEvent.click(plusBtn);
+    expect(screen.getByTitle("Add New Host")).toBeInTheDocument();
+
+    // Select a host to connect: New Host bar should become hidden
+    const buttons = screen.getAllByRole("button");
+    const serverBtn = buttons.find(b => b.textContent?.includes("Server 1") && b.closest(".p-6") !== null);
+    if (serverBtn) {
+      fireEvent.click(serverBtn);
+    } else {
+      const selectHostBtns = screen.getAllByText("Server 1");
+      const selectHostBtn = selectHostBtns[0].closest("button") || selectHostBtns[0];
+      fireEvent.click(selectHostBtn);
+    }
+
+    expect(screen.queryByTitle("Add New Host")).not.toBeInTheDocument();
+  });
+
+  it("filters hosts list on Dashboard in real-time when typing in search input", async () => {
+    AppBackend.GetSSHSessions.mockImplementation(() =>
+      Promise.resolve(mockSessions),
+    );
+    render(
+      <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
+    );
+
+    // Initially both Server 1 and Server 2 are visible
+    expect(await screen.findByText("Server 1")).toBeInTheDocument();
+    expect(await screen.findByText("Server 2")).toBeInTheDocument();
+
+    // Search for "Server 1"
+    const searchInput = screen.getByPlaceholderText("Search host...");
+    fireEvent.change(searchInput, { target: { value: "Server 1" } });
+
+    // Server 1 should be visible, Server 2 should be hidden
+    expect(screen.getAllByText("Server 1")[0]).toBeInTheDocument();
+    expect(screen.queryByText("Server 2")).not.toBeInTheDocument();
+
+    // Clear search input directly
+    fireEvent.change(searchInput, { target: { value: "" } });
+
+    // Both should be visible again, wait for Server 2 to re-appear
+    expect(await screen.findByText("Server 2")).toBeInTheDocument();
+    expect(screen.getAllByText("Server 1")[0]).toBeInTheDocument();
+  });
+
+  it("handles mouse resizing events on the search bar horizontally", async () => {
+    AppBackend.GetSSHSessions.mockImplementation(() =>
+      Promise.resolve(mockSessions),
+    );
+    render(
+      <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
+    );
+
+    const resizer = screen.getByTitle("Resize Search horizontally");
+    expect(resizer).toBeInTheDocument();
+
+    // Dispatch mousedown on resizer to initiate resizing state
+    fireEvent.mouseDown(resizer);
+
+    // Dispatch mousemove on window to trigger width change
+    const mouseMoveEvent = new MouseEvent("mousemove", { bubbles: true, cancelable: true });
+    Object.defineProperty(mouseMoveEvent, "movementX", { value: 50 });
+    window.dispatchEvent(mouseMoveEvent);
+
+    // Dispatch mouseup on window to end resizing state
+    const mouseUpEvent = new MouseEvent("mouseup", { bubbles: true, cancelable: true });
+    window.dispatchEvent(mouseUpEvent);
+  });
 });
