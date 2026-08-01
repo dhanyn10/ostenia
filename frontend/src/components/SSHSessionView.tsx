@@ -579,7 +579,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       if (title.includes(":")) {
         const parts = title.split(":");
         const potentialPath = parts.at(-1).trim();
-        if (potentialPath.startsWith("/") || potentialPath.startsWith("~")) {
+        if (potentialPath.startsWith("/")) {
           syncExplorer(potentialPath);
         }
       }
@@ -728,9 +728,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       if (normalized.length > 1 && normalized.endsWith("/"))
         normalized = normalized.slice(0, -1);
 
-      if (isManualTrigger || actualForcedPath) {
+      if (isManualTrigger) {
         lastTerminalPathRef.current = normalized;
-        loadRemoteFiles(normalized, false, !isManualTrigger);
+        loadRemoteFiles(normalized, false, false);
         return;
       }
 
