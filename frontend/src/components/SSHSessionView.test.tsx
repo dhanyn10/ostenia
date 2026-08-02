@@ -116,7 +116,7 @@ describe("SSHSessionView Component", () => {
   it("renders and connects to SSH", async () => {
     render(<SSHSessionView {...mockProps} />);
 
-    expect(AppBackend.ConnectSSH).toHaveBeenCalledWith(mockSession);
+    expect(AppBackend.ConnectSSH).toHaveBeenCalledWith(expect.objectContaining(mockSession));
 
     await waitFor(() => {
       expect(screen.queryByText(/Connecting\.\.\./i)).not.toBeInTheDocument();

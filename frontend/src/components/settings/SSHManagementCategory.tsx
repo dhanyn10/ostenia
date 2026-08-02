@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, ZoomIn, Activity } from 'lucide-react';
+import { Eye, EyeOff, ZoomIn, Activity, Settings } from 'lucide-react';
 import { handleActionKey } from "../../utils/a11y";
 import * as AppBackend from '../../../wailsjs/go/backend/App';
 
@@ -20,6 +20,15 @@ const SSHManagementCategory: React.FC = () => {
   const [displayMode, setDisplayMode] = useState<string>(() => {
     const mode = localStorage.getItem('ostenia_ssh_monitor_display_mode') || 'tooltip';
     return ['tooltip', 'hover-inline', 'always'].includes(mode) ? mode : 'tooltip';
+  });
+
+  const [maxTimeout, setMaxTimeout] = useState<number>(() => {
+    const val = Number.parseInt(localStorage.getItem('ostenia_ssh_max_timeout') || '10', 10);
+    return Number.isNaN(val) || val < 1 ? 10 : val;
+  });
+  const [maxRetries, setMaxRetries] = useState<number>(() => {
+    const val = Number.parseInt(localStorage.getItem('ostenia_ssh_max_retries') || '3', 10);
+    return Number.isNaN(val) || val < 1 ? 3 : val;
   });
 
   useEffect(() => {
@@ -62,6 +71,24 @@ const SSHManagementCategory: React.FC = () => {
     setDisplayMode(sanitizedMode);
     localStorage.setItem('ostenia_ssh_monitor_display_mode', sanitizedMode);
     window.dispatchEvent(new Event('ostenia_ssh_monitor_settings_changed'));
+  };
+
+  const handleMaxTimeoutChange = (rawValue: string) => {
+    const parsed = Number.parseInt(rawValue, 10);
+    if (!Number.isNaN(parsed)) {
+      const clamped = Math.max(parsed, 1);
+      setMaxTimeout(clamped);
+      localStorage.setItem('ostenia_ssh_max_timeout', String(clamped));
+    }
+  };
+
+  const handleMaxRetriesChange = (rawValue: string) => {
+    const parsed = Number.parseInt(rawValue, 10);
+    if (!Number.isNaN(parsed)) {
+      const clamped = Math.max(parsed, 1);
+      setMaxRetries(clamped);
+      localStorage.setItem('ostenia_ssh_max_retries', String(clamped));
+    }
   };
 
   return (
@@ -143,6 +170,47 @@ const SSHManagementCategory: React.FC = () => {
               </select>
             </div>
           </div>
+        </div>
+
+        {/* Card 3: Connection Settings */}
+        <div className="p-5 rounded-lg border border-mui-grey-200 dark:border-white/10 bg-mui-grey-50/50 dark:bg-white/5 space-y-4">
+          <div className="flex items-center gap-2.5">
+            <Settings className="text-mui-blue-500" size={16} />
+            <h4 className="text-xs font-black uppercase tracking-widest text-mui-grey-400">Connection Settings</h4>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <div className="space-y-1">
+              <label htmlFor="max-timeout-input" className="block text-[9px] font-black text-mui-grey-400 uppercase tracking-wider">
+                Max Timeout (sec)
+              </label>
+              <input
+                id="max-timeout-input"
+                type="number"
+                min={1}
+                value={maxTimeout}
+                onChange={(e) => handleMaxTimeoutChange(e.target.value)}
+                className="w-full px-2 py-1 bg-white dark:bg-mui-grey-900 border border-mui-grey-200 dark:border-white/10 rounded outline-none text-xs text-mui-grey-900 dark:text-white focus:border-mui-blue-500 font-bold"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label htmlFor="max-retries-input" className="block text-[9px] font-black text-mui-grey-400 uppercase tracking-wider">
+                Max Retries
+              </label>
+              <input
+                id="max-retries-input"
+                type="number"
+                min={1}
+                value={maxRetries}
+                onChange={(e) => handleMaxRetriesChange(e.target.value)}
+                className="w-full px-2 py-1 bg-white dark:bg-mui-grey-900 border border-mui-grey-200 dark:border-white/10 rounded outline-none text-xs text-mui-grey-900 dark:text-white focus:border-mui-blue-500 font-bold"
+              />
+            </div>
+          </div>
+          <p className="text-[10px] text-mui-grey-400 leading-normal italic">
+            Configures maximum dial timeout per attempt and maximum retries before connection fails. Prevents infinite loader spinning.
+          </p>
         </div>
       </div>
 

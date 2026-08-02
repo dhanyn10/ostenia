@@ -636,7 +636,14 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     setConnecting(true);
     xterm.current.write(`Connecting to ${session.host}...\r\n`);
     try {
-      await AppBackend.ConnectSSH(session);
+      const timeout = Number.parseInt(localStorage.getItem('ostenia_ssh_max_timeout') || '10', 10);
+      const retries = Number.parseInt(localStorage.getItem('ostenia_ssh_max_retries') || '3', 10);
+      const sessionWithConfig = {
+        ...session,
+        maxTimeout: Number.isNaN(timeout) || timeout < 1 ? 10 : timeout,
+        maxRetries: Number.isNaN(retries) || retries < 1 ? 3 : retries,
+      };
+      await AppBackend.ConnectSSH(sessionWithConfig);
       setConnecting(false);
       xterm.current.write("\x1b[32mConnected successfully.\x1b[0m\r\n\r\n");
       performFit();

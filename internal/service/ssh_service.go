@@ -110,21 +110,46 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 		client = NewWSLClient(distro, session.User)
 	} else {
 		// Standard remote SSH connection. Retrieve authentication details first.
-		auth, err := m.getAuth(session)
+		var auth goph.Auth
+		auth, err = m.getAuth(session)
 		if err != nil {
 			fmt.Printf("[SSH] Authentication retrieval failed: %v\n", err)
 			m.mu.Unlock()
 			return err
 		}
 
-		client, err = m.dialer(&goph.Config{
-			User:     session.User,
-			Addr:     session.Host,
-			Port:     uint(session.Port),
-			Auth:     auth,
-			Timeout:  10 * time.Second,
-			Callback: m.getHostKeyCallback(),
-		})
+		timeout := 10 * time.Second
+		if session.MaxTimeout > 0 {
+			timeout = time.Duration(session.MaxTimeout) * time.Second
+		}
+
+		maxRetries := 3
+		if session.MaxRetries > 0 {
+			maxRetries = session.MaxRetries
+		}
+
+		for i := 0; i < maxRetries; i++ {
+			client, err = m.dialer(&goph.Config{
+				User:     session.User,
+				Addr:     session.Host,
+				Port:     uint(session.Port),
+				Auth:     auth,
+				Timeout:  timeout,
+				Callback: m.getHostKeyCallback(),
+			})
+			if err == nil {
+				break
+			}
+			fmt.Printf("[SSH] Connection attempt %d/%d failed to %s: %v\n", i+1, maxRetries, session.Host, err)
+			if i < maxRetries-1 {
+				select {
+				case <-ctx.Done():
+					m.mu.Unlock()
+					return ctx.Err()
+				case <-time.After(1 * time.Second):
+				}
+			}
+		}
 	}
 
 	if err != nil {
