@@ -200,6 +200,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
 
   // --- State Hooks ---
   const [connecting, setConnecting] = useState(true);
+  const [connectingAttempt, setConnectingAttempt] = useState<string>("");
+  const [connectingProgress, setConnectingProgress] = useState<number>(0);
+  const [connectingStatus, setConnectingStatus] = useState<string>("");
   const [remotePath, setRemotePath] = useState("");
   const [editingPath, setEditingPath] = useState("");
   const [files, setFiles] = useState<any[]>([]);
@@ -635,6 +638,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const connectSSH = async () => {
     if (!xterm.current) return;
     setConnecting(true);
+    setConnectingProgress(0);
+    setConnectingAttempt("");
+    setConnectingStatus("Initializing...");
 
     const timeout = Number.parseInt(localStorage.getItem('ostenia_ssh_max_timeout') || '10', 10);
     const retries = Number.parseInt(localStorage.getItem('ostenia_ssh_max_retries') || '3', 10);
@@ -648,6 +654,22 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         xterm.current?.write(`Connecting to ${session.host} (Attempt ${attempt}/${maxRetries})...\r\n`);
         console.log(`SSH Connection attempt ${attempt}/${maxRetries} to ${session.host}`);
 
+        // Set attempt details
+        setConnectingAttempt(`${attempt}/${maxRetries}`);
+        setConnectingStatus(`Connecting to ${session.host} (Attempt ${attempt}/${maxRetries})...`);
+        setConnectingProgress(0);
+
+        // Start dynamic progress bar counting up over the maxTimeout duration
+        const startTimeSec = performance.now();
+        const tickRateMs = 100;
+        const totalDurationMs = maxTimeout * 1000;
+
+        const progressInterval = setInterval(() => {
+          const elapsedMs = performance.now() - startTimeSec;
+          const percentage = Math.min((elapsedMs / totalDurationMs) * 100, 100);
+          setConnectingProgress(percentage);
+        }, tickRateMs);
+
         const sessionWithConfig = {
           ...session,
           maxTimeout,
@@ -657,6 +679,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         const startTime = performance.now();
         try {
           await AppBackend.ConnectSSH(sessionWithConfig);
+          clearInterval(progressInterval);
+          setConnectingProgress(100);
           const dur = (performance.now() - startTime).toFixed(1);
           xterm.current?.write("\x1b[32mConnected successfully.\x1b[0m\r\n\r\n");
           console.log(`SSH Connection attempt ${attempt}/${maxRetries} succeeded in ${dur}ms`);
@@ -666,6 +690,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           loadRemoteFiles("", false, true);
           return; // Success!
         } catch (err: any) {
+          clearInterval(progressInterval);
           finalErr = err;
           const dur = (performance.now() - startTime).toFixed(1);
           const errMsg = err?.message || String(err);
@@ -674,6 +699,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           console.warn(`SSH Connection attempt ${attempt}/${maxRetries} failed in ${dur}ms: ${errMsg}`);
 
           if (attempt < maxRetries) {
+            setConnectingStatus(`Attempt ${attempt}/${maxRetries} failed. Retrying in 1s...`);
             xterm.current?.write("Retrying in 1s...\r\n");
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
@@ -1002,13 +1028,41 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             onContextMenu={handleTerminalContextMenu}
           />
           {connecting && (
-            <div className="absolute inset-0 bg-white dark:bg-mui-dark-bg flex items-center justify-center">
-              <div className="flex items-center gap-3">
-                <RefreshCw
-                  className="animate-spin text-mui-blue-600 dark:text-mui-blue-500"
-                  size={18}
-                />
-                <span className="text-mui-grey-600 dark:text-mui-grey-400 text-xs font-bold uppercase tracking-widest">Connecting...</span>
+            <div className="absolute inset-0 bg-white dark:bg-mui-dark-bg flex flex-col items-center justify-center p-6 z-20">
+              <div className="w-full max-w-sm bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 rounded-xl p-6 shadow-md flex flex-col items-center gap-5 text-center animate-in fade-in duration-300">
+                {/* Spinning loader with attempt badges */}
+                <div className="relative flex items-center justify-center w-14 h-14">
+                  <div className="absolute inset-0 rounded-full border-4 border-slate-200 dark:border-slate-800" />
+                  <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-mui-blue-500 animate-spin" />
+                  {connectingAttempt && (
+                    <span className="absolute text-[10px] font-black text-mui-blue-600 dark:text-mui-blue-400 font-mono tracking-tight bg-mui-blue-500/10 px-1.5 py-0.5 rounded-full border border-mui-blue-500/20">
+                      {connectingAttempt}
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-1 w-full">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Establishing Connection
+                  </h4>
+                  <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate w-full">
+                    {connectingStatus || `Connecting to ${session.host}...`}
+                  </p>
+                </div>
+
+                {/* Progress bar and Percentage */}
+                <div className="w-full space-y-2">
+                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden relative">
+                    <div
+                      className="bg-gradient-to-r from-mui-blue-500 to-indigo-500 h-full rounded-full transition-all duration-100 ease-out"
+                      style={{ width: `${connectingProgress}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider">
+                    <span>Progress</span>
+                    <span>{Math.round(connectingProgress)}%</span>
+                  </div>
+                </div>
               </div>
             </div>
           )}

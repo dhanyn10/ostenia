@@ -33,6 +33,10 @@ function LogViewer({ logs }: LogViewerProps) {
   const [viewMode, setViewMode] = React.useState<"simple" | "complete">("simple");
   const [copiedId, setCopiedId] = React.useState<string | number | null>(null);
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(20);
+
   const getLogColorClass = (msg: string) => {
     if (
       msg.includes("ERR") ||
@@ -72,7 +76,6 @@ function LogViewer({ logs }: LogViewerProps) {
     const timeStr = log.time || "";
 
     let message = log.cleanMsg || log.msg || "";
-    // If it still has [SYS], [ERR], [WRN] prefixed, we can strip it for complete mode's clipboard copy
     if (message.startsWith("[SYS] ") || message.startsWith("[ERR] ") || message.startsWith("[WRN] ")) {
       message = message.substring(6);
     }
@@ -98,7 +101,6 @@ function LogViewer({ logs }: LogViewerProps) {
         }, 2000);
       });
     } else {
-      // Fallback for jsdom testing environment
       try {
         const textArea = document.createElement("textarea");
         textArea.value = copyText;
@@ -115,6 +117,13 @@ function LogViewer({ logs }: LogViewerProps) {
       }
     }
   };
+
+  // Slice list for pagination. Array contains newest logs at index 0.
+  const totalPages = Math.ceil(logs.length / pageSize) || 1;
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedLogs = logs.slice(startIndex, endIndex);
 
   return (
     <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500 bg-white dark:bg-[#0f172a]">
@@ -137,7 +146,10 @@ function LogViewer({ logs }: LogViewerProps) {
         <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-lg self-start">
           <button
             type="button"
-            onClick={() => setViewMode("simple")}
+            onClick={() => {
+              setViewMode("simple");
+              setCurrentPage(1);
+            }}
             className={cn(
               "px-3 py-1.5 rounded-md text-[10px] font-bold transition-all uppercase tracking-wider",
               viewMode === "simple"
@@ -149,7 +161,10 @@ function LogViewer({ logs }: LogViewerProps) {
           </button>
           <button
             type="button"
-            onClick={() => setViewMode("complete")}
+            onClick={() => {
+              setViewMode("complete");
+              setCurrentPage(1);
+            }}
             className={cn(
               "px-3 py-1.5 rounded-md text-[10px] font-bold transition-all uppercase tracking-wider",
               viewMode === "complete"
@@ -172,9 +187,9 @@ function LogViewer({ logs }: LogViewerProps) {
             </p>
           </div>
         ) : viewMode === "simple" ? (
-          /* Simple Log Mode */
-          <div className="flex flex-col-reverse justify-end min-h-full space-y-1.5 space-y-reverse">
-            {logs.map((log) => {
+          /* Simple Log Mode: Newest on top (rendered using standard top-to-bottom flex-col) */
+          <div className="flex flex-col min-h-full space-y-1.5">
+            {paginatedLogs.map((log) => {
               const isCopied = copiedId === log.id;
               return (
                 <div
@@ -215,9 +230,9 @@ function LogViewer({ logs }: LogViewerProps) {
             })}
           </div>
         ) : (
-          /* Complete Log (Laravel-Style) Mode */
-          <div className="flex flex-col-reverse justify-end min-h-full space-y-3 space-y-reverse">
-            {logs.map((log) => {
+          /* Complete Log (Laravel-Style) Mode: Newest on top (rendered using standard top-to-bottom flex-col) */
+          <div className="flex flex-col min-h-full space-y-3">
+            {paginatedLogs.map((log) => {
               const isCopied = copiedId === log.id;
               const level = getLogLevel(log);
               const isService = log.isServiceLog;
@@ -305,6 +320,61 @@ function LogViewer({ logs }: LogViewerProps) {
           </div>
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {logs.length > 0 && (
+        <div className="shrink-0 p-4 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-slate-900/40 flex flex-wrap gap-4 items-center justify-between text-[11px] font-sans">
+          <div className="text-slate-500 dark:text-slate-400 font-bold">
+            Showing <span className="text-slate-800 dark:text-slate-200">{Math.min(startIndex + 1, logs.length)}</span> to{" "}
+            <span className="text-slate-800 dark:text-slate-200">{Math.min(endIndex, logs.length)}</span> of{" "}
+            <span className="text-slate-800 dark:text-slate-200">{logs.length}</span> entries
+          </div>
+
+          <div className="flex items-center gap-4">
+            {/* Page Size Selector */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 font-bold">Show:</span>
+              <select
+                id="log-page-size"
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded px-1.5 py-1 text-slate-700 dark:text-slate-300 font-bold outline-none cursor-pointer"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+
+            {/* Navigation Buttons */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={safeCurrentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                className="px-3 py-1.5 rounded border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:opacity-40 disabled:cursor-not-allowed font-bold"
+              >
+                Previous
+              </button>
+              <span className="text-slate-500 dark:text-slate-400 px-2 font-bold font-mono">
+                Page {safeCurrentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={safeCurrentPage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                className="px-3 py-1.5 rounded border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:opacity-40 disabled:cursor-not-allowed font-bold"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -209,4 +209,70 @@ describe("LogViewer Component", () => {
       expect.stringContaining("Stack Trace:\nN/A")
     );
   });
+
+  describe("Pagination and Ordering", () => {
+    it("respects log list page limits and supports next/prev pagination", () => {
+      // Generate 25 mock log items
+      const manyLogs = Array.from({ length: 25 }, (_, idx) => ({
+        id: String(idx + 1),
+        time: `12:00:${idx.toString().padStart(2, '0')}`,
+        msg: `Log entry number ${idx + 1}`,
+      }));
+
+      render(<LogViewer logs={manyLogs} />);
+
+      // Verify that pagination controls are present and showing correct count
+      const showingText = screen.getByText((content, element) => element?.textContent === "Showing 1 to 20 of 25 entries");
+      expect(showingText).toBeInTheDocument();
+
+      // Verify that first 20 items are visible, but the 21st is not
+      expect(screen.getByText("Log entry number 1")).toBeInTheDocument();
+      expect(screen.getByText("Log entry number 20")).toBeInTheDocument();
+      expect(screen.queryByText("Log entry number 21")).not.toBeInTheDocument();
+
+      // Click "Next" to go to page 2
+      const nextButton = screen.getByRole("button", { name: /next/i });
+      fireEvent.click(nextButton);
+
+      // Verify page details and showing count
+      const showingPage2Text = screen.getByText((content, element) => element?.textContent === "Showing 21 to 25 of 25 entries");
+      expect(showingPage2Text).toBeInTheDocument();
+      expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
+
+      // On page 2, verify item 21 is visible, but item 20 is gone
+      expect(screen.getByText("Log entry number 21")).toBeInTheDocument();
+      expect(screen.queryByText("Log entry number 20")).not.toBeInTheDocument();
+
+      // Click "Previous" to return to page 1
+      const prevButton = screen.getByRole("button", { name: /previous/i });
+      fireEvent.click(prevButton);
+
+      const showingPage1Text = screen.getByText((content, element) => element?.textContent === "Showing 1 to 20 of 25 entries");
+      expect(showingPage1Text).toBeInTheDocument();
+    });
+
+    it("supports page size dropdown changes", () => {
+      const manyLogs = Array.from({ length: 15 }, (_, idx) => ({
+        id: String(idx + 1),
+        time: `12:00:${idx.toString().padStart(2, '0')}`,
+        msg: `Log entry number ${idx + 1}`,
+      }));
+
+      render(<LogViewer logs={manyLogs} />);
+
+      // Default page size is 20, so all 15 logs are shown
+      const showingText = screen.getByText((content, element) => element?.textContent === "Showing 1 to 15 of 15 entries");
+      expect(showingText).toBeInTheDocument();
+
+      // Change page size to 10
+      const select = screen.getByRole("combobox");
+      fireEvent.change(select, { target: { value: "10" } });
+
+      // Verify limit updated to 10
+      const showingUpdatedText = screen.getByText((content, element) => element?.textContent === "Showing 1 to 10 of 15 entries");
+      expect(showingUpdatedText).toBeInTheDocument();
+      expect(screen.getByText("Log entry number 1")).toBeInTheDocument();
+      expect(screen.queryByText("Log entry number 11")).not.toBeInTheDocument();
+    });
+  });
 });
