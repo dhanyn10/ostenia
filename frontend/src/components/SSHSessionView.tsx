@@ -23,6 +23,7 @@ import SSHToolbar from "./ssh/SSHToolbar";
 import SSHFileExplorer from "./ssh/SSHFileExplorer";
 import ConfirmationModal from "./ConfirmationModal";
 import PromptModal from "./PromptModal";
+import { measureActivity } from "../utils/activityLogger";
 
 interface ResourceLineChartProps {
   /** Sequential historical data of resource metrics containing CPU, Memory, and Disk ratios */
@@ -634,25 +635,56 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const connectSSH = async () => {
     if (!xterm.current) return;
     setConnecting(true);
-    xterm.current.write(`Connecting to ${session.host}...\r\n`);
-    try {
-      const timeout = Number.parseInt(localStorage.getItem('ostenia_ssh_max_timeout') || '10', 10);
-      const retries = Number.parseInt(localStorage.getItem('ostenia_ssh_max_retries') || '3', 10);
-      const sessionWithConfig = {
-        ...session,
-        maxTimeout: Number.isNaN(timeout) || timeout < 1 ? 10 : timeout,
-        maxRetries: Number.isNaN(retries) || retries < 1 ? 3 : retries,
-      };
-      await AppBackend.ConnectSSH(sessionWithConfig);
+
+    const timeout = Number.parseInt(localStorage.getItem('ostenia_ssh_max_timeout') || '10', 10);
+    const retries = Number.parseInt(localStorage.getItem('ostenia_ssh_max_retries') || '3', 10);
+    const maxTimeout = Number.isNaN(timeout) || timeout < 1 ? 10 : timeout;
+    const maxRetries = Number.isNaN(retries) || retries < 1 ? 3 : retries;
+
+    await measureActivity("connectSSH", async () => {
+      let finalErr: any = null;
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        xterm.current?.write(`Connecting to ${session.host} (Attempt ${attempt}/${maxRetries})...\r\n`);
+        console.log(`SSH Connection attempt ${attempt}/${maxRetries} to ${session.host}`);
+
+        const sessionWithConfig = {
+          ...session,
+          maxTimeout,
+          maxRetries: 1, // Let frontend handle retries
+        };
+
+        const startTime = performance.now();
+        try {
+          await AppBackend.ConnectSSH(sessionWithConfig);
+          const dur = (performance.now() - startTime).toFixed(1);
+          xterm.current?.write("\x1b[32mConnected successfully.\x1b[0m\r\n\r\n");
+          console.log(`SSH Connection attempt ${attempt}/${maxRetries} succeeded in ${dur}ms`);
+
+          setConnecting(false);
+          performFit();
+          loadRemoteFiles("", false, true);
+          return; // Success!
+        } catch (err: any) {
+          finalErr = err;
+          const dur = (performance.now() - startTime).toFixed(1);
+          const errMsg = err?.message || String(err);
+
+          xterm.current?.write(`\x1b[33mAttempt ${attempt}/${maxRetries} failed in ${dur}ms: ${errMsg}\x1b[0m\r\n`);
+          console.warn(`SSH Connection attempt ${attempt}/${maxRetries} failed in ${dur}ms: ${errMsg}`);
+
+          if (attempt < maxRetries) {
+            xterm.current?.write("Retrying in 1s...\r\n");
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
+
       setConnecting(false);
-      xterm.current.write("\x1b[32mConnected successfully.\x1b[0m\r\n\r\n");
-      performFit();
-      loadRemoteFiles("", false, true);
-    } catch (err) {
-      setConnecting(false);
-      xterm.current.write(`\x1b[31mConnection failed: ${err}\x1b[0m\r\n`);
-      addToast("Error", "SSH connection failed: " + err, "error");
-    }
+      xterm.current?.write(`\x1b[31mConnection failed after ${maxRetries} attempts.\x1b[0m\r\n`);
+      addToast("Error", "SSH connection failed after maximum attempts: " + finalErr, "error");
+      throw new Error(`Connection failed after ${maxRetries} attempts: ${finalErr}`);
+    });
   };
 
   /**
@@ -708,19 +740,21 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const loadRemoteFiles = async (path: string, isManualEntry = false, isAutoSync = false) => {
     setLoadingFiles(true);
     try {
-      let targetPath = path;
-      if (targetPath === "") {
-        const current = await AppBackend.GetRemoteCurrentPath(session.id);
-        if (current) {
-          targetPath = current;
+      await measureActivity("loadRemoteFiles", async () => {
+        let targetPath = path;
+        if (targetPath === "") {
+          const current = await AppBackend.GetRemoteCurrentPath(session.id);
+          if (current) {
+            targetPath = current;
+          }
         }
-      }
-      const result = await AppBackend.GetRemoteFiles(session.id, targetPath);
-      if (result === null && isManualEntry)
-        throw new Error("Directory not available");
-      setFiles(result || []);
-      setRemotePath(targetPath);
-      currentPathRef.current = targetPath;
+        const result = await AppBackend.GetRemoteFiles(session.id, targetPath);
+        if (result === null && isManualEntry)
+          throw new Error("Directory not available");
+        setFiles(result || []);
+        setRemotePath(targetPath);
+        currentPathRef.current = targetPath;
+      });
     } catch (err: any) {
       handleLoadFilesError(err, isManualEntry, isAutoSync);
     } finally {
@@ -796,11 +830,13 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
    */
   const handleDownload = async (file: any) => {
     try {
-      await AppBackend.DownloadRemoteFile(
-        session.id,
-        `${remotePath}/${file.name}`,
-      );
-      addToast("Success", "File download started", "success");
+      await measureActivity("handleDownload", async () => {
+        await AppBackend.DownloadRemoteFile(
+          session.id,
+          `${remotePath}/${file.name}`,
+        );
+        addToast("Success", "File download started", "success");
+      });
     } catch (err: any) {
       addToast("Error", "Download failed: " + err, "error");
     }
@@ -811,9 +847,11 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
    */
   const handleUpload = async () => {
     try {
-      await AppBackend.UploadRemoteFile(session.id, remotePath);
-      addToast("Success", "File uploaded successfully", "success");
-      loadRemoteFiles(remotePath);
+      await measureActivity("handleUpload", async () => {
+        await AppBackend.UploadRemoteFile(session.id, remotePath);
+        addToast("Success", "File uploaded successfully", "success");
+        loadRemoteFiles(remotePath);
+      });
     } catch (err: any) {
       addToast("Error", "Upload failed: " + err, "error");
     }
@@ -824,10 +862,12 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
    */
   const handleEdit = async (file: any) => {
     try {
-      addToast("Editor", "Opening " + file.name + "...", "info");
-      await AppBackend.EditRemoteFile(session.id, `${remotePath}/${file.name}`);
-      addToast("Success", "File saved and uploaded", "success");
-      loadRemoteFiles(remotePath);
+      await measureActivity("handleEdit", async () => {
+        addToast("Editor", "Opening " + file.name + "...", "info");
+        await AppBackend.EditRemoteFile(session.id, `${remotePath}/${file.name}`);
+        addToast("Success", "File saved and uploaded", "success");
+        loadRemoteFiles(remotePath);
+      });
     } catch (err: any) {
       addToast("Error", "Edit failed: " + err, "error");
     }
@@ -845,14 +885,16 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     const file = deleteFile;
     setDeleteFile(null);
     try {
-      await AppBackend.ExecuteSFTPAction(
-        session.id,
-        "delete",
-        `${remotePath}/${file.name}`,
-        "",
-      );
-      addToast("Success", "Deleted " + file.name, "success");
-      loadRemoteFiles(remotePath);
+      await measureActivity("handleConfirmDelete", async () => {
+        await AppBackend.ExecuteSFTPAction(
+          session.id,
+          "delete",
+          `${remotePath}/${file.name}`,
+          "",
+        );
+        addToast("Success", "Deleted " + file.name, "success");
+        loadRemoteFiles(remotePath);
+      });
     } catch (err: any) {
       addToast("Error", "Delete failed: " + err, "error");
     }
@@ -862,13 +904,15 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     setNewFolderModalOpen(false);
     if (name) {
       try {
-        await AppBackend.ExecuteSFTPAction(
-          session.id,
-          "mkdir",
-          `${remotePath}/${name}`,
-          "",
-        );
-        loadRemoteFiles(remotePath);
+        await measureActivity("handleConfirmNewFolder", async () => {
+          await AppBackend.ExecuteSFTPAction(
+            session.id,
+            "mkdir",
+            `${remotePath}/${name}`,
+            "",
+          );
+          loadRemoteFiles(remotePath);
+        });
       } catch (e: any) {
         addToast("Error", e.toString(), "error");
       }
@@ -881,13 +925,15 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     setRenameFile(null);
     if (name && name !== file.name) {
       try {
-        await AppBackend.ExecuteSFTPAction(
-          session.id,
-          "rename",
-          `${remotePath}/${file.name}`,
-          `${remotePath}/${name}`,
-        );
-        loadRemoteFiles(remotePath);
+        await measureActivity("handleConfirmRename", async () => {
+          await AppBackend.ExecuteSFTPAction(
+            session.id,
+            "rename",
+            `${remotePath}/${file.name}`,
+            `${remotePath}/${name}`,
+          );
+          loadRemoteFiles(remotePath);
+        });
       } catch (err: any) {
         addToast("Error", err.toString(), "error");
       }

@@ -110,6 +110,8 @@ export function parseStackTrace(stack: string | undefined): ParsedStack {
     /setupConsoleOverrides/i,
     /stackParser/i,
     /parseStackTrace/i,
+    /measureActivity/i,
+    /activityLogger/i,
     /console\.(log|warn|error|info)/i,
     /Object\.(log|warn|error|info)/i,
     /at\s+log\s+\(/i,
