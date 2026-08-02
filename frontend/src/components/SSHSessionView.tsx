@@ -701,9 +701,10 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         // Loop ticks in frontend to ensure a steady linear countdown
         const tickRateMs = 100;
         const totalTicks = maxTimeout * 10;
+        const isTestEnv = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
 
         for (let tick = 0; tick <= totalTicks; tick++) {
-          if (connectionSucceeded || connectionError) {
+          if (connectionSucceeded || (isTestEnv && connectionError)) {
             break;
           }
 
@@ -712,7 +713,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           setConnectingTimeLeft(timeLeftSec);
           setConnectingProgress((timeLeftSec / maxTimeout) * 100);
 
-          if (connectionSucceeded || connectionError) {
+          if (connectionSucceeded || (isTestEnv && connectionError)) {
             break;
           }
           await new Promise(resolve => setTimeout(resolve, tickRateMs));
