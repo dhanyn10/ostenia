@@ -712,8 +712,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         } catch (err: any) {
           clearProgressInterval();
           setConnectingHasFailed(true);
-          setConnectingProgress(0); // Transition to 0 smoothly on failure
-          setConnectingTimeLeft(0);
+          // Keep progress and time frozen exactly where they are on failure during the 1s wait
           finalErr = err;
           const dur = (performance.now() - startTime).toFixed(1);
           const errMsg = err?.message || String(err);
