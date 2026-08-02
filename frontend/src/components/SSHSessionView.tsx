@@ -197,6 +197,14 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const currentPathRef = useRef("");
   const isFetchingUsageRef = useRef(false);
   const lastTerminalPathRef = useRef("");
+  const progressIntervalRef = useRef<any>(null);
+
+  const clearProgressInterval = () => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+  };
 
   // --- State Hooks ---
   const [connecting, setConnecting] = useState(true);
@@ -641,6 +649,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     setConnectingProgress(0);
     setConnectingAttempt("");
     setConnectingStatus("Initializing...");
+    clearProgressInterval();
 
     const timeout = Number.parseInt(localStorage.getItem('ostenia_ssh_max_timeout') || '10', 10);
     const retries = Number.parseInt(localStorage.getItem('ostenia_ssh_max_retries') || '3', 10);
@@ -654,17 +663,18 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         xterm.current?.write(`Connecting to ${session.host} (Attempt ${attempt}/${maxRetries})...\r\n`);
         console.log(`SSH Connection attempt ${attempt}/${maxRetries} to ${session.host}`);
 
-        // Set attempt details
+        // Set attempt details and reset progress
         setConnectingAttempt(`${attempt}/${maxRetries}`);
         setConnectingStatus(`Connecting to ${session.host} (Attempt ${attempt}/${maxRetries})...`);
         setConnectingProgress(0);
+        clearProgressInterval();
 
         // Start dynamic progress bar counting up over the maxTimeout duration
         const startTimeSec = performance.now();
         const tickRateMs = 100;
         const totalDurationMs = maxTimeout * 1000;
 
-        const progressInterval = setInterval(() => {
+        progressIntervalRef.current = setInterval(() => {
           const elapsedMs = performance.now() - startTimeSec;
           const percentage = Math.min((elapsedMs / totalDurationMs) * 100, 100);
           setConnectingProgress(percentage);
@@ -679,7 +689,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         const startTime = performance.now();
         try {
           await AppBackend.ConnectSSH(sessionWithConfig);
-          clearInterval(progressInterval);
+          clearProgressInterval();
           setConnectingProgress(100);
           const dur = (performance.now() - startTime).toFixed(1);
           xterm.current?.write("\x1b[32mConnected successfully.\x1b[0m\r\n\r\n");
@@ -690,7 +700,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           loadRemoteFiles("", false, true);
           return; // Success!
         } catch (err: any) {
-          clearInterval(progressInterval);
+          clearProgressInterval();
+          setConnectingProgress(0); // Clear progress cleanly on failure
           finalErr = err;
           const dur = (performance.now() - startTime).toFixed(1);
           const errMsg = err?.message || String(err);
