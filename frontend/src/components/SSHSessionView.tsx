@@ -1082,43 +1082,33 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           {connecting && (
             <div className="absolute inset-0 bg-white dark:bg-mui-dark-bg flex flex-col items-center justify-center p-6 z-20">
               <div className="w-full max-w-sm bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 rounded-xl p-6 shadow-md flex flex-col items-center gap-5 text-center animate-in fade-in duration-300">
-                {/* Single visual animated icon */}
-                <div className="relative flex items-center justify-center w-14 h-14 bg-mui-blue-500/10 dark:bg-mui-blue-500/20 rounded-full animate-pulse">
-                  <Settings className="text-mui-blue-500 dark:text-mui-blue-400 animate-spin-slow" size={28} />
+                {/* Circular spinning loader with attempt badges centered */}
+                <div className="relative flex items-center justify-center w-14 h-14">
+                  <div className="absolute inset-0 rounded-full border-4 border-slate-200 dark:border-slate-800" />
+                  <div className={`absolute inset-0 rounded-full border-4 border-transparent animate-spin ${
+                    connectingHasFailed
+                      ? "border-t-rose-500"
+                      : "border-t-mui-blue-500"
+                  }`} />
+                  {connectingAttempt && (
+                    <span className="absolute text-[10px] font-black text-mui-blue-600 dark:text-mui-blue-400 font-mono tracking-tight bg-mui-blue-500/10 px-1.5 py-0.5 rounded-full border border-mui-blue-500/20">
+                      {connectingAttempt}
+                    </span>
+                  )}
                 </div>
 
                 <div className="space-y-1 w-full">
-                  <div className="flex items-center justify-center gap-2">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      Establishing Connection
-                    </h4>
-                    {connectingAttempt && (
-                      <span className="text-[9px] font-black text-mui-blue-600 dark:text-mui-blue-400 font-mono tracking-tight bg-mui-blue-500/10 px-2 py-0.5 rounded border border-mui-blue-500/20">
-                        Attempt {connectingAttempt}
-                      </span>
-                    )}
-                  </div>
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Establishing Connection
+                  </h4>
                   <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate w-full">
                     {connectingStatus || `Connecting to ${session.host}...`}
                   </p>
                 </div>
 
-                {/* Single Linear Shrinking Progress Bar */}
-                <div className="w-full space-y-2">
-                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden relative">
-                    <div
-                      className={`h-full rounded-full transition-[width] duration-100 linear bg-gradient-to-r ${
-                        connectingHasFailed
-                          ? "from-rose-500 to-red-500"
-                          : "from-mui-blue-500 to-indigo-500"
-                      }`}
-                      style={{ width: `${connectingProgress}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider">
-                    <span>Time Remaining</span>
-                    <span>{connectingTimeLeft.toFixed(1)}s</span>
-                  </div>
+                {/* Simplified countdown timer details */}
+                <div className="text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800/40 px-3 py-1 rounded">
+                  Time Remaining: {connectingTimeLeft.toFixed(1)}s
                 </div>
               </div>
             </div>
