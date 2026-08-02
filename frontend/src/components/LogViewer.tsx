@@ -1,14 +1,39 @@
 import React from "react";
-import { List } from "lucide-react";
+import { List, Copy, Check } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-function cn(...inputs) {
+function cn(...inputs: any[]) {
   return twMerge(clsx(inputs));
 }
 
-function LogViewer({ logs }) {
-  const getLogColorClass = (msg) => {
+interface CallerInfo {
+  functionName: string;
+  fileName: string;
+  line: string;
+  column: string;
+}
+
+interface LogEntry {
+  id: string | number;
+  time: string;
+  msg: string;
+  cleanMsg?: string;
+  type?: string;
+  isServiceLog?: boolean;
+  caller?: CallerInfo;
+  rawStack?: string;
+}
+
+interface LogViewerProps {
+  logs: LogEntry[];
+}
+
+function LogViewer({ logs }: LogViewerProps) {
+  const [viewMode, setViewMode] = React.useState<"simple" | "complete">("simple");
+  const [copiedId, setCopiedId] = React.useState<string | number | null>(null);
+
+  const getLogColorClass = (msg: string) => {
     if (
       msg.includes("ERR") ||
       msg.includes("Error") ||
@@ -29,25 +54,116 @@ function LogViewer({ logs }) {
     return "text-slate-600 dark:text-slate-400";
   };
 
+  const getLogLevel = (log: LogEntry): "SERVICE" | "ERROR" | "WARN" | "INFO" => {
+    if (log.isServiceLog) return "SERVICE";
+    const type = log.type || "";
+    if (type.toLowerCase() === "error" || type.toLowerCase() === "err") return "ERROR";
+    if (type.toLowerCase() === "warn" || type.toLowerCase() === "wrn") return "WARN";
+
+    // Fallback to checking the msg
+    const msg = log.msg || "";
+    if (msg.includes("[ERR]") || msg.includes("Error") || msg.includes("failed")) return "ERROR";
+    if (msg.includes("[WRN]")) return "WARN";
+    return "INFO";
+  };
+
+  const handleCopyLog = (log: LogEntry) => {
+    const level = getLogLevel(log);
+    const timeStr = log.time || "";
+
+    let message = log.cleanMsg || log.msg || "";
+    // If it still has [SYS], [ERR], [WRN] prefixed, we can strip it for complete mode's clipboard copy
+    if (message.startsWith("[SYS] ") || message.startsWith("[ERR] ") || message.startsWith("[WRN] ")) {
+      message = message.substring(6);
+    }
+
+    const callerFunc = log.caller ? `${log.caller.functionName}()` : "N/A";
+    const fileInfo = log.caller ? `${log.caller.fileName}:${log.caller.line}:${log.caller.column}` : "N/A";
+    const stackTraceText = log.rawStack ? log.rawStack : "N/A";
+
+    const copyText = [
+      `Timestamp: [${timeStr}]`,
+      `Level: ${level}`,
+      `Message: ${message}`,
+      `Caller Function: ${callerFunc}`,
+      `File: ${fileInfo}`,
+      `Stack Trace:\n${stackTraceText}`
+    ].join("\n");
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(copyText).then(() => {
+        setCopiedId(log.id);
+        setTimeout(() => {
+          setCopiedId(null);
+        }, 2000);
+      });
+    } else {
+      // Fallback for jsdom testing environment
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = copyText;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+        setCopiedId(log.id);
+        setTimeout(() => {
+          setCopiedId(null);
+        }, 2000);
+      } catch (err) {
+        console.error("Failed to copy using fallback:", err);
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500 bg-white dark:bg-[#0f172a]">
       {/* Header Area */}
-      <div className="shrink-0 p-6 flex items-center justify-between border-b border-slate-200 dark:border-white/5 bg-white/50 dark:bg-slate-900/40 ">
-        <div className="flex items-center gap-3">
-          {/* Icon container removed */}
-          <div>
-            <h3 className="font-black text-slate-900 dark:text-white uppercase italic tracking-tighter text-sm">
-              System Activity Logs
-            </h3>
-            <p className="text-[9px] text-slate-400 uppercase tracking-widest font-bold">
-              Real-time application monitoring
-            </p>
+      <div className="shrink-0 p-6 border-b border-slate-200 dark:border-white/5 bg-white/50 dark:bg-slate-900/40 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div>
+              <h3 className="font-black text-slate-900 dark:text-white uppercase italic tracking-tighter text-sm">
+                System Activity Logs
+              </h3>
+              <p className="text-[9px] text-slate-400 uppercase tracking-widest font-bold">
+                Real-time application monitoring
+              </p>
+            </div>
           </div>
+        </div>
+
+        {/* Switcher Control */}
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-lg self-start">
+          <button
+            type="button"
+            onClick={() => setViewMode("simple")}
+            className={cn(
+              "px-3 py-1.5 rounded-md text-[10px] font-bold transition-all uppercase tracking-wider",
+              viewMode === "simple"
+                ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white"
+            )}
+          >
+            Simple Log
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("complete")}
+            className={cn(
+              "px-3 py-1.5 rounded-md text-[10px] font-bold transition-all uppercase tracking-wider",
+              viewMode === "complete"
+                ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white"
+            )}
+          >
+            Complete Log
+          </button>
         </div>
       </div>
 
       {/* Logs Content Area */}
-      <div className="flex-1 overflow-y-auto p-6 font-mono text-[10px] space-y-1.5 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5">
+      <div className="flex-1 overflow-y-auto p-6 font-mono text-[10px] space-y-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5">
         {logs.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 gap-2 opacity-50">
             <List size={32} strokeWidth={1} />
@@ -55,26 +171,137 @@ function LogViewer({ logs }) {
               No activity recorded yet...
             </p>
           </div>
-        ) : (
-          <div className="flex flex-col-reverse justify-end min-h-full">
-            {logs.map((log) => (
-              <div
-                key={log.id}
-                className="flex gap-4 group py-0.5 border-b border-transparent hover:border-slate-100 dark:hover:border-white/5 transition-all"
-              >
-                <span className="text-slate-400 dark:text-slate-600 select-none shrink-0 w-20">
-                  [{log.time}]
-                </span>
-                <span
-                  className={cn(
-                    "flex-1 break-all leading-relaxed",
-                    getLogColorClass(log.msg),
-                  )}
+        ) : viewMode === "simple" ? (
+          /* Simple Log Mode */
+          <div className="flex flex-col-reverse justify-end min-h-full space-y-1.5 space-y-reverse">
+            {logs.map((log) => {
+              const isCopied = copiedId === log.id;
+              return (
+                <div
+                  key={log.id}
+                  className="flex items-center justify-between gap-4 group py-1 px-2 border border-transparent hover:border-slate-100 dark:hover:border-white/5 hover:bg-slate-50 dark:hover:bg-slate-900/40 rounded transition-all"
                 >
-                  {log.msg}
-                </span>
-              </div>
-            ))}
+                  <div className="flex gap-4 items-baseline min-w-0 flex-1">
+                    <span className="text-slate-400 dark:text-slate-600 select-none shrink-0 w-20">
+                      [{log.time}]
+                    </span>
+                    <span
+                      className={cn(
+                        "flex-1 break-all leading-relaxed min-w-0",
+                        getLogColorClass(log.msg)
+                      )}
+                    >
+                      {log.msg}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleCopyLog(log);
+                    }}
+                    className={cn(
+                      "shrink-0 p-1 rounded border transition-all",
+                      isCopied
+                        ? "text-emerald-500 border-emerald-500/30 bg-emerald-500/10"
+                        : "text-slate-400 border-transparent hover:border-slate-200 hover:bg-slate-100 dark:hover:border-slate-700 dark:hover:bg-slate-800"
+                    )}
+                    title="Copy Log"
+                  >
+                    {isCopied ? <Check size={12} /> : <Copy size={12} />}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* Complete Log (Laravel-Style) Mode */
+          <div className="flex flex-col-reverse justify-end min-h-full space-y-3 space-y-reverse">
+            {logs.map((log) => {
+              const isCopied = copiedId === log.id;
+              const level = getLogLevel(log);
+              const isService = log.isServiceLog;
+
+              const badgeClasses = {
+                SERVICE: "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50",
+                ERROR: "bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800/50 font-bold",
+                WARN: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50 font-bold",
+                INFO: "bg-slate-100 text-slate-800 dark:bg-slate-800/60 dark:text-slate-300 border border-slate-200 dark:border-slate-700/50"
+              };
+
+              const currentBadgeClass = badgeClasses[level] || badgeClasses.INFO;
+
+              return (
+                <div
+                  key={log.id}
+                  className="p-4 rounded-lg border text-[10px] transition-all shadow-sm flex flex-col gap-3 bg-slate-50/50 dark:bg-slate-900/20 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700"
+                >
+                  {/* Top line with metadata */}
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-slate-400 dark:text-slate-500 font-bold tracking-tight">
+                        [{log.time}]
+                      </span>
+                      <span className={cn("px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider", currentBadgeClass)}>
+                        {level}
+                      </span>
+                      {!isService && log.caller && (
+                        <div className="flex flex-wrap items-center gap-1 text-slate-500 dark:text-slate-400 text-[9px] bg-slate-100 dark:bg-slate-800/40 px-2 py-0.5 rounded">
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                            {log.caller.functionName}()
+                          </span>
+                          <span className="text-slate-400 dark:text-slate-500">
+                            in
+                          </span>
+                          <span className="font-mono text-slate-600 dark:text-slate-400 font-bold">
+                            {log.caller.fileName}:{log.caller.line}:{log.caller.column}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Copy Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleCopyLog(log);
+                      }}
+                      className={cn(
+                        "p-1.5 rounded border transition-all",
+                        isCopied
+                          ? "text-emerald-500 border-emerald-500/30 bg-emerald-500/10"
+                          : "text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 bg-white dark:bg-slate-900"
+                      )}
+                      title="Copy Laravel-Style Log"
+                    >
+                      {isCopied ? <Check size={12} /> : <Copy size={12} />}
+                    </button>
+                  </div>
+
+                  {/* Message details */}
+                  <div className={cn(
+                    "font-semibold leading-relaxed break-all text-xs",
+                    isService ? "text-slate-700 dark:text-slate-300 font-bold" : getLogColorClass(log.msg)
+                  )}>
+                    {log.cleanMsg || log.msg}
+                  </div>
+
+                  {/* Expandable Stack Trace */}
+                  {!isService && log.rawStack && (
+                    <details className="group/details text-[10px] text-slate-500 dark:text-slate-400">
+                      <summary className="cursor-pointer font-bold select-none hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1 outline-none">
+                        <span className="inline-block transition-transform duration-100 group-open/details:rotate-90">▶</span>
+                        View Stack Trace
+                      </summary>
+                      <pre className="bg-black text-rose-400/90 dark:text-rose-300 p-4 rounded-md overflow-x-auto text-[9px] mt-2 font-mono border border-slate-800 leading-normal whitespace-pre">
+                        {log.rawStack}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
