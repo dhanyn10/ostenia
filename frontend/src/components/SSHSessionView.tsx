@@ -675,32 +675,61 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         setConnectingHasFailed(false);
         clearProgressInterval();
 
-        // Start dynamic progress bar counting down over the maxTimeout duration
-        const startTimeSec = performance.now();
-        const tickRateMs = 100;
-        const totalDurationMs = maxTimeout * 1000;
-
-        progressIntervalRef.current = setInterval(() => {
-          const elapsedMs = performance.now() - startTimeSec;
-          const timeLeftMs = Math.max(totalDurationMs - elapsedMs, 0);
-          const timeLeftSec = timeLeftMs / 1000;
-          setConnectingTimeLeft(timeLeftSec);
-
-          const percentage = (timeLeftMs / totalDurationMs) * 100;
-          setConnectingProgress(percentage);
-        }, tickRateMs);
-
         const sessionWithConfig = {
           ...session,
           maxTimeout,
           maxRetries: 1, // Let frontend handle retries
         };
 
+        // Start backend connection in the background
+        let connectionError: any = null;
+        let connectionSucceeded = false;
+
         const startTime = performance.now();
-        try {
-          await AppBackend.ConnectSSH(sessionWithConfig);
-          clearProgressInterval();
-          // Leave progress full or vanish beautifully
+        const connectPromise = AppBackend.ConnectSSH(sessionWithConfig)
+          .then(() => {
+            connectionSucceeded = true;
+          })
+          .catch((err) => {
+            connectionError = err;
+          });
+
+        // Let microtasks run so that instant connections resolve instantly without tick loop delays
+        await Promise.resolve();
+        await Promise.resolve();
+
+        // Loop ticks in frontend to ensure a steady linear countdown
+        const tickRateMs = 100;
+        const totalTicks = maxTimeout * 10;
+
+        for (let tick = 0; tick <= totalTicks; tick++) {
+          if (connectionSucceeded || connectionError) {
+            break;
+          }
+
+          const elapsedSec = tick * 0.1;
+          const timeLeftSec = Math.max(maxTimeout - elapsedSec, 0);
+          setConnectingTimeLeft(timeLeftSec);
+          setConnectingProgress((timeLeftSec / maxTimeout) * 100);
+
+          if (connectionSucceeded || connectionError) {
+            break;
+          }
+          await new Promise(resolve => setTimeout(resolve, tickRateMs));
+        }
+
+        // Await the backend promise to make sure it is fully resolved/rejected
+        if (!connectionSucceeded && !connectionError) {
+          try {
+            await connectPromise;
+          } catch (err) {
+            connectionError = err;
+          }
+        }
+
+        if (connectionSucceeded) {
+          setConnectingProgress(0);
+          setConnectingTimeLeft(0);
           const dur = (performance.now() - startTime).toFixed(1);
           xterm.current?.write("\x1b[32mConnected successfully.\x1b[0m\r\n\r\n");
           console.log(`SSH Connection attempt ${attempt}/${maxRetries} succeeded in ${dur}ms`);
@@ -709,13 +738,13 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           performFit();
           loadRemoteFiles("", false, true);
           return; // Success!
-        } catch (err: any) {
-          clearProgressInterval();
+        } else {
           setConnectingHasFailed(true);
-          // Keep progress and time frozen exactly where they are on failure during the 1s wait
-          finalErr = err;
+          setConnectingProgress(0);
+          setConnectingTimeLeft(0);
+          finalErr = connectionError;
           const dur = (performance.now() - startTime).toFixed(1);
-          const errMsg = err?.message || String(err);
+          const errMsg = connectionError?.message || String(connectionError);
 
           xterm.current?.write(`\x1b[33mAttempt ${attempt}/${maxRetries} failed in ${dur}ms: ${errMsg}\x1b[0m\r\n`);
           console.warn(`SSH Connection attempt ${attempt}/${maxRetries} failed in ${dur}ms: ${errMsg}`);
