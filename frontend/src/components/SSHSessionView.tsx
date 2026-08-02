@@ -211,6 +211,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const [connectingAttempt, setConnectingAttempt] = useState<string>("");
   const [connectingProgress, setConnectingProgress] = useState<number>(0);
   const [connectingStatus, setConnectingStatus] = useState<string>("");
+  const [connectingTimeLeft, setConnectingTimeLeft] = useState<number>(0);
   const [remotePath, setRemotePath] = useState("");
   const [editingPath, setEditingPath] = useState("");
   const [files, setFiles] = useState<any[]>([]);
@@ -646,9 +647,10 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const connectSSH = async () => {
     if (!xterm.current) return;
     setConnecting(true);
-    setConnectingProgress(0);
+    setConnectingProgress(100);
     setConnectingAttempt("");
     setConnectingStatus("Initializing...");
+    setConnectingTimeLeft(0);
     clearProgressInterval();
 
     const timeout = Number.parseInt(localStorage.getItem('ostenia_ssh_max_timeout') || '10', 10);
@@ -663,20 +665,25 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         xterm.current?.write(`Connecting to ${session.host} (Attempt ${attempt}/${maxRetries})...\r\n`);
         console.log(`SSH Connection attempt ${attempt}/${maxRetries} to ${session.host}`);
 
-        // Set attempt details and reset progress
+        // Set attempt details and start with full progress bar shrinking leftward
         setConnectingAttempt(`${attempt}/${maxRetries}`);
         setConnectingStatus(`Connecting to ${session.host} (Attempt ${attempt}/${maxRetries})...`);
-        setConnectingProgress(0);
+        setConnectingProgress(100);
+        setConnectingTimeLeft(maxTimeout);
         clearProgressInterval();
 
-        // Start dynamic progress bar counting up over the maxTimeout duration
+        // Start dynamic progress bar counting down over the maxTimeout duration
         const startTimeSec = performance.now();
         const tickRateMs = 100;
         const totalDurationMs = maxTimeout * 1000;
 
         progressIntervalRef.current = setInterval(() => {
           const elapsedMs = performance.now() - startTimeSec;
-          const percentage = Math.min((elapsedMs / totalDurationMs) * 100, 100);
+          const timeLeftMs = Math.max(totalDurationMs - elapsedMs, 0);
+          const timeLeftSec = timeLeftMs / 1000;
+          setConnectingTimeLeft(timeLeftSec);
+
+          const percentage = (timeLeftMs / totalDurationMs) * 100;
           setConnectingProgress(percentage);
         }, tickRateMs);
 
@@ -690,7 +697,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         try {
           await AppBackend.ConnectSSH(sessionWithConfig);
           clearProgressInterval();
-          setConnectingProgress(100);
+          setConnectingProgress(0);
+          setConnectingTimeLeft(0);
           const dur = (performance.now() - startTime).toFixed(1);
           xterm.current?.write("\x1b[32mConnected successfully.\x1b[0m\r\n\r\n");
           console.log(`SSH Connection attempt ${attempt}/${maxRetries} succeeded in ${dur}ms`);
@@ -702,6 +710,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         } catch (err: any) {
           clearProgressInterval();
           setConnectingProgress(0); // Clear progress cleanly on failure
+          setConnectingTimeLeft(0);
           finalErr = err;
           const dur = (performance.now() - startTime).toFixed(1);
           const errMsg = err?.message || String(err);
@@ -1070,8 +1079,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
                     />
                   </div>
                   <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider">
-                    <span>Progress</span>
-                    <span>{Math.round(connectingProgress)}%</span>
+                    <span>Remaining</span>
+                    <span>{connectingTimeLeft.toFixed(1)}s</span>
                   </div>
                 </div>
               </div>
