@@ -198,6 +198,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const isFetchingUsageRef = useRef(false);
   const lastTerminalPathRef = useRef("");
   const progressIntervalRef = useRef<any>(null);
+  const activeConnectIdRef = useRef<string | null>(null);
 
   const clearProgressInterval = () => {
     if (progressIntervalRef.current) {
@@ -633,6 +634,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     connectSSH();
 
     return () => {
+      activeConnectIdRef.current = null; // Cancel any active connection loops!
       (EventsOff as any)("ssh_output", handleOutput);
       (EventsOff as any)("ssh_path_changed", handlePathChange);
       (EventsOff as any)("ssh_disconnected", handleDisconnect);
@@ -655,6 +657,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     setConnectingHasFailed(false);
     clearProgressInterval();
 
+    const currentCallId = crypto.randomUUID();
+    activeConnectIdRef.current = currentCallId;
+
     const timeout = Number.parseInt(localStorage.getItem('ostenia_ssh_max_timeout') || '10', 10);
     const retries = Number.parseInt(localStorage.getItem('ostenia_ssh_max_retries') || '3', 10);
     const maxTimeout = Number.isNaN(timeout) || timeout < 1 ? 10 : timeout;
@@ -664,6 +669,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       let finalErr: any = null;
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        if (activeConnectIdRef.current !== currentCallId) return;
+
         xterm.current?.write(`Connecting to ${session.host} (Attempt ${attempt}/${maxRetries})...\r\n`);
         console.log(`SSH Connection attempt ${attempt}/${maxRetries} to ${session.host}`);
 
@@ -704,6 +711,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         const isTestEnv = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
 
         for (let tick = 0; tick <= totalTicks; tick++) {
+          if (activeConnectIdRef.current !== currentCallId) return;
+
           if (connectionSucceeded || (isTestEnv && connectionError)) {
             break;
           }
@@ -727,6 +736,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             connectionError = err;
           }
         }
+
+        if (activeConnectIdRef.current !== currentCallId) return;
 
         if (connectionSucceeded) {
           setConnectingProgress(0);
@@ -753,10 +764,17 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           if (attempt < maxRetries) {
             setConnectingStatus(`Attempt ${attempt}/${maxRetries} failed. Retrying in 1s...`);
             xterm.current?.write("Retrying in 1s...\r\n");
-            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // Checking active ID during retry delay
+            for (let i = 0; i < 10; i++) {
+              if (activeConnectIdRef.current !== currentCallId) return;
+              await new Promise(resolve => setTimeout(resolve, 100));
+            }
           }
         }
       }
+
+      if (activeConnectIdRef.current !== currentCallId) return;
 
       setConnecting(false);
       xterm.current?.write(`\x1b[31mConnection failed after ${maxRetries} attempts.\x1b[0m\r\n`);
