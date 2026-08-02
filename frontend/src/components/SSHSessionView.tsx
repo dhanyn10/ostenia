@@ -212,6 +212,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const [connectingProgress, setConnectingProgress] = useState<number>(0);
   const [connectingStatus, setConnectingStatus] = useState<string>("");
   const [connectingTimeLeft, setConnectingTimeLeft] = useState<number>(0);
+  const [connectingHasFailed, setConnectingHasFailed] = useState<boolean>(false);
   const [remotePath, setRemotePath] = useState("");
   const [editingPath, setEditingPath] = useState("");
   const [files, setFiles] = useState<any[]>([]);
@@ -651,6 +652,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     setConnectingAttempt("");
     setConnectingStatus("Initializing...");
     setConnectingTimeLeft(0);
+    setConnectingHasFailed(false);
     clearProgressInterval();
 
     const timeout = Number.parseInt(localStorage.getItem('ostenia_ssh_max_timeout') || '10', 10);
@@ -670,6 +672,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         setConnectingStatus(`Connecting to ${session.host} (Attempt ${attempt}/${maxRetries})...`);
         setConnectingProgress(100);
         setConnectingTimeLeft(maxTimeout);
+        setConnectingHasFailed(false);
         clearProgressInterval();
 
         // Start dynamic progress bar counting down over the maxTimeout duration
@@ -697,8 +700,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         try {
           await AppBackend.ConnectSSH(sessionWithConfig);
           clearProgressInterval();
-          setConnectingProgress(0);
-          setConnectingTimeLeft(0);
+          // Leave progress full or vanish beautifully
           const dur = (performance.now() - startTime).toFixed(1);
           xterm.current?.write("\x1b[32mConnected successfully.\x1b[0m\r\n\r\n");
           console.log(`SSH Connection attempt ${attempt}/${maxRetries} succeeded in ${dur}ms`);
@@ -709,7 +711,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           return; // Success!
         } catch (err: any) {
           clearProgressInterval();
-          setConnectingProgress(0); // Clear progress cleanly on failure
+          setConnectingHasFailed(true);
+          setConnectingProgress(0); // Transition to 0 smoothly on failure
           setConnectingTimeLeft(0);
           finalErr = err;
           const dur = (performance.now() - startTime).toFixed(1);
@@ -1075,7 +1078,11 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
                 <div className="w-full space-y-2">
                   <div className="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden relative">
                     <div
-                      className="bg-gradient-to-r from-mui-blue-500 to-indigo-500 h-full rounded-full"
+                      className={`h-full rounded-full transition-[width] duration-100 linear bg-gradient-to-r ${
+                        connectingHasFailed
+                          ? "from-rose-500 to-red-500"
+                          : "from-mui-blue-500 to-indigo-500"
+                      }`}
                       style={{ width: `${connectingProgress}%` }}
                     />
                   </div>
