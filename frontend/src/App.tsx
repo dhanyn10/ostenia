@@ -132,11 +132,16 @@ function App() {
      const stackTrace = isServiceLog ? '' : new Error().stack;
      const { caller, rawStack } = isServiceLog ? { caller: undefined, rawStack: '' } : parseStackTrace(stackTrace);
 
+     const formattedMsg = `[${prefix}] ${msg}`;
+     if (AppBackend && (AppBackend as any).SaveLogToFile) {
+       (AppBackend as any).SaveLogToFile(formattedMsg).catch(() => {});
+     }
+
      setLogs(prev => [
        {
          id,
          time,
-         msg: `[${prefix}] ${msg}`,
+         msg: formattedMsg,
          cleanMsg: msg,
          type,
          isServiceLog,
