@@ -1,5 +1,5 @@
 import React from "react";
-import { List, Copy, Check } from "lucide-react";
+import { List, Copy, Check, ArrowUp } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -27,6 +27,7 @@ interface LogEntry {
 
 interface LogViewerProps {
   logs: LogEntry[];
+  isActive?: boolean;
 }
 
 interface CopyLogButtonProps {
@@ -53,13 +54,90 @@ const CopyLogButton = ({ isCopied, onCopy, title }: CopyLogButtonProps) => {
   );
 };
 
-function LogViewer({ logs }: LogViewerProps) {
+function LogViewer({ logs, isActive = false }: LogViewerProps) {
   const [viewMode, setViewMode] = React.useState<"simple" | "complete">("simple");
   const [copiedId, setCopiedId] = React.useState<string | number | null>(null);
 
   // Pagination states
   const [currentPage, setCurrentPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
+
+  // Buffering states for real-time logs when active
+  const [displayedLogs, setDisplayedLogs] = React.useState<LogEntry[]>([]);
+  const [pendingLogs, setPendingLogs] = React.useState<LogEntry[]>([]);
+  const [isHovered, setIsHovered] = React.useState(false);
+
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  // Sync displayedLogs with incoming logs, buffering if active
+  React.useEffect(() => {
+    if (logs.length === 0) {
+      setDisplayedLogs([]);
+      setPendingLogs([]);
+      return;
+    }
+
+    if (!isActive) {
+      setDisplayedLogs(logs);
+      setPendingLogs([]);
+      return;
+    }
+
+    const displayedIds = new Set(displayedLogs.map(l => l.id));
+
+    if (displayedLogs.length === 0) {
+      setDisplayedLogs(logs);
+      setPendingLogs([]);
+      return;
+    }
+
+    // Check for a complete reload or clear (no overlap between previous displayed and new logs)
+    const hasOverlap = logs.some(l => displayedIds.has(l.id));
+    if (!hasOverlap) {
+      setDisplayedLogs(logs);
+      setPendingLogs([]);
+      return;
+    }
+
+    // Find new logs that are in `logs` but not in `displayedLogs`
+    const newLogs = logs.filter(l => !displayedIds.has(l.id));
+
+    if (newLogs.length > 0) {
+      const pendingIds = new Set(pendingLogs.map(l => l.id));
+      const actuallyNew = newLogs.filter(l => !pendingIds.has(l.id));
+
+      if (actuallyNew.length > 0) {
+        setPendingLogs(() => {
+          // Keep the exact same descending order as in the logs array
+          return logs.filter(l => !displayedIds.has(l.id));
+        });
+      }
+    } else {
+      // If logs decreased or some were removed, filter them accordingly
+      const logIds = new Set(logs.map(l => l.id));
+      const stillValidDisplayed = displayedLogs.filter(l => logIds.has(l.id));
+      if (stillValidDisplayed.length !== displayedLogs.length) {
+        setDisplayedLogs(stillValidDisplayed);
+      }
+      const stillValidPending = pendingLogs.filter(l => logIds.has(l.id));
+      if (stillValidPending.length !== pendingLogs.length) {
+        setPendingLogs(stillValidPending);
+      }
+    }
+  }, [logs, isActive]);
+
+  const handleReleasePending = () => {
+    setDisplayedLogs(logs);
+    setPendingLogs([]);
+    setCurrentPage(1);
+    if (containerRef.current) {
+      if (typeof containerRef.current.scrollTo === "function") {
+        containerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        containerRef.current.scrollTop = 0;
+      }
+    }
+  };
 
   const getLogColorClass = (msg: string) => {
     if (
@@ -143,11 +221,11 @@ function LogViewer({ logs }: LogViewerProps) {
   };
 
   // Slice list for pagination. Array contains newest logs at index 0.
-  const totalPages = Math.ceil(logs.length / pageSize) || 1;
+  const totalPages = Math.ceil(displayedLogs.length / pageSize) || 1;
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const startIndex = (safeCurrentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
-  const paginatedLogs = logs.slice(startIndex, endIndex);
+  const paginatedLogs = displayedLogs.slice(startIndex, endIndex);
 
   return (
     <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500 bg-white dark:bg-[#0f172a]">
@@ -202,8 +280,29 @@ function LogViewer({ logs }: LogViewerProps) {
       </div>
 
       {/* Logs Content Area */}
-      <div className="flex-1 overflow-y-auto p-6 font-mono text-[10px] space-y-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5">
-        {logs.length === 0 ? (
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-y-auto p-6 font-mono text-[10px] space-y-3 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-white/5 relative"
+      >
+        {/* Floating Pending Logs Badge */}
+        {pendingLogs.length > 0 && (
+          <div className="sticky top-4 z-20 flex justify-center w-full h-0 overflow-visible animate-in fade-in slide-in-from-top-2 duration-300">
+            <button
+              type="button"
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+              onClick={handleReleasePending}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white dark:bg-blue-500 dark:text-white rounded-full shadow-lg hover:shadow-xl hover:bg-blue-700 dark:hover:bg-blue-600 transition-all duration-200 cursor-pointer font-sans text-[11px] font-black uppercase tracking-wider border border-blue-500/30 shrink-0"
+            >
+              <ArrowUp size={12} className="animate-bounce shrink-0" />
+              <span>
+                {isHovered ? `show ${pendingLogs.length} new logs` : `${pendingLogs.length} new logs`}
+              </span>
+            </button>
+          </div>
+        )}
+
+        {displayedLogs.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 gap-2 opacity-50">
             <List size={32} strokeWidth={1} />
             <p className="text-[10px] font-bold uppercase tracking-widest italic">
@@ -329,12 +428,12 @@ function LogViewer({ logs }: LogViewerProps) {
       </div>
 
       {/* Pagination Controls */}
-      {logs.length > 0 && (
+      {displayedLogs.length > 0 && (
         <div className="shrink-0 p-4 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-slate-900/40 flex flex-wrap gap-4 items-center justify-between text-[11px] font-sans">
           <div className="text-slate-500 dark:text-slate-400 font-bold">
-            Showing <span className="text-slate-800 dark:text-slate-200">{Math.min(startIndex + 1, logs.length)}</span> to{" "}
-            <span className="text-slate-800 dark:text-slate-200">{Math.min(endIndex, logs.length)}</span> of{" "}
-            <span className="text-slate-800 dark:text-slate-200">{logs.length}</span> entries
+            Showing <span className="text-slate-800 dark:text-slate-200">{Math.min(startIndex + 1, displayedLogs.length)}</span> to{" "}
+            <span className="text-slate-800 dark:text-slate-200">{Math.min(endIndex, displayedLogs.length)}</span> of{" "}
+            <span className="text-slate-800 dark:text-slate-200">{displayedLogs.length}</span> entries
           </div>
 
           <div className="flex items-center gap-4">

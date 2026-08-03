@@ -530,7 +530,7 @@ function App() {
  </div>
 
  <div className={cn("h-full flex flex-col", activeTab !== 'logs' && "hidden")}>
- <LogViewer logs={logs} />
+ <LogViewer logs={logs} isActive={activeTab === 'logs'} />
  </div>
  </div>
  </main>
