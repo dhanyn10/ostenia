@@ -3,6 +3,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import LogViewer from "./LogViewer";
 import React from "react";
 
+const generateManyLogs = (count: number) => {
+  return Array.from({ length: count }, (_, idx) => ({
+    id: String(idx + 1),
+    time: `12:00:${idx.toString().padStart(2, '0')}`,
+    msg: `Log entry number ${idx + 1}`,
+  }));
+};
+
 describe("LogViewer Component", () => {
   const mockLogs = [
     {
@@ -212,12 +220,7 @@ describe("LogViewer Component", () => {
 
   describe("Pagination and Ordering", () => {
     it("respects log list page limits and supports next/prev pagination", () => {
-      // Generate 25 mock log items
-      const manyLogs = Array.from({ length: 25 }, (_, idx) => ({
-        id: String(idx + 1),
-        time: `12:00:${idx.toString().padStart(2, '0')}`,
-        msg: `Log entry number ${idx + 1}`,
-      }));
+      const manyLogs = generateManyLogs(25);
 
       render(<LogViewer logs={manyLogs} />);
 
@@ -252,11 +255,7 @@ describe("LogViewer Component", () => {
     });
 
     it("supports page size dropdown changes", () => {
-      const manyLogs = Array.from({ length: 15 }, (_, idx) => ({
-        id: String(idx + 1),
-        time: `12:00:${idx.toString().padStart(2, '0')}`,
-        msg: `Log entry number ${idx + 1}`,
-      }));
+      const manyLogs = generateManyLogs(15);
 
       render(<LogViewer logs={manyLogs} />);
 

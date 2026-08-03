@@ -29,6 +29,30 @@ interface LogViewerProps {
   logs: LogEntry[];
 }
 
+interface CopyLogButtonProps {
+  isCopied: boolean;
+  onCopy: (e: React.MouseEvent) => void;
+  title: string;
+}
+
+const CopyLogButton = ({ isCopied, onCopy, title }: CopyLogButtonProps) => {
+  return (
+    <button
+      type="button"
+      onClick={onCopy}
+      className={cn(
+        "shrink-0 p-1 rounded border transition-all",
+        isCopied
+          ? "text-emerald-500 border-emerald-500/30 bg-emerald-500/10"
+          : "text-slate-400 border-transparent hover:border-slate-200 hover:bg-slate-100 dark:hover:border-slate-700 dark:hover:bg-slate-800"
+      )}
+      title={title}
+    >
+      {isCopied ? <Check size={12} /> : <Copy size={12} />}
+    </button>
+  );
+};
+
 function LogViewer({ logs }: LogViewerProps) {
   const [viewMode, setViewMode] = React.useState<"simple" | "complete">("simple");
   const [copiedId, setCopiedId] = React.useState<string | number | null>(null);
@@ -209,22 +233,14 @@ function LogViewer({ logs }: LogViewerProps) {
                       {log.msg}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
+                  <CopyLogButton
+                    isCopied={isCopied}
+                    onCopy={(e) => {
                       e.preventDefault();
                       handleCopyLog(log);
                     }}
-                    className={cn(
-                      "shrink-0 p-1 rounded border transition-all",
-                      isCopied
-                        ? "text-emerald-500 border-emerald-500/30 bg-emerald-500/10"
-                        : "text-slate-400 border-transparent hover:border-slate-200 hover:bg-slate-100 dark:hover:border-slate-700 dark:hover:bg-slate-800"
-                    )}
                     title="Copy Log"
-                  >
-                    {isCopied ? <Check size={12} /> : <Copy size={12} />}
-                  </button>
+                  />
                 </div>
               );
             })}
@@ -275,23 +291,14 @@ function LogViewer({ logs }: LogViewerProps) {
                       )}
                     </div>
 
-                    {/* Copy Button */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
+                    <CopyLogButton
+                      isCopied={isCopied}
+                      onCopy={(e) => {
                         e.preventDefault();
                         handleCopyLog(log);
                       }}
-                      className={cn(
-                        "p-1.5 rounded border transition-all",
-                        isCopied
-                          ? "text-emerald-500 border-emerald-500/30 bg-emerald-500/10"
-                          : "text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 bg-white dark:bg-slate-900"
-                      )}
                       title="Copy Laravel-Style Log"
-                    >
-                      {isCopied ? <Check size={12} /> : <Copy size={12} />}
-                    </button>
+                    />
                   </div>
 
                   {/* Message details */}
