@@ -210,7 +210,6 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   // --- State Hooks ---
   const [connecting, setConnecting] = useState(true);
   const [connectingAttempt, setConnectingAttempt] = useState<string>("");
-  const [connectingProgress, setConnectingProgress] = useState<number>(0);
   const [connectingStatus, setConnectingStatus] = useState<string>("");
   const [connectingTimeLeft, setConnectingTimeLeft] = useState<number>(0);
   const [connectingHasFailed, setConnectingHasFailed] = useState<boolean>(false);
@@ -644,13 +643,128 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     };
   }, [session.id]);
 
+  const runCountdownLoop = async (
+    currentCallId: string,
+    maxTimeout: number,
+    getState: () => { connectionSucceeded: boolean; connectionError: any }
+  ) => {
+    const tickRateMs = 100;
+    const totalTicks = maxTimeout * 10;
+    const isTestEnv = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+
+    for (let tick = 0; tick <= totalTicks; tick++) {
+      if (activeConnectIdRef.current !== currentCallId) return;
+
+      const { connectionSucceeded, connectionError } = getState();
+      if (connectionSucceeded || (isTestEnv && connectionError)) {
+        break;
+      }
+
+      const elapsedSec = tick * 0.1;
+      const timeLeftSec = Math.max(maxTimeout - elapsedSec, 0);
+      setConnectingTimeLeft(timeLeftSec);
+
+      if (connectionSucceeded || (isTestEnv && connectionError)) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, tickRateMs));
+    }
+  };
+
+  const waitForDelay = async (currentCallId: string, ms: number) => {
+    const steps = Math.ceil(ms / 100);
+    for (let i = 0; i < steps; i++) {
+      if (activeConnectIdRef.current !== currentCallId) return false;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return true;
+  };
+
+  const handleConnectionSuccess = (attempt: number, maxRetries: number, startTime: number) => {
+    setConnectingTimeLeft(0);
+    const dur = (performance.now() - startTime).toFixed(1);
+    xterm.current?.write("\x1b[32mConnected successfully.\x1b[0m\r\n\r\n");
+    console.log(`SSH Connection attempt ${attempt}/${maxRetries} succeeded in ${dur}ms`);
+    setConnecting(false);
+    performFit();
+    loadRemoteFiles("", false, true);
+  };
+
+  const executeSingleAttempt = async (
+    attempt: number,
+    maxRetries: number,
+    maxTimeout: number,
+    currentCallId: string
+  ): Promise<{ success: boolean; error: any }> => {
+    xterm.current?.write(`Connecting to ${session.host} (Attempt ${attempt}/${maxRetries})...\r\n`);
+    console.log(`SSH Connection attempt ${attempt}/${maxRetries} to ${session.host}`);
+
+    setConnectingAttempt(`${attempt}/${maxRetries}`);
+    setConnectingStatus(`Connecting to ${session.host} (Attempt ${attempt}/${maxRetries})...`);
+    setConnectingTimeLeft(maxTimeout);
+    setConnectingHasFailed(false);
+    clearProgressInterval();
+
+    const sessionWithConfig = {
+      ...session,
+      maxTimeout,
+      maxRetries: 1,
+    };
+
+    let connectionError: any = null;
+    let connectionSucceeded = false;
+    const startTime = performance.now();
+
+    const connectPromise = AppBackend.ConnectSSH(sessionWithConfig)
+      .then(() => {
+        connectionSucceeded = true;
+      })
+      .catch((err) => {
+        connectionError = err;
+      });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    await runCountdownLoop(currentCallId, maxTimeout, () => ({
+      connectionSucceeded,
+      connectionError,
+    }));
+
+    if (!connectionSucceeded && !connectionError) {
+      try {
+        await connectPromise;
+      } catch (err) {
+        connectionError = err;
+      }
+    }
+
+    if (activeConnectIdRef.current !== currentCallId) {
+      return { success: false, error: new Error("cancelled") };
+    }
+
+    if (connectionSucceeded) {
+      handleConnectionSuccess(attempt, maxRetries, startTime);
+      return { success: true, error: null };
+    }
+
+    setConnectingHasFailed(true);
+    setConnectingTimeLeft(0);
+    const dur = (performance.now() - startTime).toFixed(1);
+    const errMsg = connectionError?.message || String(connectionError);
+
+    xterm.current?.write(`\x1b[33mAttempt ${attempt}/${maxRetries} failed in ${dur}ms: ${errMsg}\x1b[0m\r\n`);
+    console.warn(`SSH Connection attempt ${attempt}/${maxRetries} failed in ${dur}ms: ${errMsg}`);
+
+    return { success: false, error: connectionError };
+  };
+
   /**
    * Registers a fresh connection with the Go backend
    */
   const connectSSH = async () => {
     if (!xterm.current) return;
     setConnecting(true);
-    setConnectingProgress(100);
     setConnectingAttempt("");
     setConnectingStatus("Initializing...");
     setConnectingTimeLeft(0);
@@ -671,106 +785,26 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         if (activeConnectIdRef.current !== currentCallId) return;
 
-        xterm.current?.write(`Connecting to ${session.host} (Attempt ${attempt}/${maxRetries})...\r\n`);
-        console.log(`SSH Connection attempt ${attempt}/${maxRetries} to ${session.host}`);
-
-        // Set attempt details and start with full progress bar shrinking leftward
-        setConnectingAttempt(`${attempt}/${maxRetries}`);
-        setConnectingStatus(`Connecting to ${session.host} (Attempt ${attempt}/${maxRetries})...`);
-        setConnectingProgress(100);
-        setConnectingTimeLeft(maxTimeout);
-        setConnectingHasFailed(false);
-        clearProgressInterval();
-
-        const sessionWithConfig = {
-          ...session,
+        const { success, error } = await executeSingleAttempt(
+          attempt,
+          maxRetries,
           maxTimeout,
-          maxRetries: 1, // Let frontend handle retries
-        };
-
-        // Start backend connection in the background
-        let connectionError: any = null;
-        let connectionSucceeded = false;
-
-        const startTime = performance.now();
-        const connectPromise = AppBackend.ConnectSSH(sessionWithConfig)
-          .then(() => {
-            connectionSucceeded = true;
-          })
-          .catch((err) => {
-            connectionError = err;
-          });
-
-        // Let microtasks run so that instant connections resolve instantly without tick loop delays
-        await Promise.resolve();
-        await Promise.resolve();
-
-        // Loop ticks in frontend to ensure a steady linear countdown
-        const tickRateMs = 100;
-        const totalTicks = maxTimeout * 10;
-        const isTestEnv = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
-
-        for (let tick = 0; tick <= totalTicks; tick++) {
-          if (activeConnectIdRef.current !== currentCallId) return;
-
-          if (connectionSucceeded || (isTestEnv && connectionError)) {
-            break;
-          }
-
-          const elapsedSec = tick * 0.1;
-          const timeLeftSec = Math.max(maxTimeout - elapsedSec, 0);
-          setConnectingTimeLeft(timeLeftSec);
-          setConnectingProgress((timeLeftSec / maxTimeout) * 100);
-
-          if (connectionSucceeded || (isTestEnv && connectionError)) {
-            break;
-          }
-          await new Promise(resolve => setTimeout(resolve, tickRateMs));
-        }
-
-        // Await the backend promise to make sure it is fully resolved/rejected
-        if (!connectionSucceeded && !connectionError) {
-          try {
-            await connectPromise;
-          } catch (err) {
-            connectionError = err;
-          }
-        }
+          currentCallId
+        );
 
         if (activeConnectIdRef.current !== currentCallId) return;
 
-        if (connectionSucceeded) {
-          setConnectingProgress(0);
-          setConnectingTimeLeft(0);
-          const dur = (performance.now() - startTime).toFixed(1);
-          xterm.current?.write("\x1b[32mConnected successfully.\x1b[0m\r\n\r\n");
-          console.log(`SSH Connection attempt ${attempt}/${maxRetries} succeeded in ${dur}ms`);
+        if (success) {
+          return;
+        }
 
-          setConnecting(false);
-          performFit();
-          loadRemoteFiles("", false, true);
-          return; // Success!
-        } else {
-          setConnectingHasFailed(true);
-          setConnectingProgress(0);
-          setConnectingTimeLeft(0);
-          finalErr = connectionError;
-          const dur = (performance.now() - startTime).toFixed(1);
-          const errMsg = connectionError?.message || String(connectionError);
+        finalErr = error;
 
-          xterm.current?.write(`\x1b[33mAttempt ${attempt}/${maxRetries} failed in ${dur}ms: ${errMsg}\x1b[0m\r\n`);
-          console.warn(`SSH Connection attempt ${attempt}/${maxRetries} failed in ${dur}ms: ${errMsg}`);
-
-          if (attempt < maxRetries) {
-            setConnectingStatus(`Attempt ${attempt}/${maxRetries} failed. Retrying in 1s...`);
-            xterm.current?.write("Retrying in 1s...\r\n");
-
-            // Checking active ID during retry delay
-            for (let i = 0; i < 10; i++) {
-              if (activeConnectIdRef.current !== currentCallId) return;
-              await new Promise(resolve => setTimeout(resolve, 100));
-            }
-          }
+        if (attempt < maxRetries) {
+          setConnectingStatus(`Attempt ${attempt}/${maxRetries} failed. Retrying in 1s...`);
+          xterm.current?.write("Retrying in 1s...\r\n");
+          const ok = await waitForDelay(currentCallId, 1000);
+          if (!ok) return;
         }
       }
 

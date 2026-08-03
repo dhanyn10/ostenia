@@ -84,6 +84,45 @@ func (m *SSHManager) SaveSessions(sessions []config.SSHSession) error {
 	return config.SaveSSHSessions(sessions)
 }
 
+// dialSSHWithRetries establishes a connection with configured timeouts and retries.
+func (m *SSHManager) dialSSHWithRetries(ctx context.Context, session config.SSHSession, auth goph.Auth) (interfaces.SSHClient, error) {
+	timeout := 10 * time.Second
+	if session.MaxTimeout > 0 {
+		timeout = time.Duration(session.MaxTimeout) * time.Second
+	}
+
+	maxRetries := 3
+	if session.MaxRetries > 0 {
+		maxRetries = session.MaxRetries
+	}
+
+	var client interfaces.SSHClient
+	var err error
+
+	for i := 0; i < maxRetries; i++ {
+		client, err = m.dialer(&goph.Config{
+			User:     session.User,
+			Addr:     session.Host,
+			Port:     uint(session.Port),
+			Auth:     auth,
+			Timeout:  timeout,
+			Callback: m.getHostKeyCallback(),
+		})
+		if err == nil {
+			return client, nil
+		}
+		fmt.Printf("[SSH] Connection attempt %d/%d failed to %s: %v\n", i+1, maxRetries, session.Host, err)
+		if i < maxRetries-1 {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(1 * time.Second):
+			}
+		}
+	}
+	return nil, err
+}
+
 // Connect establishes a connection to a remote SSH server or initiates a local WSL distribution terminal.
 // It sets up the corresponding SFTP file explorer and triggers background terminal initialization.
 func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) error {
@@ -118,44 +157,11 @@ func (m *SSHManager) Connect(ctx context.Context, session config.SSHSession) err
 			return err
 		}
 
-		timeout := 10 * time.Second
-		if session.MaxTimeout > 0 {
-			timeout = time.Duration(session.MaxTimeout) * time.Second
+		client, err = m.dialSSHWithRetries(ctx, session, auth)
+		if err != nil {
+			m.mu.Unlock()
+			return err
 		}
-
-		maxRetries := 3
-		if session.MaxRetries > 0 {
-			maxRetries = session.MaxRetries
-		}
-
-		for i := 0; i < maxRetries; i++ {
-			client, err = m.dialer(&goph.Config{
-				User:     session.User,
-				Addr:     session.Host,
-				Port:     uint(session.Port),
-				Auth:     auth,
-				Timeout:  timeout,
-				Callback: m.getHostKeyCallback(),
-			})
-			if err == nil {
-				break
-			}
-			fmt.Printf("[SSH] Connection attempt %d/%d failed to %s: %v\n", i+1, maxRetries, session.Host, err)
-			if i < maxRetries-1 {
-				select {
-				case <-ctx.Done():
-					m.mu.Unlock()
-					return ctx.Err()
-				case <-time.After(1 * time.Second):
-				}
-			}
-		}
-	}
-
-	if err != nil {
-		fmt.Printf("[SSH] Dial connection failed: %v\n", err)
-		m.mu.Unlock()
-		return err
 	}
 
 	// Initialize SFTP Client for back-channel file exploration & transfers.
