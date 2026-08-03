@@ -1,91 +1,72 @@
 import { describe, it, expect } from "vitest";
 import { cleanFileName, parseStackTrace } from "./stackParser";
 
-describe("stackParser Utility", () => {
+describe("stackParser Utility Table-Driven Tests", () => {
   describe("cleanFileName", () => {
-    it("handles standard files", () => {
-      expect(cleanFileName("App.tsx")).toBe("App.tsx");
-    });
+    const filenameCases = [
+      { input: "App.tsx", expected: "App.tsx" },
+      { input: "http://localhost:5173/src/App.tsx", expected: "App.tsx" },
+      { input: "http://localhost:5173/src/App.tsx?t=123456789", expected: "App.tsx" },
+      { input: "http://localhost:5173/src/App.tsx#section", expected: "App.tsx" },
+      { input: "C:\\projects\\ostenia\\src\\main.tsx", expected: "main.tsx" },
+      { input: "/home/user/ostenia/src/main.tsx", expected: "main.tsx" },
+      { input: "", expected: "" },
+    ];
 
-    it("handles URL file paths", () => {
-      expect(cleanFileName("http://localhost:5173/src/App.tsx")).toBe("App.tsx");
-    });
-
-    it("handles query strings", () => {
-      expect(cleanFileName("http://localhost:5173/src/App.tsx?t=123456789")).toBe("App.tsx");
-    });
-
-    it("handles hashes", () => {
-      expect(cleanFileName("http://localhost:5173/src/App.tsx#section")).toBe("App.tsx");
-    });
-
-    it("handles system paths", () => {
-      expect(cleanFileName("C:\\projects\\ostenia\\src\\main.tsx")).toBe("main.tsx");
-      expect(cleanFileName("/home/user/ostenia/src/main.tsx")).toBe("main.tsx");
-    });
-
-    it("handles empty or falsy values", () => {
-      expect(cleanFileName("")).toBe("");
+    it.each(filenameCases)("should clean filename from %s to %s", ({ input, expected }) => {
+      expect(cleanFileName(input)).toBe(expected);
     });
   });
 
   describe("parseStackTrace", () => {
-    it("returns empty string and undefined caller for empty stack", () => {
-      const result = parseStackTrace("");
-      expect(result.rawStack).toBe("");
-      expect(result.caller).toBeUndefined();
+    it("handles empty stack trace", () => {
+      const res = parseStackTrace("");
+      expect(res.rawStack).toBe("");
+      expect(res.caller).toBeUndefined();
     });
 
-    it("parses V8 stack trace format with function name", () => {
-      const stack = `Error
+    const stackTraceCases = [
+      {
+        name: "V8 stack with function name",
+        stack: `Error
     at addLog (http://localhost:5173/src/App.tsx:130:15)
     at handleToggleService (http://localhost:5173/src/App.tsx:392:5)
-    at HTMLButtonElement.onClick (http://localhost:5173/src/components/ServiceItem.tsx:20:10)`;
-
-      const result = parseStackTrace(stack);
-      expect(result.caller).toBeDefined();
-      expect(result.caller?.functionName).toBe("handleToggleService");
-      expect(result.caller?.fileName).toBe("App.tsx");
-      expect(result.caller?.line).toBe("392");
-      expect(result.caller?.column).toBe("5");
-    });
-
-    it("parses V8 stack trace format without function name (anonymous)", () => {
-      const stack = `Error
-    at http://localhost:5173/src/App.tsx:392:5`;
-
-      const result = parseStackTrace(stack);
-      expect(result.caller).toBeDefined();
-      expect(result.caller?.functionName).toBe("anonymous");
-      expect(result.caller?.fileName).toBe("App.tsx");
-      expect(result.caller?.line).toBe("392");
-      expect(result.caller?.column).toBe("5");
-    });
-
-    it("parses Firefox/Safari stack trace format", () => {
-      const stack = `addLog@http://localhost:5173/src/App.tsx:130:15
+    at HTMLButtonElement.onClick (http://localhost:5173/src/components/ServiceItem.tsx:20:10)`,
+        expected: { functionName: "handleToggleService", fileName: "App.tsx", line: "392", column: "5" }
+      },
+      {
+        name: "V8 stack without function name (anonymous)",
+        stack: `Error
+    at http://localhost:5173/src/App.tsx:392:5`,
+        expected: { functionName: "anonymous", fileName: "App.tsx", line: "392", column: "5" }
+      },
+      {
+        name: "Firefox/Safari stack format",
+        stack: `addLog@http://localhost:5173/src/App.tsx:130:15
 handleToggleService@http://localhost:5173/src/App.tsx:392:5
-onClick@http://localhost:5173/src/components/ServiceItem.tsx:20:10`;
-
-      const result = parseStackTrace(stack);
-      expect(result.caller).toBeDefined();
-      expect(result.caller?.functionName).toBe("handleToggleService");
-      expect(result.caller?.fileName).toBe("App.tsx");
-      expect(result.caller?.line).toBe("392");
-      expect(result.caller?.column).toBe("5");
-    });
-
-    it("handles ignore list filtering to skip logging wrapper frames", () => {
-      const stack = `Error
+onClick@http://localhost:5173/src/components/ServiceItem.tsx:20:10`,
+        expected: { functionName: "handleToggleService", fileName: "App.tsx", line: "392", column: "5" }
+      },
+      {
+        name: "ignore list filtering of logging wrapper frames",
+        stack: `Error
     at parseStackTrace (http://localhost:5173/src/utils/stackParser.ts:35:10)
     at addLog (http://localhost:5173/src/App.tsx:130:15)
     at Object.console.log (http://localhost:5173/src/App.tsx:245:5)
-    at myCoolAppFunc (http://localhost:5173/src/components/SettingsModal.tsx:40:12)`;
+    at myCoolAppFunc (http://localhost:5173/src/components/SettingsModal.tsx:40:12)`,
+        expected: { functionName: "myCoolAppFunc", fileName: "SettingsModal.tsx", line: "40", column: "12" }
+      }
+    ];
 
+    it.each(stackTraceCases)("parses stack for: %s", ({ stack, expected }) => {
       const result = parseStackTrace(stack);
       expect(result.caller).toBeDefined();
-      expect(result.caller?.functionName).toBe("myCoolAppFunc");
-      expect(result.caller?.fileName).toBe("SettingsModal.tsx");
+      expect(result.caller?.functionName).toBe(expected.functionName);
+      expect(result.caller?.fileName).toBe(expected.fileName);
+      if (expected.line) {
+        expect(result.caller?.line).toBe(expected.line);
+        expect(result.caller?.column).toBe(expected.column);
+      }
     });
   });
 });
