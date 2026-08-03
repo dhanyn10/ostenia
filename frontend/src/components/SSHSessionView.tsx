@@ -970,6 +970,30 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   };
 
   /**
+   * Helper function to execute any SFTP action with timing measurements,
+   * toast feedback, and folder list reloading.
+   */
+  const executeSFTPWithTiming = async (
+    activityName: string,
+    actionType: string,
+    path: string,
+    target: string,
+    successMsg?: string
+  ) => {
+    try {
+      await measureActivity(activityName, async () => {
+        await AppBackend.ExecuteSFTPAction(session.id, actionType, path, target);
+        if (successMsg) {
+          addToast("Success", successMsg, "success");
+        }
+        loadRemoteFiles(remotePath);
+      });
+    } catch (err: any) {
+      addToast("Error", `${activityName} failed: ${err?.message || err}`, "error");
+    }
+  };
+
+  /**
    * Deletes target files/folders recursively on the remote machine.
    */
   const handleDelete = async (file: any) => {
@@ -980,38 +1004,24 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     if (!deleteFile) return;
     const file = deleteFile;
     setDeleteFile(null);
-    try {
-      await measureActivity("handleConfirmDelete", async () => {
-        await AppBackend.ExecuteSFTPAction(
-          session.id,
-          "delete",
-          `${remotePath}/${file.name}`,
-          "",
-        );
-        addToast("Success", "Deleted " + file.name, "success");
-        loadRemoteFiles(remotePath);
-      });
-    } catch (err: any) {
-      addToast("Error", "Delete failed: " + err, "error");
-    }
+    await executeSFTPWithTiming(
+      "handleConfirmDelete",
+      "delete",
+      `${remotePath}/${file.name}`,
+      "",
+      "Deleted " + file.name
+    );
   };
 
   const handleConfirmNewFolder = async (name: string) => {
     setNewFolderModalOpen(false);
     if (name) {
-      try {
-        await measureActivity("handleConfirmNewFolder", async () => {
-          await AppBackend.ExecuteSFTPAction(
-            session.id,
-            "mkdir",
-            `${remotePath}/${name}`,
-            "",
-          );
-          loadRemoteFiles(remotePath);
-        });
-      } catch (e: any) {
-        addToast("Error", e.toString(), "error");
-      }
+      await executeSFTPWithTiming(
+        "handleConfirmNewFolder",
+        "mkdir",
+        `${remotePath}/${name}`,
+        ""
+      );
     }
   };
 
@@ -1020,19 +1030,12 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     const file = renameFile;
     setRenameFile(null);
     if (name && name !== file.name) {
-      try {
-        await measureActivity("handleConfirmRename", async () => {
-          await AppBackend.ExecuteSFTPAction(
-            session.id,
-            "rename",
-            `${remotePath}/${file.name}`,
-            `${remotePath}/${name}`,
-          );
-          loadRemoteFiles(remotePath);
-        });
-      } catch (err: any) {
-        addToast("Error", err.toString(), "error");
-      }
+      await executeSFTPWithTiming(
+        "handleConfirmRename",
+        "rename",
+        `${remotePath}/${file.name}`,
+        `${remotePath}/${name}`
+      );
     }
   };
 
