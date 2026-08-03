@@ -891,6 +891,39 @@ func TestSSHManager_TerminalLoop(t *testing.T) {
 	})
 }
 
+func TestSSHManager_Connect_TimeoutAndRetries(t *testing.T) {
+	m := NewSSHManager()
+
+	attempts := 0
+	// Mock dialer that always fails to count connection attempts
+	m.dialer = func(cfg *goph.Config) (interfaces.SSHClient, error) {
+		attempts++
+		return nil, errors.New("dial failed")
+	}
+
+	session := config.SSHSession{
+		ID:         "test-timeout-session",
+		Host:       "127.0.0.1",
+		Port:       22,
+		User:       "testuser",
+		AuthMethod: "password",
+		Password:   "testpass",
+		MaxTimeout: 1, // 1 second
+		MaxRetries: 2, // 2 retries
+	}
+
+	ctx := context.Background()
+	err := m.Connect(ctx, session)
+
+	if err == nil {
+		t.Fatal("expected connection to fail")
+	}
+
+	if attempts != 2 {
+		t.Errorf("expected 2 attempts, got %d", attempts)
+	}
+}
+
 func TestSSHManager_AuthMethods(t *testing.T) {
 	m := NewSSHManager()
 

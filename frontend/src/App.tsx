@@ -3,6 +3,7 @@ import { EventsOn } from '../wailsjs/runtime/runtime';
 import * as AppBackend from '../wailsjs/go/backend/App';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { parseStackTrace } from './utils/stackParser';
 
 // Components
 import MenuBar from './components/MenuBar';
@@ -115,7 +116,7 @@ function App() {
  const handleCancelDownload = (name: string) => AppBackend.CancelDownload(name);
  const handleOpenPluginFolder = (name: string) => AppBackend.OpenPluginFolder(name);
 
- const addLog = useCallback((msg: string, type = 'info') => {
+ const addLog = useCallback((msg: string, type = 'info', isServiceLog = false) => {
    if (isLogging) return;
    isLogging = true;
    try {
@@ -127,7 +128,23 @@ function App() {
      } else if (type === 'warn') {
        prefix = 'WRN';
      }
-     setLogs(prev => [{ id, time, msg: `[${prefix}] ${msg}` }, ...prev].slice(0, 1000));
+
+     const stackTrace = isServiceLog ? '' : new Error().stack;
+     const { caller, rawStack } = isServiceLog ? { caller: undefined, rawStack: '' } : parseStackTrace(stackTrace);
+
+     setLogs(prev => [
+       {
+         id,
+         time,
+         msg: `[${prefix}] ${msg}`,
+         cleanMsg: msg,
+         type,
+         isServiceLog,
+         caller,
+         rawStack,
+       },
+       ...prev
+     ].slice(0, 1000));
    } finally {
      isLogging = false;
    }
@@ -232,7 +249,7 @@ function App() {
  const handleDeleteVersion = (name: string, ver: string) => AppBackend.DeleteVersion(name, ver).then(refreshPrerequisites);
 
  const handleServiceLog = (data: any) => {
-   addLog(`[${data.service}] ${data.message}`, 'info');
+   addLog(`[${data.service}] ${data.message}`, 'info', true);
  };
 
  const handleServiceStatus = (data: any) => {

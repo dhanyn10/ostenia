@@ -20,6 +20,8 @@ type SSHSession struct {
 	Passphrase string `json:"passphrase,omitempty"`
 	LastPath   string `json:"lastPath,omitempty"`
 	CreatedAt  int64  `json:"createdAt"`
+	MaxTimeout int    `json:"maxTimeout,omitempty"`
+	MaxRetries int    `json:"maxRetries,omitempty"`
 }
 
 var (

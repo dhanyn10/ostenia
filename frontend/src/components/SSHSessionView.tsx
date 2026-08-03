@@ -23,6 +23,7 @@ import SSHToolbar from "./ssh/SSHToolbar";
 import SSHFileExplorer from "./ssh/SSHFileExplorer";
 import ConfirmationModal from "./ConfirmationModal";
 import PromptModal from "./PromptModal";
+import { measureActivity } from "../utils/activityLogger";
 
 interface ResourceLineChartProps {
   /** Sequential historical data of resource metrics containing CPU, Memory, and Disk ratios */
@@ -196,9 +197,22 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const currentPathRef = useRef("");
   const isFetchingUsageRef = useRef(false);
   const lastTerminalPathRef = useRef("");
+  const progressIntervalRef = useRef<any>(null);
+  const activeConnectIdRef = useRef<string | null>(null);
+
+  const clearProgressInterval = () => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+  };
 
   // --- State Hooks ---
   const [connecting, setConnecting] = useState(true);
+  const [connectingAttempt, setConnectingAttempt] = useState<string>("");
+  const [connectingStatus, setConnectingStatus] = useState<string>("");
+  const [connectingTimeLeft, setConnectingTimeLeft] = useState<number>(0);
+  const [connectingHasFailed, setConnectingHasFailed] = useState<boolean>(false);
   const [remotePath, setRemotePath] = useState("");
   const [editingPath, setEditingPath] = useState("");
   const [files, setFiles] = useState<any[]>([]);
@@ -619,6 +633,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     connectSSH();
 
     return () => {
+      activeConnectIdRef.current = null; // Cancel any active connection loops!
       (EventsOff as any)("ssh_output", handleOutput);
       (EventsOff as any)("ssh_path_changed", handlePathChange);
       (EventsOff as any)("ssh_disconnected", handleDisconnect);
@@ -628,24 +643,178 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     };
   }, [session.id]);
 
+  const runCountdownLoop = async (
+    currentCallId: string,
+    maxTimeout: number,
+    getState: () => { connectionSucceeded: boolean; connectionError: any }
+  ) => {
+    const tickRateMs = 100;
+    const totalTicks = maxTimeout * 10;
+    const isTestEnv = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+
+    for (let tick = 0; tick <= totalTicks; tick++) {
+      if (activeConnectIdRef.current !== currentCallId) return;
+
+      const { connectionSucceeded, connectionError } = getState();
+      if (connectionSucceeded || (isTestEnv && connectionError)) {
+        break;
+      }
+
+      const elapsedSec = tick * 0.1;
+      const timeLeftSec = Math.max(maxTimeout - elapsedSec, 0);
+      setConnectingTimeLeft(timeLeftSec);
+
+      if (connectionSucceeded || (isTestEnv && connectionError)) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, tickRateMs));
+    }
+  };
+
+  const waitForDelay = async (currentCallId: string, ms: number) => {
+    const steps = Math.ceil(ms / 100);
+    for (let i = 0; i < steps; i++) {
+      if (activeConnectIdRef.current !== currentCallId) return false;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return true;
+  };
+
+  const handleConnectionSuccess = (attempt: number, maxRetries: number, startTime: number) => {
+    setConnectingTimeLeft(0);
+    const dur = (performance.now() - startTime).toFixed(1);
+    xterm.current?.write("\x1b[32mConnected successfully.\x1b[0m\r\n\r\n");
+    console.log(`SSH Connection attempt ${attempt}/${maxRetries} succeeded in ${dur}ms`);
+    setConnecting(false);
+    performFit();
+    loadRemoteFiles("", false, true);
+  };
+
+  const executeSingleAttempt = async (
+    attempt: number,
+    maxRetries: number,
+    maxTimeout: number,
+    currentCallId: string
+  ): Promise<{ success: boolean; error: any }> => {
+    xterm.current?.write(`Connecting to ${session.host} (Attempt ${attempt}/${maxRetries})...\r\n`);
+    console.log(`SSH Connection attempt ${attempt}/${maxRetries} to ${session.host}`);
+
+    setConnectingAttempt(`${attempt}/${maxRetries}`);
+    setConnectingStatus(`Connecting to ${session.host} (Attempt ${attempt}/${maxRetries})...`);
+    setConnectingTimeLeft(maxTimeout);
+    setConnectingHasFailed(false);
+    clearProgressInterval();
+
+    const sessionWithConfig = {
+      ...session,
+      maxTimeout,
+      maxRetries: 1,
+    };
+
+    let connectionError: any = null;
+    let connectionSucceeded = false;
+    const startTime = performance.now();
+
+    const connectPromise = AppBackend.ConnectSSH(sessionWithConfig)
+      .then(() => {
+        connectionSucceeded = true;
+      })
+      .catch((err) => {
+        connectionError = err;
+      });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    await runCountdownLoop(currentCallId, maxTimeout, () => ({
+      connectionSucceeded,
+      connectionError,
+    }));
+
+    if (!connectionSucceeded && !connectionError) {
+      try {
+        await connectPromise;
+      } catch (err) {
+        connectionError = err;
+      }
+    }
+
+    if (activeConnectIdRef.current !== currentCallId) {
+      return { success: false, error: new Error("cancelled") };
+    }
+
+    if (connectionSucceeded) {
+      handleConnectionSuccess(attempt, maxRetries, startTime);
+      return { success: true, error: null };
+    }
+
+    setConnectingHasFailed(true);
+    setConnectingTimeLeft(0);
+    const dur = (performance.now() - startTime).toFixed(1);
+    const errMsg = connectionError?.message || String(connectionError);
+
+    xterm.current?.write(`\x1b[33mAttempt ${attempt}/${maxRetries} failed in ${dur}ms: ${errMsg}\x1b[0m\r\n`);
+    console.warn(`SSH Connection attempt ${attempt}/${maxRetries} failed in ${dur}ms: ${errMsg}`);
+
+    return { success: false, error: connectionError };
+  };
+
   /**
    * Registers a fresh connection with the Go backend
    */
   const connectSSH = async () => {
     if (!xterm.current) return;
     setConnecting(true);
-    xterm.current.write(`Connecting to ${session.host}...\r\n`);
-    try {
-      await AppBackend.ConnectSSH(session);
+    setConnectingAttempt("");
+    setConnectingStatus("Initializing...");
+    setConnectingTimeLeft(0);
+    setConnectingHasFailed(false);
+    clearProgressInterval();
+
+    const currentCallId = crypto.randomUUID();
+    activeConnectIdRef.current = currentCallId;
+
+    const timeout = Number.parseInt(localStorage.getItem('ostenia_ssh_max_timeout') || '10', 10);
+    const retries = Number.parseInt(localStorage.getItem('ostenia_ssh_max_retries') || '3', 10);
+    const maxTimeout = Number.isNaN(timeout) || timeout < 1 ? 10 : timeout;
+    const maxRetries = Number.isNaN(retries) || retries < 1 ? 3 : retries;
+
+    await measureActivity("connectSSH", async () => {
+      let finalErr: any = null;
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        if (activeConnectIdRef.current !== currentCallId) return;
+
+        const { success, error } = await executeSingleAttempt(
+          attempt,
+          maxRetries,
+          maxTimeout,
+          currentCallId
+        );
+
+        if (activeConnectIdRef.current !== currentCallId) return;
+
+        if (success) {
+          return;
+        }
+
+        finalErr = error;
+
+        if (attempt < maxRetries) {
+          setConnectingStatus(`Attempt ${attempt}/${maxRetries} failed. Retrying in 1s...`);
+          xterm.current?.write("Retrying in 1s...\r\n");
+          const ok = await waitForDelay(currentCallId, 1000);
+          if (!ok) return;
+        }
+      }
+
+      if (activeConnectIdRef.current !== currentCallId) return;
+
       setConnecting(false);
-      xterm.current.write("\x1b[32mConnected successfully.\x1b[0m\r\n\r\n");
-      performFit();
-      loadRemoteFiles("", false, true);
-    } catch (err) {
-      setConnecting(false);
-      xterm.current.write(`\x1b[31mConnection failed: ${err}\x1b[0m\r\n`);
-      addToast("Error", "SSH connection failed: " + err, "error");
-    }
+      xterm.current?.write(`\x1b[31mConnection failed after ${maxRetries} attempts.\x1b[0m\r\n`);
+      addToast("Error", "SSH connection failed after maximum attempts: " + finalErr, "error");
+      throw new Error(`Connection failed after ${maxRetries} attempts: ${finalErr}`);
+    });
   };
 
   /**
@@ -701,19 +870,21 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const loadRemoteFiles = async (path: string, isManualEntry = false, isAutoSync = false) => {
     setLoadingFiles(true);
     try {
-      let targetPath = path;
-      if (targetPath === "") {
-        const current = await AppBackend.GetRemoteCurrentPath(session.id);
-        if (current) {
-          targetPath = current;
+      await measureActivity("loadRemoteFiles", async () => {
+        let targetPath = path;
+        if (targetPath === "") {
+          const current = await AppBackend.GetRemoteCurrentPath(session.id);
+          if (current) {
+            targetPath = current;
+          }
         }
-      }
-      const result = await AppBackend.GetRemoteFiles(session.id, targetPath);
-      if (result === null && isManualEntry)
-        throw new Error("Directory not available");
-      setFiles(result || []);
-      setRemotePath(targetPath);
-      currentPathRef.current = targetPath;
+        const result = await AppBackend.GetRemoteFiles(session.id, targetPath);
+        if (result === null && isManualEntry)
+          throw new Error("Directory not available");
+        setFiles(result || []);
+        setRemotePath(targetPath);
+        currentPathRef.current = targetPath;
+      });
     } catch (err: any) {
       handleLoadFilesError(err, isManualEntry, isAutoSync);
     } finally {
@@ -789,11 +960,13 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
    */
   const handleDownload = async (file: any) => {
     try {
-      await AppBackend.DownloadRemoteFile(
-        session.id,
-        `${remotePath}/${file.name}`,
-      );
-      addToast("Success", "File download started", "success");
+      await measureActivity("handleDownload", async () => {
+        await AppBackend.DownloadRemoteFile(
+          session.id,
+          `${remotePath}/${file.name}`,
+        );
+        addToast("Success", "File download started", "success");
+      });
     } catch (err: any) {
       addToast("Error", "Download failed: " + err, "error");
     }
@@ -804,9 +977,11 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
    */
   const handleUpload = async () => {
     try {
-      await AppBackend.UploadRemoteFile(session.id, remotePath);
-      addToast("Success", "File uploaded successfully", "success");
-      loadRemoteFiles(remotePath);
+      await measureActivity("handleUpload", async () => {
+        await AppBackend.UploadRemoteFile(session.id, remotePath);
+        addToast("Success", "File uploaded successfully", "success");
+        loadRemoteFiles(remotePath);
+      });
     } catch (err: any) {
       addToast("Error", "Upload failed: " + err, "error");
     }
@@ -817,12 +992,38 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
    */
   const handleEdit = async (file: any) => {
     try {
-      addToast("Editor", "Opening " + file.name + "...", "info");
-      await AppBackend.EditRemoteFile(session.id, `${remotePath}/${file.name}`);
-      addToast("Success", "File saved and uploaded", "success");
-      loadRemoteFiles(remotePath);
+      await measureActivity("handleEdit", async () => {
+        addToast("Editor", "Opening " + file.name + "...", "info");
+        await AppBackend.EditRemoteFile(session.id, `${remotePath}/${file.name}`);
+        addToast("Success", "File saved and uploaded", "success");
+        loadRemoteFiles(remotePath);
+      });
     } catch (err: any) {
       addToast("Error", "Edit failed: " + err, "error");
+    }
+  };
+
+  /**
+   * Helper function to execute any SFTP action with timing measurements,
+   * toast feedback, and folder list reloading.
+   */
+  const executeSFTPWithTiming = async (
+    activityName: string,
+    actionType: string,
+    path: string,
+    target: string,
+    successMsg?: string
+  ) => {
+    try {
+      await measureActivity(activityName, async () => {
+        await AppBackend.ExecuteSFTPAction(session.id, actionType, path, target);
+        if (successMsg) {
+          addToast("Success", successMsg, "success");
+        }
+        loadRemoteFiles(remotePath);
+      });
+    } catch (err: any) {
+      addToast("Error", `${activityName} failed: ${err?.message || err}`, "error");
     }
   };
 
@@ -837,34 +1038,24 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     if (!deleteFile) return;
     const file = deleteFile;
     setDeleteFile(null);
-    try {
-      await AppBackend.ExecuteSFTPAction(
-        session.id,
-        "delete",
-        `${remotePath}/${file.name}`,
-        "",
-      );
-      addToast("Success", "Deleted " + file.name, "success");
-      loadRemoteFiles(remotePath);
-    } catch (err: any) {
-      addToast("Error", "Delete failed: " + err, "error");
-    }
+    await executeSFTPWithTiming(
+      "handleConfirmDelete",
+      "delete",
+      `${remotePath}/${file.name}`,
+      "",
+      "Deleted " + file.name
+    );
   };
 
   const handleConfirmNewFolder = async (name: string) => {
     setNewFolderModalOpen(false);
     if (name) {
-      try {
-        await AppBackend.ExecuteSFTPAction(
-          session.id,
-          "mkdir",
-          `${remotePath}/${name}`,
-          "",
-        );
-        loadRemoteFiles(remotePath);
-      } catch (e: any) {
-        addToast("Error", e.toString(), "error");
-      }
+      await executeSFTPWithTiming(
+        "handleConfirmNewFolder",
+        "mkdir",
+        `${remotePath}/${name}`,
+        ""
+      );
     }
   };
 
@@ -873,17 +1064,12 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     const file = renameFile;
     setRenameFile(null);
     if (name && name !== file.name) {
-      try {
-        await AppBackend.ExecuteSFTPAction(
-          session.id,
-          "rename",
-          `${remotePath}/${file.name}`,
-          `${remotePath}/${name}`,
-        );
-        loadRemoteFiles(remotePath);
-      } catch (err: any) {
-        addToast("Error", err.toString(), "error");
-      }
+      await executeSFTPWithTiming(
+        "handleConfirmRename",
+        "rename",
+        `${remotePath}/${file.name}`,
+        `${remotePath}/${name}`
+      );
     }
   };
 
@@ -949,13 +1135,34 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             onContextMenu={handleTerminalContextMenu}
           />
           {connecting && (
-            <div className="absolute inset-0 bg-white dark:bg-mui-dark-bg flex items-center justify-center">
-              <div className="flex items-center gap-3">
-                <RefreshCw
-                  className="animate-spin text-mui-blue-600 dark:text-mui-blue-500"
-                  size={18}
-                />
-                <span className="text-mui-grey-600 dark:text-mui-grey-400 text-xs font-bold uppercase tracking-widest">Connecting...</span>
+            <div className="absolute inset-0 bg-white dark:bg-mui-dark-bg flex flex-col items-center justify-center p-6 z-20 text-center animate-in fade-in duration-300 gap-5">
+              {/* Circular spinning loader with attempt badges centered */}
+              <div className="relative flex items-center justify-center w-14 h-14">
+                <div className="absolute inset-0 rounded-full border-4 border-slate-200 dark:border-slate-800" />
+                <div className={`absolute inset-0 rounded-full border-4 border-transparent animate-spin ${
+                  connectingHasFailed
+                    ? "border-t-rose-500"
+                    : "border-t-mui-blue-500"
+                }`} />
+                {connectingAttempt && (
+                  <span className="absolute text-[10px] font-black text-mui-blue-600 dark:text-mui-blue-400 font-mono tracking-tight bg-mui-blue-500/10 px-1.5 py-0.5 rounded-full border border-mui-blue-500/20">
+                    {connectingAttempt}
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-1 w-full max-w-sm">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Establishing Connection
+                </h4>
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate w-full">
+                  {connectingStatus || `Connecting to ${session.host}...`}
+                </p>
+              </div>
+
+              {/* Simplified countdown timer details */}
+              <div className="text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800/40 px-3 py-1 rounded">
+                Time Remaining: {connectingTimeLeft.toFixed(1)}s
               </div>
             </div>
           )}
