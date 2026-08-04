@@ -54,6 +54,39 @@ const CopyLogButton = ({ isCopied, onCopy, title }: CopyLogButtonProps) => {
   );
 };
 
+function getPaginationRange(currentPage: number, totalPages: number, siblingCount = 1) {
+  const totalPageNumbers = siblingCount + 5; // siblingCount + firstPage + lastPage + currentPage + 2*ellipses
+
+  if (totalPageNumbers >= totalPages) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  const leftSiblingIndex = Math.max(currentPage - siblingCount, 1);
+  const rightSiblingIndex = Math.min(currentPage + siblingCount, totalPages);
+
+  const shouldShowLeftDots = leftSiblingIndex > 2;
+  const shouldShowRightDots = rightSiblingIndex < totalPages - 2;
+
+  if (!shouldShowLeftDots && shouldShowRightDots) {
+    let leftItemCount = 3 + 2 * siblingCount;
+    let leftRange = Array.from({ length: leftItemCount }, (_, i) => i + 1);
+    return [...leftRange, '...', totalPages];
+  }
+
+  if (shouldShowLeftDots && !shouldShowRightDots) {
+    let rightItemCount = 3 + 2 * siblingCount;
+    let rightRange = Array.from({ length: rightItemCount }, (_, i) => totalPages - rightItemCount + i + 1);
+    return [1, '...', ...rightRange];
+  }
+
+  if (shouldShowLeftDots && shouldShowRightDots) {
+    let middleRange = Array.from({ length: rightSiblingIndex - leftSiblingIndex + 1 }, (_, i) => leftSiblingIndex + i);
+    return [1, '...', ...middleRange, '...', totalPages];
+  }
+
+  return [];
+}
+
 function LogViewer({ logs, isActive = false }: LogViewerProps) {
   const [viewMode, setViewMode] = React.useState<"simple" | "complete">("simple");
   const [copiedId, setCopiedId] = React.useState<string | number | null>(null);
@@ -466,9 +499,34 @@ function LogViewer({ logs, isActive = false }: LogViewerProps) {
               >
                 Previous
               </button>
-              <span className="text-slate-500 dark:text-slate-400 px-2 font-bold font-mono">
-                Page {safeCurrentPage} of {totalPages}
-              </span>
+              {getPaginationRange(safeCurrentPage, totalPages).map((page, idx) => {
+                if (page === '...') {
+                  return (
+                    <span
+                      key={`dots-${idx}`}
+                      className="px-2 py-1 text-slate-400 dark:text-slate-600 font-bold select-none"
+                    >
+                      ...
+                    </span>
+                  );
+                }
+                const isSelected = page === safeCurrentPage;
+                return (
+                  <button
+                    key={`page-${page}`}
+                    type="button"
+                    onClick={() => setCurrentPage(Number(page))}
+                    className={cn(
+                      "px-2.5 py-1.5 rounded border font-bold font-mono text-[10px] transition-all",
+                      isSelected
+                        ? "bg-blue-600 border-blue-600 text-white shadow-sm"
+                        : "border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-white/20"
+                    )}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
               <button
                 type="button"
                 disabled={safeCurrentPage === totalPages}

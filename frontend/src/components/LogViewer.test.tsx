@@ -240,7 +240,10 @@ describe("LogViewer Component", () => {
       // Verify page details and showing count
       const showingPage2Text = screen.getByText((content, element) => element?.textContent === "Showing 21 to 25 of 25 entries");
       expect(showingPage2Text).toBeInTheDocument();
-      expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
+
+      const page2Button = screen.getByRole("button", { name: "2" });
+      expect(page2Button).toBeInTheDocument();
+      expect(page2Button).toHaveClass("bg-blue-600");
 
       // On page 2, verify item 21 is visible, but item 20 is gone
       expect(screen.getByText("Log entry number 21")).toBeInTheDocument();
