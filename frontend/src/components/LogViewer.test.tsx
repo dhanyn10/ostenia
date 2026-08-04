@@ -240,7 +240,10 @@ describe("LogViewer Component", () => {
       // Verify page details and showing count
       const showingPage2Text = screen.getByText((content, element) => element?.textContent === "Showing 21 to 25 of 25 entries");
       expect(showingPage2Text).toBeInTheDocument();
-      expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
+
+      const page2Button = screen.getByRole("button", { name: "2" });
+      expect(page2Button).toBeInTheDocument();
+      expect(page2Button).toHaveClass("bg-blue-600");
 
       // On page 2, verify item 21 is visible, but item 20 is gone
       expect(screen.getByText("Log entry number 21")).toBeInTheDocument();
@@ -272,6 +275,84 @@ describe("LogViewer Component", () => {
       expect(showingUpdatedText).toBeInTheDocument();
       expect(screen.getByText("Log entry number 1")).toBeInTheDocument();
       expect(screen.queryByText("Log entry number 11")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Real-time Log Buffering", () => {
+    it("does not buffer logs and updates immediately when isActive is false", () => {
+      const initialLogs = [
+        { id: "1", time: "12:00:00", msg: "Log 1" },
+        { id: "2", time: "12:00:01", msg: "Log 2" },
+      ];
+      const { rerender } = render(<LogViewer logs={initialLogs} isActive={false} />);
+
+      expect(screen.getByText("Log 1")).toBeInTheDocument();
+      expect(screen.getByText("Log 2")).toBeInTheDocument();
+      expect(screen.queryByText(/new logs/i)).not.toBeInTheDocument();
+
+      const updatedLogs = [
+        { id: "3", time: "12:00:02", msg: "Log 3" },
+        ...initialLogs,
+      ];
+      rerender(<LogViewer logs={updatedLogs} isActive={false} />);
+
+      expect(screen.getByText("Log 3")).toBeInTheDocument();
+      expect(screen.queryByText(/new logs/i)).not.toBeInTheDocument();
+    });
+
+    it("buffers new logs and shows a floating badge when isActive is true", () => {
+      const initialLogs = [
+        { id: "1", time: "12:00:00", msg: "Log 1" },
+        { id: "2", time: "12:00:01", msg: "Log 2" },
+      ];
+      const { rerender } = render(<LogViewer logs={initialLogs} isActive={true} />);
+
+      expect(screen.getByText("Log 1")).toBeInTheDocument();
+      expect(screen.getByText("Log 2")).toBeInTheDocument();
+      expect(screen.queryByText(/new logs/i)).not.toBeInTheDocument();
+
+      // Add a third log
+      const updatedLogs = [
+        { id: "3", time: "12:00:02", msg: "Log 3" },
+        ...initialLogs,
+      ];
+      rerender(<LogViewer logs={updatedLogs} isActive={true} />);
+
+      // Log 3 should NOT be in the document since it is buffered (pending)
+      expect(screen.queryByText("Log 3")).not.toBeInTheDocument();
+
+      // A floating badge should represent the pending logs
+      const badge = screen.getByText("1 new logs");
+      expect(badge).toBeInTheDocument();
+
+      // Test hover behavior
+      fireEvent.mouseEnter(badge);
+      expect(screen.getByText("show 1 new logs")).toBeInTheDocument();
+
+      fireEvent.mouseLeave(badge);
+      expect(screen.getByText("1 new logs")).toBeInTheDocument();
+
+      // Click the badge to release the buffered logs
+      fireEvent.click(badge);
+
+      // Now Log 3 should be displayed
+      expect(screen.getByText("Log 3")).toBeInTheDocument();
+      expect(screen.queryByText(/new logs/i)).not.toBeInTheDocument();
+    });
+
+    it("discards or handles completely new log lists (like a reset or tab change reload)", () => {
+      const initialLogs = [
+        { id: "1", time: "12:00:00", msg: "Log 1" },
+      ];
+      const { rerender } = render(<LogViewer logs={initialLogs} isActive={true} />);
+
+      expect(screen.getByText("Log 1")).toBeInTheDocument();
+
+      // A completely different list of logs (e.g., cleared/re-fetched logs)
+      const clearedLogs: any[] = [];
+      rerender(<LogViewer logs={clearedLogs} isActive={true} />);
+      expect(screen.queryByText("Log 1")).not.toBeInTheDocument();
+      expect(screen.getByText(/No activity recorded yet/i)).toBeInTheDocument();
     });
   });
 });
