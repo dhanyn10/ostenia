@@ -213,6 +213,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const [connectingStatus, setConnectingStatus] = useState<string>("");
   const [connectingTimeLeft, setConnectingTimeLeft] = useState<number>(0);
   const [connectingHasFailed, setConnectingHasFailed] = useState<boolean>(false);
+  const [connectionFailed, setConnectionFailed] = useState<boolean>(false);
   const [remotePath, setRemotePath] = useState("");
   const [editingPath, setEditingPath] = useState("");
   const [files, setFiles] = useState<any[]>([]);
@@ -317,7 +318,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
 
   // Set up background resource utilization queries
   useEffect(() => {
-    if (!isMonitoringEnabled || connecting) {
+    if (!isMonitoringEnabled || connecting || connectionFailed) {
       setResourceUsage(null);
       return;
     }
@@ -769,6 +770,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     setConnectingStatus("Initializing...");
     setConnectingTimeLeft(0);
     setConnectingHasFailed(false);
+    setConnectionFailed(false);
     clearProgressInterval();
 
     const currentCallId = crypto.randomUUID();
@@ -811,6 +813,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       if (activeConnectIdRef.current !== currentCallId) return;
 
       setConnecting(false);
+      setConnectionFailed(true);
       xterm.current?.write(`\x1b[31mConnection failed after ${maxRetries} attempts.\x1b[0m\r\n`);
       addToast("Error", "SSH connection failed after maximum attempts: " + finalErr, "error");
       throw new Error(`Connection failed after ${maxRetries} attempts: ${finalErr}`);
