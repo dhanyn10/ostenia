@@ -95,8 +95,8 @@ const GlobalConfigCategory: React.FC<GlobalConfigCategoryProps> = ({ appConfig, 
                   className="flex-1 bg-mui-grey-50 dark:bg-white/5 border border-mui-grey-200 dark:border-white/10 rounded px-3 py-2 text-sm outline-none text-mui-grey-700 dark:text-mui-grey-200 appearance-none cursor-pointer"
                 >
                   <option value="">Select from installed apps...</option>
-                  {installedApps.toSorted((a,b) => a.name.localeCompare(b.name)).map((app, idx) => (
-                    <option key={idx} value={app.path}>{app.name}</option>
+                  {installedApps.toSorted((a,b) => a.name.localeCompare(b.name)).map((app) => (
+                    <option key={app.path || app.name} value={app.path}>{app.name}</option>
                   ))}
                 </select>
                 <div className="flex items-center px-3 border border-mui-grey-200 dark:border-white/10 rounded bg-mui-grey-50 dark:bg-white/5 text-xs font-bold text-mui-grey-400">

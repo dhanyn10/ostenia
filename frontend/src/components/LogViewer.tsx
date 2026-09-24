@@ -36,6 +36,12 @@ interface CopyLogButtonProps {
   title: string;
 }
 
+interface PaginationItem {
+  key: string;
+  value: number | string;
+  isDots: boolean;
+}
+
 const CopyLogButton = ({ isCopied, onCopy, title }: CopyLogButtonProps) => {
   return (
     <button
@@ -54,11 +60,15 @@ const CopyLogButton = ({ isCopied, onCopy, title }: CopyLogButtonProps) => {
   );
 };
 
-function getPaginationRange(currentPage: number, totalPages: number, siblingCount = 1) {
+function getPaginationRange(currentPage: number, totalPages: number, siblingCount = 1): PaginationItem[] {
   const totalPageNumbers = siblingCount + 5; // siblingCount + firstPage + lastPage + currentPage + 2*ellipses
 
   if (totalPageNumbers >= totalPages) {
-    return Array.from({ length: totalPages }, (_, i) => i + 1);
+    return Array.from({ length: totalPages }, (_, i) => ({
+      key: `page-${i + 1}`,
+      value: i + 1,
+      isDots: false,
+    }));
   }
 
   const leftSiblingIndex = Math.max(currentPage - siblingCount, 1);
@@ -69,19 +79,43 @@ function getPaginationRange(currentPage: number, totalPages: number, siblingCoun
 
   if (!shouldShowLeftDots && shouldShowRightDots) {
     let leftItemCount = 3 + 2 * siblingCount;
-    let leftRange = Array.from({ length: leftItemCount }, (_, i) => i + 1);
-    return [...leftRange, '...', totalPages];
+    let leftRange = Array.from({ length: leftItemCount }, (_, i) => ({
+      key: `page-${i + 1}`,
+      value: i + 1,
+      isDots: false,
+    }));
+    return [
+      ...leftRange,
+      { key: "dots-right", value: "...", isDots: true },
+      { key: `page-${totalPages}`, value: totalPages, isDots: false },
+    ];
   }
 
   if (shouldShowLeftDots && !shouldShowRightDots) {
     let rightItemCount = 3 + 2 * siblingCount;
-    let rightRange = Array.from({ length: rightItemCount }, (_, i) => totalPages - rightItemCount + i + 1);
-    return [1, '...', ...rightRange];
+    let rightRange = Array.from({ length: rightItemCount }, (_, i) => {
+      const pageNum = totalPages - rightItemCount + i + 1;
+      return { key: `page-${pageNum}`, value: pageNum, isDots: false };
+    });
+    return [
+      { key: "page-1", value: 1, isDots: false },
+      { key: "dots-left", value: "...", isDots: true },
+      ...rightRange,
+    ];
   }
 
   if (shouldShowLeftDots && shouldShowRightDots) {
-    let middleRange = Array.from({ length: rightSiblingIndex - leftSiblingIndex + 1 }, (_, i) => leftSiblingIndex + i);
-    return [1, '...', ...middleRange, '...', totalPages];
+    let middleRange = Array.from({ length: rightSiblingIndex - leftSiblingIndex + 1 }, (_, i) => {
+      const pageNum = leftSiblingIndex + i;
+      return { key: `page-${pageNum}`, value: pageNum, isDots: false };
+    });
+    return [
+      { key: "page-1", value: 1, isDots: false },
+      { key: "dots-left", value: "...", isDots: true },
+      ...middleRange,
+      { key: "dots-right", value: "...", isDots: true },
+      { key: `page-${totalPages}`, value: totalPages, isDots: false },
+    ];
   }
 
   return [];
@@ -242,7 +276,7 @@ function LogViewer({ logs, isActive = false }: LogViewerProps) {
         document.body.appendChild(textArea);
         textArea.select();
         document.execCommand("copy");
-        document.body.removeChild(textArea);
+        textArea.remove();
         setCopiedId(log.id);
         setTimeout(() => {
           setCopiedId(null);
@@ -259,6 +293,138 @@ function LogViewer({ logs, isActive = false }: LogViewerProps) {
   const startIndex = (safeCurrentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
   const paginatedLogs = displayedLogs.slice(startIndex, endIndex);
+
+  const renderLogContent = () => {
+    if (displayedLogs.length === 0) {
+      return (
+        <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 gap-2 opacity-50">
+          <List size={32} strokeWidth={1} />
+          <p className="text-[10px] font-bold uppercase tracking-widest italic">
+            No activity recorded yet...
+          </p>
+        </div>
+      );
+    }
+
+    if (viewMode === "simple") {
+      return (
+        <div className="flex flex-col min-h-full space-y-1.5">
+          {paginatedLogs.map((log) => {
+            const isCopied = copiedId === log.id;
+            return (
+              <div
+                key={log.id}
+                className="flex items-center justify-between gap-4 group py-1 px-2 border border-transparent hover:border-slate-100 dark:hover:border-white/5 hover:bg-slate-50 dark:hover:bg-slate-900/40 rounded transition-all"
+              >
+                <div className="flex gap-4 items-baseline min-w-0 flex-1">
+                  <span className="text-slate-400 dark:text-slate-600 select-none shrink-0 w-20">
+                    [{log.time}]
+                  </span>
+                  <span
+                    className={cn(
+                      "flex-1 break-all leading-relaxed min-w-0",
+                      getLogColorClass(log.msg)
+                    )}
+                  >
+                    {log.msg}
+                  </span>
+                </div>
+                <CopyLogButton
+                  isCopied={isCopied}
+                  onCopy={(e) => {
+                    e.preventDefault();
+                    handleCopyLog(log);
+                  }}
+                  title="Copy Log"
+                />
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col min-h-full space-y-3">
+        {paginatedLogs.map((log) => {
+          const isCopied = copiedId === log.id;
+          const level = getLogLevel(log);
+          const isService = log.isServiceLog;
+
+          const badgeClasses = {
+            SERVICE: "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50",
+            ERROR: "bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800/50 font-bold",
+            WARN: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50 font-bold",
+            INFO: "bg-slate-100 text-slate-800 dark:bg-slate-800/60 dark:text-slate-300 border border-slate-200 dark:border-slate-700/50"
+          };
+
+          const currentBadgeClass = badgeClasses[level] || badgeClasses.INFO;
+
+          return (
+            <div
+              key={log.id}
+              className="p-4 rounded-lg border text-[10px] transition-all shadow-sm flex flex-col gap-3 bg-slate-50/50 dark:bg-slate-900/20 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700"
+            >
+              {/* Top line with metadata */}
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-slate-400 dark:text-slate-500 font-bold tracking-tight">
+                    [{log.time}]
+                  </span>
+                  <span className={cn("px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider", currentBadgeClass)}>
+                    {level}
+                  </span>
+                  {!isService && log.caller && (
+                    <div className="flex flex-wrap items-center gap-1 text-slate-500 dark:text-slate-400 text-[9px] bg-slate-100 dark:bg-slate-800/40 px-2 py-0.5 rounded">
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">
+                        {log.caller.functionName}()
+                      </span>
+                      <span className="text-slate-400 dark:text-slate-500">
+                        in
+                      </span>
+                      <span className="font-mono text-slate-600 dark:text-slate-400 font-bold">
+                        {log.caller.fileName}:{log.caller.line}:{log.caller.column}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <CopyLogButton
+                  isCopied={isCopied}
+                  onCopy={(e) => {
+                    e.preventDefault();
+                    handleCopyLog(log);
+                  }}
+                  title="Copy Laravel-Style Log"
+                />
+              </div>
+
+              {/* Message details */}
+              <div className={cn(
+                "font-semibold leading-relaxed break-all text-xs",
+                isService ? "text-slate-700 dark:text-slate-300 font-bold" : getLogColorClass(log.msg)
+              )}>
+                {log.cleanMsg || log.msg}
+              </div>
+
+              {/* Expandable Stack Trace */}
+              {!isService && log.rawStack && (
+                <details className="group/details text-[10px] text-slate-500 dark:text-slate-400">
+                  <summary className="cursor-pointer font-bold select-none hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1 outline-none">
+                    <span className="inline-block transition-transform duration-100 group-open/details:rotate-90">▶</span>
+                    {" "}View Stack Trace
+                  </summary>
+                  <pre className="bg-black text-rose-400/90 dark:text-rose-300 p-4 rounded-md overflow-x-auto text-[9px] mt-2 font-mono border border-slate-800 leading-normal whitespace-pre">
+                    {log.rawStack}
+                  </pre>
+                </details>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500 bg-white dark:bg-[#0f172a]">
@@ -335,129 +501,7 @@ function LogViewer({ logs, isActive = false }: LogViewerProps) {
           </div>
         )}
 
-        {displayedLogs.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 gap-2 opacity-50">
-            <List size={32} strokeWidth={1} />
-            <p className="text-[10px] font-bold uppercase tracking-widest italic">
-              No activity recorded yet...
-            </p>
-          </div>
-        ) : viewMode === "simple" ? (
-          /* Simple Log Mode: Newest on top (rendered using standard top-to-bottom flex-col) */
-          <div className="flex flex-col min-h-full space-y-1.5">
-            {paginatedLogs.map((log) => {
-              const isCopied = copiedId === log.id;
-              return (
-                <div
-                  key={log.id}
-                  className="flex items-center justify-between gap-4 group py-1 px-2 border border-transparent hover:border-slate-100 dark:hover:border-white/5 hover:bg-slate-50 dark:hover:bg-slate-900/40 rounded transition-all"
-                >
-                  <div className="flex gap-4 items-baseline min-w-0 flex-1">
-                    <span className="text-slate-400 dark:text-slate-600 select-none shrink-0 w-20">
-                      [{log.time}]
-                    </span>
-                    <span
-                      className={cn(
-                        "flex-1 break-all leading-relaxed min-w-0",
-                        getLogColorClass(log.msg)
-                      )}
-                    >
-                      {log.msg}
-                    </span>
-                  </div>
-                  <CopyLogButton
-                    isCopied={isCopied}
-                    onCopy={(e) => {
-                      e.preventDefault();
-                      handleCopyLog(log);
-                    }}
-                    title="Copy Log"
-                  />
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          /* Complete Log (Laravel-Style) Mode: Newest on top (rendered using standard top-to-bottom flex-col) */
-          <div className="flex flex-col min-h-full space-y-3">
-            {paginatedLogs.map((log) => {
-              const isCopied = copiedId === log.id;
-              const level = getLogLevel(log);
-              const isService = log.isServiceLog;
-
-              const badgeClasses = {
-                SERVICE: "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50",
-                ERROR: "bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800/50 font-bold",
-                WARN: "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50 font-bold",
-                INFO: "bg-slate-100 text-slate-800 dark:bg-slate-800/60 dark:text-slate-300 border border-slate-200 dark:border-slate-700/50"
-              };
-
-              const currentBadgeClass = badgeClasses[level] || badgeClasses.INFO;
-
-              return (
-                <div
-                  key={log.id}
-                  className="p-4 rounded-lg border text-[10px] transition-all shadow-sm flex flex-col gap-3 bg-slate-50/50 dark:bg-slate-900/20 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700"
-                >
-                  {/* Top line with metadata */}
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-slate-400 dark:text-slate-500 font-bold tracking-tight">
-                        [{log.time}]
-                      </span>
-                      <span className={cn("px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider", currentBadgeClass)}>
-                        {level}
-                      </span>
-                      {!isService && log.caller && (
-                        <div className="flex flex-wrap items-center gap-1 text-slate-500 dark:text-slate-400 text-[9px] bg-slate-100 dark:bg-slate-800/40 px-2 py-0.5 rounded">
-                          <span className="font-semibold text-slate-700 dark:text-slate-300">
-                            {log.caller.functionName}()
-                          </span>
-                          <span className="text-slate-400 dark:text-slate-500">
-                            in
-                          </span>
-                          <span className="font-mono text-slate-600 dark:text-slate-400 font-bold">
-                            {log.caller.fileName}:{log.caller.line}:{log.caller.column}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <CopyLogButton
-                      isCopied={isCopied}
-                      onCopy={(e) => {
-                        e.preventDefault();
-                        handleCopyLog(log);
-                      }}
-                      title="Copy Laravel-Style Log"
-                    />
-                  </div>
-
-                  {/* Message details */}
-                  <div className={cn(
-                    "font-semibold leading-relaxed break-all text-xs",
-                    isService ? "text-slate-700 dark:text-slate-300 font-bold" : getLogColorClass(log.msg)
-                  )}>
-                    {log.cleanMsg || log.msg}
-                  </div>
-
-                  {/* Expandable Stack Trace */}
-                  {!isService && log.rawStack && (
-                    <details className="group/details text-[10px] text-slate-500 dark:text-slate-400">
-                      <summary className="cursor-pointer font-bold select-none hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1 outline-none">
-                        <span className="inline-block transition-transform duration-100 group-open/details:rotate-90">▶</span>
-                        {" "}View Stack Trace
-                      </summary>
-                      <pre className="bg-black text-rose-400/90 dark:text-rose-300 p-4 rounded-md overflow-x-auto text-[9px] mt-2 font-mono border border-slate-800 leading-normal whitespace-pre">
-                        {log.rawStack}
-                      </pre>
-                    </details>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {renderLogContent()}
       </div>
 
       {/* Pagination Controls */}
@@ -509,23 +553,24 @@ function LogViewer({ logs, isActive = false }: LogViewerProps) {
               >
                 Previous
               </button>
-              {getPaginationRange(safeCurrentPage, totalPages).map((page, idx) => {
-                if (page === '...') {
+              {getPaginationRange(safeCurrentPage, totalPages).map((item) => {
+                if (item.isDots) {
                   return (
                     <span
-                      key={`dots-${idx}`}
+                      key={item.key}
                       className="px-2 py-1 text-slate-400 dark:text-slate-600 font-bold select-none"
                     >
                       ...
                     </span>
                   );
                 }
-                const isSelected = page === safeCurrentPage;
+                const pageNum = item.value as number;
+                const isSelected = pageNum === safeCurrentPage;
                 return (
                   <button
-                    key={`page-${page}`}
+                    key={item.key}
                     type="button"
-                    onClick={() => setCurrentPage(Number(page))}
+                    onClick={() => setCurrentPage(pageNum)}
                     className={cn(
                       "px-2.5 py-1.5 rounded border font-bold font-mono text-[10px] transition-all",
                       isSelected
@@ -533,7 +578,7 @@ function LogViewer({ logs, isActive = false }: LogViewerProps) {
                         : "border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-white/20"
                     )}
                   >
-                    {page}
+                    {pageNum}
                   </button>
                 );
               })}

@@ -25,6 +25,8 @@ for d in /proc/[0-9]*/; do
                         fi
                     fi
                     ;;
+                *)
+                    ;;
             esac
         fi
     fi
