@@ -14,7 +14,6 @@ import (
 // App struct manages the main application state and coordinates between backend services and the frontend.
 // It wraps core controllers including plugins downloaders, orchestrators, symlinks, SSH, and SSL managers.
 type App struct {
-	ctx          context.Context             // Main application startup context (stores Wails session state)
 	downloader   interfaces.PluginManager    // Controller responsible for plugin downloads and extraction
 	orchestrator interfaces.Orchestrator     // Controller managing lifecycle, watching, and state of development services
 	symlinkMgr   *service.SymlinkManager     // Helper maintaining system paths and junction points
@@ -62,27 +61,27 @@ func (w *WailsRuntime) SaveFileDialog(ctx context.Context, options wruntime.Save
 	return wruntime.SaveFileDialog(ctx, options)
 }
 
-// EventsEmit triggers a standard event emission to the frontend browser using App context.
-func (a *App) EventsEmit(eventName string, optionalData ...interface{}) {
-	a.runtime.EventsEmit(a.ctx, eventName, optionalData...)
+// EventsEmit triggers a standard event emission to the frontend browser using provided context.
+func (a *App) EventsEmit(ctx context.Context, eventName string, optionalData ...interface{}) {
+	a.runtime.EventsEmit(ctx, eventName, optionalData...)
 }
 
 // Quit initiates graceful application exit.
-func (a *App) Quit() { a.runtime.Quit(a.ctx) }
+func (a *App) Quit(ctx context.Context) { a.runtime.Quit(ctx) }
 
 // OpenFileDialog opens standard file picker views on top of the browser view.
-func (a *App) OpenFileDialog(options wruntime.OpenDialogOptions) (string, error) {
-	return a.runtime.OpenFileDialog(a.ctx, options)
+func (a *App) OpenFileDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) {
+	return a.runtime.OpenFileDialog(ctx, options)
 }
 
 // OpenDirectoryDialog opens directory picker views on top of the browser view.
-func (a *App) OpenDirectoryDialog(options wruntime.OpenDialogOptions) (string, error) {
-	return a.runtime.OpenDirectoryDialog(a.ctx, options)
+func (a *App) OpenDirectoryDialog(ctx context.Context, options wruntime.OpenDialogOptions) (string, error) {
+	return a.runtime.OpenDirectoryDialog(ctx, options)
 }
 
 // SaveFileDialog opens file saver prompts on top of the browser view.
-func (a *App) SaveFileDialog(options wruntime.SaveDialogOptions) (string, error) {
-	return a.runtime.SaveFileDialog(a.ctx, options)
+func (a *App) SaveFileDialog(ctx context.Context, options wruntime.SaveDialogOptions) (string, error) {
+	return a.runtime.SaveFileDialog(ctx, options)
 }
 
 // GenerateRootCA creates a new local SSL Root Certificate Authority keypair.
@@ -129,9 +128,8 @@ func (s *DefaultSSLManager) SignCertificate(caDir, domain, destDir string) error
 }
 
 // Startup is called when the application initializes.
-// Stores the application context and instantiates standard production dependencies.
+// Instantiates standard production dependencies.
 func (a *App) Startup(ctx context.Context) {
-	a.ctx = ctx
 	if a.runtime == nil {
 		a.runtime = &WailsRuntime{}
 	}

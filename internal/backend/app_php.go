@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"ostenia/internal/config"
 	"ostenia/internal/service"
 	"path/filepath"
@@ -15,7 +16,7 @@ func (a *App) GetPHPExtensions() ([]service.PHPExtensionInfo, error) {
 }
 
 // TogglePHPExtension enables or disables a PHP extension in php.ini
-func (a *App) TogglePHPExtension(extName string, enable bool) error {
+func (a *App) TogglePHPExtension(ctx context.Context, extName string, enable bool) error {
 	baseDir := config.GetBaseDir()
 	phpPath := filepath.Join(baseDir, "bin", "php", "current")
 	err := service.TogglePHPExtension(phpPath, extName, enable)
@@ -23,9 +24,9 @@ func (a *App) TogglePHPExtension(extName string, enable bool) error {
 		return err
 	}
 	if a.orchestrator.IsRunning("PHP") {
-		_ = a.StopService("PHP")
+		_ = a.StopService(ctx, "PHP")
 		time.Sleep(600 * time.Millisecond)
-		return a.StartService("PHP")
+		return a.StartService(ctx, "PHP")
 	}
 	return nil
 }

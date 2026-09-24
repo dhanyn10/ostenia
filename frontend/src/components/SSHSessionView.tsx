@@ -205,6 +205,81 @@ const isArchiveFile = (fileName?: string): boolean => {
 };
 
 /**
+ * Calculates Y position for custom context menus to avoid viewport clipping.
+ */
+const calculateContextMenuY = (clientY: number, menuHeight: number): number => {
+  if (clientY + menuHeight > window.innerHeight) {
+    return Math.max(10, clientY - menuHeight);
+  }
+  return clientY;
+};
+
+/**
+ * Checks if an SFTP listing error is expected/ignorable during background sync.
+ */
+const isIgnorableSFTPError = (err: any): boolean => {
+  const errStr = String(err).toLowerCase();
+  return (
+    errStr.includes("eof") ||
+    errStr.includes("session not found") ||
+    errStr.includes("session not connected") ||
+    errStr.includes("sftp not connected")
+  );
+};
+
+/**
+ * Extracts timeout and retry options from localStorage.
+ */
+const getSSHConfigFromStorage = () => {
+  const timeout = Number.parseInt(localStorage.getItem('ostenia_ssh_max_timeout') || '10', 10);
+  const retries = Number.parseInt(localStorage.getItem('ostenia_ssh_max_retries') || '3', 10);
+  return {
+    maxTimeout: Number.isNaN(timeout) || timeout < 1 ? 10 : timeout,
+    maxRetries: Number.isNaN(retries) || retries < 1 ? 3 : retries,
+  };
+};
+
+/**
+ * Extracts target path from xterm title string if valid.
+ */
+const extractPathFromTitle = (title: string): string | null => {
+  if (!title.includes(":")) return null;
+  const parts = title.split(":");
+  const potentialPath = parts.at(-1)?.trim() || "";
+  return potentialPath.startsWith("/") ? potentialPath : null;
+};
+
+/**
+ * Attaches custom keyboard handlers for zoom shortcuts in xterm.
+ */
+const setupZoomKeyHandler = (
+  term: XTerm,
+  handlersRef: React.RefObject<{ handleZoomIn: () => void; handleZoomOut: () => void; handleZoomReset: () => void }>
+) => {
+  term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+    if (event.type !== "keydown") return true;
+    const isCtrlOrCmd = event.ctrlKey || event.metaKey;
+    if (!isCtrlOrCmd) return true;
+    const enabled = localStorage.getItem('ostenia_ssh_zoom_enabled') !== 'false';
+    if (!enabled) return true;
+
+    if (event.key === "=" || event.key === "+") {
+      handlersRef.current?.handleZoomIn();
+      return false;
+    }
+    if (event.key === "-") {
+      handlersRef.current?.handleZoomOut();
+      return false;
+    }
+    if (event.key === "0") {
+      handlersRef.current?.handleZoomReset();
+      return false;
+    }
+    return true;
+  });
+};
+
+/**
  * Helper utility to convert raw file sizes into readable units.
  */
 const formatSize = (bytes: number) => {
@@ -468,15 +543,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     e.preventDefault();
     e.stopPropagation();
 
-    const menuHeight = 180;
-    let y = e.clientY;
-    if (y + menuHeight > window.innerHeight) {
-      y = Math.max(10, y - menuHeight);
-    }
-
     setFileContextMenu({
       x: e.clientX,
-      y: y,
+      y: calculateContextMenuY(e.clientY, 180),
       file: file,
     });
     setExplorerContextMenu(null);
@@ -490,15 +559,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const handleExplorerContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
 
-    const menuHeight = 130;
-    let y = e.clientY;
-    if (y + menuHeight > window.innerHeight) {
-      y = Math.max(10, y - menuHeight);
-    }
-
     setExplorerContextMenu({
       x: e.clientX,
-      y: y,
+      y: calculateContextMenuY(e.clientY, 130),
     });
     setFileContextMenu(null);
     setTerminalContextMenu(null);
@@ -511,15 +574,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const handleTerminalContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
 
-    const menuHeight = 100;
-    let y = e.clientY;
-    if (y + menuHeight > window.innerHeight) {
-      y = Math.max(10, y - menuHeight);
-    }
-
     setTerminalContextMenu({
       x: e.clientX,
-      y: y,
+      y: calculateContextMenuY(e.clientY, 100),
     });
     setFileContextMenu(null);
     setExplorerContextMenu(null);
@@ -639,31 +696,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     xterm.current.loadAddon(fitAddon.current);
     if (terminalRef.current) {
       xterm.current.open(terminalRef.current);
-
-      // Custom key event handler for zoom keyboard shortcuts (Ctrl + Plus, Ctrl + Minus, Ctrl + 0)
-      xterm.current.attachCustomKeyEventHandler((event: KeyboardEvent) => {
-        if (event.type === "keydown") {
-          const isCtrlOrCmd = event.ctrlKey || event.metaKey;
-          if (isCtrlOrCmd) {
-            const enabled = localStorage.getItem('ostenia_ssh_zoom_enabled') !== 'false';
-            if (enabled) {
-              if (event.key === "=" || event.key === "+") {
-                handlersRef.current.handleZoomIn();
-                return false;
-              }
-              if (event.key === "-") {
-                handlersRef.current.handleZoomOut();
-                return false;
-              }
-              if (event.key === "0") {
-                handlersRef.current.handleZoomReset();
-                return false;
-              }
-            }
-          }
-        }
-        return true;
-      });
+      setupZoomKeyHandler(xterm.current, handlersRef);
     }
 
     let resizeTimeout: any;
@@ -684,12 +717,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     // Forward local user keystrokes straight to back-end shell stream
     xterm.current.onData((data) => AppBackend.SendSSHInput(session.id, data));
     xterm.current.onTitleChange((title) => {
-      if (title.includes(":")) {
-        const parts = title.split(":");
-        const potentialPath = parts.at(-1).trim();
-        if (potentialPath.startsWith("/")) {
-          syncExplorer(potentialPath);
-        }
+      const potentialPath = extractPathFromTitle(title);
+      if (potentialPath) {
+        syncExplorer(potentialPath);
       }
     });
 
@@ -866,10 +896,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     const currentCallId = crypto.randomUUID();
     activeConnectIdRef.current = currentCallId;
 
-    const timeout = Number.parseInt(localStorage.getItem('ostenia_ssh_max_timeout') || '10', 10);
-    const retries = Number.parseInt(localStorage.getItem('ostenia_ssh_max_retries') || '3', 10);
-    const maxTimeout = Number.isNaN(timeout) || timeout < 1 ? 10 : timeout;
-    const maxRetries = Number.isNaN(retries) || retries < 1 ? 3 : retries;
+    const { maxTimeout, maxRetries } = getSSHConfigFromStorage();
 
     await measureActivity("connectSSH", async () => {
       let finalErr: any = null;
@@ -933,18 +960,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       return;
     }
 
-    if (isAutoSync) {
-      // Suppress Toast errors during background/automatic sync silently
-      return;
-    }
-
-    const errStr = String(err).toLowerCase();
-    if (
-      errStr.includes("eof") ||
-      errStr.includes("session not found") ||
-      errStr.includes("session not connected") ||
-      errStr.includes("sftp not connected")
-    ) {
+    if (isAutoSync || isIgnorableSFTPError(err)) {
       return;
     }
 
@@ -990,11 +1006,10 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
    */
   const syncExplorer = async (forcedPath: string | null = null, isManualTrigger = false) => {
     try {
-      const actualForcedPath = typeof forcedPath === "string" ? forcedPath : null;
-      let current =
-        actualForcedPath || (await AppBackend.GetRemoteCurrentPath(session.id));
-      if (!current) return;
-      let normalized = current.trim();
+      const rawPath = typeof forcedPath === "string" ? forcedPath : await AppBackend.GetRemoteCurrentPath(session.id);
+      if (!rawPath) return;
+
+      let normalized = rawPath.trim();
       if (normalized.length > 1 && normalized.endsWith("/")) {
         normalized = normalized.slice(0, -1);
       }
@@ -1005,13 +1020,13 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         return;
       }
 
-      const isPathChanged = lastTerminalPathRef.current === "" || normalized !== lastTerminalPathRef.current;
-      if (isPathChanged) {
-        const shouldLoad = lastTerminalPathRef.current === "" ? normalized !== currentPathRef.current : true;
-        lastTerminalPathRef.current = normalized;
-        if (shouldLoad) {
-          loadRemoteFiles(normalized, false, true);
-        }
+      const prevPath = lastTerminalPathRef.current;
+      if (prevPath !== "" && normalized === prevPath) return;
+
+      const shouldLoad = prevPath === "" ? normalized !== currentPathRef.current : true;
+      lastTerminalPathRef.current = normalized;
+      if (shouldLoad) {
+        loadRemoteFiles(normalized, false, true);
       }
     } catch (e) {}
   };
