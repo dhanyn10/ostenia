@@ -527,9 +527,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                 {/* Resizer handle */}
                 <button
                   type="button"
-                  role="separator"
                   aria-label="Resize search input"
-                  aria-orientation="vertical"
                   onMouseDown={(e) => {
                     e.preventDefault();
                     setIsResizing(true);

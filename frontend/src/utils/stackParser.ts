@@ -36,6 +36,76 @@ export function cleanFileName(path: string): string {
 }
 
 /**
+ * Parses a single raw line from a stack trace into a CallerInfo object.
+ *
+ * @param line Single raw stack line.
+ * @returns Parsed CallerInfo or null if unparseable.
+ */
+export function parseStackLine(line: string): CallerInfo | null {
+  const trimmed = line.trim();
+  if (!trimmed) return null;
+
+  let functionName = '';
+  let location = '';
+
+  if (trimmed.startsWith('at ')) {
+    const lastParen = trimmed.lastIndexOf('(');
+    if (trimmed.endsWith(')') && lastParen !== -1) {
+      functionName = trimmed.substring(3, lastParen).trim();
+      location = trimmed.substring(lastParen + 1, trimmed.length - 1);
+    } else {
+      functionName = 'anonymous';
+      location = trimmed.substring(3).trim();
+    }
+  } else if (trimmed.includes('@')) {
+    const atIdx = trimmed.indexOf('@');
+    functionName = trimmed.substring(0, atIdx).trim() || 'anonymous';
+    location = trimmed.substring(atIdx + 1);
+  } else {
+    return null;
+  }
+
+  const lastColon = location.lastIndexOf(':');
+  const secondLastColon = location.lastIndexOf(':', lastColon - 1);
+  if (lastColon === -1 || secondLastColon === -1) return null;
+
+  const lineNum = location.substring(secondLastColon + 1, lastColon);
+  const colNum = location.substring(lastColon + 1);
+
+  if (!/^\d+$/.test(lineNum) || !/^\d+$/.test(colNum)) return null;
+
+  const rawFilePath = location.substring(0, secondLastColon);
+
+  return {
+    functionName: functionName || 'anonymous',
+    fileName: cleanFileName(rawFilePath),
+    line: lineNum,
+    column: colNum,
+  };
+}
+
+// List of patterns to skip so we find the actual caller function
+const ignorePatterns = [
+  /addLog/i,
+  /setupConsoleOverrides/i,
+  /stackParser/i,
+  /parseStackTrace/i,
+  /measureActivity/i,
+  /activityLogger/i,
+  /console\.(log|warn|error|info)/i,
+  /Object\.(log|warn|error|info)/i,
+  /at\s+log\s+\(/i,
+  /at\s+warn\s+\(/i,
+  /at\s+error\s+\(/i,
+];
+
+function isIgnoredFrame(frame: CallerInfo): boolean {
+  return ignorePatterns.some(pattern =>
+    pattern.test(frame.functionName) || pattern.test(frame.fileName)
+  );
+}
+
+/**
  * Parses a raw JS/TS error stack trace to extract the original caller's location.
  * It filters out internal logging frameworks, console overrides, and utility frames.
  *
@@ -51,70 +121,14 @@ export function parseStackTrace(stack: string | undefined): ParsedStack {
   const lines = rawStack.split('\n');
   const frames: CallerInfo[] = [];
 
-  for (let line of lines) {
-    line = line.trim();
-    if (!line) continue;
-
-    let functionName = '';
-    let location = '';
-
-    if (line.startsWith('at ')) {
-      const lastParen = line.lastIndexOf('(');
-      if (line.endsWith(')') && lastParen !== -1) {
-        functionName = line.substring(3, lastParen).trim();
-        location = line.substring(lastParen + 1, line.length - 1);
-      } else {
-        functionName = 'anonymous';
-        location = line.substring(3).trim();
-      }
-    } else if (line.includes('@')) {
-      const atIdx = line.indexOf('@');
-      functionName = line.substring(0, atIdx).trim() || 'anonymous';
-      location = line.substring(atIdx + 1);
-    } else {
-      continue;
+  for (const line of lines) {
+    const frame = parseStackLine(line);
+    if (frame) {
+      frames.push(frame);
     }
-
-    const lastColon = location.lastIndexOf(':');
-    const secondLastColon = location.lastIndexOf(':', lastColon - 1);
-    if (lastColon === -1 || secondLastColon === -1) continue;
-
-    const lineNum = location.substring(secondLastColon + 1, lastColon);
-    const colNum = location.substring(lastColon + 1);
-
-    if (!/^\d+$/.test(lineNum) || !/^\d+$/.test(colNum)) continue;
-
-    const rawFilePath = location.substring(0, secondLastColon);
-
-    frames.push({
-      functionName: functionName || 'anonymous',
-      fileName: cleanFileName(rawFilePath),
-      line: lineNum,
-      column: colNum,
-    });
   }
 
-  // List of patterns to skip so we find the actual caller function
-  const ignorePatterns = [
-    /addLog/i,
-    /setupConsoleOverrides/i,
-    /stackParser/i,
-    /parseStackTrace/i,
-    /measureActivity/i,
-    /activityLogger/i,
-    /console\.(log|warn|error|info)/i,
-    /Object\.(log|warn|error|info)/i,
-    /at\s+log\s+\(/i,
-    /at\s+warn\s+\(/i,
-    /at\s+error\s+\(/i,
-  ];
-
-  const caller = frames.find(frame => {
-    const isIgnored = ignorePatterns.some(pattern =>
-      pattern.test(frame.functionName) || pattern.test(frame.fileName)
-    );
-    return !isIgnored;
-  });
+  const caller = frames.find(frame => !isIgnoredFrame(frame));
 
   return {
     caller,
