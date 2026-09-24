@@ -147,10 +147,9 @@ describe("LogViewer Component", () => {
     const copyButtons = screen.getAllByTitle("Copy Log");
     expect(copyButtons.length).toBe(1);
 
-    // Click copy button inside act
-    await act(async () => {
-      fireEvent.click(copyButtons[0]);
-    });
+    // Click copy button
+    fireEvent.click(copyButtons[0]);
+    await act(async () => {});
 
     // Check navigator.clipboard.writeText was called with expected Laravel-style structure
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
@@ -176,7 +175,7 @@ describe("LogViewer Component", () => {
     expect(screen.getByTitle("Copy Log")).toHaveClass("text-emerald-500");
 
     // Advance time by 2 seconds
-    await act(async () => {
+    act(() => {
       vi.advanceTimersByTime(2000);
     });
 
@@ -196,9 +195,8 @@ describe("LogViewer Component", () => {
     expect(copyButton).toBeInTheDocument();
 
     // Click copy button
-    await act(async () => {
-      fireEvent.click(copyButton);
-    });
+    fireEvent.click(copyButton);
+    await act(async () => {});
 
     // Check navigator.clipboard.writeText was called with expected Laravel-style structure for Service log
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(

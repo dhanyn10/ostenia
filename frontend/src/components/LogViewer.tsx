@@ -446,7 +446,7 @@ function LogViewer({ logs, isActive = false }: LogViewerProps) {
                     <details className="group/details text-[10px] text-slate-500 dark:text-slate-400">
                       <summary className="cursor-pointer font-bold select-none hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1 outline-none">
                         <span className="inline-block transition-transform duration-100 group-open/details:rotate-90">▶</span>
-                        View Stack Trace
+                        {" "}View Stack Trace
                       </summary>
                       <pre className="bg-black text-rose-400/90 dark:text-rose-300 p-4 rounded-md overflow-x-auto text-[9px] mt-2 font-mono border border-slate-800 leading-normal whitespace-pre">
                         {log.rawStack}
@@ -464,9 +464,19 @@ function LogViewer({ logs, isActive = false }: LogViewerProps) {
       {displayedLogs.length > 0 && (
         <div className="shrink-0 p-4 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-slate-900/40 flex flex-wrap gap-4 items-center justify-between text-[11px] font-sans">
           <div className="text-slate-500 dark:text-slate-400 font-bold">
-            Showing <span className="text-slate-800 dark:text-slate-200">{Math.min(startIndex + 1, displayedLogs.length)}</span> to{" "}
-            <span className="text-slate-800 dark:text-slate-200">{Math.min(endIndex, displayedLogs.length)}</span> of{" "}
-            <span className="text-slate-800 dark:text-slate-200">{displayedLogs.length}</span> entries
+            Showing{" "}
+            <span className="text-slate-800 dark:text-slate-200">
+              {Math.min(startIndex + 1, displayedLogs.length)}
+            </span>{" "}
+            to{" "}
+            <span className="text-slate-800 dark:text-slate-200">
+              {Math.min(endIndex, displayedLogs.length)}
+            </span>{" "}
+            of{" "}
+            <span className="text-slate-800 dark:text-slate-200">
+              {displayedLogs.length}
+            </span>{" "}
+            entries
           </div>
 
           <div className="flex items-center gap-4">
