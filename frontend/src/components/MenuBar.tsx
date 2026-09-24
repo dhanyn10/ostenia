@@ -4,7 +4,6 @@ import {
   Minus,
   Square,
   X,
-  Settings,
   Eye,
   HelpCircle,
   ChevronRight,

@@ -783,7 +783,7 @@ describe("SSHSessionView Component", () => {
     render(<SSHSessionView {...mockProps} />);
 
     // Initially (before first fetch finishes) should show em-dash
-    expect(screen.getAllByText(/—/).length).toBe(3);
+    expect(screen.getAllByText(/—/)).toHaveLength(3);
 
     // Wait for the mock values to be loaded
     await waitFor(() => {

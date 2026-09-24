@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronDown, FolderPlus, MoreVertical } from "lucide-react";
+import { FolderPlus, MoreVertical } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { handleActionKey } from "../utils/a11y";

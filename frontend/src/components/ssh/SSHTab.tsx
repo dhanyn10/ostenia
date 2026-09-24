@@ -128,7 +128,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
     // Autofocus another active tab or default to main Dashboard
     if (currentSessionId === id) {
       setCurrentSessionId(
-        nextActive.length > 0 ? nextActive[nextActive.length - 1] : null,
+        nextActive.length > 0 ? nextActive.at(-1) || null : null,
       );
     }
   };

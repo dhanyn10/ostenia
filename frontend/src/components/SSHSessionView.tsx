@@ -120,6 +120,90 @@ const ResourceLineChart: React.FC<ResourceLineChartProps> = ({ data, metric, col
   );
 };
 
+interface MetricItemProps {
+  label: string;
+  valueText: string;
+  metric: "cpu" | "mem" | "disk";
+  color: string;
+  fillColor: string;
+  hoveredMetric: "cpu" | "mem" | "disk" | null;
+  setHoveredMetric: (m: "cpu" | "mem" | "disk" | null) => void;
+  displayMode: string;
+  history: Array<{ cpu: number | null; mem: number | null; disk: number | null }>;
+  minWidthClass?: string;
+}
+
+const MetricItem: React.FC<MetricItemProps> = ({
+  label,
+  valueText,
+  metric,
+  color,
+  fillColor,
+  hoveredMetric,
+  setHoveredMetric,
+  displayMode,
+  history,
+  minWidthClass = "min-w-[55px]",
+}) => {
+  const isHovered = hoveredMetric === metric;
+  const showTooltip = displayMode === "tooltip" && isHovered;
+  const showInline =
+    displayMode !== "tooltip" &&
+    (displayMode === "always" || (displayMode === "hover-inline" && isHovered));
+
+  return (
+    <div
+      className="relative py-1 cursor-help group flex items-center gap-2"
+      onMouseEnter={() => setHoveredMetric(metric)}
+      onMouseLeave={() => setHoveredMetric(null)}
+    >
+      <span className={minWidthClass}>
+        {label}: {valueText}
+      </span>
+      {showTooltip && (
+        <div className="absolute bottom-7 left-0 z-50 bg-white dark:bg-mui-grey-850 p-2 rounded shadow-lg border border-mui-grey-200 dark:border-white/10 flex flex-col gap-1 items-center animate-in fade-in duration-100 min-w-[130px]">
+          <span className="text-[9px] uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">
+            {label} Usage History
+          </span>
+          <ResourceLineChart
+            data={history}
+            metric={metric}
+            color={color}
+            fillColor={fillColor}
+          />
+        </div>
+      )}
+      {showInline && (
+        <div className="flex items-center shrink-0">
+          <ResourceLineChart
+            data={history}
+            metric={metric}
+            color={color}
+            fillColor={fillColor}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
+ * Checks whether a given filename represents a known archive file format.
+ */
+const isArchiveFile = (fileName?: string): boolean => {
+  if (!fileName) return false;
+  const name = fileName.toLowerCase();
+  return (
+    name.endsWith(".zip") ||
+    name.endsWith(".tar") ||
+    name.endsWith(".gz") ||
+    name.endsWith(".7z") ||
+    name.endsWith(".rar") ||
+    name.endsWith(".bz2") ||
+    name.endsWith(".xz")
+  );
+};
+
 /**
  * Helper utility to convert raw file sizes into readable units.
  */
@@ -237,9 +321,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   });
   const [zoomFontSize, setZoomFontSize] = useState<number>(14);
 
-  const [deleteFile, setDeleteFile] = useState<any | null>(null);
+  const [deleteFile, setDeleteFile] = useState<any>(null);
   const [newFolderModalOpen, setNewFolderModalOpen] = useState(false);
-  const [renameFile, setRenameFile] = useState<any | null>(null);
+  const [renameFile, setRenameFile] = useState<any>(null);
 
   const handleZoomIn = () => {
     setZoomFontSize((prev) => Math.min(prev + 2, 40));
@@ -918,7 +1002,11 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       if (isManualTrigger) {
         lastTerminalPathRef.current = normalized;
         loadRemoteFiles(normalized, false, false);
-      } else if (lastTerminalPathRef.current === "" || normalized !== lastTerminalPathRef.current) {
+        return;
+      }
+
+      const isPathChanged = lastTerminalPathRef.current === "" || normalized !== lastTerminalPathRef.current;
+      if (isPathChanged) {
         const shouldLoad = lastTerminalPathRef.current === "" ? normalized !== currentPathRef.current : true;
         lastTerminalPathRef.current = normalized;
         if (shouldLoad) {
@@ -927,7 +1015,6 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       }
     } catch (e) {}
   };
-
 
   /**
    * Trigger folder traversal or edits the file locally.
@@ -1219,65 +1306,52 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
 
           {isMonitoringEnabled ? (
             <div className="flex items-center gap-6 text-[10px] font-bold text-mui-grey-600 dark:text-mui-grey-400">
-              {/* CPU Metric Container */}
-              <div
-                className="relative py-1 cursor-help group flex items-center gap-2"
-                onMouseEnter={() => setHoveredMetric("cpu")}
-                onMouseLeave={() => setHoveredMetric(null)}
-              >
-                <span className="min-w-[55px]">CPU: {resourceUsage ? `${resourceUsage.cpu.toFixed(0)}%` : "—"}</span>
-                {displayMode === "tooltip" && hoveredMetric === "cpu" && (
-                  <div className="absolute bottom-7 left-0 z-50 bg-white dark:bg-mui-grey-850 p-2 rounded shadow-lg border border-mui-grey-200 dark:border-white/10 flex flex-col gap-1 items-center animate-in fade-in duration-100 min-w-[130px]">
-                    <span className="text-[9px] uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">CPU Usage History</span>
-                    <ResourceLineChart data={history} metric="cpu" color="#2196f3" fillColor="rgba(33, 150, 243, 0.15)" />
-                  </div>
-                )}
-                {displayMode !== "tooltip" && (displayMode === "always" || (displayMode === "hover-inline" && hoveredMetric === "cpu")) && (
-                  <div className="flex items-center shrink-0">
-                    <ResourceLineChart data={history} metric="cpu" color="#2196f3" fillColor="rgba(33, 150, 243, 0.15)" />
-                  </div>
-                )}
-              </div>
+              <MetricItem
+                label="CPU"
+                valueText={resourceUsage ? `${resourceUsage.cpu.toFixed(0)}%` : "—"}
+                metric="cpu"
+                color="#2196f3"
+                fillColor="rgba(33, 150, 243, 0.15)"
+                hoveredMetric={hoveredMetric}
+                setHoveredMetric={setHoveredMetric}
+                displayMode={displayMode}
+                history={history}
+                minWidthClass="min-w-[55px]"
+              />
 
-              {/* RAM Metric Container */}
-              <div
-                className="relative py-1 cursor-help group flex items-center gap-2"
-                onMouseEnter={() => setHoveredMetric("mem")}
-                onMouseLeave={() => setHoveredMetric(null)}
-              >
-                <span className="min-w-[130px]">RAM: {resourceUsage ? `${(resourceUsage.memUsed / 1024).toFixed(1)} GB / ${(resourceUsage.memTotal / 1024).toFixed(1)} GB (${resourceUsage.mem.toFixed(0)}%)` : "—"}</span>
-                {displayMode === "tooltip" && hoveredMetric === "mem" && (
-                  <div className="absolute bottom-7 left-0 z-50 bg-white dark:bg-mui-grey-850 p-2 rounded shadow-lg border border-mui-grey-200 dark:border-white/10 flex flex-col gap-1 items-center animate-in fade-in duration-100 min-w-[130px]">
-                    <span className="text-[9px] uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">RAM Usage History</span>
-                    <ResourceLineChart data={history} metric="mem" color="#9c27b0" fillColor="rgba(156, 39, 176, 0.15)" />
-                  </div>
-                )}
-                {displayMode !== "tooltip" && (displayMode === "always" || (displayMode === "hover-inline" && hoveredMetric === "mem")) && (
-                  <div className="flex items-center shrink-0">
-                    <ResourceLineChart data={history} metric="mem" color="#9c27b0" fillColor="rgba(156, 39, 176, 0.15)" />
-                  </div>
-                )}
-              </div>
+              <MetricItem
+                label="RAM"
+                valueText={
+                  resourceUsage
+                    ? `${(resourceUsage.memUsed / 1024).toFixed(1)} GB / ${(resourceUsage.memTotal / 1024).toFixed(1)} GB (${resourceUsage.mem.toFixed(0)}%)`
+                    : "—"
+                }
+                metric="mem"
+                color="#9c27b0"
+                fillColor="rgba(156, 39, 176, 0.15)"
+                hoveredMetric={hoveredMetric}
+                setHoveredMetric={setHoveredMetric}
+                displayMode={displayMode}
+                history={history}
+                minWidthClass="min-w-[130px]"
+              />
 
-              {/* Disk Metric Container */}
-              <div
-                className="relative py-1 cursor-help group flex items-center gap-2"
-                onMouseEnter={() => setHoveredMetric("disk")}
-                onMouseLeave={() => setHoveredMetric(null)}
-              >
-                <span className="min-w-[140px]">DISK: {resourceUsage ? `${(resourceUsage.diskUsed / 1024).toFixed(1)} GB / ${(resourceUsage.diskTotal / 1024).toFixed(1)} GB (${resourceUsage.disk.toFixed(0)}%)` : "—"}</span>
-                {displayMode === "tooltip" && hoveredMetric === "disk" && (
-                  <div className="absolute bottom-7 left-0 z-50 bg-white dark:bg-mui-grey-850 p-2 rounded shadow-lg border border-mui-grey-200 dark:border-white/10 flex flex-col gap-1 items-center animate-in fade-in duration-100 min-w-[130px]">
-                    <span className="text-[9px] uppercase tracking-wider text-mui-grey-500 dark:text-mui-grey-400">Disk Usage History</span>
-                    <ResourceLineChart data={history} metric="disk" color="#009688" fillColor="rgba(0, 150, 136, 0.15)" />
-                  </div>
-                )}
-                {displayMode !== "tooltip" && (displayMode === "always" || (displayMode === "hover-inline" && hoveredMetric === "disk")) && (
-                  <div className="flex items-center shrink-0">
-                    <ResourceLineChart data={history} metric="disk" color="#009688" fillColor="rgba(0, 150, 136, 0.15)" />
-                  </div>
-                )}
-              </div>
+              <MetricItem
+                label="DISK"
+                valueText={
+                  resourceUsage
+                    ? `${(resourceUsage.diskUsed / 1024).toFixed(1)} GB / ${(resourceUsage.diskTotal / 1024).toFixed(1)} GB (${resourceUsage.disk.toFixed(0)}%)`
+                    : "—"
+                }
+                metric="disk"
+                color="#009688"
+                fillColor="rgba(0, 150, 136, 0.15)"
+                hoveredMetric={hoveredMetric}
+                setHoveredMetric={setHoveredMetric}
+                displayMode={displayMode}
+                history={history}
+                minWidthClass="min-w-[140px]"
+              />
             </div>
           ) : (
             <span className="text-[10px] text-mui-grey-400 uppercase tracking-wider font-bold">Monitoring disabled</span>
@@ -1315,32 +1389,20 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
               >
                 <Edit3 size={14} /> Edit File
               </button>
-              {(() => {
-                const name = fileContextMenu?.file?.name?.toLowerCase() || "";
-                const isArchive =
-                  name.endsWith(".zip") ||
-                  name.endsWith(".tar") ||
-                  name.endsWith(".gz") ||
-                  name.endsWith(".7z") ||
-                  name.endsWith(".rar") ||
-                  name.endsWith(".bz2") ||
-                  name.endsWith(".xz");
-                if (!isArchive) {
-                  return (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onOpenSettings("config");
-                        setFileContextMenu(null);
-                      }}
-                      className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
-                    >
-                      <ExternalLink size={14} /> Open With
-                    </button>
-                  );
-                }
-                return null;
-              })()}
+
+              {!isArchiveFile(fileContextMenu?.file?.name) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenSettings("config");
+                    setFileContextMenu(null);
+                  }}
+                  className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
+                >
+                  <ExternalLink size={14} /> Open With
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => {

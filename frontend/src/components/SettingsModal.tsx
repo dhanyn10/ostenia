@@ -23,8 +23,6 @@ interface SettingsModalProps {
   onClose: () => void;
   initialCategory?: string;
   appConfig?: any;
-  setConfig?: (cfg: any) => void;
-  theme?: string;
   initApp?: () => void;
 }
 

@@ -7,7 +7,6 @@ import {
   Terminal,
   ChevronDown,
   Monitor,
-  Activity,
 } from "lucide-react";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import * as AppBackend from "../../wailsjs/go/backend/App";
