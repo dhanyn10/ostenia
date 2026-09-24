@@ -725,7 +725,7 @@ func TestApp_PHP_Extension_Failures_And_Success(t *testing.T) {
 	}
 }
 
-func createDummyZip(t *testing.T, dest string, fileName, fileContent string) {
+func createDummyZip(t *testing.T, dest, fileName, fileContent string) {
 	zipFile, err := os.Create(dest)
 	if err != nil {
 		t.Fatalf("failed to create zip file: %v", err)

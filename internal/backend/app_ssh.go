@@ -45,7 +45,7 @@ func (a *App) DisconnectSSH(sessionID string) {
 }
 
 // SendSSHInput sends terminal input to an active SSH session
-func (a *App) SendSSHInput(sessionID string, data string) error {
+func (a *App) SendSSHInput(sessionID, data string) error {
 	return a.sshManager.SendInput(sessionID, data)
 }
 
