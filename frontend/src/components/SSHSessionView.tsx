@@ -42,25 +42,16 @@ interface ResourceLineChartProps {
  * Renders a lightweight SVG-based real-time line and area sparkline chart.
  * Automatically aligns historical datapoints and renders dotted grid guidelines.
  */
-const ResourceLineChart: React.FC<ResourceLineChartProps> = ({ data, metric, color, fillColor }) => {
-  const width = 120;
-  const height = 30;
-  const pointsCount = 30;
+const buildSparklineSegments = (
+  paddedData: Array<{ cpu: number | null; mem: number | null; disk: number | null }>,
+  metric: "cpu" | "mem" | "disk",
+  width: number,
+  height: number,
+  pointsCount: number
+) => {
+  const getX = (index: number) => (index / (pointsCount - 1)) * width;
+  const getY = (val: number | null) => (val === null ? height : height - 1 - (val / 100) * (height - 2));
 
-  // Ensure chart has exactly pointsCount items by padding missing slots with null values
-  const paddedData = [...new Array(pointsCount).fill({ cpu: null, mem: null, disk: null }), ...data].slice(-pointsCount);
-
-  const getX = (index: number) => {
-    return (index / (pointsCount - 1)) * width;
-  };
-
-  const getY = (val: number | null) => {
-    if (val === null) return height;
-    return height - 1 - (val / 100) * (height - 2);
-  };
-
-  let linePath = "";
-  let areaPath = "";
   let currentSegment: Array<[number, number]> = [];
   const segments: Array<Array<[number, number]>> = [];
 
@@ -76,29 +67,41 @@ const ResourceLineChart: React.FC<ResourceLineChartProps> = ({ data, metric, col
   if (currentSegment.length > 0) {
     segments.push(currentSegment);
   }
+  return segments;
+};
 
-  // Draw sparkline paths
+const buildSparklinePaths = (segments: Array<Array<[number, number]>>, height: number) => {
+  let linePath = "";
+  let areaPath = "";
+
   segments.forEach((seg) => {
-    if (seg.length > 0) {
-      let segLine = `M ${seg[0][0]} ${seg[0][1]}`;
-      for (let j = 1; j < seg.length; j++) {
-        segLine += ` L ${seg[j][0]} ${seg[j][1]}`;
-      }
-      linePath += " " + segLine;
+    if (seg.length === 0) return;
+
+    let segLine = `M ${seg[0][0]} ${seg[0][1]}`;
+    let segArea = `M ${seg[0][0]} ${height} L ${seg[0][0]} ${seg[0][1]}`;
+
+    for (let j = 1; j < seg.length; j++) {
+      segLine += ` L ${seg[j][0]} ${seg[j][1]}`;
+      segArea += ` L ${seg[j][0]} ${seg[j][1]}`;
     }
+
+    segArea += ` L ${seg.at(-1)![0]} ${height} Z`;
+
+    linePath += " " + segLine;
+    areaPath += " " + segArea;
   });
 
-  // Draw area path underneath the sparkline
-  segments.forEach((seg) => {
-    if (seg.length > 0) {
-      let segArea = `M ${seg[0][0]} ${height} L ${seg[0][0]} ${seg[0][1]}`;
-      for (let j = 1; j < seg.length; j++) {
-        segArea += ` L ${seg[j][0]} ${seg[j][1]}`;
-      }
-      segArea += ` L ${seg.at(-1)[0]} ${height} Z`;
-      areaPath += " " + segArea;
-    }
-  });
+  return { linePath, areaPath };
+};
+
+const ResourceLineChart: React.FC<ResourceLineChartProps> = ({ data, metric, color, fillColor }) => {
+  const width = 120;
+  const height = 30;
+  const pointsCount = 30;
+
+  const paddedData = [...new Array(pointsCount).fill({ cpu: null, mem: null, disk: null }), ...data].slice(-pointsCount);
+  const segments = buildSparklineSegments(paddedData, metric, width, height, pointsCount);
+  const { linePath, areaPath } = buildSparklinePaths(segments, height);
 
   return (
     <svg width={width} height={height} className="overflow-hidden border border-mui-grey-200 dark:border-white/10 rounded bg-white dark:bg-mui-grey-950">
@@ -691,6 +694,16 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     loadRemoteFiles("", false, true);
   };
 
+  const handleAttemptFailure = (attempt: number, maxRetries: number, startTime: number, connectionError: any) => {
+    setConnectingHasFailed(true);
+    setConnectingTimeLeft(0);
+    const dur = (performance.now() - startTime).toFixed(1);
+    const errMsg = connectionError?.message || String(connectionError);
+
+    xterm.current?.write(`\x1b[33mAttempt ${attempt}/${maxRetries} failed in ${dur}ms: ${errMsg}\x1b[0m\r\n`);
+    console.warn(`SSH Connection attempt ${attempt}/${maxRetries} failed in ${dur}ms: ${errMsg}`);
+  };
+
   const executeSingleAttempt = async (
     attempt: number,
     maxRetries: number,
@@ -749,14 +762,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       return { success: true, error: null };
     }
 
-    setConnectingHasFailed(true);
-    setConnectingTimeLeft(0);
-    const dur = (performance.now() - startTime).toFixed(1);
-    const errMsg = connectionError?.message || String(connectionError);
-
-    xterm.current?.write(`\x1b[33mAttempt ${attempt}/${maxRetries} failed in ${dur}ms: ${errMsg}\x1b[0m\r\n`);
-    console.warn(`SSH Connection attempt ${attempt}/${maxRetries} failed in ${dur}ms: ${errMsg}`);
-
+    handleAttemptFailure(attempt, maxRetries, startTime, connectionError);
     return { success: false, error: connectionError };
   };
 
@@ -905,23 +911,19 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         actualForcedPath || (await AppBackend.GetRemoteCurrentPath(session.id));
       if (!current) return;
       let normalized = current.trim();
-      if (normalized.length > 1 && normalized.endsWith("/"))
+      if (normalized.length > 1 && normalized.endsWith("/")) {
         normalized = normalized.slice(0, -1);
+      }
 
       if (isManualTrigger) {
         lastTerminalPathRef.current = normalized;
         loadRemoteFiles(normalized, false, false);
-        return;
-      }
-
-      if (lastTerminalPathRef.current === "") {
+      } else if (lastTerminalPathRef.current === "" || normalized !== lastTerminalPathRef.current) {
+        const shouldLoad = lastTerminalPathRef.current === "" ? normalized !== currentPathRef.current : true;
         lastTerminalPathRef.current = normalized;
-        if (normalized !== currentPathRef.current) {
+        if (shouldLoad) {
           loadRemoteFiles(normalized, false, true);
         }
-      } else if (normalized !== lastTerminalPathRef.current) {
-        lastTerminalPathRef.current = normalized;
-        loadRemoteFiles(normalized, false, true);
       }
     } catch (e) {}
   };
@@ -1408,7 +1410,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             <span className="w-3.5 flex items-center justify-center">
               {showHiddenFiles && <Check size={14} />}
             </span>
-            View hidden files/folder
+            {" "}View hidden files/folder
           </button>
         </div>
       )}

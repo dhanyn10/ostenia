@@ -525,12 +525,25 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                 </div>
 
                 {/* Resizer handle */}
-                <div
+                <button
+                  type="button"
+                  role="separator"
+                  aria-label="Resize search input"
+                  aria-orientation="vertical"
                   onMouseDown={(e) => {
                     e.preventDefault();
                     setIsResizing(true);
                   }}
-                  className="w-1.5 h-6 bg-mui-grey-300 dark:bg-white/10 hover:bg-mui-blue-500 active:bg-mui-blue-600 cursor-col-resize rounded shrink-0 transition-colors ml-1"
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowLeft") {
+                      e.preventDefault();
+                      setSearchWidth((prev) => Math.max(100, Math.min(600, prev - 10)));
+                    } else if (e.key === "ArrowRight") {
+                      e.preventDefault();
+                      setSearchWidth((prev) => Math.max(100, Math.min(600, prev + 10)));
+                    }
+                  }}
+                  className="w-1.5 h-6 bg-mui-grey-300 dark:bg-white/10 hover:bg-mui-blue-500 active:bg-mui-blue-600 cursor-col-resize rounded shrink-0 transition-colors ml-1 border-none p-0 outline-none focus:ring-1 focus:ring-mui-blue-500"
                   title="Resize Search horizontally"
                 />
               </div>

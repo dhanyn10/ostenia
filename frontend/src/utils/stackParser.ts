@@ -55,53 +55,43 @@ export function parseStackTrace(stack: string | undefined): ParsedStack {
     line = line.trim();
     if (!line) continue;
 
-    // V8 format with function name: "at functionName (filePath:line:column)"
-    const v8WithFunc = line.match(/^at\s+([^(]+)\s+\((.+):(\d+):(\d+)\)$/);
-    if (v8WithFunc) {
-      frames.push({
-        functionName: v8WithFunc[1].trim(),
-        fileName: cleanFileName(v8WithFunc[2]),
-        line: v8WithFunc[3],
-        column: v8WithFunc[4],
-      });
+    let functionName = '';
+    let location = '';
+
+    if (line.startsWith('at ')) {
+      const lastParen = line.lastIndexOf('(');
+      if (line.endsWith(')') && lastParen !== -1) {
+        functionName = line.substring(3, lastParen).trim();
+        location = line.substring(lastParen + 1, line.length - 1);
+      } else {
+        functionName = 'anonymous';
+        location = line.substring(3).trim();
+      }
+    } else if (line.includes('@')) {
+      const atIdx = line.indexOf('@');
+      functionName = line.substring(0, atIdx).trim() || 'anonymous';
+      location = line.substring(atIdx + 1);
+    } else {
       continue;
     }
 
-    // V8 format without function name: "at filePath:line:column"
-    const v8NoFunc = line.match(/^at\s+(.+):(\d+):(\d+)$/);
-    if (v8NoFunc) {
-      frames.push({
-        functionName: 'anonymous',
-        fileName: cleanFileName(v8NoFunc[1]),
-        line: v8NoFunc[2],
-        column: v8NoFunc[3],
-      });
-      continue;
-    }
+    const lastColon = location.lastIndexOf(':');
+    const secondLastColon = location.lastIndexOf(':', lastColon - 1);
+    if (lastColon === -1 || secondLastColon === -1) continue;
 
-    // Firefox/Safari format with function name: "functionName@filePath:line:column"
-    const ffWithFunc = line.match(/^([^@]+)@(.+):(\d+):(\d+)$/);
-    if (ffWithFunc) {
-      frames.push({
-        functionName: ffWithFunc[1].trim(),
-        fileName: cleanFileName(ffWithFunc[2]),
-        line: ffWithFunc[3],
-        column: ffWithFunc[4],
-      });
-      continue;
-    }
+    const lineNum = location.substring(secondLastColon + 1, lastColon);
+    const colNum = location.substring(lastColon + 1);
 
-    // Firefox/Safari format without function name: "@filePath:line:column"
-    const ffNoFunc = line.match(/^@(.+):(\d+):(\d+)$/);
-    if (ffNoFunc) {
-      frames.push({
-        functionName: 'anonymous',
-        fileName: cleanFileName(ffNoFunc[1]),
-        line: ffNoFunc[2],
-        column: ffNoFunc[3],
-      });
-      continue;
-    }
+    if (!/^\d+$/.test(lineNum) || !/^\d+$/.test(colNum)) continue;
+
+    const rawFilePath = location.substring(0, secondLastColon);
+
+    frames.push({
+      functionName: functionName || 'anonymous',
+      fileName: cleanFileName(rawFilePath),
+      line: lineNum,
+      column: colNum,
+    });
   }
 
   // List of patterns to skip so we find the actual caller function

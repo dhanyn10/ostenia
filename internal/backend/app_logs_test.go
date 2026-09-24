@@ -10,6 +10,36 @@ import (
 	"ostenia/internal/config"
 )
 
+func verifyLogFileContentAndLines(t *testing.T, filePath, expectedMessage string, expectedLines int) {
+	t.Helper()
+	if expectedMessage != "" {
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			t.Fatalf("Expected file to exist at %s, got error: %v", filePath, err)
+		}
+		if !strings.Contains(string(content), expectedMessage) {
+			t.Errorf("Expected content to contain '%s', got: %s", expectedMessage, string(content))
+		}
+	}
+
+	lines, err := countLines(filePath)
+	if err != nil {
+		t.Fatalf("Failed to count lines: %v", err)
+	}
+	if lines != expectedLines {
+		t.Errorf("Expected file %s line count to be %d, got %d", filePath, expectedLines, lines)
+	}
+}
+
+func writeLogLinesBatch(t *testing.T, app *App, count int) {
+	t.Helper()
+	for i := 0; i < count; i++ {
+		if err := app.SaveLogToFile(fmt.Sprintf("Log line %d", i)); err != nil {
+			t.Fatalf("Failed to write log line at index %d: %v", i, err)
+		}
+	}
+}
+
 func TestApp_SaveLogToFile_Rotation(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -35,78 +65,25 @@ func TestApp_SaveLogToFile_Rotation(t *testing.T) {
 
 	// 1. Write first log message
 	message1 := "First test log message"
-	err = app.SaveLogToFile(message1)
-	if err != nil {
+	if err := app.SaveLogToFile(message1); err != nil {
 		t.Fatalf("Expected SaveLogToFile to succeed, got: %v", err)
 	}
 
 	dateStr := time.Now().Format("020106")
-	expectedFileName1 := fmt.Sprintf("%s-01.log", dateStr)
-	expectedFilePath1 := filepath.Join(tempDir, expectedFileName1)
+	expectedFilePath1 := filepath.Join(tempDir, fmt.Sprintf("%s-01.log", dateStr))
+	verifyLogFileContentAndLines(t, expectedFilePath1, message1, 1)
 
-	// Verify that the file exists and contains the message
-	content1, err := os.ReadFile(expectedFilePath1)
-	if err != nil {
-		t.Fatalf("Expected file to exist at %s, got error: %v", expectedFilePath1, err)
-	}
-	if !strings.Contains(string(content1), message1) {
-		t.Errorf("Expected content to contain '%s', got: %s", message1, string(content1))
-	}
+	// 2. Write 999 more lines to reach 1000 lines
+	writeLogLinesBatch(t, app, 999)
+	verifyLogFileContentAndLines(t, expectedFilePath1, "", 1000)
 
-	// 2. Count current lines (it should be 1)
-	lines, err := countLines(expectedFilePath1)
-	if err != nil {
-		t.Fatalf("Failed to count lines: %v", err)
-	}
-	if lines != 1 {
-		t.Errorf("Expected line count to be 1, got %d", lines)
-	}
-
-	// 3. Write 999 more lines to reach 1000 lines
-	for i := 0; i < 999; i++ {
-		err = app.SaveLogToFile(fmt.Sprintf("Log line %d", i))
-		if err != nil {
-			t.Fatalf("Failed to write log line at index %d: %v", i, err)
-		}
-	}
-
-	// Check that the file is still the first sequence file and has exactly 1000 lines
-	lines, err = countLines(expectedFilePath1)
-	if err != nil {
-		t.Fatalf("Failed to count lines: %v", err)
-	}
-	if lines != 1000 {
-		t.Errorf("Expected line count to be 1000, got %d", lines)
-	}
-
-	// 4. Write one more log to trigger rotation to sequence 2
+	// 3. Write one more log to trigger rotation to sequence 2
 	message2 := "This is a rotated log line"
-	err = app.SaveLogToFile(message2)
-	if err != nil {
+	if err := app.SaveLogToFile(message2); err != nil {
 		t.Fatalf("Expected rotating SaveLogToFile to succeed, got: %v", err)
 	}
 
-	expectedFileName2 := fmt.Sprintf("%s-02.log", dateStr)
-	expectedFilePath2 := filepath.Join(tempDir, expectedFileName2)
-
-	// Verify that the rotated file exists and contains message2
-	content2, err := os.ReadFile(expectedFilePath2)
-	if err != nil {
-		t.Fatalf("Expected rotated file to exist at %s, got error: %v", expectedFilePath2, err)
-	}
-	if !strings.Contains(string(content2), message2) {
-		t.Errorf("Expected rotated file content to contain '%s', got: %s", message2, string(content2))
-	}
-
-	// Verify that the first file still has exactly 1000 lines
-	lines1, _ := countLines(expectedFilePath1)
-	if lines1 != 1000 {
-		t.Errorf("Expected first file to stay at 1000 lines, got %d", lines1)
-	}
-
-	// Verify that the second file has exactly 1 line
-	lines2, _ := countLines(expectedFilePath2)
-	if lines2 != 1 {
-		t.Errorf("Expected second file to have exactly 1 line, got %d", lines2)
-	}
+	expectedFilePath2 := filepath.Join(tempDir, fmt.Sprintf("%s-02.log", dateStr))
+	verifyLogFileContentAndLines(t, expectedFilePath2, message2, 1)
+	verifyLogFileContentAndLines(t, expectedFilePath1, "", 1000)
 }
