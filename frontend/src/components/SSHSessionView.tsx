@@ -321,9 +321,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   });
   const [zoomFontSize, setZoomFontSize] = useState<number>(14);
 
-  const [deleteFile, setDeleteFile] = useState<any | null>(null);
+  const [deleteFile, setDeleteFile] = useState<any>(null);
   const [newFolderModalOpen, setNewFolderModalOpen] = useState(false);
-  const [renameFile, setRenameFile] = useState<any | null>(null);
+  const [renameFile, setRenameFile] = useState<any>(null);
 
   const handleZoomIn = () => {
     setZoomFontSize((prev) => Math.min(prev + 2, 40));

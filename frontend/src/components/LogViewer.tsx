@@ -26,14 +26,14 @@ interface LogEntry {
 }
 
 interface LogViewerProps {
-  logs: LogEntry[];
-  isActive?: boolean;
+  readonly logs: LogEntry[];
+  readonly isActive?: boolean;
 }
 
 interface CopyLogButtonProps {
-  isCopied: boolean;
-  onCopy: (e: React.MouseEvent) => void;
-  title: string;
+  readonly isCopied: boolean;
+  readonly onCopy: (e: React.MouseEvent) => void;
+  readonly title: string;
 }
 
 interface PaginationItem {
@@ -42,7 +42,7 @@ interface PaginationItem {
   isDots: boolean;
 }
 
-const CopyLogButton = ({ isCopied, onCopy, title }: CopyLogButtonProps) => {
+const CopyLogButton = ({ isCopied, onCopy, title }: Readonly<CopyLogButtonProps>) => {
   return (
     <button
       type="button"
@@ -121,7 +121,7 @@ function getPaginationRange(currentPage: number, totalPages: number, siblingCoun
   return [];
 }
 
-function LogViewer({ logs, isActive = false }: LogViewerProps) {
+function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
   const [viewMode, setViewMode] = React.useState<"simple" | "complete">("simple");
   const [copiedId, setCopiedId] = React.useState<string | number | null>(null);
 
@@ -262,7 +262,7 @@ function LogViewer({ logs, isActive = false }: LogViewerProps) {
       `Stack Trace:\n${stackTraceText}`
     ].join("\n");
 
-    if (navigator.clipboard && navigator.clipboard.writeText) {
+    if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(copyText).then(() => {
         setCopiedId(log.id);
         setTimeout(() => {
@@ -275,7 +275,7 @@ function LogViewer({ logs, isActive = false }: LogViewerProps) {
         textArea.value = copyText;
         document.body.appendChild(textArea);
         textArea.select();
-        document.execCommand("copy");
+        (document as any).execCommand("copy");
         textArea.remove();
         setCopiedId(log.id);
         setTimeout(() => {

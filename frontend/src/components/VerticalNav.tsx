@@ -12,11 +12,6 @@ interface VerticalNavProps {
   setActiveTab: (tab: string) => void;
   toggleTheme: () => void;
   theme: string;
-  renderIcon?: (
-    name: string,
-    size?: number,
-    className?: string,
-  ) => React.ReactNode;
 }
 
 const VerticalNav: React.FC<VerticalNavProps> = ({
