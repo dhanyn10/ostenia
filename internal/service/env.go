@@ -26,7 +26,7 @@ func GetPath(target string) (string, error) {
 }
 
 // SetPath sets the PATH environment variable. If target is Machine, it triggers a native Windows UAC prompt.
-func SetPath(path string, target string) error {
+func SetPath(path, target string) error {
 	// Escape single quotes for PowerShell
 	escapedPath := strings.ReplaceAll(path, "'", "''")
 
@@ -107,7 +107,7 @@ func UpdatePythonPath(pythonPath string, add bool) error {
 }
 
 // updateSystemComponentPath handles generic system-level PATH management for components.
-func updateSystemComponentPath(targetPath string, keyword string, add bool) error {
+func updateSystemComponentPath(targetPath, keyword string, add bool) error {
 	currentPath, err := GetPath("Machine")
 	if err != nil {
 		return err

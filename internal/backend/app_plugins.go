@@ -38,8 +38,8 @@ func (a *App) OpenPluginFolder(serviceName string) error {
 }
 
 // InstallPrerequisite downloads and installs a plugin prerequisite
-func (a *App) InstallPrerequisite(task plugins.DownloadTask) error {
-	err := a.downloader.DownloadAndExtract(a.ctx, task)
+func (a *App) InstallPrerequisite(ctx context.Context, task plugins.DownloadTask) error {
+	err := a.downloader.DownloadAndExtract(ctx, task)
 	if err == nil {
 		_, _, currentPath := a.getPluginPaths(task.Name)
 
@@ -57,7 +57,7 @@ func (a *App) InstallPrerequisite(task plugins.DownloadTask) error {
 func (a *App) CancelDownload(taskName string) { a.downloader.CancelDownload(taskName) }
 
 // InstallPluginModule installs a sub-module for a parent plugin (e.g., Composer for PHP)
-func (a *App) InstallPluginModule(parentName, moduleName string) error {
+func (a *App) InstallPluginModule(ctx context.Context, parentName, moduleName string) error {
 	_, _, currentPath := a.getPluginPaths(parentName)
 
 	if _, err := os.Stat(currentPath); os.IsNotExist(err) {
@@ -65,18 +65,18 @@ func (a *App) InstallPluginModule(parentName, moduleName string) error {
 	}
 
 	emitProgress := func(name string, pct float64, status string) {
-		a.runtime.EventsEmit(a.ctx, "download_progress", plugins.Progress{Name: name, Percentage: pct, Status: status})
+		a.runtime.EventsEmit(ctx, "download_progress", plugins.Progress{Name: name, Percentage: pct, Status: status})
 	}
 
 	var err error
 	switch parentName {
 	case "PHP":
-		err = php.InstallModule(a.ctx, a.downloader, moduleName, currentPath, emitProgress)
+		err = php.InstallModule(ctx, a.downloader, moduleName, currentPath, emitProgress)
 		if err == nil {
 			_ = service.UpdatePHPPath(currentPath, true)
 		}
 	case "Python":
-		err = python.InstallModule(a.ctx, a.downloader, moduleName, currentPath, emitProgress)
+		err = python.InstallModule(ctx, a.downloader, moduleName, currentPath, emitProgress)
 		if err == nil {
 			_ = service.UpdatePythonPath(currentPath, true)
 		}
@@ -117,7 +117,7 @@ func (a *App) UninstallPluginModule(parentName, moduleName string) error {
 }
 
 // SwitchServiceVersion changes the active version of a service using directory junctions
-func (a *App) SwitchServiceVersion(serviceName, version string) error {
+func (a *App) SwitchServiceVersion(ctx context.Context, serviceName, version string) error {
 	category, binDir, currentPath := a.getPluginPaths(serviceName)
 	prefix := plugins_utils.GetVersionPrefix(category)
 	targetDir := filepath.Join(binDir, prefix+version)
@@ -126,7 +126,7 @@ func (a *App) SwitchServiceVersion(serviceName, version string) error {
 	}
 	wasRunning := a.orchestrator.IsRunning(serviceName)
 	if wasRunning {
-		_ = a.StopService(serviceName)
+		_ = a.StopService(ctx, serviceName)
 		time.Sleep(600 * time.Millisecond)
 	}
 	_ = os.Remove(currentPath)
@@ -149,7 +149,7 @@ func (a *App) SwitchServiceVersion(serviceName, version string) error {
 		_ = service.UpdatePythonPath(currentPath, true)
 	}
 	if wasRunning {
-		return a.StartService(serviceName)
+		return a.StartService(ctx, serviceName)
 	}
 	a.orchestrator.RequestRefresh()
 	return nil
@@ -246,7 +246,7 @@ func (a *App) validateExecutable(category, targetDir string) error {
 	return nil
 }
 
-func (a *App) extractAndProcessZip(serviceName, category, binDir, zipFilePath, targetName string) error {
+func (a *App) extractAndProcessZip(ctx context.Context, serviceName, category, binDir, zipFilePath, targetName string) error {
 	targetDir := filepath.Join(binDir, targetName)
 	extractTmp := targetDir + ".tmp"
 	_ = os.RemoveAll(extractTmp)
@@ -255,7 +255,7 @@ func (a *App) extractAndProcessZip(serviceName, category, binDir, zipFilePath, t
 		// no-op
 	}
 
-	if err := plugins.Unzip(a.ctx, zipFilePath, extractTmp, serviceName, emitProgress); err != nil {
+	if err := plugins.Unzip(ctx, zipFilePath, extractTmp, serviceName, emitProgress); err != nil {
 		return fmt.Errorf("failed to extract ZIP: %w", err)
 	}
 
@@ -295,16 +295,16 @@ func (a *App) processCustomFolder(category, binDir, sourcePath, targetDir string
 	return nil
 }
 
-func (a *App) processCustomArchive(serviceName, category, binDir, sourcePath, targetName string) error {
+func (a *App) processCustomArchive(ctx context.Context, serviceName, category, binDir, sourcePath, targetName string) error {
 	ext := strings.ToLower(filepath.Ext(sourcePath))
 	if ext != ".zip" && ext != ".nupkg" {
 		return fmt.Errorf("unsupported file format. Please drop/select a .zip or .nupkg file")
 	}
-	return a.extractAndProcessZip(serviceName, category, binDir, sourcePath, targetName)
+	return a.extractAndProcessZip(ctx, serviceName, category, binDir, sourcePath, targetName)
 }
 
 // ProcessCustomVersion extracts custom plugin archive or copies direct folder
-func (a *App) ProcessCustomVersion(serviceName, sourcePath string) error {
+func (a *App) ProcessCustomVersion(ctx context.Context, serviceName, sourcePath string) error {
 	category, binDir, _ := a.getPluginPaths(serviceName)
 
 	info, err := os.Stat(sourcePath)
@@ -321,7 +321,7 @@ func (a *App) ProcessCustomVersion(serviceName, sourcePath string) error {
 			return err
 		}
 	} else {
-		if err := a.processCustomArchive(serviceName, category, binDir, sourcePath, targetName); err != nil {
+		if err := a.processCustomArchive(ctx, serviceName, category, binDir, sourcePath, targetName); err != nil {
 			return err
 		}
 	}
@@ -331,7 +331,7 @@ func (a *App) ProcessCustomVersion(serviceName, sourcePath string) error {
 }
 
 // ProcessCustomVersionBytes receives zip bytes from frontend and processes them
-func (a *App) ProcessCustomVersionBytes(serviceName, fileName string, fileBytes []byte) error {
+func (a *App) ProcessCustomVersionBytes(ctx context.Context, serviceName, fileName string, fileBytes []byte) error {
 	category, binDir, _ := a.getPluginPaths(serviceName)
 
 	if !strings.HasSuffix(strings.ToLower(fileName), ".zip") && !strings.HasSuffix(strings.ToLower(fileName), ".nupkg") {
@@ -347,7 +347,7 @@ func (a *App) ProcessCustomVersionBytes(serviceName, fileName string, fileBytes 
 	defer os.Remove(tmpFile)
 
 	targetName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-	if err := a.extractAndProcessZip(serviceName, category, binDir, tmpFile, targetName); err != nil {
+	if err := a.extractAndProcessZip(ctx, serviceName, category, binDir, tmpFile, targetName); err != nil {
 		return err
 	}
 

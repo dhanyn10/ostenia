@@ -81,7 +81,7 @@ func (m *mockSFTPClient) ReadDir(p string) ([]os.FileInfo, error) { return m.fil
 func (m *mockSFTPClient) Stat(p string) (os.FileInfo, error)      { return m.stat, m.err }
 func (m *mockSFTPClient) RemoveAll(p string) error                { return m.err }
 func (m *mockSFTPClient) Remove(p string) error                   { return m.err }
-func (m *mockSFTPClient) Rename(old, new string) error            { return m.err }
+func (m *mockSFTPClient) Rename(old, newPath string) error        { return m.err }
 func (m *mockSFTPClient) Mkdir(p string) error                    { return m.err }
 func (m *mockSFTPClient) Open(p string) (interfaces.SFTPFile, error) {
 	if m.openFile != nil {

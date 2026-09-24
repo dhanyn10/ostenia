@@ -112,11 +112,11 @@ function isIgnoredFrame(frame: CallerInfo): boolean {
  * @param stack The raw stack trace string from `new Error().stack`.
  * @returns An object containing the parsed caller info and the raw stack trace.
  */
-export function parseStackTrace(stack: string | undefined): ParsedStack {
-  const rawStack = stack || '';
-  if (!rawStack) {
-    return { rawStack };
+export function parseStackTrace(stack: string = ''): ParsedStack {
+  if (!stack) {
+    return { rawStack: stack };
   }
+  const rawStack = stack;
 
   const lines = rawStack.split('\n');
   const frames: CallerInfo[] = [];
