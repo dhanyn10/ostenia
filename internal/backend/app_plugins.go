@@ -38,7 +38,8 @@ func (a *App) OpenPluginFolder(serviceName string) error {
 }
 
 // InstallPrerequisite downloads and installs a plugin prerequisite
-func (a *App) InstallPrerequisite(ctx context.Context, task plugins.DownloadTask) error {
+func (a *App) InstallPrerequisite(task plugins.DownloadTask) error {
+	ctx := a.getContext()
 	err := a.downloader.DownloadAndExtract(ctx, task)
 	if err == nil {
 		_, _, currentPath := a.getPluginPaths(task.Name)
@@ -57,7 +58,8 @@ func (a *App) InstallPrerequisite(ctx context.Context, task plugins.DownloadTask
 func (a *App) CancelDownload(taskName string) { a.downloader.CancelDownload(taskName) }
 
 // InstallPluginModule installs a sub-module for a parent plugin (e.g., Composer for PHP)
-func (a *App) InstallPluginModule(ctx context.Context, parentName, moduleName string) error {
+func (a *App) InstallPluginModule(parentName, moduleName string) error {
+	ctx := a.getContext()
 	_, _, currentPath := a.getPluginPaths(parentName)
 
 	if _, err := os.Stat(currentPath); os.IsNotExist(err) {
@@ -117,7 +119,7 @@ func (a *App) UninstallPluginModule(parentName, moduleName string) error {
 }
 
 // SwitchServiceVersion changes the active version of a service using directory junctions
-func (a *App) SwitchServiceVersion(ctx context.Context, serviceName, version string) error {
+func (a *App) SwitchServiceVersion(serviceName, version string) error {
 	category, binDir, currentPath := a.getPluginPaths(serviceName)
 	prefix := plugins_utils.GetVersionPrefix(category)
 	targetDir := filepath.Join(binDir, prefix+version)
@@ -126,7 +128,7 @@ func (a *App) SwitchServiceVersion(ctx context.Context, serviceName, version str
 	}
 	wasRunning := a.orchestrator.IsRunning(serviceName)
 	if wasRunning {
-		_ = a.StopService(ctx, serviceName)
+		_ = a.StopService(serviceName)
 		time.Sleep(600 * time.Millisecond)
 	}
 	_ = os.Remove(currentPath)
@@ -149,7 +151,7 @@ func (a *App) SwitchServiceVersion(ctx context.Context, serviceName, version str
 		_ = service.UpdatePythonPath(currentPath, true)
 	}
 	if wasRunning {
-		return a.StartService(ctx, serviceName)
+		return a.StartService(serviceName)
 	}
 	a.orchestrator.RequestRefresh()
 	return nil
@@ -304,7 +306,8 @@ func (a *App) processCustomArchive(ctx context.Context, serviceName, category, b
 }
 
 // ProcessCustomVersion extracts custom plugin archive or copies direct folder
-func (a *App) ProcessCustomVersion(ctx context.Context, serviceName, sourcePath string) error {
+func (a *App) ProcessCustomVersion(serviceName, sourcePath string) error {
+	ctx := a.getContext()
 	category, binDir, _ := a.getPluginPaths(serviceName)
 
 	info, err := os.Stat(sourcePath)
@@ -331,7 +334,8 @@ func (a *App) ProcessCustomVersion(ctx context.Context, serviceName, sourcePath 
 }
 
 // ProcessCustomVersionBytes receives zip bytes from frontend and processes them
-func (a *App) ProcessCustomVersionBytes(ctx context.Context, serviceName, fileName string, fileBytes []byte) error {
+func (a *App) ProcessCustomVersionBytes(serviceName, fileName string, fileBytes []byte) error {
+	ctx := a.getContext()
 	category, binDir, _ := a.getPluginPaths(serviceName)
 
 	if !strings.HasSuffix(strings.ToLower(fileName), ".zip") && !strings.HasSuffix(strings.ToLower(fileName), ".nupkg") {

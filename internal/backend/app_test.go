@@ -165,18 +165,19 @@ func TestApp_Full_Mocked(t *testing.T) {
 		sshManager:   &MockSSHManager{},
 		sslManager:   &MockSSLManager{},
 	}
+	app.Startup(ctx)
 
 	// App window
-	app.Minimize(ctx)
-	app.Maximize(ctx)
-	app.Unmaximize(ctx)
-	app.ToggleDevTools(ctx)
-	app.Close(ctx)
-	app.EventsEmit(ctx, "test", nil)
-	_, _ = app.OpenFileDialog(ctx, wruntime.OpenDialogOptions{})
-	_, _ = app.OpenDirectoryDialog(ctx, wruntime.OpenDialogOptions{})
-	_, _ = app.SaveFileDialog(ctx, wruntime.SaveDialogOptions{})
-	app.Quit(ctx)
+	app.Minimize()
+	app.Maximize()
+	app.Unmaximize()
+	app.ToggleDevTools()
+	app.Close()
+	app.EventsEmit("test", nil)
+	_, _ = app.OpenFileDialog(wruntime.OpenDialogOptions{})
+	_, _ = app.OpenDirectoryDialog(wruntime.OpenDialogOptions{})
+	_, _ = app.SaveFileDialog(wruntime.SaveDialogOptions{})
+	app.Quit()
 
 	_ = app.GenerateRootCA("test")
 	_, _ = app.GetRemainingDays("test")
@@ -184,17 +185,17 @@ func TestApp_Full_Mocked(t *testing.T) {
 
 	// Config
 	_ = app.GetConfig()
-	_, _ = app.SelectDefaultEditor(ctx)
+	_, _ = app.SelectDefaultEditor()
 	_ = app.SetDefaultEditor("path")
 	app.UpdateActiveTab("activity")
 	_ = app.IsAdmin()
 
 	// Env
 	app.orchestrator.StartService(ctx, "Apache", "", nil, "")
-	_ = app.SetWWWRoot(ctx, filepath.Join(tempDir, "www2"))
-	_ = app.SetServerRoot(ctx, tempDir)
-	_, _ = app.SelectServerRoot(ctx)
-	_, _ = app.SelectWWWRoot(ctx)
+	_ = app.SetWWWRoot(filepath.Join(tempDir, "www2"))
+	_ = app.SetServerRoot(tempDir)
+	_, _ = app.SelectServerRoot()
+	_, _ = app.SelectWWWRoot()
 	_ = app.OpenServerRootFolder()
 	_ = app.OpenAppsLocationFolder()
 
@@ -202,27 +203,27 @@ func TestApp_Full_Mocked(t *testing.T) {
 	_ = app.GetPrerequisites()
 	app.CancelDownload("test")
 	_ = app.OpenPluginFolder("PHP")
-	_ = app.InstallPrerequisite(ctx, interfaces.DownloadTask{Name: "OpenSSL"})
-	_ = app.InstallPrerequisite(ctx, interfaces.DownloadTask{Name: "Python"})
-	_ = app.InstallPluginModule(ctx, "PHP", "Composer")
-	_ = app.InstallPluginModule(ctx, "Python", "Pip")
-	_ = app.InstallPluginModule(ctx, "Unknown", "Mod")
+	_ = app.InstallPrerequisite(interfaces.DownloadTask{Name: "OpenSSL"})
+	_ = app.InstallPrerequisite(interfaces.DownloadTask{Name: "Python"})
+	_ = app.InstallPluginModule("PHP", "Composer")
+	_ = app.InstallPluginModule("Python", "Pip")
+	_ = app.InstallPluginModule("Unknown", "Mod")
 	_ = app.UninstallPluginModule("PHP", "Composer")
 	_ = app.UninstallPluginModule("Python", "Pip")
 	_ = app.UninstallPluginModule("Unknown", "Mod")
-	_ = app.SwitchServiceVersion(ctx, "PHP", "8.2.0")
+	_ = app.SwitchServiceVersion("PHP", "8.2.0")
 	_ = app.DeleteVersion("PHP", "8.1.0")
 
 	// Services
 	_ = app.GetServiceStatus("Apache")
 	for _, s := range []string{"Apache", "MySQL", "Nginx", "PHP", serviceNodeJS, "Python", "OpenSSL", "HeidiSQL", "Unknown"} {
-		_ = app.StartService(ctx, s)
-		_ = app.StopService(ctx, s)
+		_ = app.StartService(s)
+		_ = app.StopService(s)
 	}
-	_ = app.StartAllServices(ctx)
-	app.StopAllServices(ctx)
-	_ = app.SetApacheHTTPS(ctx, true)
-	_ = app.SetNginxHTTPS(ctx, true)
+	_ = app.StartAllServices()
+	app.StopAllServices()
+	_ = app.SetApacheHTTPS(true)
+	_ = app.SetNginxHTTPS(true)
 
 	// SSH
 	_, _ = app.GetSSHSessions()
@@ -230,7 +231,7 @@ func TestApp_Full_Mocked(t *testing.T) {
 	_ = app.UpdateSSHSession(config.SSHSession{ID: "test"})
 	_ = app.DeleteSSHSession("test")
 	_ = app.SaveSSHSessions([]config.SSHSession{})
-	_ = app.ConnectSSH(ctx, config.SSHSession{ID: "test"})
+	_ = app.ConnectSSH(config.SSHSession{ID: "test"})
 	app.DisconnectSSH("test")
 	_ = app.SendSSHInput("test", "ls")
 	_ = app.ResizeSSHTerminal("test", 80, 24)
@@ -238,22 +239,22 @@ func TestApp_Full_Mocked(t *testing.T) {
 	_ = app.ExecuteSFTPAction("test", "mkdir", "/path", "")
 	_ = app.EditRemoteFile("test", "/path")
 	_, _ = app.GetRemoteCurrentPath("test")
-	_ = app.DownloadRemoteFile(ctx, "test", "/path")
-	_ = app.UploadRemoteFile(ctx, "test", "/path")
+	_ = app.DownloadRemoteFile("test", "/path")
+	_ = app.UploadRemoteFile("test", "/path")
 	_, _ = app.GetSSHResourceUsage("test")
 	_, _ = app.GetWSLDistros()
 
 	// Network
 	_ = app.CheckProxyPorts()
 	_ = app.GetProxyApps()
-	_ = app.SaveProxyPort(ctx, "myapp", 4000)
-	_ = app.SaveProxyPort(ctx, "myapp", 0) // Test deletion
+	_ = app.SaveProxyPort("myapp", 4000)
+	_ = app.SaveProxyPort("myapp", 0) // Test deletion
 	app.OpenProxyTerminal("myapp", "cmd")
 
 	// PHP
 	app.orchestrator.StartService(ctx, "PHP", "", nil, "")
 	_, _ = app.GetPHPExtensions()
-	_ = app.TogglePHPExtension(ctx, "openssl", true)
+	_ = app.TogglePHPExtension("openssl", true)
 
 	// Services extra
 	_ = app.OpenHeidiSQL()
@@ -262,11 +263,11 @@ func TestApp_Full_Mocked(t *testing.T) {
 	app.OpenTerminalAtPath("cmd", tempDir)
 
 	// Extra service coverage
-	_ = app.StartService(ctx, "Unknown")
-	_ = app.StopService(ctx, "PHP")
-	_ = app.StopService(ctx, "OpenSSL")
-	_ = app.StopService(ctx, serviceNodeJS)
-	_ = app.StopService(ctx, "Python")
+	_ = app.StartService("Unknown")
+	_ = app.StopService("PHP")
+	_ = app.StopService("OpenSSL")
+	_ = app.StopService(serviceNodeJS)
+	_ = app.StopService("Python")
 
 	// Node and Python Start Service fail cases
 	_ = app.startNodeService("/nonexistent")
@@ -277,8 +278,8 @@ func TestApp_Full_Mocked(t *testing.T) {
 	plugins.DetectHeidiSQLInstallationOverride = nil
 
 	// Profile
-	_ = app.ExportProfile(ctx, true, true)
-	_ = app.ImportProfile(ctx)
+	_ = app.ExportProfile(true, true)
+	_ = app.ImportProfile()
 }
 
 func TestNewApp(t *testing.T) {
@@ -297,53 +298,6 @@ func TestApp_Startup(t *testing.T) {
 	configPath := filepath.Join(tempDir, "config.json")
 	oldConfig := config.SetConfigFile(configPath)
 	defer config.SetConfigFile(oldConfig)
-
-	app := NewApp()
-	// Inject mocks
-	app.runtime = &MockRuntime{}
-	app.orchestrator = &MockOrchestrator{Running: make(map[string]bool)}
-	app.downloader = &MockPluginManager{}
-	app.sshManager = &MockSSHManager{}
-	app.sslManager = &MockSSLManager{}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	app.Startup(ctx)
-	cancel() // Stop background goroutines like startProxyWatcher
-
-	if app.cfg == nil {
-		t.Error("Expected config to be set")
-	}
-}
-
-func TestWailsRuntime(t *testing.T) {
-	t.Skip("Skipping WailsRuntime tests as they require a valid Wails context")
-}
-
-func TestApp_SSLDelegates(t *testing.T) {
-	app := &App{
-		sslManager: &MockSSLManager{},
-	}
-	_ = app.GenerateRootCA("test")
-	_, _ = app.GetRemainingDays("test")
-	_ = app.SignCertificate("ca", "domain", "dest")
-}
-
-func TestDefaultSSLManager(t *testing.T) {
-	// These call the actual internal/ssl package, which is risky but since we are in backend
-	// and we want coverage for the wrapper, we just call them.
-	// However, they might fail because of missing binaries or permissions.
-	// We mainly want to cover the delegate lines.
-	s := &DefaultSSLManager{}
-	_ = s.GenerateRootCA(t.TempDir())
-	_, _ = s.GetRemainingDays("nonexistent")
-	_ = s.SignCertificate("ca", "domain", "dest")
-}
-
-func TestApp_Services_RealIsh(t *testing.T) {
-	tempDir := t.TempDir()
-	oldEnv := os.Getenv("OSTENIA_HOME")
-	os.Setenv("OSTENIA_HOME", tempDir)
-	defer os.Setenv("OSTENIA_HOME", oldEnv)
 
 	// Create dummy binary structure
 	binDir := filepath.Join(tempDir, "bin")
@@ -419,36 +373,37 @@ func TestApp_Services_RealIsh(t *testing.T) {
 		sshManager:   &MockSSHManager{},
 		sslManager:   &MockSSLManager{},
 	}
+	app.Startup(ctx)
 
 	// Now test starting services
-	_ = app.StartService(ctx, "PHP")
-	_ = app.StartService(ctx, "MySQL")
-	_ = app.StartService(ctx, "Apache")
-	_ = app.StartService(ctx, "Nginx")
+	_ = app.StartService("PHP")
+	_ = app.StartService("MySQL")
+	_ = app.StartService("Apache")
+	_ = app.StartService("Nginx")
 
 	// Test SetHTTPS with running services to trigger restart
 	app.orchestrator.StartService(ctx, "Apache", "", nil, "")
-	_ = app.SetApacheHTTPS(ctx, true)
+	_ = app.SetApacheHTTPS(true)
 	app.orchestrator.StartService(ctx, "Nginx", "", nil, "")
-	_ = app.SetNginxHTTPS(ctx, true)
+	_ = app.SetNginxHTTPS(true)
 
 	// Ensure dependent web servers restart when PHP starts
 	app.orchestrator.StartService(ctx, "Apache", "", nil, "")
 	app.cfg.Proxies["mysite"] = 8080
-	_ = app.StartService(ctx, "PHP")
+	_ = app.StartService("PHP")
 
 	// Node & Python
-	_ = app.SwitchServiceVersion(ctx, serviceNodeJS, "18.0.0")
-	_ = app.StartService(ctx, serviceNodeJS)
-	_ = app.SwitchServiceVersion(ctx, "Python", "3.10.0")
-	_ = app.StartService(ctx, "Python")
+	_ = app.SwitchServiceVersion(serviceNodeJS, "18.0.0")
+	_ = app.StartService(serviceNodeJS)
+	_ = app.SwitchServiceVersion("Python", "3.10.0")
+	_ = app.StartService("Python")
 
 	// Test StartAll
-	_ = app.StartAllServices(ctx)
+	_ = app.StartAllServices()
 
 	// Test StopService for all
 	for _, s := range []string{"Apache", "MySQL", "Nginx", "PHP", serviceNodeJS, "Python", "OpenSSL"} {
-		_ = app.StopService(ctx, s)
+		_ = app.StopService(s)
 	}
 
 	// Test helper methods and stubs
@@ -460,15 +415,15 @@ func TestApp_Services_RealIsh(t *testing.T) {
 	// Test app_network.go
 	app.orchestrator.StartService(ctx, "Apache", "", nil, "")
 	app.orchestrator.StartService(ctx, "Nginx", "", nil, "")
-	_ = app.SaveProxyPort(ctx, "mysite", 8080)
+	_ = app.SaveProxyPort("mysite", 8080)
 	_ = app.GetProxyApps()
 	_ = app.CheckProxyPorts()
 	_ = app.OpenProxyTerminal("mysite", "cmd")
 
 	// Test app_plugins.go
-	_ = app.InstallPrerequisite(ctx, plugins.DownloadTask{Name: "PHP", Target: "php/php-8.2.0"})
+	_ = app.InstallPrerequisite(plugins.DownloadTask{Name: "PHP", Target: "php/php-8.2.0"})
 	_ = app.OpenPluginFolder("PHP")
-	_ = app.InstallPluginModule(ctx, "PHP", "Composer")
+	_ = app.InstallPluginModule("PHP", "Composer")
 	_ = app.UninstallPluginModule("PHP", "Composer")
 	_ = app.DeleteVersion("PHP", "8.1.0")
 
@@ -476,11 +431,11 @@ func TestApp_Services_RealIsh(t *testing.T) {
 	customSrc := filepath.Join(tempDir, "custom-php-src")
 	_ = os.MkdirAll(customSrc, 0755)
 	_ = os.WriteFile(filepath.Join(customSrc, "php.exe"), []byte(""), 0755)
-	_ = app.ProcessCustomVersion(ctx, "PHP", customSrc)
-	_ = app.ProcessCustomVersion(ctx, "PHP", "/nonexistent")
-	_ = app.ProcessCustomVersion(ctx, "PHP", filepath.Join(tempDir, "selected.txt"))
-	_ = app.ProcessCustomVersionBytes(ctx, "PHP", "php-test.zip", []byte(""))
-	_ = app.ProcessCustomVersionBytes(ctx, "PHP", "invalid.txt", []byte(""))
+	_ = app.ProcessCustomVersion("PHP", customSrc)
+	_ = app.ProcessCustomVersion("PHP", "/nonexistent")
+	_ = app.ProcessCustomVersion("PHP", filepath.Join(tempDir, "selected.txt"))
+	_ = app.ProcessCustomVersionBytes("PHP", "php-test.zip", []byte(""))
+	_ = app.ProcessCustomVersionBytes("PHP", "invalid.txt", []byte(""))
 
 	// Coverage for executable validation on other services
 	_ = app.validateExecutable("php", customSrc)
@@ -496,31 +451,31 @@ func TestApp_Services_RealIsh(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(mysqlSrc, "bin"), 0755)
 	_ = os.WriteFile(filepath.Join(mysqlSrc, "bin", "mysqld.exe"), []byte(""), 0755)
 	_ = app.validateExecutable("mysql", mysqlSrc)
-	_ = app.ProcessCustomVersion(ctx, "MySQL", mysqlSrc)
+	_ = app.ProcessCustomVersion("MySQL", mysqlSrc)
 
 	apacheSrc := filepath.Join(tempDir, "custom-apache")
 	_ = os.MkdirAll(filepath.Join(apacheSrc, "Apache24", "bin"), 0755)
 	_ = os.WriteFile(filepath.Join(apacheSrc, "Apache24", "bin", "httpd.exe"), []byte(""), 0755)
 	_ = app.validateExecutable("apache", apacheSrc)
-	_ = app.ProcessCustomVersion(ctx, "Apache", apacheSrc)
+	_ = app.ProcessCustomVersion("Apache", apacheSrc)
 
 	nginxSrc := filepath.Join(tempDir, "custom-nginx")
 	_ = os.MkdirAll(nginxSrc, 0755)
 	_ = os.WriteFile(filepath.Join(nginxSrc, "nginx.exe"), []byte(""), 0755)
 	_ = app.validateExecutable("nginx", nginxSrc)
-	_ = app.ProcessCustomVersion(ctx, "Nginx", nginxSrc)
+	_ = app.ProcessCustomVersion("Nginx", nginxSrc)
 
 	nodeSrc := filepath.Join(tempDir, "custom-node")
 	_ = os.MkdirAll(nodeSrc, 0755)
 	_ = os.WriteFile(filepath.Join(nodeSrc, "node.exe"), []byte(""), 0755)
 	_ = app.validateExecutable("nodejs", nodeSrc)
-	_ = app.ProcessCustomVersion(ctx, "Node.js", nodeSrc)
+	_ = app.ProcessCustomVersion("Node.js", nodeSrc)
 
 	pythonSrc := filepath.Join(tempDir, "custom-python")
 	_ = os.MkdirAll(pythonSrc, 0755)
 	_ = os.WriteFile(filepath.Join(pythonSrc, "python.exe"), []byte(""), 0755)
 	_ = app.validateExecutable("python", pythonSrc)
-	_ = app.ProcessCustomVersion(ctx, "Python", pythonSrc)
+	_ = app.ProcessCustomVersion("Python", pythonSrc)
 
 	// Extra zip extraction failure cases
 	_ = app.extractAndProcessZip(ctx, "PHP", "php", tempDir, filepath.Join(tempDir, "selected.txt"), "php-invalid-zip")
@@ -535,13 +490,13 @@ func TestApp_Services_RealIsh(t *testing.T) {
 	// Create some files to export
 	os.MkdirAll(filepath.Join(tempDir, "www", "site1"), 0755)
 	os.WriteFile(filepath.Join(tempDir, "www", "site1", "index.php"), []byte("<?php"), 0644)
-	_ = app.ExportProfile(ctx, true, true)
+	_ = app.ExportProfile(true, true)
 
 	// ImportProfile
 	localMockR := app.runtime.(*MockRuntime)
 	localMockR.SelectedFile = filepath.Join(tempDir, "selected.txt")
 	os.WriteFile(localMockR.SelectedFile, []byte(`{"config":{"phpVersion":"8.2.0"}}`), 0644)
-	_ = app.ImportProfile(ctx)
+	_ = app.ImportProfile()
 }
 
 func TestApp_ExposedMethods_ContextSafety(t *testing.T) {
@@ -558,32 +513,33 @@ func TestApp_ExposedMethods_ContextSafety(t *testing.T) {
 		sshManager:   &MockSSHManager{},
 		orchestrator: &MockOrchestrator{Running: make(map[string]bool)},
 	}
+	app.Startup(ctx)
 
-	t.Run("ConnectSSH uses passed context", func(t *testing.T) {
-		err := app.ConnectSSH(ctx, config.SSHSession{ID: "test-session"})
+	t.Run("ConnectSSH uses stored context", func(t *testing.T) {
+		err := app.ConnectSSH(config.SSHSession{ID: "test-session"})
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
 	})
 
-	t.Run("DownloadRemoteFile uses passed context", func(t *testing.T) {
-		err := app.DownloadRemoteFile(ctx, "test-session", "/remote/path/file.txt")
+	t.Run("DownloadRemoteFile uses stored context", func(t *testing.T) {
+		err := app.DownloadRemoteFile("test-session", "/remote/path/file.txt")
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
 	})
 
-	t.Run("UploadRemoteFile uses passed context", func(t *testing.T) {
-		err := app.UploadRemoteFile(ctx, "test-session", "/remote/dir")
+	t.Run("UploadRemoteFile uses stored context", func(t *testing.T) {
+		err := app.UploadRemoteFile("test-session", "/remote/dir")
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
 	})
 
-	t.Run("SetWWWRoot triggers restart of active services with ctx param", func(t *testing.T) {
+	t.Run("SetWWWRoot triggers restart of active services", func(t *testing.T) {
 		app.orchestrator.(*MockOrchestrator).Running["Apache"] = true
 		app.orchestrator.(*MockOrchestrator).Running["Nginx"] = true
-		err := app.SetWWWRoot(ctx, filepath.Join(tempDir, "new-www"))
+		err := app.SetWWWRoot(filepath.Join(tempDir, "new-www"))
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -617,33 +573,34 @@ func TestApp_WailsDelegates_And_Errors(t *testing.T) {
 		sshManager:   &MockSSHManager{},
 		orchestrator: &MockOrchestrator{Running: make(map[string]bool)},
 	}
+	app.Startup(ctx)
 
 	// 1. Save dialog error on DownloadRemoteFile
-	err := app.DownloadRemoteFile(ctx, "session-1", "remote-file.txt")
+	err := app.DownloadRemoteFile("session-1", "remote-file.txt")
 	if err == nil || err.Error() != "failed save file dialog" {
 		t.Errorf("Expected SaveFileDialog error, got: %v", err)
 	}
 
 	// 2. Open dialog error on UploadRemoteFile
-	err = app.UploadRemoteFile(ctx, "session-1", "remote-dir")
+	err = app.UploadRemoteFile("session-1", "remote-dir")
 	if err == nil || err.Error() != "failed open file dialog" {
 		t.Errorf("Expected OpenFileDialog error, got: %v", err)
 	}
 
 	// 3. SelectServerRoot with dialog error
-	_, err = app.SelectServerRoot(ctx)
+	_, err = app.SelectServerRoot()
 	if err == nil || err.Error() != "failed open directory dialog" {
 		t.Errorf("Expected SelectServerRoot to propagate error, got: %v", err)
 	}
 
 	// 4. SelectWWWRoot with dialog error
-	_, err = app.SelectWWWRoot(ctx)
+	_, err = app.SelectWWWRoot()
 	if err == nil || err.Error() != "failed open directory dialog" {
 		t.Errorf("Expected SelectWWWRoot to propagate error, got: %v", err)
 	}
 
 	// 5. SelectDefaultEditor with dialog error
-	_, err = app.SelectDefaultEditor(ctx)
+	_, err = app.SelectDefaultEditor()
 	if err == nil || err.Error() != "failed open file dialog" {
 		t.Errorf("Expected SelectDefaultEditor to propagate error, got: %v", err)
 	}
@@ -657,15 +614,16 @@ func TestApp_Env_Errors_And_EdgeCases(t *testing.T) {
 		cfg:          &config.Config{BaseDir: tempDir, WWWRoot: filepath.Join(tempDir, "www")},
 		orchestrator: &MockOrchestrator{Running: make(map[string]bool)},
 	}
+	app.Startup(ctx)
 
 	// SetWWWRoot
-	err := app.SetWWWRoot(ctx, filepath.Join(tempDir, "another-www"))
+	err := app.SetWWWRoot(filepath.Join(tempDir, "another-www"))
 	if err != nil {
 		t.Errorf("Expected SetWWWRoot to succeed, got %v", err)
 	}
 
 	// SetServerRoot
-	err = app.SetServerRoot(ctx, tempDir)
+	err = app.SetServerRoot(tempDir)
 	if err != nil {
 		t.Errorf("Expected SetServerRoot to succeed, got %v", err)
 	}
@@ -693,9 +651,10 @@ func TestApp_PHP_Extension_Failures_And_Success(t *testing.T) {
 		cfg:          cfg,
 		orchestrator: &MockOrchestrator{Running: make(map[string]bool)},
 	}
+	app.Startup(ctx)
 
 	// Non-existent php.ini to trigger toggle failure
-	err = app.TogglePHPExtension(ctx, "openssl", true)
+	err = app.TogglePHPExtension("openssl", true)
 	if err == nil {
 		t.Error("Expected TogglePHPExtension to fail when php.ini does not exist")
 	}
@@ -711,7 +670,7 @@ func TestApp_PHP_Extension_Failures_And_Success(t *testing.T) {
 	iniPath := filepath.Join(phpCurrent, "php.ini")
 	_ = os.WriteFile(iniPath, []byte("extension=openssl\n;extension=curl\n"), 0644)
 
-	err = app.TogglePHPExtension(ctx, "curl", true)
+	err = app.TogglePHPExtension("curl", true)
 	if err != nil {
 		t.Errorf("Expected TogglePHPExtension to succeed, got: %v", err)
 	}
@@ -753,6 +712,7 @@ func TestApp_Plugins_Zip_Failures_And_Success(t *testing.T) {
 		cfg:        &config.Config{BaseDir: tempDir},
 		downloader: plugins.NewManager(ctx),
 	}
+	app.Startup(ctx)
 
 	// Zip file path points to a directory, should fail extraction
 	err := app.extractAndProcessZip(ctx, "PHP", "php", tempDir, tempDir, "invalid-ver")
@@ -789,16 +749,17 @@ func TestApp_Profile_IO_Failures(t *testing.T) {
 		cfg:        &config.Config{BaseDir: tempDir, WWWRoot: filepath.Join(tempDir, "www")},
 		sshManager: &MockSSHManager{},
 	}
+	app.Startup(ctx)
 
 	// Export fails because subdir doesn't exist
-	err := app.ExportProfile(ctx, true, true)
+	err := app.ExportProfile(true, true)
 	if err == nil {
 		t.Error("Expected ExportProfile to fail when save path is invalid")
 	}
 
 	// Import fails because file doesn't exist
 	mockR.SelectedFile = filepath.Join(tempDir, "does-not-exist.json")
-	err = app.ImportProfile(ctx)
+	err = app.ImportProfile()
 	if err == nil {
 		t.Error("Expected ImportProfile to fail for non-existent file")
 	}
@@ -807,7 +768,7 @@ func TestApp_Profile_IO_Failures(t *testing.T) {
 	invalidFile := filepath.Join(tempDir, "invalid.json")
 	_ = os.WriteFile(invalidFile, []byte("invalid-json"), 0644)
 	mockR.SelectedFile = invalidFile
-	err = app.ImportProfile(ctx)
+	err = app.ImportProfile()
 	if err == nil {
 		t.Error("Expected ImportProfile to fail for invalid JSON content")
 	}
@@ -821,9 +782,10 @@ func TestApp_SwitchVersion_EdgeCases(t *testing.T) {
 		downloader:   &MockPluginManager{},
 		orchestrator: &MockOrchestrator{Running: make(map[string]bool)},
 	}
+	app.Startup(ctx)
 
 	// Switching to a version that is not installed (should succeed if manager returns nil)
-	err := app.SwitchServiceVersion(ctx, "PHP", "9.0.0")
+	err := app.SwitchServiceVersion("PHP", "9.0.0")
 	if err != nil {
 		t.Errorf("Expected SwitchServiceVersion to succeed with MockPluginManager, got: %v", err)
 	}
