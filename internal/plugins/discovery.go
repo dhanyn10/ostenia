@@ -2,15 +2,7 @@ package plugins
 
 import (
 	"os"
-	"ostenia/internal/config"
-	"ostenia/internal/plugins/apache"
-	"ostenia/internal/plugins/heidisql"
-	"ostenia/internal/plugins/mysql"
-	"ostenia/internal/plugins/nginx"
-	"ostenia/internal/plugins/nodejs"
 	"ostenia/internal/plugins/openssl"
-	"ostenia/internal/plugins/php"
-	"ostenia/internal/plugins/python"
 	"ostenia/internal/plugins/utils"
 	"path/filepath"
 	"sort"
@@ -41,52 +33,7 @@ func DetectHeidiSQLInstallation() (string, string) {
 }
 
 func GetLatestKnownVersions() []DownloadTask {
-	definitions := []pluginDefinition{
-		{
-			Name: "PHP", Category: "php", TargetPrefix: "php/php-", CheckFile: "php.exe",
-			Detect: php.DetectVersions, GetIcon: php.GetIcon,
-			GetModules: php.GetModules, GetModuleVersion: php.GetModuleVersion,
-		},
-		{
-			Name: "Apache", Category: "apache", TargetPrefix: "apache/httpd-", CheckFile: "bin/httpd.exe",
-			Detect: apache.DetectVersions, GetIcon: apache.GetIcon,
-		},
-		{
-			Name: "MySQL", Category: "mysql", TargetPrefix: "mysql/mysql-", CheckFile: "bin/mysqld.exe",
-			Detect: mysql.DetectVersions, GetIcon: mysql.GetIcon,
-		},
-		{
-			Name: "Node.js", Category: "nodejs", TargetPrefix: "nodejs/node-v", CheckFile: "node.exe",
-			Detect: nodejs.DetectVersions, GetIcon: nodejs.GetIcon,
-		},
-		{
-			Name: "Python", Category: "python", TargetPrefix: "python/python-", CheckFile: "python.exe",
-			Detect: python.DetectVersions, GetIcon: python.GetIcon,
-			GetInfo:    python.GetInfo,
-			GetModules: python.GetModules, GetModuleVersion: python.GetModuleVersion,
-		},
-		{
-			Name: "HeidiSQL", Category: "heidisql", TargetPrefix: "heidisql/heidisql-", CheckFile: "heidisql.exe",
-			Detect: heidisql.DetectVersions, GetIcon: heidisql.GetIcon,
-		},
-		{
-			Name: "Nginx", Category: "nginx", TargetPrefix: "nginx/nginx-", CheckFile: "nginx.exe",
-			Detect: nginx.DetectVersions, GetIcon: nginx.GetIcon,
-		},
-		{
-			Name: "OpenSSL", Category: "openssl", TargetPrefix: "openssl/openssl-", CheckFile: "bin/openssl.exe",
-			Detect: openssl.DetectVersions, GetIcon: openssl.GetIcon,
-		},
-	}
-
-	var tasks []DownloadTask
-	baseDir := config.GetBaseDir()
-
-	for _, def := range definitions {
-		tasks = append(tasks, createDownloadTask(def, baseDir))
-	}
-
-	return tasks
+	return LoadPluginsFromJSON()
 }
 
 func createDownloadTask(def pluginDefinition, baseDir string) DownloadTask {
