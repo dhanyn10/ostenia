@@ -226,28 +226,14 @@ func getFallbackIcon(category string) string {
 	}
 }
 
-func buildTaskFromJSON(pj PluginJSON, baseDir string) DownloadTask {
-	icon := pj.IconSVG
-	if icon == "" {
-		icon = getFallbackIcon(pj.Category)
-	}
-
-	// Fallback dynamic version detection if JSON has no versions
+func populateTaskVersions(pj PluginJSON, t *DownloadTask) {
 	vers := pj.Versions
 	urls := pj.VersionUrls
 	if len(vers) == 0 && urls == nil {
 		vers, urls = dynamicDetectFallback(pj.Category)
 	}
-
-	t := DownloadTask{
-		Name:        pj.Name,
-		CheckFile:   pj.CheckFile,
-		IconSVG:     icon,
-		VersionUrls: urls,
-		Versions:    vers,
-		Info:        pj.Info,
-	}
-
+	t.Versions = vers
+	t.VersionUrls = urls
 	if len(vers) > 0 {
 		t.Version = vers[0]
 		if urls != nil {
@@ -255,28 +241,18 @@ func buildTaskFromJSON(pj PluginJSON, baseDir string) DownloadTask {
 		}
 		t.Target = pj.TargetPrefix + vers[0]
 	}
+}
 
-	// 1. Detect ALL installed versions
+func populateInstalledVersions(pj PluginJSON, t *DownloadTask, baseDir string) {
 	installedMap := utils.GetInstalledVersionPaths(baseDir, pj.Category, t.CheckFile)
 	t.InstalledVers = make([]string, 0, len(installedMap))
 	for v := range installedMap {
 		t.InstalledVers = append(t.InstalledVers, v)
 	}
 	sort.Strings(t.InstalledVers)
+}
 
-	// Special Cases
-	if strings.EqualFold(pj.Name, "HeidiSQL") {
-		handleHeidiSQLDetection(&t)
-		return t
-	}
-	if strings.EqualFold(pj.Name, "OpenSSL") {
-		handleOpenSSLDetection(&t)
-		return t
-	}
-
-	currentPath := filepath.Join(baseDir, "bin", pj.Category, "current")
-
-	// Detect modules
+func populateTaskModules(pj PluginJSON, t *DownloadTask, currentPath string) {
 	for _, modJSON := range pj.Modules {
 		isModInstalled := false
 		if _, err := os.Stat(filepath.Join(currentPath, modJSON.CheckFile)); err == nil {
@@ -296,15 +272,10 @@ func buildTaskFromJSON(pj PluginJSON, baseDir string) DownloadTask {
 			CheckFile:   modJSON.CheckFile,
 		})
 	}
+}
 
-	if pj.Info == "" {
-		if strings.EqualFold(pj.Category, "python") {
-			t.Info = python.GetInfo(currentPath)
-		}
-	}
-
-	// Check if current junction/symlink is active
-	if checkCurrentFunctionality(&t, currentPath, baseDir) {
+func evaluateActiveStatus(t *DownloadTask, currentPath, baseDir string) {
+	if checkCurrentFunctionality(t, currentPath, baseDir) {
 		t.IsInstalled = true
 		if resolved, err := filepath.EvalSymlinks(currentPath); err == nil {
 			activeFolder := filepath.Base(resolved)
@@ -316,7 +287,41 @@ func buildTaskFromJSON(pj PluginJSON, baseDir string) DownloadTask {
 			}
 		}
 	}
+}
 
+func buildTaskFromJSON(pj PluginJSON, baseDir string) DownloadTask {
+	icon := pj.IconSVG
+	if icon == "" {
+		icon = getFallbackIcon(pj.Category)
+	}
+
+	t := DownloadTask{
+		Name:      pj.Name,
+		CheckFile: pj.CheckFile,
+		IconSVG:   icon,
+		Info:      pj.Info,
+	}
+
+	populateTaskVersions(pj, &t)
+	populateInstalledVersions(pj, &t, baseDir)
+
+	if strings.EqualFold(pj.Name, "HeidiSQL") {
+		handleHeidiSQLDetection(&t)
+		return t
+	}
+	if strings.EqualFold(pj.Name, "OpenSSL") {
+		handleOpenSSLDetection(&t)
+		return t
+	}
+
+	currentPath := filepath.Join(baseDir, "bin", pj.Category, "current")
+	populateTaskModules(pj, &t, currentPath)
+
+	if pj.Info == "" && strings.EqualFold(pj.Category, "python") {
+		t.Info = python.GetInfo(currentPath)
+	}
+
+	evaluateActiveStatus(&t, currentPath, baseDir)
 	return t
 }
 
