@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"context"
 	"ostenia/internal/backend/interfaces"
 	"ostenia/internal/config"
 	"path/filepath"
@@ -35,8 +34,8 @@ func (a *App) DeleteSSHSession(id string) error {
 }
 
 // ConnectSSH initiates an SSH connection
-func (a *App) ConnectSSH(ctx context.Context, session config.SSHSession) error {
-	return a.sshManager.Connect(ctx, session)
+func (a *App) ConnectSSH(session config.SSHSession) error {
+	return a.sshManager.Connect(a.getContext(), session)
 }
 
 // DisconnectSSH closes an SSH connection
@@ -75,7 +74,8 @@ func (a *App) GetRemoteCurrentPath(sessionID string) (string, error) {
 }
 
 // DownloadRemoteFile downloads a file from a remote host to the local machine
-func (a *App) DownloadRemoteFile(ctx context.Context, sessionID, remotePath string) error {
+func (a *App) DownloadRemoteFile(sessionID, remotePath string) error {
+	ctx := a.getContext()
 	fileName := filepath.Base(remotePath)
 	localPath, err := a.runtime.SaveFileDialog(ctx, wruntime.SaveDialogOptions{
 		Title:           "Download File",
@@ -88,7 +88,8 @@ func (a *App) DownloadRemoteFile(ctx context.Context, sessionID, remotePath stri
 }
 
 // UploadRemoteFile uploads a file from the local machine to a remote host
-func (a *App) UploadRemoteFile(ctx context.Context, sessionID, remoteDir string) error {
+func (a *App) UploadRemoteFile(sessionID, remoteDir string) error {
+	ctx := a.getContext()
 	localPath, err := a.runtime.OpenFileDialog(ctx, wruntime.OpenDialogOptions{
 		Title: "Upload File",
 	})

@@ -41,11 +41,6 @@ func (m *SSHManager) startTerminal(ctx context.Context, conn *SSHConnection) {
 		return
 	}
 
-	// To prevent initial WSL interactive shell hangs or connection delays, write an initial newline.
-	if conn.IsWSL && conn.Shell != nil {
-		_, _ = conn.Shell.Write([]byte("\n"))
-	}
-
 	exitChan := make(chan struct{})
 	// Read and broadcast stdout outputs to the Wails frontend.
 	go m.processTerminalOutput(ctx, conn, stdout, exitChan)

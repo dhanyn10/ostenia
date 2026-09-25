@@ -801,7 +801,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const handleConnectionSuccess = (attempt: number, maxRetries: number, startTime: number) => {
     setConnectingTimeLeft(0);
     const dur = (performance.now() - startTime).toFixed(1);
-    xterm.current?.write("\x1b[32mConnected successfully.\x1b[0m\r\n\r\n");
+    xterm.current?.write("\x1b[32mConnected successfully.\x1b[0m\r\n");
     console.log(`SSH Connection attempt ${attempt}/${maxRetries} succeeded in ${dur}ms`);
     setConnecting(false);
     performFit();

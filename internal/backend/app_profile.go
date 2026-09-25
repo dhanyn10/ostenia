@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"ostenia/internal/config"
@@ -16,7 +15,8 @@ type ProfileData struct {
 }
 
 // ExportProfile exports the application configuration and/or SSH sessions to a JSON file
-func (a *App) ExportProfile(ctx context.Context, includeConfig, includeSSH bool) error {
+func (a *App) ExportProfile(includeConfig, includeSSH bool) error {
+	ctx := a.getContext()
 	profile := ProfileData{}
 	if includeConfig {
 		profile.Config = a.cfg
@@ -47,7 +47,8 @@ func (a *App) ExportProfile(ctx context.Context, includeConfig, includeSSH bool)
 }
 
 // ImportProfile imports an application profile from a JSON file
-func (a *App) ImportProfile(ctx context.Context) error {
+func (a *App) ImportProfile() error {
+	ctx := a.getContext()
 	filePath, err := a.runtime.OpenFileDialog(ctx, wruntime.OpenDialogOptions{
 		Title: "Import Profile",
 		Filters: []wruntime.FileFilter{

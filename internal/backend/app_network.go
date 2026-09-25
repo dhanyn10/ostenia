@@ -88,7 +88,7 @@ func (a *App) GetProxyApps() []ProxyAppInfo {
 }
 
 // SaveProxyPort saves the proxy port for a specific folder and reconfigures web servers
-func (a *App) SaveProxyPort(ctx context.Context, name string, port int) error {
+func (a *App) SaveProxyPort(name string, port int) error {
 	if a.cfg.Proxies == nil {
 		a.cfg.Proxies = make(map[string]int)
 	}
@@ -105,15 +105,15 @@ func (a *App) SaveProxyPort(ctx context.Context, name string, port int) error {
 	// Trigger web server re-config
 	if a.orchestrator.IsRunning("Apache") {
 		_ = a.updateApacheConfig(filepath.Join(config.GetBaseDir(), "bin", "apache", "current"), a.orchestrator.GetDetailedInfo("Apache").Port)
-		_ = a.StopService(ctx, "Apache")
+		_ = a.StopService("Apache")
 		time.Sleep(500 * time.Millisecond)
-		_ = a.StartService(ctx, "Apache")
+		_ = a.StartService("Apache")
 	}
 	if a.orchestrator.IsRunning("Nginx") {
 		_ = a.updateNginxConfig(filepath.Join(config.GetBaseDir(), "bin", "nginx", "current"), a.orchestrator.GetDetailedInfo("Nginx").Port)
-		_ = a.StopService(ctx, "Nginx")
+		_ = a.StopService("Nginx")
 		time.Sleep(500 * time.Millisecond)
-		_ = a.StartService(ctx, "Nginx")
+		_ = a.StartService("Nginx")
 	}
 
 	return nil
