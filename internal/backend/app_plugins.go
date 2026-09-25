@@ -37,6 +37,12 @@ func (a *App) OpenPluginFolder(serviceName string) error {
 	return service.OpenExplorer(binDir)
 }
 
+// OpenPluginsConfigFolder opens the plugins JSON directory in File Explorer
+func (a *App) OpenPluginsConfigFolder() error {
+	pluginsDir := plugins.EnsureDefaultPluginsFolder()
+	return service.OpenExplorer(pluginsDir)
+}
+
 // InstallPrerequisite downloads and installs a plugin prerequisite
 func (a *App) InstallPrerequisite(task plugins.DownloadTask) error {
 	ctx := a.getContext()

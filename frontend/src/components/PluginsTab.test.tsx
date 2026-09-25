@@ -21,9 +21,8 @@ vi.mock("./PluginItem", () => ({
 // Mock the AppBackend API imported inside PluginsTab
 vi.mock("../../wailsjs/go/backend/App", () => ({
   OpenPluginFolder: vi.fn().mockResolvedValue(null),
+  OpenPluginsConfigFolder: vi.fn().mockResolvedValue(null),
 }));
-
-import { OpenPluginFolder } from "../../wailsjs/go/backend/App";
 
 describe("PluginsTab Component", () => {
   const mockPrerequisites = [
@@ -32,6 +31,8 @@ describe("PluginsTab Component", () => {
   ];
 
   const mockOnAddCustomVersion = vi.fn();
+  const mockOnReloadPlugins = vi.fn();
+  const mockOnOpenPluginsFolder = vi.fn();
 
   const defaultProps = {
     prerequisites: mockPrerequisites,
@@ -47,6 +48,8 @@ describe("PluginsTab Component", () => {
     handleInstallModule: vi.fn(),
     handleUninstallModule: vi.fn(),
     onAddCustomVersion: mockOnAddCustomVersion,
+    onReloadPlugins: mockOnReloadPlugins,
+    onOpenPluginsFolder: mockOnOpenPluginsFolder,
   };
 
   it("renders a list of plugin items based on prerequisites", () => {
@@ -79,5 +82,17 @@ describe("PluginsTab Component", () => {
     fireEvent.click(folderBtn);
 
     expect(mockOnAddCustomVersion).toHaveBeenCalledWith("PHP");
+  });
+
+  it("calls onReloadPlugins and onOpenPluginsFolder when toolbar buttons are clicked", () => {
+    render(<PluginsTab {...defaultProps} />);
+
+    const reloadBtn = screen.getByRole("button", { name: /Reload Plugins/i });
+    fireEvent.click(reloadBtn);
+    expect(mockOnReloadPlugins).toHaveBeenCalled();
+
+    const openPluginsFolderBtn = screen.getByRole("button", { name: /Open Plugins Folder/i });
+    fireEvent.click(openPluginsFolderBtn);
+    expect(mockOnOpenPluginsFolder).toHaveBeenCalled();
   });
 });

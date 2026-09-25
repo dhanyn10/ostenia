@@ -523,6 +523,8 @@ function App() {
  handleInstallModule={handleInstallModule}
  handleUninstallModule={handleUninstallModule}
  onAddCustomVersion={(name) => setCustomVersionModal({ isOpen: true, serviceName: name })}
+ onReloadPlugins={refreshPrerequisites}
+ onOpenPluginsFolder={() => (AppBackend as any).OpenPluginsConfigFolder?.()}
  />
  </div>
 
