@@ -48,7 +48,7 @@ const CopyLogButton = ({ isCopied, onCopy, title }: Readonly<CopyLogButtonProps>
       type="button"
       onClick={onCopy}
       className={cn(
-        "shrink-0 p-1 rounded border transition-all",
+        "shrink-0 p-1 rounded border transition-all relative",
         isCopied
           ? "text-emerald-500 border-emerald-500/30 bg-emerald-500/10"
           : "text-slate-400 border-transparent hover:border-slate-200 hover:bg-slate-100 dark:hover:border-slate-700 dark:hover:bg-slate-800"
@@ -124,14 +124,16 @@ function getPaginationRange(currentPage: number, totalPages: number, siblingCoun
 function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
   const [viewMode, setViewMode] = React.useState<"simple" | "complete">("simple");
   const [copiedId, setCopiedId] = React.useState<string | number | null>(null);
+  const [showBatchCopiedTooltip, setShowBatchCopiedTooltip] = React.useState(false);
 
   // Selection states (Gmail style with Shift+Click)
   const [isSelectMode, setIsSelectMode] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState<Set<string | number>>(new Set());
   const lastSelectedIdRef = React.useRef<string | number | null>(null);
 
-  // Context menu state
-  const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number } | null>(null);
+  // Context menu state & ref
+  const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; targetLog: LogEntry } | null>(null);
+  const menuRef = React.useRef<HTMLDivElement>(null);
 
   // Pagination states
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -146,7 +148,12 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
 
   // Close context menu on outside click or scroll
   React.useEffect(() => {
-    const handleCloseMenu = () => setContextMenu(null);
+    const handleCloseMenu = (e: MouseEvent) => {
+      if (menuRef.current && menuRef.current.contains(e.target as Node)) {
+        return;
+      }
+      setContextMenu(null);
+    };
     window.addEventListener("click", handleCloseMenu);
     window.addEventListener("scroll", handleCloseMenu, true);
     return () => {
@@ -403,17 +410,37 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
 
     copyToClipboardText(copyText, () => {
       setContextMenu(null);
+      setShowBatchCopiedTooltip(true);
+      setTimeout(() => {
+        setShowBatchCopiedTooltip(false);
+      }, 2000);
     });
   };
 
   const handleRowContextMenu = (e: React.MouseEvent, log: LogEntry) => {
-    if (!isSelectMode) return;
     e.preventDefault();
-    // If current log is not selected yet, select it
-    if (!selectedIds.has(log.id)) {
-      setSelectedIds(prev => new Set(prev).add(log.id));
+    e.stopPropagation();
+    if (!isSelectMode) {
+      setContextMenu({ x: e.clientX, y: e.clientY, targetLog: log });
+    } else {
+      // If current log is not selected yet, select it
+      if (!selectedIds.has(log.id)) {
+        setSelectedIds(prev => new Set(prev).add(log.id));
+        lastSelectedIdRef.current = log.id;
+      }
+      setContextMenu({ x: e.clientX, y: e.clientY, targetLog: log });
     }
-    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleContextMenuSelectLogOption = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (contextMenu) {
+      const targetId = contextMenu.targetLog.id;
+      lastSelectedIdRef.current = targetId;
+      setSelectedIds(new Set([targetId]));
+      setIsSelectMode(true);
+      setContextMenu(null);
+    }
   };
 
   const renderLogContent = () => {
@@ -605,21 +632,40 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
       {/* Custom Context Menu */}
       {contextMenu && (
         <div
+          ref={menuRef}
           style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
           className="fixed z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl py-1 text-[11px] font-sans min-w-[140px] animate-in fade-in duration-100"
         >
+          {isSelectMode ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                copyFormattedSelectedLogs();
+              }}
+              disabled={selectedIds.size === 0}
+              className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed font-semibold"
+            >
+              <CopyIcon size={13} />
+              <span>Copy ({selectedIds.size})</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleContextMenuSelectLogOption}
+              className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 font-semibold"
+            >
+              <CheckSquare size={13} />
+              <span>Select Log</span>
+            </button>
+          )}
+
           <button
             type="button"
-            onClick={copyFormattedSelectedLogs}
-            disabled={selectedIds.size === 0}
-            className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed font-semibold"
-          >
-            <CopyIcon size={13} />
-            <span>Copy ({selectedIds.size})</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleCancelSelection}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCancelSelection();
+            }}
             className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-rose-600 dark:text-rose-400 font-semibold"
           >
             <X size={13} />
@@ -701,7 +747,7 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
 
           {/* Selection Controls when Selection Mode active */}
           {isSelectMode && (
-            <div className="flex items-center gap-3 bg-blue-50 dark:bg-blue-950/30 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800/40 text-[10px]">
+            <div className="flex items-center gap-3 bg-blue-50 dark:bg-blue-950/30 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800/40 text-[10px] relative">
               <label className="flex items-center gap-1.5 cursor-pointer font-bold text-slate-700 dark:text-slate-300 select-none">
                 <input
                   type="checkbox"
@@ -718,15 +764,22 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
                 {selectedIds.size} selected
               </span>
 
-              <button
-                type="button"
-                onClick={copyFormattedSelectedLogs}
-                disabled={selectedIds.size === 0}
-                className="flex items-center gap-1 px-2.5 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded transition-all"
-              >
-                <CopyIcon size={12} />
-                <span>Copy</span>
-              </button>
+              <div className="relative inline-flex items-center">
+                <button
+                  type="button"
+                  onClick={copyFormattedSelectedLogs}
+                  disabled={selectedIds.size === 0}
+                  className="flex items-center gap-1 px-2.5 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded transition-all"
+                >
+                  <CopyIcon size={12} />
+                  <span>Copy</span>
+                </button>
+                {showBatchCopiedTooltip && (
+                  <span className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-900 text-emerald-400 text-[9px] font-bold rounded shadow-lg border border-emerald-500/30 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150">
+                    Copied!
+                  </span>
+                )}
+              </div>
             </div>
           )}
         </div>

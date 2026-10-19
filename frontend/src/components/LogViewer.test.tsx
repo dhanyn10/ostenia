@@ -216,7 +216,7 @@ describe("LogViewer Component", () => {
     );
   });
 
-  describe("Gmail-style Selection Mode, Shift+Click, and Batch Copy", () => {
+  describe("Gmail-style Selection Mode, Shift+Click, Context Menu, and Batch Copy", () => {
     it("toggles selection mode, shows checkboxes, and handles single/select-all selection", () => {
       render(<LogViewer logs={mockLogs} />);
 
@@ -239,11 +239,11 @@ describe("LogViewer Component", () => {
       fireEvent.click(selectAllCheckbox);
 
       // Count of selected items should update
-      expect(screen.getByText("4 selected")).toBeInTheDocument();
+      expect(screen.getByText(/4 selected/i)).toBeInTheDocument();
 
       // Uncheck "Select All"
       fireEvent.click(selectAllCheckbox);
-      expect(screen.getByText("0 selected")).toBeInTheDocument();
+      expect(screen.getByText(/0 selected/i)).toBeInTheDocument();
 
       // Click "Cancel Selection" to exit selection mode
       const cancelBtn = screen.getByRole("button", { name: /cancel selection/i });
@@ -251,6 +251,25 @@ describe("LogViewer Component", () => {
 
       expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: /select log/i })).toBeInTheDocument();
+    });
+
+    it("opens context menu with 'Select Log' when right clicked outside selection mode", async () => {
+      render(<LogViewer logs={mockLogs} />);
+
+      const logEntry = screen.getByText("[12:00:00]");
+      fireEvent.contextMenu(logEntry);
+
+      // Menu option inside context menu popover is the first 'Select Log' button in DOM
+      const selectLogOptions = screen.getAllByRole("button", { name: /select log/i });
+      const contextMenuOption = selectLogOptions[0];
+
+      await act(async () => {
+        fireEvent.click(contextMenuOption);
+      });
+
+      // Selection mode should be activated and target log selected
+      expect(screen.getByRole("button", { name: /cancel selection/i })).toBeInTheDocument();
+      expect(screen.getByText(/1 selected/i)).toBeInTheDocument();
     });
 
     it("supports Shift+Click range selection like Gmail", () => {
@@ -263,16 +282,16 @@ describe("LogViewer Component", () => {
 
       // Click first item checkbox (index 1)
       fireEvent.click(checkboxes[1]);
-      expect(screen.getByText("1 selected")).toBeInTheDocument();
+      expect(screen.getByText(/1 selected/i)).toBeInTheDocument();
 
       // Shift+Click fourth item checkbox (index 4)
       fireEvent.click(checkboxes[4], { shiftKey: true });
 
       // Range 1 to 4 should be selected
-      expect(screen.getByText("4 selected")).toBeInTheDocument();
+      expect(screen.getByText(/4 selected/i)).toBeInTheDocument();
     });
 
-    it("copies selected logs in WhatsApp-style raw format via selection action bar", async () => {
+    it("copies selected logs with Copied! tooltip feedback", async () => {
       render(<LogViewer logs={mockLogs} />);
 
       // Enter selection mode
@@ -283,7 +302,7 @@ describe("LogViewer Component", () => {
       fireEvent.click(checkboxes[1]); // log 1
       fireEvent.click(checkboxes[2]); // log 2
 
-      expect(screen.getByText("2 selected")).toBeInTheDocument();
+      expect(screen.getByText(/2 selected/i)).toBeInTheDocument();
 
       // Click Copy button in action bar
       const copyBtn = screen.getByRole("button", { name: /^copy$/i });
@@ -293,6 +312,16 @@ describe("LogViewer Component", () => {
       // Verify exact WhatsApp-style text format [time] msg
       const expectedText = "[12:00:00] [SYS] Server starting\n[12:00:05] [WRN] Low disk space";
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expectedText);
+
+      // Verify Copied! tooltip feedback appeared
+      expect(screen.getByText("Copied!")).toBeInTheDocument();
+
+      // Advance time by 2 seconds
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+
+      expect(screen.queryByText("Copied!")).not.toBeInTheDocument();
     });
 
     it("opens context menu on right click in selection mode and handles copy/cancel", async () => {
