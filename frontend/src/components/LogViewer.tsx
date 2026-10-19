@@ -1,5 +1,5 @@
 import React from "react";
-import { List, Copy, Check, ArrowUp, CheckSquare, X, Copy as CopyIcon } from "lucide-react";
+import { List, Copy as CopyIcon, Check, ArrowUp, CheckSquare, X } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -55,7 +55,7 @@ const CopyLogButton = ({ isCopied, onCopy, title }: Readonly<CopyLogButtonProps>
       )}
       title={title}
     >
-      {isCopied ? <Check size={12} /> : <Copy size={12} />}
+      {isCopied ? <Check size={12} /> : <CopyIcon size={12} />}
     </button>
   );
 };
@@ -125,9 +125,10 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
   const [viewMode, setViewMode] = React.useState<"simple" | "complete">("simple");
   const [copiedId, setCopiedId] = React.useState<string | number | null>(null);
 
-  // Selection states (Gmail style)
+  // Selection states (Gmail style with Shift+Click)
   const [isSelectMode, setIsSelectMode] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState<Set<string | number>>(new Set());
+  const lastSelectedIdRef = React.useRef<string | number | null>(null);
 
   // Context menu state
   const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number } | null>(null);
@@ -332,15 +333,34 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
   const endIndex = startIndex + pageSize;
   const paginatedLogs = displayedLogs.slice(startIndex, endIndex);
 
-  // Selection Helper Methods
-  const toggleSelectLog = (id: string | number) => {
+  // Selection Helper Methods with Shift+Click Range Selection support
+  const toggleSelectLog = (id: string | number, isShiftKey: boolean = false) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
+
+      if (isShiftKey && lastSelectedIdRef.current !== null) {
+        const lastId = lastSelectedIdRef.current;
+        const lastIndex = paginatedLogs.findIndex((l) => l.id === lastId);
+        const currentIndex = paginatedLogs.findIndex((l) => l.id === id);
+
+        if (lastIndex !== -1 && currentIndex !== -1) {
+          const start = Math.min(lastIndex, currentIndex);
+          const end = Math.max(lastIndex, currentIndex);
+          const rangeLogs = paginatedLogs.slice(start, end + 1);
+
+          rangeLogs.forEach((l) => next.add(l.id));
+          lastSelectedIdRef.current = id;
+          return next;
+        }
+      }
+
       if (next.has(id)) {
         next.delete(id);
       } else {
         next.add(id);
       }
+
+      lastSelectedIdRef.current = id;
       return next;
     });
   };
@@ -369,6 +389,7 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
     setSelectedIds(new Set());
     setIsSelectMode(false);
     setContextMenu(null);
+    lastSelectedIdRef.current = null;
   };
 
   const copyFormattedSelectedLogs = () => {
@@ -417,8 +438,13 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
               <div
                 key={log.id}
                 onContextMenu={(e) => handleRowContextMenu(e, log)}
+                onClick={(e) => {
+                  if (isSelectMode) {
+                    toggleSelectLog(log.id, e.shiftKey);
+                  }
+                }}
                 className={cn(
-                  "flex items-center justify-between gap-4 group py-1 px-2 border rounded transition-all",
+                  "flex items-center justify-between gap-4 group py-1 px-2 border rounded transition-all select-none cursor-pointer",
                   isSelected
                     ? "bg-blue-50/80 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/50"
                     : "border-transparent hover:border-slate-100 dark:hover:border-white/5 hover:bg-slate-50 dark:hover:bg-slate-900/40"
@@ -429,7 +455,11 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
                     <input
                       type="checkbox"
                       checked={isSelected}
-                      onChange={() => toggleSelectLog(log.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        const nativeEvent = e.nativeEvent as MouseEvent;
+                        toggleSelectLog(log.id, nativeEvent.shiftKey);
+                      }}
                       className="shrink-0 accent-blue-600 rounded cursor-pointer self-center"
                     />
                   )}
@@ -483,8 +513,13 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
             <div
               key={log.id}
               onContextMenu={(e) => handleRowContextMenu(e, log)}
+              onClick={(e) => {
+                if (isSelectMode) {
+                  toggleSelectLog(log.id, e.shiftKey);
+                }
+              }}
               className={cn(
-                "p-4 rounded-lg border text-[10px] transition-all shadow-sm flex flex-col gap-3",
+                "p-4 rounded-lg border text-[10px] transition-all shadow-sm flex flex-col gap-3 select-none cursor-pointer",
                 isSelected
                   ? "bg-blue-50/80 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/50"
                   : "bg-slate-50/50 dark:bg-slate-900/20 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700"
@@ -497,7 +532,11 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
                     <input
                       type="checkbox"
                       checked={isSelected}
-                      onChange={() => toggleSelectLog(log.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        const nativeEvent = e.nativeEvent as MouseEvent;
+                        toggleSelectLog(log.id, nativeEvent.shiftKey);
+                      }}
                       className="shrink-0 accent-blue-600 rounded cursor-pointer mr-1"
                     />
                   )}

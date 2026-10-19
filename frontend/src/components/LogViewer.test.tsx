@@ -216,7 +216,7 @@ describe("LogViewer Component", () => {
     );
   });
 
-  describe("Gmail-style Selection Mode and Batch Copy", () => {
+  describe("Gmail-style Selection Mode, Shift+Click, and Batch Copy", () => {
     it("toggles selection mode, shows checkboxes, and handles single/select-all selection", () => {
       render(<LogViewer logs={mockLogs} />);
 
@@ -251,6 +251,25 @@ describe("LogViewer Component", () => {
 
       expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: /select log/i })).toBeInTheDocument();
+    });
+
+    it("supports Shift+Click range selection like Gmail", () => {
+      render(<LogViewer logs={mockLogs} />);
+
+      // Enter selection mode
+      fireEvent.click(screen.getByRole("button", { name: /select log/i }));
+
+      const checkboxes = screen.getAllByRole("checkbox");
+
+      // Click first item checkbox (index 1)
+      fireEvent.click(checkboxes[1]);
+      expect(screen.getByText("1 selected")).toBeInTheDocument();
+
+      // Shift+Click fourth item checkbox (index 4)
+      fireEvent.click(checkboxes[4], { shiftKey: true });
+
+      // Range 1 to 4 should be selected
+      expect(screen.getByText("4 selected")).toBeInTheDocument();
     });
 
     it("copies selected logs in WhatsApp-style raw format via selection action bar", async () => {
