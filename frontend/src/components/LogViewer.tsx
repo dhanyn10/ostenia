@@ -36,6 +36,22 @@ interface CopyLogButtonProps {
   readonly title: string;
 }
 
+interface LogCheckboxProps {
+  readonly isSelected: boolean;
+  readonly onToggleSelect: (isShiftKey: boolean) => void;
+  readonly className?: string;
+}
+
+interface LogRowWrapperProps {
+  readonly log: LogEntry;
+  readonly isSelected: boolean;
+  readonly isSelectMode: boolean;
+  readonly onRowContextMenu: (e: React.MouseEvent, log: LogEntry) => void;
+  readonly onToggleSelect: (id: string | number, isShiftKey: boolean) => void;
+  readonly className: string;
+  readonly children: React.ReactNode;
+}
+
 interface PaginationItem {
   key: string;
   value: number | string;
@@ -57,6 +73,52 @@ const CopyLogButton = ({ isCopied, onCopy, title }: Readonly<CopyLogButtonProps>
     >
       {isCopied ? <Check size={12} /> : <CopyIcon size={12} />}
     </button>
+  );
+};
+
+const LogCheckbox = ({ isSelected, onToggleSelect, className }: Readonly<LogCheckboxProps>) => {
+  return (
+    <input
+      type="checkbox"
+      checked={isSelected}
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => {
+        const nativeEvent = e.nativeEvent as MouseEvent;
+        onToggleSelect(nativeEvent.shiftKey);
+      }}
+      className={cn("shrink-0 accent-blue-600 rounded cursor-pointer", className)}
+    />
+  );
+};
+
+const LogRowWrapper = ({
+  log,
+  isSelectMode,
+  onRowContextMenu,
+  onToggleSelect,
+  className,
+  children,
+}: Readonly<LogRowWrapperProps>) => {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onContextMenu={(e) => onRowContextMenu(e, log)}
+      onClick={(e) => {
+        if (isSelectMode) {
+          onToggleSelect(log.id, e.shiftKey);
+        }
+      }}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && isSelectMode) {
+          e.preventDefault();
+          onToggleSelect(log.id, e.shiftKey);
+        }
+      }}
+      className={className}
+    >
+      {children}
+    </div>
   );
 };
 
@@ -464,22 +526,13 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
             const isCopied = copiedId === log.id;
             const isSelected = selectedIds.has(log.id);
             return (
-              <div
+              <LogRowWrapper
                 key={log.id}
-                role="button"
-                tabIndex={0}
-                onContextMenu={(e) => handleRowContextMenu(e, log)}
-                onClick={(e) => {
-                  if (isSelectMode) {
-                    toggleSelectLog(log.id, e.shiftKey);
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if ((e.key === "Enter" || e.key === " ") && isSelectMode) {
-                    e.preventDefault();
-                    toggleSelectLog(log.id, e.shiftKey);
-                  }
-                }}
+                log={log}
+                isSelected={isSelected}
+                isSelectMode={isSelectMode}
+                onRowContextMenu={handleRowContextMenu}
+                onToggleSelect={toggleSelectLog}
                 className={cn(
                   "flex items-center justify-between gap-4 group py-1 px-2 border rounded transition-all select-none cursor-pointer",
                   isSelected
@@ -489,15 +542,10 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
               >
                 <div className="flex gap-3 items-baseline min-w-0 flex-1">
                   {isSelectMode && (
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => {
-                        const nativeEvent = e.nativeEvent as MouseEvent;
-                        toggleSelectLog(log.id, nativeEvent.shiftKey);
-                      }}
-                      className="shrink-0 accent-blue-600 rounded cursor-pointer self-center"
+                    <LogCheckbox
+                      isSelected={isSelected}
+                      onToggleSelect={(isShift) => toggleSelectLog(log.id, isShift)}
+                      className="self-center"
                     />
                   )}
                   <span className="text-slate-400 dark:text-slate-600 select-none shrink-0 w-20">
@@ -522,7 +570,7 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
                     title="Copy Log"
                   />
                 )}
-              </div>
+              </LogRowWrapper>
             );
           })}
         </div>
@@ -547,22 +595,13 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
           const currentBadgeClass = badgeClasses[level] || badgeClasses.INFO;
 
           return (
-            <div
+            <LogRowWrapper
               key={log.id}
-              role="button"
-              tabIndex={0}
-              onContextMenu={(e) => handleRowContextMenu(e, log)}
-              onClick={(e) => {
-                if (isSelectMode) {
-                  toggleSelectLog(log.id, e.shiftKey);
-                }
-              }}
-              onKeyDown={(e) => {
-                if ((e.key === "Enter" || e.key === " ") && isSelectMode) {
-                  e.preventDefault();
-                  toggleSelectLog(log.id, e.shiftKey);
-                }
-              }}
+              log={log}
+              isSelected={isSelected}
+              isSelectMode={isSelectMode}
+              onRowContextMenu={handleRowContextMenu}
+              onToggleSelect={toggleSelectLog}
               className={cn(
                 "p-4 rounded-lg border text-[10px] transition-all shadow-sm flex flex-col gap-3 select-none cursor-pointer",
                 isSelected
@@ -574,15 +613,10 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
               <div className="flex items-center justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-2">
                   {isSelectMode && (
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => {
-                        const nativeEvent = e.nativeEvent as MouseEvent;
-                        toggleSelectLog(log.id, nativeEvent.shiftKey);
-                      }}
-                      className="shrink-0 accent-blue-600 rounded cursor-pointer mr-1"
+                    <LogCheckbox
+                      isSelected={isSelected}
+                      onToggleSelect={(isShift) => toggleSelectLog(log.id, isShift)}
+                      className="mr-1"
                     />
                   )}
                   <span className="text-slate-400 dark:text-slate-500 font-bold tracking-tight">
@@ -638,7 +672,7 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
                   </pre>
                 </details>
               )}
-            </div>
+            </LogRowWrapper>
           );
         })}
       </div>
