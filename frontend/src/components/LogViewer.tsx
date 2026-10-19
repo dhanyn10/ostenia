@@ -224,37 +224,54 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
     }
   };
 
-  const getLogColorClass = (msg: string) => {
+  const getLogColorClass = (msg: string, type?: string) => {
+    const lowerMsg = (msg || "").toLowerCase();
+    const lowerType = (type || "").toLowerCase();
+
     if (
-      msg.includes("ERR") ||
-      msg.includes("Error") ||
-      msg.includes("failed")
+      lowerType === "error" ||
+      lowerType === "err" ||
+      lowerMsg.includes("err") ||
+      lowerMsg.includes("error") ||
+      lowerMsg.includes("failed") ||
+      lowerMsg.includes("crash") ||
+      lowerMsg.includes("fatal") ||
+      lowerMsg.includes("panic") ||
+      lowerMsg.includes("exception")
     ) {
       return "text-rose-500 dark:text-rose-400 font-bold";
     }
     if (
-      msg.includes("success") ||
-      msg.includes("Ready") ||
-      msg.includes("Completed")
+      lowerMsg.includes("success") ||
+      lowerMsg.includes("ready") ||
+      lowerMsg.includes("completed")
     ) {
       return "text-emerald-500 dark:text-emerald-400 font-bold";
     }
-    if (msg.includes("[WRN]")) {
-      return "text-amber-500 dark:text-amber-400";
+    if (lowerType === "warn" || lowerType === "wrn" || lowerMsg.includes("[wrn]")) {
+      return "text-amber-500 dark:text-amber-400 font-bold";
     }
     return "text-slate-600 dark:text-slate-400";
   };
 
   const getLogLevel = (log: LogEntry): "SERVICE" | "ERROR" | "WARN" | "INFO" => {
     if (log.isServiceLog) return "SERVICE";
-    const type = log.type || "";
-    if (type.toLowerCase() === "error" || type.toLowerCase() === "err") return "ERROR";
-    if (type.toLowerCase() === "warn" || type.toLowerCase() === "wrn") return "WARN";
+    const type = (log.type || "").toLowerCase();
+    if (type === "error" || type === "err") return "ERROR";
+    if (type === "warn" || type === "wrn") return "WARN";
 
     // Fallback to checking the msg
-    const msg = log.msg || "";
-    if (msg.includes("[ERR]") || msg.includes("Error") || msg.includes("failed")) return "ERROR";
-    if (msg.includes("[WRN]")) return "WARN";
+    const msg = (log.msg || "").toLowerCase();
+    if (
+      msg.includes("[err]") ||
+      msg.includes("error") ||
+      msg.includes("failed") ||
+      msg.includes("crash") ||
+      msg.includes("fatal") ||
+      msg.includes("panic") ||
+      msg.includes("exception")
+    ) return "ERROR";
+    if (msg.includes("[wrn]")) return "WARN";
     return "INFO";
   };
 
@@ -422,7 +439,7 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
                   <span
                     className={cn(
                       "flex-1 break-all leading-relaxed min-w-0",
-                      getLogColorClass(log.msg)
+                      getLogColorClass(log.msg, log.type)
                     )}
                   >
                     {log.msg}
@@ -520,7 +537,7 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
               {/* Message details */}
               <div className={cn(
                 "font-semibold leading-relaxed break-all text-xs",
-                isService ? "text-slate-700 dark:text-slate-300 font-bold" : getLogColorClass(log.msg)
+                getLogColorClass(log.cleanMsg || log.msg, log.type)
               )}>
                 {log.cleanMsg || log.msg}
               </div>
