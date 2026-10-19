@@ -216,6 +216,89 @@ describe("LogViewer Component", () => {
     );
   });
 
+  describe("Gmail-style Selection Mode and Batch Copy", () => {
+    it("toggles selection mode, shows checkboxes, and handles single/select-all selection", () => {
+      render(<LogViewer logs={mockLogs} />);
+
+      // Initially "Select Log" button should be present and no checkboxes
+      const selectLogBtn = screen.getByRole("button", { name: /select log/i });
+      expect(selectLogBtn).toBeInTheDocument();
+      expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+
+      // Click "Select Log" to enter selection mode
+      fireEvent.click(selectLogBtn);
+
+      // Should now see "Cancel Selection" button, "Select All (Current Page)" checkbox, and 4 entry checkboxes
+      expect(screen.getByRole("button", { name: /cancel selection/i })).toBeInTheDocument();
+      const checkboxes = screen.getAllByRole("checkbox");
+      // 1 header checkbox + 4 log checkboxes = 5 total
+      expect(checkboxes.length).toBe(5);
+
+      // Check "Select All (Current Page)"
+      const selectAllCheckbox = screen.getByLabelText(/select all \(current page\)/i);
+      fireEvent.click(selectAllCheckbox);
+
+      // Count of selected items should update
+      expect(screen.getByText("4 selected")).toBeInTheDocument();
+
+      // Uncheck "Select All"
+      fireEvent.click(selectAllCheckbox);
+      expect(screen.getByText("0 selected")).toBeInTheDocument();
+
+      // Click "Cancel Selection" to exit selection mode
+      const cancelBtn = screen.getByRole("button", { name: /cancel selection/i });
+      fireEvent.click(cancelBtn);
+
+      expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /select log/i })).toBeInTheDocument();
+    });
+
+    it("copies selected logs in WhatsApp-style raw format via selection action bar", async () => {
+      render(<LogViewer logs={mockLogs} />);
+
+      // Enter selection mode
+      fireEvent.click(screen.getByRole("button", { name: /select log/i }));
+
+      // Select first two logs
+      const checkboxes = screen.getAllByRole("checkbox");
+      fireEvent.click(checkboxes[1]); // log 1
+      fireEvent.click(checkboxes[2]); // log 2
+
+      expect(screen.getByText("2 selected")).toBeInTheDocument();
+
+      // Click Copy button in action bar
+      const copyBtn = screen.getByRole("button", { name: /^copy$/i });
+      fireEvent.click(copyBtn);
+      await act(async () => {});
+
+      // Verify exact WhatsApp-style text format [time] msg
+      const expectedText = "[12:00:00] [SYS] Server starting\n[12:00:05] [WRN] Low disk space";
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expectedText);
+    });
+
+    it("opens context menu on right click in selection mode and handles copy/cancel", async () => {
+      render(<LogViewer logs={mockLogs} />);
+
+      // Enter selection mode
+      fireEvent.click(screen.getByRole("button", { name: /select log/i }));
+
+      // Right-click on third log entry
+      const logEntry = screen.getByText("[12:00:10]");
+      fireEvent.contextMenu(logEntry);
+
+      // Context menu should appear with Copy (1) and Cancel
+      const copyMenuBtn = screen.getByRole("button", { name: /copy \(1\)/i });
+
+      expect(copyMenuBtn).toBeInTheDocument();
+
+      // Click Copy in context menu
+      fireEvent.click(copyMenuBtn);
+      await act(async () => {});
+
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith("[12:00:10] [ERR] Database connection failed");
+    });
+  });
+
   describe("Pagination and Ordering", () => {
     it("respects log list page limits and supports next/prev pagination", () => {
       const manyLogs = generateManyLogs(25);
