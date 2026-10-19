@@ -101,7 +101,6 @@ const LogRowWrapper = ({
 }: Readonly<LogRowWrapperProps>) => {
   return (
     <div
-      role="button"
       tabIndex={0}
       onContextMenu={(e) => onRowContextMenu(e, log)}
       onClick={(e) => {
