@@ -4,6 +4,8 @@ import * as AppBackend from '../wailsjs/go/backend/App';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { parseStackTrace } from './utils/stackParser';
+import { AppService } from './services/appService';
+import { useAppServices } from './hooks/useAppServices';
 
 // Components
 import MenuBar from './components/MenuBar';
@@ -57,16 +59,7 @@ function App() {
    if (saved) return saved;
    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
  });
- const [services, setServices] = useState<ServiceInfo[]>([
- { name: 'Apache', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
- { name: 'Nginx', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
- { name: 'MySQL', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
- { name: 'PHP', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
- { name: 'Node.js', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
- { name: 'Python', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
- { name: 'HeidiSQL', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
- { name: 'OpenSSL', status: 'Stopped', pid: 0, port: 0, remainingDays: 0, ports: [], activeVersion: '' },
- ]);
+ const { services, setServices } = useAppServices();
  const [prerequisites, setPrerequisites] = useState<any[]>([]);
  const [downloadProgress, setDownloadProgress] = useState<Record<string, any>>({});
  const [toasts, setToasts] = useState<any[]>([]);
@@ -224,9 +217,8 @@ function App() {
  };
 
  const loadInitialData = async () => {
-   if (!(AppBackend as any).GetConfig) return;
    try {
-     const cfg = await AppBackend.GetConfig();
+     const cfg = await AppService.getConfig();
      setServerRootState(cfg?.wwwRoot ?? '');
      setAppsLocation(cfg?.baseDir ?? '');
      setApacheHttps(cfg?.apacheHttps ?? false);
@@ -251,7 +243,7 @@ function App() {
    }
  };
 
- const handleDeleteVersion = (name: string, ver: string) => AppBackend.DeleteVersion(name, ver).then(refreshPrerequisites);
+ const handleDeleteVersion = (name: string, ver: string) => AppService.deleteVersion(name, ver).then(refreshPrerequisites);
 
  const handleServiceLog = (data: any) => {
    addLog(`[${data.service}] ${data.message}`, 'info', true);
