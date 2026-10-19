@@ -1,5 +1,5 @@
 import React from "react";
-import { List, Copy, Check, ArrowUp } from "lucide-react";
+import { List, Copy as CopyIcon, Check, ArrowUp, CheckSquare, X } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -36,6 +36,22 @@ interface CopyLogButtonProps {
   readonly title: string;
 }
 
+interface LogCheckboxProps {
+  readonly isSelected: boolean;
+  readonly onToggleSelect: (isShiftKey: boolean) => void;
+  readonly className?: string;
+}
+
+interface LogRowWrapperProps {
+  readonly log: LogEntry;
+  readonly isSelected: boolean;
+  readonly isSelectMode: boolean;
+  readonly onRowContextMenu: (e: React.MouseEvent, log: LogEntry) => void;
+  readonly onToggleSelect: (id: string | number, isShiftKey: boolean) => void;
+  readonly className: string;
+  readonly children: React.ReactNode;
+}
+
 interface PaginationItem {
   key: string;
   value: number | string;
@@ -48,15 +64,61 @@ const CopyLogButton = ({ isCopied, onCopy, title }: Readonly<CopyLogButtonProps>
       type="button"
       onClick={onCopy}
       className={cn(
-        "shrink-0 p-1 rounded border transition-all",
+        "shrink-0 p-1 rounded border transition-all relative",
         isCopied
           ? "text-emerald-500 border-emerald-500/30 bg-emerald-500/10"
           : "text-slate-400 border-transparent hover:border-slate-200 hover:bg-slate-100 dark:hover:border-slate-700 dark:hover:bg-slate-800"
       )}
       title={title}
     >
-      {isCopied ? <Check size={12} /> : <Copy size={12} />}
+      {isCopied ? <Check size={12} /> : <CopyIcon size={12} />}
     </button>
+  );
+};
+
+const LogCheckbox = ({ isSelected, onToggleSelect, className }: Readonly<LogCheckboxProps>) => {
+  return (
+    <input
+      type="checkbox"
+      checked={isSelected}
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => {
+        const nativeEvent = e.nativeEvent as MouseEvent;
+        onToggleSelect(nativeEvent.shiftKey);
+      }}
+      className={cn("shrink-0 accent-blue-600 rounded cursor-pointer", className)}
+    />
+  );
+};
+
+const LogRowWrapper = ({
+  log,
+  isSelectMode,
+  onRowContextMenu,
+  onToggleSelect,
+  className,
+  children,
+}: Readonly<LogRowWrapperProps>) => {
+  if (isSelectMode) {
+    return (
+      <button
+        type="button"
+        onContextMenu={(e) => onRowContextMenu(e, log)}
+        onClick={(e) => onToggleSelect(log.id, e.shiftKey)}
+        className={cn(className, "w-full text-left")}
+      >
+        {children}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      onContextMenu={(e) => onRowContextMenu(e, log)}
+      className={className}
+    >
+      {children}
+    </div>
   );
 };
 
@@ -124,6 +186,16 @@ function getPaginationRange(currentPage: number, totalPages: number, siblingCoun
 function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
   const [viewMode, setViewMode] = React.useState<"simple" | "complete">("simple");
   const [copiedId, setCopiedId] = React.useState<string | number | null>(null);
+  const [showBatchCopiedTooltip, setShowBatchCopiedTooltip] = React.useState(false);
+
+  // Selection states (Gmail style with Shift+Click)
+  const [isSelectMode, setIsSelectMode] = React.useState(false);
+  const [selectedIds, setSelectedIds] = React.useState<Set<string | number>>(new Set());
+  const lastSelectedIdRef = React.useRef<string | number | null>(null);
+
+  // Context menu state & ref
+  const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; targetLog: LogEntry } | null>(null);
+  const menuRef = React.useRef<HTMLDivElement>(null);
 
   // Pagination states
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -135,6 +207,22 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
   const [isHovered, setIsHovered] = React.useState(false);
 
   const containerRef = React.useRef<HTMLDivElement>(null);
+
+  // Close context menu on outside click or scroll
+  React.useEffect(() => {
+    const handleCloseMenu = (e: MouseEvent) => {
+      if (menuRef.current?.contains(e.target as Node)) {
+        return;
+      }
+      setContextMenu(null);
+    };
+    window.addEventListener("click", handleCloseMenu);
+    window.addEventListener("scroll", handleCloseMenu, true);
+    return () => {
+      window.removeEventListener("click", handleCloseMenu);
+      window.removeEventListener("scroll", handleCloseMenu, true);
+    };
+  }, []);
 
   // Sync displayedLogs with incoming logs, buffering if active
   React.useEffect(() => {
@@ -206,38 +294,77 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
     }
   };
 
-  const getLogColorClass = (msg: string) => {
+  const getLogColorClass = (msg: string, type?: string) => {
+    const lowerMsg = (msg || "").toLowerCase();
+    const lowerType = (type || "").toLowerCase();
+
     if (
-      msg.includes("ERR") ||
-      msg.includes("Error") ||
-      msg.includes("failed")
+      lowerType === "error" ||
+      lowerType === "err" ||
+      lowerMsg.includes("err") ||
+      lowerMsg.includes("error") ||
+      lowerMsg.includes("failed") ||
+      lowerMsg.includes("crash") ||
+      lowerMsg.includes("fatal") ||
+      lowerMsg.includes("panic") ||
+      lowerMsg.includes("exception")
     ) {
       return "text-rose-500 dark:text-rose-400 font-bold";
     }
     if (
-      msg.includes("success") ||
-      msg.includes("Ready") ||
-      msg.includes("Completed")
+      lowerMsg.includes("success") ||
+      lowerMsg.includes("ready") ||
+      lowerMsg.includes("completed")
     ) {
       return "text-emerald-500 dark:text-emerald-400 font-bold";
     }
-    if (msg.includes("[WRN]")) {
-      return "text-amber-500 dark:text-amber-400";
+    if (lowerType === "warn" || lowerType === "wrn" || lowerMsg.includes("[wrn]")) {
+      return "text-amber-500 dark:text-amber-400 font-bold";
     }
     return "text-slate-600 dark:text-slate-400";
   };
 
   const getLogLevel = (log: LogEntry): "SERVICE" | "ERROR" | "WARN" | "INFO" => {
     if (log.isServiceLog) return "SERVICE";
-    const type = log.type || "";
-    if (type.toLowerCase() === "error" || type.toLowerCase() === "err") return "ERROR";
-    if (type.toLowerCase() === "warn" || type.toLowerCase() === "wrn") return "WARN";
+    const type = (log.type || "").toLowerCase();
+    if (type === "error" || type === "err") return "ERROR";
+    if (type === "warn" || type === "wrn") return "WARN";
 
     // Fallback to checking the msg
-    const msg = log.msg || "";
-    if (msg.includes("[ERR]") || msg.includes("Error") || msg.includes("failed")) return "ERROR";
-    if (msg.includes("[WRN]")) return "WARN";
+    const msg = (log.msg || "").toLowerCase();
+    if (
+      msg.includes("[err]") ||
+      msg.includes("error") ||
+      msg.includes("failed") ||
+      msg.includes("crash") ||
+      msg.includes("fatal") ||
+      msg.includes("panic") ||
+      msg.includes("exception")
+    ) return "ERROR";
+    if (msg.includes("[wrn]")) return "WARN";
     return "INFO";
+  };
+
+  const copyToClipboardText = (text: string, callback?: () => void) => {
+    if (navigator.clipboard?.writeText) {
+      void navigator.clipboard.writeText(text).then(() => {
+        if (callback) callback();
+      }).catch((err) => {
+        console.error("Failed to copy text:", err);
+      });
+    } else {
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        (document as any).execCommand("copy");
+        textArea.remove();
+        if (callback) callback();
+      } catch (err) {
+        console.error("Failed to copy using fallback:", err);
+      }
+    }
   };
 
   const handleCopyLog = (log: LogEntry) => {
@@ -262,29 +389,12 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
       `Stack Trace:\n${stackTraceText}`
     ].join("\n");
 
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(copyText).then(() => {
-        setCopiedId(log.id);
-        setTimeout(() => {
-          setCopiedId(null);
-        }, 2000);
-      });
-    } else {
-      try {
-        const textArea = document.createElement("textarea");
-        textArea.value = copyText;
-        document.body.appendChild(textArea);
-        textArea.select();
-        (document as any).execCommand("copy");
-        textArea.remove();
-        setCopiedId(log.id);
-        setTimeout(() => {
-          setCopiedId(null);
-        }, 2000);
-      } catch (err) {
-        console.error("Failed to copy using fallback:", err);
-      }
-    }
+    copyToClipboardText(copyText, () => {
+      setCopiedId(log.id);
+      setTimeout(() => {
+        setCopiedId(null);
+      }, 2000);
+    });
   };
 
   // Slice list for pagination. Array contains newest logs at index 0.
@@ -293,6 +403,109 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
   const startIndex = (safeCurrentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
   const paginatedLogs = displayedLogs.slice(startIndex, endIndex);
+
+  // Selection Helper Methods with Shift+Click Range Selection support
+  const toggleSelectLog = (id: string | number, isShiftKey: boolean = false) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+
+      if (isShiftKey && lastSelectedIdRef.current !== null) {
+        const lastId = lastSelectedIdRef.current;
+        const lastIndex = paginatedLogs.findIndex((l) => l.id === lastId);
+        const currentIndex = paginatedLogs.findIndex((l) => l.id === id);
+
+        if (lastIndex !== -1 && currentIndex !== -1) {
+          const start = Math.min(lastIndex, currentIndex);
+          const end = Math.max(lastIndex, currentIndex);
+          const rangeLogs = paginatedLogs.slice(start, end + 1);
+
+          rangeLogs.forEach((l) => next.add(l.id));
+          lastSelectedIdRef.current = id;
+          return next;
+        }
+      }
+
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+
+      lastSelectedIdRef.current = id;
+      return next;
+    });
+  };
+
+  const isCurrentPageAllSelected = paginatedLogs.length > 0 && paginatedLogs.every(log => selectedIds.has(log.id));
+
+  const handleSelectAllCurrentPage = () => {
+    if (isCurrentPageAllSelected) {
+      // Unselect all on current page
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedLogs.forEach(log => next.delete(log.id));
+        return next;
+      });
+    } else {
+      // Select all on current page
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        paginatedLogs.forEach(log => next.add(log.id));
+        return next;
+      });
+    }
+  };
+
+  const handleCancelSelection = () => {
+    setSelectedIds(new Set());
+    setIsSelectMode(false);
+    setContextMenu(null);
+    lastSelectedIdRef.current = null;
+  };
+
+  const copyFormattedSelectedLogs = () => {
+    // Preserve log order as displayed on current page / list
+    const selectedLogs = displayedLogs.filter(log => selectedIds.has(log.id));
+    if (selectedLogs.length === 0) return;
+
+    // Exact WhatsApp / raw format as requested: [time] message
+    const lines = selectedLogs.map(log => `[${log.time}] ${log.msg}`);
+    const copyText = lines.join("\n");
+
+    copyToClipboardText(copyText, () => {
+      setContextMenu(null);
+      setShowBatchCopiedTooltip(true);
+      setTimeout(() => {
+        setShowBatchCopiedTooltip(false);
+      }, 2000);
+    });
+  };
+
+  const handleRowContextMenu = (e: React.MouseEvent, log: LogEntry) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isSelectMode) {
+      setContextMenu({ x: e.clientX, y: e.clientY, targetLog: log });
+    } else {
+      // If current log is not selected yet, select it
+      if (!selectedIds.has(log.id)) {
+        setSelectedIds(prev => new Set(prev).add(log.id));
+        lastSelectedIdRef.current = log.id;
+      }
+      setContextMenu({ x: e.clientX, y: e.clientY, targetLog: log });
+    }
+  };
+
+  const handleContextMenuSelectLogOption = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (contextMenu) {
+      const targetId = contextMenu.targetLog.id;
+      lastSelectedIdRef.current = targetId;
+      setSelectedIds(new Set([targetId]));
+      setIsSelectMode(true);
+      setContextMenu(null);
+    }
+  };
 
   const renderLogContent = () => {
     if (displayedLogs.length === 0) {
@@ -311,33 +524,53 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
         <div className="flex flex-col min-h-full space-y-1.5">
           {paginatedLogs.map((log) => {
             const isCopied = copiedId === log.id;
+            const isSelected = selectedIds.has(log.id);
             return (
-              <div
+              <LogRowWrapper
                 key={log.id}
-                className="flex items-center justify-between gap-4 group py-1 px-2 border border-transparent hover:border-slate-100 dark:hover:border-white/5 hover:bg-slate-50 dark:hover:bg-slate-900/40 rounded transition-all"
+                log={log}
+                isSelected={isSelected}
+                isSelectMode={isSelectMode}
+                onRowContextMenu={handleRowContextMenu}
+                onToggleSelect={toggleSelectLog}
+                className={cn(
+                  "flex items-center justify-between gap-4 group py-1 px-2 border rounded transition-all select-none cursor-pointer",
+                  isSelected
+                    ? "bg-blue-50/80 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/50"
+                    : "border-transparent hover:border-slate-100 dark:hover:border-white/5 hover:bg-slate-50 dark:hover:bg-slate-900/40"
+                )}
               >
-                <div className="flex gap-4 items-baseline min-w-0 flex-1">
+                <div className="flex gap-3 items-baseline min-w-0 flex-1">
+                  {isSelectMode && (
+                    <LogCheckbox
+                      isSelected={isSelected}
+                      onToggleSelect={(isShift) => toggleSelectLog(log.id, isShift)}
+                      className="self-center"
+                    />
+                  )}
                   <span className="text-slate-400 dark:text-slate-600 select-none shrink-0 w-20">
                     [{log.time}]
                   </span>
                   <span
                     className={cn(
                       "flex-1 break-all leading-relaxed min-w-0",
-                      getLogColorClass(log.msg)
+                      getLogColorClass(log.msg, log.type)
                     )}
                   >
                     {log.msg}
                   </span>
                 </div>
-                <CopyLogButton
-                  isCopied={isCopied}
-                  onCopy={(e) => {
-                    e.preventDefault();
-                    handleCopyLog(log);
-                  }}
-                  title="Copy Log"
-                />
-              </div>
+                {!isSelectMode && (
+                  <CopyLogButton
+                    isCopied={isCopied}
+                    onCopy={(e) => {
+                      e.preventDefault();
+                      handleCopyLog(log);
+                    }}
+                    title="Copy Log"
+                  />
+                )}
+              </LogRowWrapper>
             );
           })}
         </div>
@@ -348,6 +581,7 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
       <div className="flex flex-col min-h-full space-y-3">
         {paginatedLogs.map((log) => {
           const isCopied = copiedId === log.id;
+          const isSelected = selectedIds.has(log.id);
           const level = getLogLevel(log);
           const isService = log.isServiceLog;
 
@@ -361,13 +595,30 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
           const currentBadgeClass = badgeClasses[level] || badgeClasses.INFO;
 
           return (
-            <div
+            <LogRowWrapper
               key={log.id}
-              className="p-4 rounded-lg border text-[10px] transition-all shadow-sm flex flex-col gap-3 bg-slate-50/50 dark:bg-slate-900/20 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700"
+              log={log}
+              isSelected={isSelected}
+              isSelectMode={isSelectMode}
+              onRowContextMenu={handleRowContextMenu}
+              onToggleSelect={toggleSelectLog}
+              className={cn(
+                "p-4 rounded-lg border text-[10px] transition-all shadow-sm flex flex-col gap-3 select-none cursor-pointer",
+                isSelected
+                  ? "bg-blue-50/80 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/50"
+                  : "bg-slate-50/50 dark:bg-slate-900/20 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700"
+              )}
             >
               {/* Top line with metadata */}
               <div className="flex items-center justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-2">
+                  {isSelectMode && (
+                    <LogCheckbox
+                      isSelected={isSelected}
+                      onToggleSelect={(isShift) => toggleSelectLog(log.id, isShift)}
+                      className="mr-1"
+                    />
+                  )}
                   <span className="text-slate-400 dark:text-slate-500 font-bold tracking-tight">
                     [{log.time}]
                   </span>
@@ -389,20 +640,22 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
                   )}
                 </div>
 
-                <CopyLogButton
-                  isCopied={isCopied}
-                  onCopy={(e) => {
-                    e.preventDefault();
-                    handleCopyLog(log);
-                  }}
-                  title="Copy Laravel-Style Log"
-                />
+                {!isSelectMode && (
+                  <CopyLogButton
+                    isCopied={isCopied}
+                    onCopy={(e) => {
+                      e.preventDefault();
+                      handleCopyLog(log);
+                    }}
+                    title="Copy Laravel-Style Log"
+                  />
+                )}
               </div>
 
               {/* Message details */}
               <div className={cn(
                 "font-semibold leading-relaxed break-all text-xs",
-                isService ? "text-slate-700 dark:text-slate-300 font-bold" : getLogColorClass(log.msg)
+                getLogColorClass(log.cleanMsg || log.msg, log.type)
               )}>
                 {log.cleanMsg || log.msg}
               </div>
@@ -419,7 +672,7 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
                   </pre>
                 </details>
               )}
-            </div>
+            </LogRowWrapper>
           );
         })}
       </div>
@@ -427,54 +680,160 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
   };
 
   return (
-    <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500 bg-white dark:bg-[#0f172a]">
+    <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500 bg-white dark:bg-[#0f172a] relative">
+      {/* Custom Context Menu */}
+      {contextMenu && (
+        <div
+          ref={menuRef}
+          style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
+          className="fixed z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl py-1 text-[11px] font-sans min-w-[140px] animate-in fade-in duration-100"
+        >
+          {isSelectMode ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                copyFormattedSelectedLogs();
+              }}
+              disabled={selectedIds.size === 0}
+              className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed font-semibold"
+            >
+              <CopyIcon size={13} />
+              <span>Copy ({selectedIds.size})</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleContextMenuSelectLogOption}
+              className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 font-semibold"
+            >
+              <CheckSquare size={13} />
+              <span>Select Log</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCancelSelection();
+            }}
+            className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-rose-600 dark:text-rose-400 font-semibold"
+          >
+            <X size={13} />
+            <span>Cancel</span>
+          </button>
+        </div>
+      )}
+
       {/* Header Area */}
       <div className="shrink-0 p-6 border-b border-slate-200 dark:border-white/5 bg-white/50 dark:bg-slate-900/40 flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div>
-              <h3 className="font-black text-slate-900 dark:text-white uppercase italic tracking-tighter text-sm">
-                System Activity Logs
-              </h3>
-              <p className="text-[9px] text-slate-400 uppercase tracking-widest font-bold">
-                Real-time application monitoring
-              </p>
-            </div>
+          <div>
+            <h3 className="font-black text-slate-900 dark:text-white uppercase italic tracking-tighter text-sm">
+              System Activity Logs
+            </h3>
+            <p className="text-[9px] text-slate-400 uppercase tracking-widest font-bold">
+              Real-time application monitoring
+            </p>
+          </div>
+
+          {/* Select Button Toggle */}
+          <div className="flex items-center gap-2">
+            {!isSelectMode ? (
+              <button
+                type="button"
+                onClick={() => setIsSelectMode(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-all uppercase tracking-wider border border-slate-200 dark:border-white/10"
+              >
+                <CheckSquare size={13} />
+                <span>Select Log</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleCancelSelection}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-300 transition-all uppercase tracking-wider border border-rose-200 dark:border-rose-800/40"
+              >
+                <X size={13} />
+                <span>Cancel Selection</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Switcher Control */}
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-lg self-start">
-          <button
-            type="button"
-            onClick={() => {
-              setViewMode("simple");
-              setCurrentPage(1);
-            }}
-            className={cn(
-              "px-3 py-1.5 rounded-md text-[10px] font-bold transition-all uppercase tracking-wider",
-              viewMode === "simple"
-                ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
-                : "text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white"
-            )}
-          >
-            Simple Log
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setViewMode("complete");
-              setCurrentPage(1);
-            }}
-            className={cn(
-              "px-3 py-1.5 rounded-md text-[10px] font-bold transition-all uppercase tracking-wider",
-              viewMode === "complete"
-                ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
-                : "text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white"
-            )}
-          >
-            Complete Log
-          </button>
+        {/* Action / Selection bar or Switcher Control */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-lg">
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode("simple");
+                setCurrentPage(1);
+              }}
+              className={cn(
+                "px-3 py-1.5 rounded-md text-[10px] font-bold transition-all uppercase tracking-wider",
+                viewMode === "simple"
+                  ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white"
+              )}
+            >
+              Simple Log
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode("complete");
+                setCurrentPage(1);
+              }}
+              className={cn(
+                "px-3 py-1.5 rounded-md text-[10px] font-bold transition-all uppercase tracking-wider",
+                viewMode === "complete"
+                  ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white"
+              )}
+            >
+              Complete Log
+            </button>
+          </div>
+
+          {/* Selection Controls when Selection Mode active */}
+          {isSelectMode && (
+            <div className="flex items-center gap-3 bg-blue-50 dark:bg-blue-950/30 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800/40 text-[10px] relative">
+              <label className="flex items-center gap-1.5 cursor-pointer font-bold text-slate-700 dark:text-slate-300 select-none">
+                <input
+                  type="checkbox"
+                  checked={isCurrentPageAllSelected}
+                  onChange={handleSelectAllCurrentPage}
+                  className="accent-blue-600 rounded cursor-pointer"
+                />
+                <span>Select All (Current Page)</span>
+              </label>
+
+              <span className="text-slate-300 dark:text-slate-700">|</span>
+
+              <span className="font-bold text-blue-600 dark:text-blue-400">
+                {selectedIds.size} selected
+              </span>
+
+              <div className="relative inline-flex items-center">
+                <button
+                  type="button"
+                  onClick={copyFormattedSelectedLogs}
+                  disabled={selectedIds.size === 0}
+                  className="flex items-center gap-1 px-2.5 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded transition-all"
+                >
+                  <CopyIcon size={12} />
+                  <span>Copy</span>
+                </button>
+                {showBatchCopiedTooltip && (
+                  <span className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-900 text-emerald-400 text-[9px] font-bold rounded shadow-lg border border-emerald-500/30 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150">
+                    Copied!
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

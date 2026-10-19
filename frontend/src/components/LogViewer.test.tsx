@@ -133,7 +133,7 @@ describe("LogViewer Component", () => {
 
     // Verify "View Stack Trace" elements
     const viewStackTraces = screen.getAllByText("View Stack Trace");
-    expect(viewStackTraces.length).toBe(3); // 3 non-service logs have stacks
+    expect(viewStackTraces).toHaveLength(3); // 3 non-service logs have stacks
 
     // Verify raw stack trace exists inside <pre>
     const preBlocks = screen.getAllByText(/at initServer/i);
@@ -145,7 +145,7 @@ describe("LogViewer Component", () => {
 
     // Find the copy button
     const copyButtons = screen.getAllByTitle("Copy Log");
-    expect(copyButtons.length).toBe(1);
+    expect(copyButtons).toHaveLength(1);
 
     // Click copy button
     fireEvent.click(copyButtons[0]);
@@ -214,6 +214,137 @@ describe("LogViewer Component", () => {
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
       expect.stringContaining("Stack Trace:\nN/A")
     );
+  });
+
+  describe("Gmail-style Selection Mode, Shift+Click, Context Menu, and Batch Copy", () => {
+    it("toggles selection mode, shows checkboxes, and handles single/select-all selection", () => {
+      render(<LogViewer logs={mockLogs} />);
+
+      // Initially "Select Log" button should be present and no checkboxes
+      const selectLogBtn = screen.getByRole("button", { name: /select log/i });
+      expect(selectLogBtn).toBeInTheDocument();
+      expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+
+      // Click "Select Log" to enter selection mode
+      fireEvent.click(selectLogBtn);
+
+      // Should now see "Cancel Selection" button, "Select All (Current Page)" checkbox, and 4 entry checkboxes
+      expect(screen.getByRole("button", { name: /cancel selection/i })).toBeInTheDocument();
+      const checkboxes = screen.getAllByRole("checkbox");
+      // 1 header checkbox + 4 log checkboxes = 5 total
+      expect(checkboxes).toHaveLength(5);
+
+      // Check "Select All (Current Page)"
+      const selectAllCheckbox = screen.getByLabelText(/select all \(current page\)/i);
+      fireEvent.click(selectAllCheckbox);
+
+      // Count of selected items should update
+      expect(screen.getByText(/4 selected/i)).toBeInTheDocument();
+
+      // Uncheck "Select All"
+      fireEvent.click(selectAllCheckbox);
+      expect(screen.getByText(/0 selected/i)).toBeInTheDocument();
+
+      // Click "Cancel Selection" to exit selection mode
+      const cancelBtn = screen.getByRole("button", { name: /cancel selection/i });
+      fireEvent.click(cancelBtn);
+
+      expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /select log/i })).toBeInTheDocument();
+    });
+
+    it("opens context menu with 'Select Log' when right clicked outside selection mode", async () => {
+      render(<LogViewer logs={mockLogs} />);
+
+      const logEntry = screen.getByText("[12:00:00]");
+      fireEvent.contextMenu(logEntry);
+
+      // Menu option inside context menu popover is the first 'Select Log' button in DOM
+      const selectLogOptions = screen.getAllByRole("button", { name: /select log/i });
+      const contextMenuOption = selectLogOptions[0];
+
+      await act(async () => {
+        fireEvent.click(contextMenuOption);
+      });
+
+      // Selection mode should be activated and target log selected
+      expect(screen.getByRole("button", { name: /cancel selection/i })).toBeInTheDocument();
+      expect(screen.getByText(/1 selected/i)).toBeInTheDocument();
+    });
+
+    it("supports Shift+Click range selection like Gmail", () => {
+      render(<LogViewer logs={mockLogs} />);
+
+      // Enter selection mode
+      fireEvent.click(screen.getByRole("button", { name: /select log/i }));
+
+      const checkboxes = screen.getAllByRole("checkbox");
+
+      // Click first item checkbox (index 1)
+      fireEvent.click(checkboxes[1]);
+      expect(screen.getByText(/1 selected/i)).toBeInTheDocument();
+
+      // Shift+Click fourth item checkbox (index 4)
+      fireEvent.click(checkboxes[4], { shiftKey: true });
+
+      // Range 1 to 4 should be selected
+      expect(screen.getByText(/4 selected/i)).toBeInTheDocument();
+    });
+
+    it("copies selected logs with Copied! tooltip feedback", async () => {
+      render(<LogViewer logs={mockLogs} />);
+
+      // Enter selection mode
+      fireEvent.click(screen.getByRole("button", { name: /select log/i }));
+
+      // Select first two logs
+      const checkboxes = screen.getAllByRole("checkbox");
+      fireEvent.click(checkboxes[1]); // log 1
+      fireEvent.click(checkboxes[2]); // log 2
+
+      expect(screen.getByText(/2 selected/i)).toBeInTheDocument();
+
+      // Click Copy button in action bar
+      const copyBtn = screen.getByRole("button", { name: /^copy$/i });
+      fireEvent.click(copyBtn);
+      await act(async () => {});
+
+      // Verify exact WhatsApp-style text format [time] msg
+      const expectedText = "[12:00:00] [SYS] Server starting\n[12:00:05] [WRN] Low disk space";
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expectedText);
+
+      // Verify Copied! tooltip feedback appeared
+      expect(screen.getByText("Copied!")).toBeInTheDocument();
+
+      // Advance time by 2 seconds
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+
+      expect(screen.queryByText("Copied!")).not.toBeInTheDocument();
+    });
+
+    it("opens context menu on right click in selection mode and handles copy/cancel", async () => {
+      render(<LogViewer logs={mockLogs} />);
+
+      // Enter selection mode
+      fireEvent.click(screen.getByRole("button", { name: /select log/i }));
+
+      // Right-click on third log entry
+      const logEntry = screen.getByText("[12:00:10]");
+      fireEvent.contextMenu(logEntry);
+
+      // Context menu should appear with Copy (1) and Cancel
+      const copyMenuBtn = screen.getByRole("button", { name: /copy \(1\)/i });
+
+      expect(copyMenuBtn).toBeInTheDocument();
+
+      // Click Copy in context menu
+      fireEvent.click(copyMenuBtn);
+      await act(async () => {});
+
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith("[12:00:10] [ERR] Database connection failed");
+    });
   });
 
   describe("Pagination and Ordering", () => {
