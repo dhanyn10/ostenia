@@ -149,7 +149,7 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
   // Close context menu on outside click or scroll
   React.useEffect(() => {
     const handleCloseMenu = (e: MouseEvent) => {
-      if (menuRef.current && menuRef.current.contains(e.target as Node)) {
+      if (menuRef.current?.contains(e.target as Node)) {
         return;
       }
       setContextMenu(null);
@@ -285,8 +285,10 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
 
   const copyToClipboardText = (text: string, callback?: () => void) => {
     if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).then(() => {
+      void navigator.clipboard.writeText(text).then(() => {
         if (callback) callback();
+      }).catch((err) => {
+        console.error("Failed to copy text:", err);
       });
     } else {
       try {
@@ -464,9 +466,17 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
             return (
               <div
                 key={log.id}
+                role="button"
+                tabIndex={0}
                 onContextMenu={(e) => handleRowContextMenu(e, log)}
                 onClick={(e) => {
                   if (isSelectMode) {
+                    toggleSelectLog(log.id, e.shiftKey);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if ((e.key === "Enter" || e.key === " ") && isSelectMode) {
+                    e.preventDefault();
                     toggleSelectLog(log.id, e.shiftKey);
                   }
                 }}
@@ -539,9 +549,17 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
           return (
             <div
               key={log.id}
+              role="button"
+              tabIndex={0}
               onContextMenu={(e) => handleRowContextMenu(e, log)}
               onClick={(e) => {
                 if (isSelectMode) {
+                  toggleSelectLog(log.id, e.shiftKey);
+                }
+              }}
+              onKeyDown={(e) => {
+                if ((e.key === "Enter" || e.key === " ") && isSelectMode) {
+                  e.preventDefault();
                   toggleSelectLog(log.id, e.shiftKey);
                 }
               }}

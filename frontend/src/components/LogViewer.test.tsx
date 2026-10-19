@@ -133,7 +133,7 @@ describe("LogViewer Component", () => {
 
     // Verify "View Stack Trace" elements
     const viewStackTraces = screen.getAllByText("View Stack Trace");
-    expect(viewStackTraces.length).toBe(3); // 3 non-service logs have stacks
+    expect(viewStackTraces).toHaveLength(3); // 3 non-service logs have stacks
 
     // Verify raw stack trace exists inside <pre>
     const preBlocks = screen.getAllByText(/at initServer/i);
@@ -145,7 +145,7 @@ describe("LogViewer Component", () => {
 
     // Find the copy button
     const copyButtons = screen.getAllByTitle("Copy Log");
-    expect(copyButtons.length).toBe(1);
+    expect(copyButtons).toHaveLength(1);
 
     // Click copy button
     fireEvent.click(copyButtons[0]);
@@ -232,7 +232,7 @@ describe("LogViewer Component", () => {
       expect(screen.getByRole("button", { name: /cancel selection/i })).toBeInTheDocument();
       const checkboxes = screen.getAllByRole("checkbox");
       // 1 header checkbox + 4 log checkboxes = 5 total
-      expect(checkboxes.length).toBe(5);
+      expect(checkboxes).toHaveLength(5);
 
       // Check "Select All (Current Page)"
       const selectAllCheckbox = screen.getByLabelText(/select all \(current page\)/i);
