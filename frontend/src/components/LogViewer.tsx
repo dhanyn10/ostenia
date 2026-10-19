@@ -99,21 +99,22 @@ const LogRowWrapper = ({
   className,
   children,
 }: Readonly<LogRowWrapperProps>) => {
+  if (isSelectMode) {
+    return (
+      <button
+        type="button"
+        onContextMenu={(e) => onRowContextMenu(e, log)}
+        onClick={(e) => onToggleSelect(log.id, e.shiftKey)}
+        className={cn(className, "w-full text-left")}
+      >
+        {children}
+      </button>
+    );
+  }
+
   return (
     <div
-      tabIndex={0}
       onContextMenu={(e) => onRowContextMenu(e, log)}
-      onClick={(e) => {
-        if (isSelectMode) {
-          onToggleSelect(log.id, e.shiftKey);
-        }
-      }}
-      onKeyDown={(e) => {
-        if ((e.key === "Enter" || e.key === " ") && isSelectMode) {
-          e.preventDefault();
-          onToggleSelect(log.id, e.shiftKey);
-        }
-      }}
       className={className}
     >
       {children}
