@@ -62,3 +62,26 @@ func TestMySQLConfig(t *testing.T) {
 		}
 	})
 }
+
+func TestValidateMySQLDataDir(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// 1. Non-existent dir returns nil
+	if err := ValidateMySQLDataDir(filepath.Join(tempDir, "nonexistent")); err != nil {
+		t.Errorf("Expected nil for nonexistent dir, got: %v", err)
+	}
+
+	// 2. Existing writable dir without ibdata1 returns nil
+	dataDir := filepath.Join(tempDir, "data")
+	_ = os.MkdirAll(dataDir, 0755)
+	if err := ValidateMySQLDataDir(dataDir); err != nil {
+		t.Errorf("Expected nil for clean writable dir, got: %v", err)
+	}
+
+	// 3. Existing writable dir with writable ibdata1 returns nil
+	ibdataPath := filepath.Join(dataDir, "ibdata1")
+	_ = os.WriteFile(ibdataPath, []byte("data"), 0644)
+	if err := ValidateMySQLDataDir(dataDir); err != nil {
+		t.Errorf("Expected nil for dir with writable ibdata1, got: %v", err)
+	}
+}

@@ -27,4 +27,16 @@ func TestUtils(t *testing.T) {
 	t.Run("AddHostWithElevation", func(t *testing.T) {
 		_ = AddHostWithElevation("127.0.0.1", "test.local")
 	})
+
+	t.Run("IsPathInside", func(t *testing.T) {
+		if !IsPathInside("C:\\ostenia\\bin\\mysql\\mysqld.exe", "C:\\ostenia\\bin") {
+			t.Errorf("Expected path to be inside parent")
+		}
+		if IsPathInside("C:\\other\\mysqld.exe", "C:\\ostenia\\bin") {
+			t.Errorf("Expected path to NOT be inside parent")
+		}
+		if IsPathInside("", "C:\\ostenia\\bin") {
+			t.Errorf("Expected empty path to NOT be inside parent")
+		}
+	})
 }

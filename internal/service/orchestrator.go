@@ -51,6 +51,8 @@ type Orchestrator struct {
 	needsRefresh bool
 	refreshMu    sync.Mutex
 	runtime      interfaces.Runtime
+	recentLogs   map[string][]string
+	recentLogsMu sync.RWMutex
 }
 
 // NewOrchestrator creates a new Orchestrator instance
@@ -60,6 +62,7 @@ func NewOrchestrator() *Orchestrator {
 		serviceCache: make(map[string]ServiceDetailedInfo),
 		activeTab:    "activity",
 		needsRefresh: true,
+		recentLogs:   make(map[string][]string),
 	}
 }
 
@@ -302,6 +305,9 @@ func (o *Orchestrator) updateServicePorts(info *ServiceDetailedInfo, pids []int,
 	foundPorts := make(map[int]bool)
 	for _, pid := range pids {
 		ports := findPortsByPIDExact(pid)
+		if len(ports) > 0 && (info.PID == 0 || info.PID != pid) {
+			info.PID = pid
+		}
 		for _, p := range ports {
 			foundPorts[p] = true
 		}
@@ -312,7 +318,7 @@ func (o *Orchestrator) updateServicePorts(info *ServiceDetailedInfo, pids []int,
 	sort.Ints(info.Ports)
 	if len(info.Ports) > 0 {
 		info.Port = info.Ports[0]
-	} else if tracked && s.port > 0 {
+	} else if tracked && s != nil && s.port > 0 {
 		info.Port = s.port
 		info.Ports = append(info.Ports, info.Port)
 	}
@@ -420,6 +426,8 @@ func containsInt(slice []int, val int) bool {
 // StartServiceWithPort launches a service and tracks it by its known port
 func (o *Orchestrator) StartServiceWithPort(ctx context.Context, name, binaryPath string, args []string, workingDir string, port int) error {
 	if o.isServiceAlreadyRunning(name, binaryPath) {
+		o.RequestRefresh()
+		o.emitStatus(ctx, name, "Running")
 		return fmt.Errorf("service %s is already running", name)
 	}
 
@@ -439,24 +447,46 @@ func (o *Orchestrator) StartServiceWithPort(ctx context.Context, name, binaryPat
 	o.RequestRefresh()
 	o.emitStatus(ctx, name, "Running")
 
-	go o.waitForServiceExit(ctx, name, s)
-	return nil
+	exitChan := make(chan error, 1)
+	go func() {
+		exitErr := s.Wait()
+		exitChan <- exitErr
+		o.mu.Lock()
+		if o.services[name] == s {
+			delete(o.services, name)
+		}
+		o.mu.Unlock()
+		o.RequestRefresh()
+		o.emitStatus(ctx, name, "Stopped")
+	}()
+
+	select {
+	case exitErr := <-exitChan:
+		if exitErr != nil {
+			lastLog := o.getLastServiceLog(name)
+			if lastLog != "" {
+				return fmt.Errorf("service %s failed to start: %s", name, o.diagnoseLogMessage(lastLog))
+			}
+			return fmt.Errorf("service %s failed to start (process exited immediately): %v", name, exitErr)
+		}
+		return nil
+	case <-time.After(500 * time.Millisecond):
+		return nil
+	}
 }
 
 func (o *Orchestrator) isServiceAlreadyRunning(name, binaryPath string) bool {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	s, exists := o.services[name]
-	if !exists || s.cmd == nil || s.cmd.Process == nil {
-		return false
+	pids := findOsteniaPIDs(filepath.Base(binaryPath))
+	if len(pids) > 0 {
+		return true
 	}
 
-	pids := findOsteniaPIDs(filepath.Base(binaryPath))
-	for _, p := range pids {
-		if p == s.cmd.Process.Pid {
-			return true
-		}
+	s, exists := o.services[name]
+	if exists && s.cmd != nil && s.cmd.Process != nil {
+		return true
 	}
 	return false
 }
@@ -570,8 +600,52 @@ func (o *Orchestrator) captureLogs(ctx context.Context, name string, reader io.R
 	defer reader.Close()
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
-		o.emitEvent(ctx, "service_log", map[string]string{"service": name, "message": scanner.Text()})
+		text := scanner.Text()
+		o.recordRecentLog(name, text)
+		o.emitEvent(ctx, "service_log", map[string]string{"service": name, "message": text})
 	}
+}
+
+func (o *Orchestrator) recordRecentLog(serviceName, message string) {
+	o.recentLogsMu.Lock()
+	defer o.recentLogsMu.Unlock()
+	if o.recentLogs == nil {
+		o.recentLogs = make(map[string][]string)
+	}
+	logs := append(o.recentLogs[serviceName], message)
+	if len(logs) > 20 {
+		logs = logs[len(logs)-20:]
+	}
+	o.recentLogs[serviceName] = logs
+}
+
+func (o *Orchestrator) getLastServiceLog(serviceName string) string {
+	o.recentLogsMu.RLock()
+	defer o.recentLogsMu.RUnlock()
+	logs, ok := o.recentLogs[serviceName]
+	if !ok || len(logs) == 0 {
+		return ""
+	}
+	for i := len(logs) - 1; i >= 0; i-- {
+		line := logs[i]
+		if strings.Contains(line, "[ERROR]") || strings.Contains(strings.ToLower(line), "error") || strings.Contains(line, "Aborting") {
+			return line
+		}
+	}
+	return logs[len(logs)-1]
+}
+
+func (o *Orchestrator) diagnoseLogMessage(msg string) string {
+	if strings.Contains(msg, "ibdata1' must be writable") {
+		return "Database file 'ibdata1' is inaccessible or locked by another process. Please ensure no other MySQL instance is running and administrator privileges (UAC) are granted if required."
+	}
+	if strings.Contains(msg, "Bind on TCP/IP port") || strings.Contains(msg, "Only one usage of each socket address") || strings.Contains(msg, "Address already in use") {
+		return "Server port is already in use by another application."
+	}
+	if strings.Contains(msg, "Access is denied") {
+		return "Access denied (Permission Denied). Administrator privileges (UAC) are required."
+	}
+	return msg
 }
 
 func (o *Orchestrator) emitStatus(ctx context.Context, name, status string) {
@@ -589,17 +663,25 @@ func findOsteniaPIDs(exeName string) []int {
 		return []int{}
 	}
 
-	wmicPath := filepath.Join(utils.GetSystemDirectory(), "wbem", "wmic.exe")
-	cmd := utils.Executor.Command(wmicPath, "process", "where", fmt.Sprintf("name='%s'", exeName), "get", "ExecutablePath,ProcessId", "/format:csv")
-	cmd.Env = utils.SafeEnv()
-	utils.SetHideWindow(cmd)
-
-	out, err := cmd.Output()
-	if err != nil {
-		return []int{}
+	binPath := filepath.Join(config.GetBaseDir(), "bin")
+	pids := findOsteniaPIDsWindows(exeName, binPath)
+	if len(pids) > 0 {
+		return pids
 	}
 
-	return parseWmicOutput(string(out))
+	wmicPath := filepath.Join(utils.GetSystemDirectory(), "wbem", "wmic.exe")
+	if _, err := os.Stat(wmicPath); err == nil {
+		cmd := utils.Executor.Command(wmicPath, "process", "where", fmt.Sprintf("name='%s'", exeName), "get", "ExecutablePath,ProcessId", "/format:csv")
+		cmd.Env = utils.SafeEnv()
+		utils.SetHideWindow(cmd)
+
+		out, err := cmd.Output()
+		if err == nil {
+			return parseWmicOutput(string(out))
+		}
+	}
+
+	return []int{}
 }
 
 // StopAll terminates all services currently being tracked by the orchestrator
