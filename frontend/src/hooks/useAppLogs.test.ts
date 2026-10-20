@@ -1,7 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useAppLogs, formatLogArgs } from './useAppLogs';
-import * as AppBackend from '../../wailsjs/go/backend/App';
 
 vi.mock('../../wailsjs/go/backend/App', () => ({
   SaveLogToFile: vi.fn().mockResolvedValue(undefined),

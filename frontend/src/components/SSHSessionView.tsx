@@ -24,11 +24,7 @@ import SSHFileExplorer from "./ssh/SSHFileExplorer";
 import ConfirmationModal from "./ConfirmationModal";
 import PromptModal from "./PromptModal";
 import { measureActivity } from "../utils/activityLogger";
-import {
-  ResourceLineChart,
-  MetricItem,
-  type ResourceDataPoint,
-} from "./ssh/ResourceLineChart";
+import { MetricItem } from "./ssh/ResourceLineChart";
 
 /**
  * Checks whether a given filename represents a known archive file format.

@@ -1,5 +1,7 @@
 import React from "react";
 
+export type ResourceMetricType = "cpu" | "mem" | "disk";
+
 export interface ResourceDataPoint {
   cpu: number | null;
   mem: number | null;
@@ -10,7 +12,7 @@ export interface ResourceLineChartProps {
   /** Sequential historical data of resource metrics containing CPU, Memory, and Disk ratios */
   data: ResourceDataPoint[];
   /** Metric type to parse and plot */
-  metric: "cpu" | "mem" | "disk";
+  metric: ResourceMetricType;
   /** Stroke color of the plotted sparkline */
   color: string;
   /** Background area gradient or fill color of the sparkline */
@@ -19,7 +21,7 @@ export interface ResourceLineChartProps {
 
 export const buildSparklineSegments = (
   paddedData: ResourceDataPoint[],
-  metric: "cpu" | "mem" | "disk",
+  metric: ResourceMetricType,
   width: number,
   height: number,
   pointsCount: number
@@ -107,11 +109,11 @@ export const ResourceLineChart: React.FC<ResourceLineChartProps> = ({ data, metr
 export interface MetricItemProps {
   label: string;
   valueText: string;
-  metric: "cpu" | "mem" | "disk";
+  metric: ResourceMetricType;
   color: string;
   fillColor: string;
-  hoveredMetric: "cpu" | "mem" | "disk" | null;
-  setHoveredMetric: (m: "cpu" | "mem" | "disk" | null) => void;
+  hoveredMetric: ResourceMetricType | null;
+  setHoveredMetric: (m: ResourceMetricType | null) => void;
   displayMode: string;
   history: ResourceDataPoint[];
   minWidthClass?: string;

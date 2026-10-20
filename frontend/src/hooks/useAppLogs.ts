@@ -35,7 +35,7 @@ export function useAppLogs() {
         prefix = 'WRN';
       }
 
-      const stackTrace = isServiceLog ? '' : new Error().stack;
+      const stackTrace = isServiceLog ? '' : new Error('Trace capture').stack;
       const { caller, rawStack } = isServiceLog ? { caller: undefined, rawStack: '' } : parseStackTrace(stackTrace);
 
       const formattedMsg = `[${prefix}] ${msg}`;
