@@ -51,10 +51,18 @@ function PluginItem({
       ? task.isInstalled
       : installedVersions.includes(selectedVersion || task.version);
 
+  const hasModules = Boolean(task.modules && task.modules.length > 0);
+
   return (
     <div
+      onClick={() => {
+        if (hasModules) {
+          setIsModulesExpanded(!isModulesExpanded);
+        }
+      }}
       className={cn(
         "bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all group flex flex-col gap-0 relative shadow-sm dark:shadow-lg",
+        hasModules && "cursor-pointer hover:bg-slate-50/80 dark:hover:bg-slate-900/60",
         isDropdownOpen ? "z-[100]" : "z-0",
       )}
     >
@@ -122,10 +130,14 @@ function PluginItem({
           </div>
         </div>
 
-        {task.modules && task.modules.length > 0 && (
+        {hasModules && (
           <button
             type="button"
-            onClick={() => setIsModulesExpanded(!isModulesExpanded)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsModulesExpanded(!isModulesExpanded);
+            }}
+            aria-label={isModulesExpanded ? "Collapse modules" : "Expand modules"}
             className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-sm transition-all text-slate-400 hover:text-slate-900 dark:hover:text-white"
           >
             {isModulesExpanded ? (
@@ -136,7 +148,10 @@ function PluginItem({
           </button>
         )}
 
-        <div className="flex items-center gap-6 shrink-0">
+        <div
+          className="flex items-center gap-6 shrink-0"
+          onClick={(e) => e.stopPropagation()}
+        >
           {isActive && (
             <div className="animate-in fade-in slide-in-from-right-2 duration-300">
               <CircularProgress
@@ -168,8 +183,11 @@ function PluginItem({
         </div>
       </div>
 
-      {isModulesExpanded && task.modules && task.modules.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-white/5 space-y-2 animate-in slide-in-from-top-2 duration-200">
+      {isModulesExpanded && hasModules && (
+        <div
+          className="mt-4 pt-4 border-t border-slate-200 dark:border-white/5 space-y-2 animate-in slide-in-from-top-2 duration-200 cursor-default"
+          onClick={(e) => e.stopPropagation()}
+        >
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">
             Available Modules
           </p>

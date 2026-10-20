@@ -416,8 +416,14 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
 
   return (
     <div
+      onClick={() => {
+        if (hasExtraActions) {
+          onToggleAccordion(service.name, hasExtraActions);
+        }
+      }}
       className={cn(
         "w-full text-left bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all flex flex-col relative shadow-sm dark:shadow-lg",
+        hasExtraActions && "cursor-pointer hover:bg-slate-50/80 dark:hover:bg-slate-900/60",
         isExpanded ? "z-[100] ring-1 ring-blue-500/20" : "z-10",
       )}
     >
@@ -431,46 +437,55 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
                 ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5"
                 : "cursor-default",
             )}
-            onClick={() => onToggleAccordion(service.name, hasExtraActions)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleAccordion(service.name, hasExtraActions);
+            }}
           >
             <ServiceIdentity service={service} renderIcon={renderIcon} />
             <ServiceStatus service={service} />
           </button>
 
-          <VersionSwitcher
-            service={service}
-            task={task}
-            handleSwitchVersion={handleSwitchVersion}
-          />
+          <div onClick={(e) => e.stopPropagation()}>
+            <VersionSwitcher
+              service={service}
+              task={task}
+              handleSwitchVersion={handleSwitchVersion}
+            />
+          </div>
         </div>
 
-        <MainActions
-          isInstalled={isInstalled}
-          service={service}
-          handleToggleService={handleToggleService}
-          handleRemoveFromHome={handleRemoveFromHome}
-          setActiveTab={setActiveTab}
-          isTransitioning={isTransitioning}
-        />
+        <div onClick={(e) => e.stopPropagation()}>
+          <MainActions
+            isInstalled={isInstalled}
+            service={service}
+            handleToggleService={handleToggleService}
+            handleRemoveFromHome={handleRemoveFromHome}
+            setActiveTab={setActiveTab}
+            isTransitioning={isTransitioning}
+          />
+        </div>
       </div>
 
       {hasExtraActions && (
-        <ServiceExtraActions
-          service={service}
-          isExpanded={isExpanded}
-          hasPhpExtManager={hasPhpExtManager}
-          hasOpenFolder={hasOpenFolder}
-          hasHeidiOpen={hasHeidiOpen}
-          hasTerminal={hasTerminal}
-          hasHttpsToggle={hasHttpsToggle}
-          setIsModalOpen={setIsModalOpen}
-          handleOpenPluginFolder={handleOpenPluginFolder}
-          openTerminalDropdown={openTerminalDropdown}
-          setOpenTerminalDropdown={setOpenTerminalDropdown}
-          handleOpenLocalTerminal={handleOpenLocalTerminal}
-          handleToggleHttps={handleToggleHttps}
-          isHttpsEnabled={isHttpsEnabled}
-        />
+        <div onClick={(e) => e.stopPropagation()}>
+          <ServiceExtraActions
+            service={service}
+            isExpanded={isExpanded}
+            hasPhpExtManager={hasPhpExtManager}
+            hasOpenFolder={hasOpenFolder}
+            hasHeidiOpen={hasHeidiOpen}
+            hasTerminal={hasTerminal}
+            hasHttpsToggle={hasHttpsToggle}
+            setIsModalOpen={setIsModalOpen}
+            handleOpenPluginFolder={handleOpenPluginFolder}
+            openTerminalDropdown={openTerminalDropdown}
+            setOpenTerminalDropdown={setOpenTerminalDropdown}
+            handleOpenLocalTerminal={handleOpenLocalTerminal}
+            handleToggleHttps={handleToggleHttps}
+            isHttpsEnabled={isHttpsEnabled}
+          />
+        </div>
       )}
     </div>
   );

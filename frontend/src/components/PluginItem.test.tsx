@@ -101,6 +101,22 @@ describe("PluginItem Component", () => {
     expect(mockProps.onInstallModule).toHaveBeenCalledWith("PHP", "xdebug");
   });
 
+  it("expands modules when the card element is clicked", () => {
+    const { container } = render(<PluginItem {...mockProps} />);
+
+    expect(screen.queryByText("Available Modules")).not.toBeInTheDocument();
+
+    const card = container.firstChild as HTMLElement;
+    fireEvent.click(card);
+
+    expect(screen.getByText("Available Modules")).toBeInTheDocument();
+    expect(screen.getByText("xdebug")).toBeInTheDocument();
+
+    // Clicking card again collapses it
+    fireEvent.click(card);
+    expect(screen.queryByText("Available Modules")).not.toBeInTheDocument();
+  });
+
   it("shows circular progress during active download", () => {
     const props = {
       ...mockProps,

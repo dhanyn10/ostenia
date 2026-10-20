@@ -55,7 +55,10 @@ const VersionDropdown: React.FC<VersionDropdownProps> = ({
             type="button"
             className="fixed inset-0 z-[60] w-full h-full bg-transparent border-none p-0 cursor-default focus:outline-none"
             onKeyDown={handleActionKey(onToggle)}
-            onClick={onToggle}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle();
+            }}
           />
           <div className="absolute top-full left-0 mt-1 w-32 max-h-56 overflow-y-auto bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-white/10 rounded-sm z-[70] animate-in fade-in zoom-in-95 duration-200">
             <div className="p-1 space-y-0.5">
@@ -63,7 +66,8 @@ const VersionDropdown: React.FC<VersionDropdownProps> = ({
                 <button
                   type="button"
                   key={v}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     onChange(v);
                     onToggle();
                   }}

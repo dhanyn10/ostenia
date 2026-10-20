@@ -67,6 +67,15 @@ describe("ServiceItem Component", () => {
     expect(mockProps.onToggleAccordion).toHaveBeenCalledWith("Apache", true);
   });
 
+  it("calls onToggleAccordion when the card element is clicked", () => {
+    const { container } = render(<ServiceItem {...mockProps} />);
+
+    const card = container.firstChild as HTMLElement;
+    fireEvent.click(card);
+
+    expect(mockProps.onToggleAccordion).toHaveBeenCalledWith("Apache", true);
+  });
+
   it("calls handleToggleService when main action button is clicked", () => {
     render(<ServiceItem {...mockProps} />);
 
