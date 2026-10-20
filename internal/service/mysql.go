@@ -15,8 +15,8 @@ func UpdateMySQLConfig(mysqlBaseDir, dataDir, tmpDir string, port int) error {
 	iniPath := filepath.Join(mysqlBaseDir, "my.ini")
 
 	// Ensure data and tmp directories exist
-	_ = os.MkdirAll(dataDir, 0755)
-	_ = os.MkdirAll(tmpDir, 0755)
+	_ = os.MkdirAll(dataDir, 0700)
+	_ = os.MkdirAll(tmpDir, 0700)
 
 	content := fmt.Sprintf(`
 [mysqld]
@@ -57,7 +57,7 @@ default-character-set=utf8mb4
 		port,
 	)
 
-	return os.WriteFile(iniPath, []byte(content), 0644)
+	return os.WriteFile(iniPath, []byte(content), 0600)
 }
 
 // InitializeMySQLDataDir runs mysql_install_db (or equivalent) if the data directory is empty.
@@ -114,7 +114,7 @@ func ValidateMySQLDataDir(dataDir string) error {
 
 	// 1. Check directory writability
 	testFile := filepath.Join(dataDir, ".ostenia_perm_check")
-	if err := os.WriteFile(testFile, []byte("ok"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("ok"), 0600); err != nil {
 		return fmt.Errorf("MySQL data directory '%s' is not writable (Permission Denied). Administrator privileges (UAC) may be required: %w", dataDir, err)
 	}
 	_ = os.Remove(testFile)
@@ -122,7 +122,7 @@ func ValidateMySQLDataDir(dataDir string) error {
 	// 2. Check ibdata1 if it exists
 	ibdataPath := filepath.Join(dataDir, "ibdata1")
 	if _, err := os.Stat(ibdataPath); err == nil {
-		f, err := os.OpenFile(ibdataPath, os.O_RDWR, 0666)
+		f, err := os.OpenFile(ibdataPath, os.O_RDWR, 0600)
 		if err != nil {
 			return diagnoseFileLockError("ibdata1", err, ibdataPath)
 		}
@@ -145,8 +145,8 @@ func diagnoseFileLockError(fileName string, err error, fullPath string) error {
 				return fmt.Errorf("database file '%s' is currently locked by another process (Sharing Violation). Please ensure no other MySQL instances are running", fileName)
 			case errorAccessDenied:
 				// Attempt to clear Read-Only attribute if set and retry
-				_ = os.Chmod(fullPath, 0666)
-				if retryF, retryErr := os.OpenFile(fullPath, os.O_RDWR, 0666); retryErr == nil {
+				_ = os.Chmod(fullPath, 0600)
+				if retryF, retryErr := os.OpenFile(fullPath, os.O_RDWR, 0600); retryErr == nil {
 					_ = retryF.Close()
 					return nil
 				}

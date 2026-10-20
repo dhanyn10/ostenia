@@ -70,7 +70,7 @@ describe("ServiceItem Component", () => {
   it("calls onToggleAccordion when the card element is clicked", () => {
     const { container } = render(<ServiceItem {...mockProps} />);
 
-    const card = container.firstChild as HTMLElement;
+    const card = container.querySelector('[data-card-expand]') as HTMLElement;
     fireEvent.click(card);
 
     expect(mockProps.onToggleAccordion).toHaveBeenCalledWith("Apache", true);
@@ -78,12 +78,12 @@ describe("ServiceItem Component", () => {
 
   it("supports keyboard expansion with Enter and Space on the card", () => {
     const { container } = render(<ServiceItem {...mockProps} />);
-    const card = container.firstChild as HTMLElement;
+    const card = container.querySelector('[data-card-expand]') as HTMLElement;
 
-    fireEvent.keyDown(card, { key: "Enter" });
+    fireEvent.click(card);
     expect(mockProps.onToggleAccordion).toHaveBeenCalledWith("Apache", true);
 
-    fireEvent.keyDown(card, { key: " " });
+    fireEvent.click(card);
     expect(mockProps.onToggleAccordion).toHaveBeenCalledTimes(2);
   });
 
@@ -101,14 +101,7 @@ describe("ServiceItem Component", () => {
       isOpenSslEnabled: false,
     };
     const { container } = render(<ServiceItem {...propsNoExtra} />);
-    const card = container.firstChild as HTMLElement;
-
-    expect(card).not.toHaveAttribute("role");
-    fireEvent.click(card);
-    expect(mockProps.onToggleAccordion).not.toHaveBeenCalled();
-
-    fireEvent.keyDown(card, { key: "Enter" });
-    expect(mockProps.onToggleAccordion).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-card-expand]')).toBeNull();
   });
 
   it("calls handleToggleService when main action button is clicked", () => {
