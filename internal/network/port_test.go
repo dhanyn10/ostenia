@@ -128,3 +128,89 @@ func TestParsePortOwnerFromNetstat(t *testing.T) {
 		}
 	})
 }
+
+func TestExtractPIDFromNetstatFields(t *testing.T) {
+	tests := []struct {
+		name       string
+		fields     []string
+		targetPort int
+		wantPID    int
+		wantOk     bool
+	}{
+		{
+			name:       "too few fields",
+			fields:     []string{"TCP", "0.0.0.0:80", "0.0.0.0:0"},
+			targetPort: 80,
+			wantPID:    0,
+			wantOk:     false,
+		},
+		{
+			name:       "not listening state",
+			fields:     []string{"TCP", "0.0.0.0:80", "0.0.0.0:0", "CLOSE_WAIT", "1234"},
+			targetPort: 80,
+			wantPID:    0,
+			wantOk:     false,
+		},
+		{
+			name:       "no colon in local address",
+			fields:     []string{"TCP", "invalidaddress", "0.0.0.0:0", "LISTENING", "1234"},
+			targetPort: 80,
+			wantPID:    0,
+			wantOk:     false,
+		},
+		{
+			name:       "invalid port format",
+			fields:     []string{"TCP", "0.0.0.0:abc", "0.0.0.0:0", "LISTENING", "1234"},
+			targetPort: 80,
+			wantPID:    0,
+			wantOk:     false,
+		},
+		{
+			name:       "port mismatch",
+			fields:     []string{"TCP", "0.0.0.0:8080", "0.0.0.0:0", "LISTENING", "1234"},
+			targetPort: 80,
+			wantPID:    0,
+			wantOk:     false,
+		},
+		{
+			name:       "non-numeric pid",
+			fields:     []string{"TCP", "0.0.0.0:80", "0.0.0.0:0", "LISTENING", "abc"},
+			targetPort: 80,
+			wantPID:    0,
+			wantOk:     false,
+		},
+		{
+			name:       "zero pid",
+			fields:     []string{"TCP", "0.0.0.0:80", "0.0.0.0:0", "LISTENING", "0"},
+			targetPort: 80,
+			wantPID:    0,
+			wantOk:     false,
+		},
+		{
+			name:       "negative pid",
+			fields:     []string{"TCP", "0.0.0.0:80", "0.0.0.0:0", "LISTENING", "-1"},
+			targetPort: 80,
+			wantPID:    0,
+			wantOk:     false,
+		},
+		{
+			name:       "valid match",
+			fields:     []string{"TCP", "0.0.0.0:80", "0.0.0.0:0", "LISTENING", "5678"},
+			targetPort: 80,
+			wantPID:    5678,
+			wantOk:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pid, ok := extractPIDFromNetstatFields(tt.fields, tt.targetPort)
+			if ok != tt.wantOk {
+				t.Errorf("extractPIDFromNetstatFields() ok = %v, wantOk %v", ok, tt.wantOk)
+			}
+			if pid != tt.wantPID {
+				t.Errorf("extractPIDFromNetstatFields() pid = %v, wantPID %v", pid, tt.wantPID)
+			}
+		})
+	}
+}

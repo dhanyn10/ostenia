@@ -139,4 +139,65 @@ describe("ServiceItem Component", () => {
 
     expect(mockProps.handleSwitchVersion).toHaveBeenCalledWith("PHP", "2.4.59");
   });
+
+  it("handles terminal dropdown and terminal actions", () => {
+    // 1. Terminal button toggles dropdown
+    const expandedProps = { ...mockProps, isExpanded: true };
+    const { rerender } = render(<ServiceItem {...expandedProps} />);
+
+    const termBtn = screen.getByTitle("Terminal");
+    fireEvent.click(termBtn);
+    expect(mockProps.setOpenTerminalDropdown).toHaveBeenCalledWith("Apache");
+
+    // 2. Dropdown open state
+    const openDropdownProps = {
+      ...expandedProps,
+      openTerminalDropdown: "Apache",
+    };
+    rerender(<ServiceItem {...openDropdownProps} />);
+
+    expect(screen.getByText("CMD")).toBeInTheDocument();
+    expect(screen.getByText("PowerShell")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("CMD"));
+    expect(mockProps.handleOpenLocalTerminal).toHaveBeenCalledWith(
+      "Apache",
+      "cmd",
+    );
+
+    fireEvent.click(screen.getByText("PowerShell"));
+    expect(mockProps.handleOpenLocalTerminal).toHaveBeenCalledWith(
+      "Apache",
+      "powershell",
+    );
+
+    // Backdrop click closes dropdown
+    const backdrop = document.querySelector(".fixed.inset-0") as HTMLElement;
+    fireEvent.click(backdrop);
+    expect(mockProps.setOpenTerminalDropdown).toHaveBeenCalledWith(null);
+  });
+
+  it("handles folder, https, settings and remove actions when expanded", () => {
+    const expandedProps = { ...mockProps, isExpanded: true };
+    const { rerender } = render(<ServiceItem {...expandedProps} />);
+
+    fireEvent.click(screen.getByTitle("Open Folder"));
+    expect(mockProps.handleOpenPluginFolder).toHaveBeenCalledWith("Apache");
+
+    fireEvent.click(screen.getByTitle("Enable HTTPS"));
+    expect(mockProps.handleToggleHttps).toHaveBeenCalledWith("Apache");
+
+    fireEvent.click(screen.getByTitle("Remove from home"));
+    expect(mockProps.handleRemoveFromHome).toHaveBeenCalledWith("Apache");
+
+    // PHP Extensions button
+    rerender(
+      <ServiceItem
+        {...expandedProps}
+        service={{ ...mockProps.service, name: "PHP" }}
+      />,
+    );
+    fireEvent.click(screen.getByText("Extensions"));
+    expect(mockProps.setIsModalOpen).toHaveBeenCalledWith(true);
+  });
 });

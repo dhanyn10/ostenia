@@ -79,21 +79,69 @@ describe("MenuBar Component", () => {
     expect(AppBackend.Unmaximize).toHaveBeenCalled();
   });
 
-  it("handles settings category selection", () => {
-    render(<MenuBar {...mockProps} />);
+  it("handles settings category selection and theme switching", () => {
+    const { rerender } = render(<MenuBar {...mockProps} />);
 
     fireEvent.click(screen.getByText("Settings"));
     fireEvent.click(screen.getByText("Profile"));
-
     expect(mockProps.onOpenSettings).toHaveBeenCalledWith("profile");
+
+    fireEvent.click(screen.getByText("Settings"));
+    fireEvent.click(screen.getByText("Config"));
+    expect(mockProps.onOpenSettings).toHaveBeenCalledWith("config");
+
+    fireEvent.click(screen.getByText("Settings"));
+    fireEvent.click(screen.getByText("SSH"));
+    expect(mockProps.onOpenSettings).toHaveBeenCalledWith("ssh");
+
+    fireEvent.click(screen.getByText("Settings"));
+    fireEvent.click(screen.getByText("Switch to Dark Mode"));
+    expect(mockProps.setTheme).toHaveBeenCalledWith("dark");
+
+    rerender(<MenuBar {...mockProps} theme="dark" />);
+    fireEvent.click(screen.getByText("Settings"));
+    fireEvent.click(screen.getByText("Switch to Light Mode"));
+    expect(mockProps.setTheme).toHaveBeenCalledWith("light");
   });
 
-  it("toggles developer tools", () => {
+  it("handles help menu items including documentation and about dialog", () => {
+    const windowOpenSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    render(<MenuBar {...mockProps} />);
+
+    fireEvent.click(screen.getByText("Help"));
+    fireEvent.click(screen.getByText("Documentation"));
+    expect(windowOpenSpy).toHaveBeenCalledWith(
+      "https://github.com/dhanyn/ostenia",
+      "_blank",
+      "noopener,noreferrer",
+    );
+
+    fireEvent.click(screen.getByText("Help"));
+    fireEvent.click(screen.getByText("About Ostenia"));
+    expect(screen.getByText(/Ostenia v/i)).toBeInTheDocument();
+
+    windowOpenSpy.mockRestore();
+  });
+
+  it("handles exit in file menu", () => {
+    render(<MenuBar {...mockProps} />);
+
+    fireEvent.click(screen.getByText("File"));
+    fireEvent.click(screen.getByText("Exit"));
+    expect(AppBackend.Close).toHaveBeenCalled();
+  });
+
+  it("toggles developer tools via click and keyboard", () => {
     render(<MenuBar {...mockProps} />);
 
     fireEvent.click(screen.getByText("View"));
-    fireEvent.click(screen.getByText("Toggle Developer Tools"));
+    const devToolsBtn = screen.getByText("Toggle Developer Tools");
+    fireEvent.click(devToolsBtn);
+    expect(AppBackend.ToggleDevTools).toHaveBeenCalledTimes(1);
 
-    expect(AppBackend.ToggleDevTools).toHaveBeenCalled();
+    fireEvent.click(screen.getByText("View"));
+    const devToolsBtnAgain = screen.getByText("Toggle Developer Tools");
+    fireEvent.keyDown(devToolsBtnAgain, { key: "Enter" });
+    expect(AppBackend.ToggleDevTools).toHaveBeenCalledTimes(2);
   });
 });

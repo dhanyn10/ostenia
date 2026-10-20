@@ -1,10 +1,13 @@
 package service
 
 import (
+	"errors"
 	"os"
 	"ostenia/internal/plugins/utils"
 	"ostenia/internal/testutil"
 	"path/filepath"
+	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -83,5 +86,46 @@ func TestValidateMySQLDataDir(t *testing.T) {
 	_ = os.WriteFile(ibdataPath, []byte("data"), 0644)
 	if err := ValidateMySQLDataDir(dataDir); err != nil {
 		t.Errorf("Expected nil for dir with writable ibdata1, got: %v", err)
+	}
+}
+
+func TestDiagnoseFileLockError(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "ibdata1")
+	_ = os.WriteFile(filePath, []byte("test"), 0600)
+
+	// 1. Sharing violation (errno 32)
+	errSharing := &os.PathError{Op: "open", Path: filePath, Err: syscall.Errno(32)}
+	diagSharing := diagnoseFileLockError("ibdata1", errSharing, filePath)
+	if !strings.Contains(diagSharing.Error(), "currently locked by another process") {
+		t.Errorf("Expected sharing violation message, got: %v", diagSharing)
+	}
+
+	// 2. Lock violation (errno 33)
+	errLock := &os.PathError{Op: "open", Path: filePath, Err: syscall.Errno(33)}
+	diagLock := diagnoseFileLockError("ibdata1", errLock, filePath)
+	if !strings.Contains(diagLock.Error(), "currently locked by another process") {
+		t.Errorf("Expected lock violation message, got: %v", diagLock)
+	}
+
+	// 3. Access denied (errno 5) - writable file succeeds after chmod
+	errDenied := &os.PathError{Op: "open", Path: filePath, Err: syscall.Errno(5)}
+	diagDenied := diagnoseFileLockError("ibdata1", errDenied, filePath)
+	if diagDenied != nil {
+		t.Errorf("Expected nil when retry succeeds on writable file, got: %v", diagDenied)
+	}
+
+	// 4. Access denied on non-existent file
+	errDenied2 := &os.PathError{Op: "open", Path: filepath.Join(tempDir, "missing"), Err: syscall.Errno(5)}
+	diagDenied2 := diagnoseFileLockError("missing", errDenied2, filepath.Join(tempDir, "missing"))
+	if !strings.Contains(diagDenied2.Error(), "Permission Denied") {
+		t.Errorf("Expected permission denied message, got: %v", diagDenied2)
+	}
+
+	// 5. Generic error
+	genericErr := errors.New("disk failure")
+	diagGeneric := diagnoseFileLockError("ibdata1", genericErr, filePath)
+	if !strings.Contains(diagGeneric.Error(), "failed to access database file") {
+		t.Errorf("Expected generic error message, got: %v", diagGeneric)
 	}
 }

@@ -218,6 +218,8 @@ const MainActions: React.FC<any> = ({
 
     <button
       type="button"
+      title="Remove from home"
+      aria-label="Remove from home"
       onClick={(e) => {
         e.stopPropagation();
         handleRemoveFromHome(service.name);

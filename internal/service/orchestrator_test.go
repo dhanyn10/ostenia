@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"ostenia/internal/backend/interfaces"
@@ -9,6 +10,7 @@ import (
 	"ostenia/internal/testutil"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -276,4 +278,51 @@ func TestOrchestrator_Additional(t *testing.T) {
 			t.Errorf("Expected Running for Python, got %s", info.Status)
 		}
 	})
+}
+
+func TestOrchestrator_LogsAndDiagnosis(t *testing.T) {
+	_, cancel, orch := newTestOrchestrator()
+	defer cancel()
+
+	// 1. getLastServiceLog on empty
+	if log := orch.getLastServiceLog("Apache"); log != "" {
+		t.Errorf("Expected empty log, got: %q", log)
+	}
+
+	// 2. recordRecentLog up to 25 lines
+	for i := 1; i <= 25; i++ {
+		orch.recordRecentLog("MySQL", fmt.Sprintf("Line %d", i))
+	}
+	if len(orch.recentLogs["MySQL"]) != 20 {
+		t.Errorf("Expected 20 lines kept, got %d", len(orch.recentLogs["MySQL"]))
+	}
+
+	// 3. getLastServiceLog returns last regular line when no error
+	if last := orch.getLastServiceLog("MySQL"); last != "Line 25" {
+		t.Errorf("Expected 'Line 25', got: %q", last)
+	}
+
+	// 4. getLastServiceLog returns error line when error is present
+	orch.recordRecentLog("MySQL", "[ERROR] Failed to start mysqld")
+	orch.recordRecentLog("MySQL", "Some subsequent informational line")
+	if lastErr := orch.getLastServiceLog("MySQL"); lastErr != "[ERROR] Failed to start mysqld" {
+		t.Errorf("Expected error line, got: %q", lastErr)
+	}
+
+	// 5. diagnoseLogMessage
+	tests := []struct {
+		input, contains string
+	}{
+		{"Error: ibdata1' must be writable", "ibdata1' is inaccessible or locked"},
+		{"Bind on TCP/IP port failed", "Server port is already in use"},
+		{"Only one usage of each socket address", "Server port is already in use"},
+		{"Access is denied", "Administrator privileges (UAC) are required"},
+		{"Just a normal message", "Just a normal message"},
+	}
+	for _, tt := range tests {
+		diag := orch.diagnoseLogMessage(tt.input)
+		if !strings.Contains(diag, tt.contains) {
+			t.Errorf("diagnoseLogMessage(%q) = %q, want containing %q", tt.input, diag, tt.contains)
+		}
+	}
 }

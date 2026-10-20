@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 type mockUtilsHTTPClient struct {
@@ -55,6 +56,16 @@ func TestGetSystemDirectory(t *testing.T) {
 	if dir == "" {
 		t.Error("GetSystemDirectory() returned empty string")
 	}
+
+	// Test fallback when SystemRoot is unset
+	origRoot := os.Getenv("SystemRoot")
+	defer os.Setenv("SystemRoot", origRoot)
+	os.Unsetenv("SystemRoot")
+
+	fallbackDir := GetSystemDirectory()
+	if fallbackDir == "" {
+		t.Error("GetSystemDirectory() fallback returned empty string")
+	}
 }
 
 func TestSafeEnv(t *testing.T) {
@@ -71,6 +82,46 @@ func TestSafeEnv(t *testing.T) {
 	}
 	if !foundPath {
 		t.Error("SafeEnv() did not contain PATH")
+	}
+
+	// Test fallback when SystemRoot is unset
+	origRoot := os.Getenv("SystemRoot")
+	defer os.Setenv("SystemRoot", origRoot)
+	os.Unsetenv("SystemRoot")
+
+	fallbackEnv := SafeEnv()
+	if len(fallbackEnv) == 0 {
+		t.Error("SafeEnv() fallback returned empty environment")
+	}
+}
+
+func TestDefaultExecutor(t *testing.T) {
+	executor := &DefaultExecutor{}
+	cmd := executor.Command("echo", "test")
+	if cmd == nil {
+		t.Fatal("Expected non-nil command from DefaultExecutor")
+	}
+}
+
+func TestWriteCounter_SpeedMB(t *testing.T) {
+	var capturedSpeed string
+	wc := &WriteCounter{
+		Total:     20 * 1024 * 1024,
+		StartTime: time.Now().Add(-1 * time.Second),
+		OnProgress: func(downloaded, total uint64, speed string) {
+			capturedSpeed = speed
+		},
+	}
+	data := make([]byte, 5*1024*1024)
+	n, err := wc.Write(data)
+	if err != nil {
+		t.Fatalf("Write error: %v", err)
+	}
+	if n != len(data) {
+		t.Errorf("Expected written bytes %d, got %d", len(data), n)
+	}
+	if !strings.Contains(capturedSpeed, "MB/s") {
+		t.Errorf("Expected speed in MB/s, got %q", capturedSpeed)
 	}
 }
 
@@ -98,6 +149,13 @@ func TestCopyFile(t *testing.T) {
 	err = CopyFile("non-existent", dst)
 	if err == nil {
 		t.Error("CopyFile should fail for non-existent source")
+	}
+
+	// Test invalid destination
+	invalidDst := filepath.Join(tmpDir, "non_existent_subdir", "sub2", "dst.txt")
+	err = CopyFile(src, invalidDst)
+	if err == nil {
+		t.Error("CopyFile should fail for non-existent destination directory")
 	}
 }
 

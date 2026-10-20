@@ -79,8 +79,52 @@ describe("PluginItem Component", () => {
 
     const deleteButton = screen.getByTitle("Delete v8.1");
     fireEvent.click(deleteButton);
-
     expect(mockProps.onDeleteVersion).toHaveBeenCalledWith("PHP", "8.1");
+
+    fireEvent.keyDown(deleteButton, { key: "Enter" });
+    expect(mockProps.onDeleteVersion).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders disabled module button when main task is not installed", () => {
+    const uninstalledTaskProps = {
+      ...mockProps,
+      task: {
+        ...mockProps.task,
+        isInstalled: false,
+      },
+    };
+    render(<PluginItem {...uninstalledTaskProps} />);
+
+    const card = document.querySelector('[data-card-expand]') as HTMLElement;
+    fireEvent.click(card);
+
+    expect(screen.getByTitle("Install PHP first")).toBeInTheDocument();
+  });
+
+  it("handles module uninstallation when module is already installed", () => {
+    const installedModuleProps = {
+      ...mockProps,
+      task: {
+        ...mockProps.task,
+        modules: [
+          {
+            name: "xdebug",
+            isInstalled: true,
+            status: "Installed",
+            version: "3.2",
+          },
+        ],
+      },
+    };
+    render(<PluginItem {...installedModuleProps} />);
+
+    const card = document.querySelector('[data-card-expand]') as HTMLElement;
+    fireEvent.click(card);
+
+    expect(screen.getByTitle("Installed")).toBeInTheDocument();
+    const uninstallBtn = screen.getByTitle("Uninstall xdebug");
+    fireEvent.click(uninstallBtn);
+    expect(mockProps.onUninstallModule).toHaveBeenCalledWith("PHP", "xdebug");
   });
 
   it("expands modules and handles module installation", () => {
