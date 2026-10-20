@@ -417,13 +417,31 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
 
   const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement | null;
-    if (target?.closest("button, a, input, select, textarea, [role='button']:not([data-card-root]), [data-no-card-toggle]")) {
+    if (
+      target?.closest(
+        "button, a, input, select, textarea, [role='button']:not([data-card-root]), [data-no-card-toggle]",
+      )
+    ) {
       return;
     }
     if (hasExtraActions) {
       onToggleAccordion(service.name, hasExtraActions);
     }
   };
+
+  const handleCardKeyDown = handleActionKey((e: React.KeyboardEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement | null;
+    if (
+      target?.closest(
+        "button, a, input, select, textarea, [role='button']:not([data-card-root]), [data-no-card-toggle]",
+      )
+    ) {
+      return;
+    }
+    if (hasExtraActions) {
+      onToggleAccordion(service.name, hasExtraActions);
+    }
+  });
 
   return (
     <div
@@ -433,15 +451,7 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
       aria-expanded={hasExtraActions ? isExpanded : undefined}
       aria-label={hasExtraActions ? `${service.name} service card` : undefined}
       onClick={handleCardClick}
-      onKeyDown={
-        hasExtraActions
-          ? handleActionKey((e: any) => {
-              if (e.target === e.currentTarget) {
-                onToggleAccordion(service.name, hasExtraActions);
-              }
-            })
-          : undefined
-      }
+      onKeyDown={handleCardKeyDown}
       className={cn(
         "w-full text-left bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all flex flex-col relative shadow-sm dark:shadow-lg",
         hasExtraActions && "cursor-pointer hover:bg-slate-50/80 dark:hover:bg-slate-900/60",

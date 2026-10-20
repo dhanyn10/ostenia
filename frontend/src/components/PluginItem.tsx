@@ -55,13 +55,31 @@ function PluginItem({
 
   const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement | null;
-    if (target?.closest("button, a, input, select, textarea, [role='button']:not([data-card-root]), [data-no-card-toggle]")) {
+    if (
+      target?.closest(
+        "button, a, input, select, textarea, [role='button']:not([data-card-root]), [data-no-card-toggle]",
+      )
+    ) {
       return;
     }
     if (hasModules) {
       setIsModulesExpanded((prev) => !prev);
     }
   };
+
+  const handleCardKeyDown = handleActionKey((e: React.KeyboardEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement | null;
+    if (
+      target?.closest(
+        "button, a, input, select, textarea, [role='button']:not([data-card-root]), [data-no-card-toggle]",
+      )
+    ) {
+      return;
+    }
+    if (hasModules) {
+      setIsModulesExpanded((prev) => !prev);
+    }
+  });
 
   return (
     <div
@@ -71,15 +89,7 @@ function PluginItem({
       aria-expanded={hasModules ? isModulesExpanded : undefined}
       aria-label={hasModules ? `${task.name} plugin card` : undefined}
       onClick={handleCardClick}
-      onKeyDown={
-        hasModules
-          ? handleActionKey((e: any) => {
-              if (e.target === e.currentTarget) {
-                setIsModulesExpanded((prev) => !prev);
-              }
-            })
-          : undefined
-      }
+      onKeyDown={handleCardKeyDown}
       className={cn(
         "bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all group flex flex-col gap-0 relative shadow-sm dark:shadow-lg",
         hasModules && "cursor-pointer hover:bg-slate-50/80 dark:hover:bg-slate-900/60",

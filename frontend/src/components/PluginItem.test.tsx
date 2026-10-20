@@ -130,6 +130,25 @@ describe("PluginItem Component", () => {
     expect(screen.queryByText("Available Modules")).not.toBeInTheDocument();
   });
 
+  it("does not expand on click or key press when plugin has no modules", () => {
+    const propsNoModules = {
+      ...mockProps,
+      task: {
+        ...mockProps.task,
+        modules: [],
+      },
+    };
+    const { container } = render(<PluginItem {...propsNoModules} />);
+    const card = container.firstChild as HTMLElement;
+
+    expect(card).not.toHaveAttribute("role");
+    fireEvent.click(card);
+    expect(screen.queryByText("Available Modules")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(card, { key: "Enter" });
+    expect(screen.queryByText("Available Modules")).not.toBeInTheDocument();
+  });
+
   it("shows circular progress during active download", () => {
     const props = {
       ...mockProps,

@@ -87,6 +87,30 @@ describe("ServiceItem Component", () => {
     expect(mockProps.onToggleAccordion).toHaveBeenCalledTimes(2);
   });
 
+  it("does not toggle accordion on click or key press when service has no extra actions", () => {
+    const propsNoExtra = {
+      ...mockProps,
+      service: {
+        ...mockProps.service,
+        name: "UnknownService",
+      },
+      task: {
+        name: "UnknownService",
+        installedVers: [],
+      },
+      isOpenSslEnabled: false,
+    };
+    const { container } = render(<ServiceItem {...propsNoExtra} />);
+    const card = container.firstChild as HTMLElement;
+
+    expect(card).not.toHaveAttribute("role");
+    fireEvent.click(card);
+    expect(mockProps.onToggleAccordion).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(card, { key: "Enter" });
+    expect(mockProps.onToggleAccordion).not.toHaveBeenCalled();
+  });
+
   it("calls handleToggleService when main action button is clicked", () => {
     render(<ServiceItem {...mockProps} />);
 
