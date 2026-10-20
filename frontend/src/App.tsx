@@ -3,7 +3,11 @@ import { EventsOn } from '../wailsjs/runtime/runtime';
 import * as AppBackend from '../wailsjs/go/backend/App';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { parseStackTrace } from './utils/stackParser';
+
+// Hooks
+import { useTheme } from './hooks/useTheme';
+import { useToast } from './hooks/useToast';
+import { useAppLogs } from './hooks/useAppLogs';
 
 // Components
 import MenuBar from './components/MenuBar';
@@ -35,12 +39,6 @@ interface ServiceInfo {
   remainingDays?: number;
 }
 
-let isLogging = false;
-
-function formatLogArgs(args: any[]): string {
-  return args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
-}
-
 async function fetchServiceStatus(service: ServiceInfo): Promise<ServiceInfo> {
   try {
     const detail = await AppBackend.GetServiceStatus(service.name);
@@ -51,127 +49,66 @@ async function fetchServiceStatus(service: ServiceInfo): Promise<ServiceInfo> {
 }
 
 function App() {
- const [activeTab, setActiveTab] = useState('activity');
- const [theme, setTheme] = useState(() => {
-   const saved = localStorage.getItem('theme');
-   if (saved) return saved;
-   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
- });
- const [services, setServices] = useState<ServiceInfo[]>([
- { name: 'Apache', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
- { name: 'Nginx', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
- { name: 'MySQL', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
- { name: 'PHP', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
- { name: 'Node.js', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
- { name: 'Python', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
- { name: 'HeidiSQL', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
- { name: 'OpenSSL', status: 'Stopped', pid: 0, port: 0, remainingDays: 0, ports: [], activeVersion: '' },
- ]);
- const [prerequisites, setPrerequisites] = useState<any[]>([]);
- const [downloadProgress, setDownloadProgress] = useState<Record<string, any>>({});
- const [toasts, setToasts] = useState<any[]>([]);
- const [logs, setLogs] = useState<any[]>([]);
- const [openDropdown, setOpenDropdown] = useState<string | null>(null);
- const [isTerminalOpen, setIsTerminalOpen] = useState(false);
- const [loading, setLoading] = useState(true);
- const [selectedVersions, setSelectedVersions] = useState<Record<string, string>>({});
- const [customVersionModal, setCustomVersionModal] = useState({ isOpen: false, serviceName: "" });
- const [isAddingPlugin, setIsAddingPlugin] = useState(false);
- const [transitioningServices, setTransitioningServices] = useState<Set<string>>(new Set());
- const [settingsModal, setSettingsModal] = useState({ isOpen: false, category: 'profile' });
+  const [activeTab, setActiveTab] = useState('activity');
+  const { theme, setTheme, toggleTheme } = useTheme();
+  const { toasts, addToast, removeToast } = useToast();
+  const { logs, addLog, setupConsoleOverrides } = useAppLogs();
 
- const [serverRootState, setServerRootState] = useState('');
- const [appsLocation, setAppsLocation] = useState('');
- const [apacheHttps, setApacheHttps] = useState(false);
- const [nginxHttps, setNginxHttps] = useState(false);
- const [defaultEditor, setDefaultEditor] = useState('');
+  const [services, setServices] = useState<ServiceInfo[]>([
+  { name: 'Apache', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
+  { name: 'Nginx', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
+  { name: 'MySQL', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
+  { name: 'PHP', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
+  { name: 'Node.js', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
+  { name: 'Python', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
+  { name: 'HeidiSQL', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
+  { name: 'OpenSSL', status: 'Stopped', pid: 0, port: 0, remainingDays: 0, ports: [], activeVersion: '' },
+  ]);
+  const [prerequisites, setPrerequisites] = useState<any[]>([]);
+  const [downloadProgress, setDownloadProgress] = useState<Record<string, any>>({});
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [selectedVersions, setSelectedVersions] = useState<Record<string, string>>({});
+  const [customVersionModal, setCustomVersionModal] = useState({ isOpen: false, serviceName: "" });
+  const [isAddingPlugin, setIsAddingPlugin] = useState(false);
+  const [transitioningServices, setTransitioningServices] = useState<Set<string>>(new Set());
+  const [settingsModal, setSettingsModal] = useState({ isOpen: false, category: 'profile' });
 
- const [confirmModal, setConfirmModal] = useState<any>({
- isOpen: false,
- title: '',
- message: '',
- onConfirm: () => {},
- type: 'danger'
- });
+  const [serverRootState, setServerRootState] = useState('');
+  const [appsLocation, setAppsLocation] = useState('');
+  const [apacheHttps, setApacheHttps] = useState(false);
+  const [nginxHttps, setNginxHttps] = useState(false);
+  const [defaultEditor, setDefaultEditor] = useState('');
 
- // Define simple state setters and modal handlers first
- const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
- const handleOpenSettings = (category: string) => setSettingsModal({ isOpen: true, category });
- const handleCloseSettings = () => setSettingsModal(prev => ({ ...prev, isOpen: false }));
- const handleCloseConfirmModal = () => setConfirmModal(prev => ({ ...prev, isOpen: false }));
- const handleRemoveFromHome = (name: string) => setServices(prev => {
-   const next = [];
-   for (const s of prev) {
-     if (s.name !== name) {
-       next.push(s);
-     }
-   }
-   return next;
- });
- const handleStartAll = () => AppBackend.StartAllServices();
- const handleStopAll = () => AppBackend.StopAllServices();
- const handleTerminal = (type: string) => { AppBackend.OpenTerminal(type); setIsTerminalOpen(false); };
- const handleOpenServerRootFolder = () => AppBackend.OpenServerRootFolder();
- const handleOpenAppsLocationFolder = () => AppBackend.OpenAppsLocationFolder();
- const handleCancelDownload = (name: string) => AppBackend.CancelDownload(name);
- const handleOpenPluginFolder = (name: string) => AppBackend.OpenPluginFolder(name);
+  const [confirmModal, setConfirmModal] = useState<any>({
+  isOpen: false,
+  title: '',
+  message: '',
+  onConfirm: () => {},
+  type: 'danger'
+  });
 
- const addLog = useCallback((msg: string, type = 'info', isServiceLog = false) => {
-   if (isLogging) return;
-   isLogging = true;
-   try {
-     const time = new Date().toLocaleTimeString();
-     const id = crypto.randomUUID();
-     let prefix = 'SYS';
-     if (type === 'error') {
-       prefix = 'ERR';
-     } else if (type === 'warn') {
-       prefix = 'WRN';
-     }
-
-     const stackTrace = isServiceLog ? '' : new Error().stack;
-     const { caller, rawStack } = isServiceLog ? { caller: undefined, rawStack: '' } : parseStackTrace(stackTrace);
-
-     const formattedMsg = `[${prefix}] ${msg}`;
-     if (AppBackend && (AppBackend as any).SaveLogToFile) {
-       (AppBackend as any).SaveLogToFile(formattedMsg).catch(() => {});
-     }
-
-     setLogs(prev => [
-       {
-         id,
-         time,
-         msg: formattedMsg,
-         cleanMsg: msg,
-         type,
-         isServiceLog,
-         caller,
-         rawStack,
-       },
-       ...prev
-     ].slice(0, 1000));
-   } finally {
-     isLogging = false;
-   }
- }, []);
-
- const removeToast = (id: string) => setToasts(prev => {
-   const next = [];
-   for (const t of prev) {
-     if (t.id !== id) {
-       next.push(t);
-     }
-   }
-   return next;
- });
-
- const addToast = (title: string, message: string, type: 'info' | 'success' | 'warn' | 'error' = 'info') => {
-   const id = crypto.randomUUID();
-   setToasts(prev => [...prev, { id, title, message, type }]);
-   setTimeout(() => {
-     removeToast(id);
-   }, 5000);
- };
+  // Define simple state setters and modal handlers first
+  const handleOpenSettings = (category: string) => setSettingsModal({ isOpen: true, category });
+  const handleCloseSettings = () => setSettingsModal(prev => ({ ...prev, isOpen: false }));
+  const handleCloseConfirmModal = () => setConfirmModal(prev => ({ ...prev, isOpen: false }));
+  const handleRemoveFromHome = (name: string) => setServices(prev => {
+    const next = [];
+    for (const s of prev) {
+      if (s.name !== name) {
+        next.push(s);
+      }
+    }
+    return next;
+  });
+  const handleStartAll = () => AppBackend.StartAllServices();
+  const handleStopAll = () => AppBackend.StopAllServices();
+  const handleTerminal = (type: string) => { AppBackend.OpenTerminal(type); setIsTerminalOpen(false); };
+  const handleOpenServerRootFolder = () => AppBackend.OpenServerRootFolder();
+  const handleOpenAppsLocationFolder = () => AppBackend.OpenAppsLocationFolder();
+  const handleCancelDownload = (name: string) => AppBackend.CancelDownload(name);
+  const handleOpenPluginFolder = (name: string) => AppBackend.OpenPluginFolder(name);
 
  const handleConfirmHeidiSQLUninstall = useCallback(async (name: string) => {
    setTransitioningServices(prev => new Set(prev).add(name));
@@ -282,32 +219,6 @@ function App() {
    }
  };
 
- const setupConsoleOverrides = useCallback((originalLog: any, originalWarn: any, originalError: any) => {
-   console.log = (...args: any[]) => {
-     addLog(formatLogArgs(args), 'info');
-     originalLog.apply(console, args);
-   };
-   console.warn = (...args: any[]) => {
-     addLog(formatLogArgs(args), 'warn');
-     originalWarn.apply(console, args);
-   };
-   console.error = (...args: any[]) => {
-     addLog(formatLogArgs(args), 'error');
-     originalError.apply(console, args);
-   };
- }, [addLog]);
-
- useEffect(() => {
-   if (theme === 'dark') {
-     document.documentElement.classList.add('dark');
-     document.documentElement.classList.remove('light');
-   } else {
-     document.documentElement.classList.add('light');
-     document.documentElement.classList.remove('dark');
-   }
-   localStorage.setItem('theme', theme);
- }, [theme]);
-
  useEffect(() => {
    const originalLog = console.log;
    const originalWarn = console.warn;
@@ -328,7 +239,7 @@ function App() {
      console.warn = originalWarn;
      console.error = originalError;
    };
- }, [addLog, setupConsoleOverrides]);
+ }, [setupConsoleOverrides]);
 
  const handleBrowseAppsLocation = async () => {
    const selected = await AppBackend.SelectServerRoot();

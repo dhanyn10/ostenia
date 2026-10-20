@@ -8,9 +8,17 @@ import (
 	"ostenia/internal/backend/interfaces"
 	"ostenia/internal/config"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
+
+func testShellCommand(command string) *exec.Cmd {
+	if runtime.GOOS == "windows" {
+		return exec.Command("cmd", "/c", command)
+	}
+	return exec.Command("sh", "-c", command)
+}
 
 func TestWSLClient_SessionAndShell(t *testing.T) {
 	origGOOS := RuntimeGOOS
@@ -20,11 +28,11 @@ func TestWSLClient_SessionAndShell(t *testing.T) {
 	origWslCommand := wslCommand
 	defer func() { wslCommand = origWslCommand }()
 	wslCommand = func(distro string, args ...string) *exec.Cmd {
-		script := "echo 'wsl-mock-session'"
+		script := "echo wsl-mock-session"
 		if len(args) > 0 {
-			script = "echo 'wsl-mock-args: " + strings.Join(args, " ") + "'"
+			script = "echo wsl-mock-args: " + strings.Join(args, " ")
 		}
-		return exec.Command("sh", "-c", script) // NOSONAR
+		return testShellCommand(script) // NOSONAR
 	}
 
 	client := NewWSLClient("Ubuntu", "root")
@@ -150,7 +158,7 @@ func TestWSLSession_Run(t *testing.T) {
 	origWslCommand := wslCommand
 	defer func() { wslCommand = origWslCommand }()
 	wslCommand = func(distro string, args ...string) *exec.Cmd {
-		return exec.Command("echo", "wsl-mock-run") // NOSONAR
+		return testShellCommand("echo wsl-mock-run") // NOSONAR
 	}
 
 	client := NewWSLClient("Ubuntu", "root")
@@ -191,7 +199,7 @@ func TestWSLClient_SessionWithCustomUser(t *testing.T) {
 	var commandArgs []string
 	wslCommand = func(distro string, args ...string) *exec.Cmd {
 		commandArgs = args
-		return exec.Command("sh", "-c", "echo 'ok'") // NOSONAR
+		return testShellCommand("echo ok") // NOSONAR
 	}
 
 	client := NewWSLClient("Ubuntu", "customuser")
@@ -412,6 +420,10 @@ func TestSSHManager_GetWSLDistros(t *testing.T) {
 			}
 			tempFile := filepath.Join(t.TempDir(), "utf16_output")
 			_ = os.WriteFile(tempFile, utf16Output, 0644)
+			if runtime.GOOS == "windows" {
+				cleanPath := filepath.ToSlash(tempFile)
+				return exec.Command("powershell", "-NoProfile", "-Command", "[Console]::OpenStandardOutput().Write([System.IO.File]::ReadAllBytes('"+cleanPath+"'), 0, [System.IO.File]::ReadAllBytes('"+cleanPath+"').Length)") // NOSONAR
+			}
 			return exec.Command("cat", tempFile) // NOSONAR
 		}
 
@@ -436,10 +448,10 @@ func TestSSHManager_WSLConnect(t *testing.T) {
 	wslCommand = func(distro string, args ...string) *exec.Cmd {
 		for _, arg := range args {
 			if strings.Contains(arg, "readlink") {
-				return exec.Command("echo", "/mnt/d/koding/ostenia") // NOSONAR
+				return testShellCommand("echo /mnt/d/koding/ostenia") // NOSONAR
 			}
 		}
-		return exec.Command("sh", "-c", "echo 'connected'") // NOSONAR
+		return testShellCommand("echo connected") // NOSONAR
 	}
 
 	m := NewSSHManager()
@@ -495,10 +507,10 @@ func TestSSHManager_WSLConnect_GetCurrentPath_ErrorFallback(t *testing.T) {
 	wslCommand = func(distro string, args ...string) *exec.Cmd {
 		for _, arg := range args {
 			if strings.Contains(arg, "readlink") {
-				return exec.Command("sh", "-c", "exit 1") // NOSONAR
+				return testShellCommand("exit 1") // NOSONAR
 			}
 		}
-		return exec.Command("sh", "-c", "echo 'connected'") // NOSONAR
+		return testShellCommand("echo connected") // NOSONAR
 	}
 
 	m := NewSSHManager()
@@ -587,7 +599,7 @@ func TestWSLClient_GetWSLDistros_ErrorCase(t *testing.T) {
 
 	// Mock wslCommand to return a failing process
 	wslCommand = func(distro string, args ...string) *exec.Cmd {
-		return exec.Command("sh", "-c", "exit 1") // NOSONAR
+		return testShellCommand("exit 1") // NOSONAR
 	}
 
 	m := NewSSHManager()
