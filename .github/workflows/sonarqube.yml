@@ -8,7 +8,7 @@ on:
 jobs:
   sonarqube:
     name: SonarQube Scan
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -18,30 +18,47 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
+          cache: true
 
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@ebe9d32e170905ff726a3bbb3d0076282e4edc41
+      - name: Install pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
+        with:
+          version: 10
 
-      - name: Run Backend Tests
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
-          mkdir -p frontend/dist
-          echo "dummy" > frontend/dist/index.html
-          go test ./... -v -coverprofile=coverage-backend.out
-
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Cache Wails CLI
+        id: cache-wails
+        uses: actions/cache@v4
+        with:
+          path: C:\Users\runneradmin\go\bin\wails.exe
+          key: ${{ runner.os }}-wails-2.12.0
+
+      - name: Install Wails CLI
+        if: steps.cache-wails.outputs.cache-hit != 'true'
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@ebe9d32e170905ff726a3bbb3d0076282e4edc41
+        shell: pwsh
+
+      - name: Run Backend Tests
+        run: |
+          New-Item -Path "frontend/dist" -ItemType Directory -Force
+          "dummy" | Out-File -FilePath "frontend/dist/index.html"
+          go test -v -coverprofile coverage-backend.out ./...
+        shell: pwsh
 
       - name: Run Frontend Tests
-        working-directory: frontend
         run: |
-          npm install -g pnpm
-          cd .. && $HOME/go/bin/wails generate module && cd frontend
+          $env:PATH += ";C:\Users\runneradmin\go\bin"
+          wails generate module
+          cd frontend
           pnpm install --no-frozen-lockfile
           pnpm vitest run --coverage.enabled --coverage.reporter=lcov --coverage.reportsDirectory=./coverage
+        shell: pwsh
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995 # v8.1.0
