@@ -117,6 +117,19 @@ describe("PluginItem Component", () => {
     expect(screen.queryByText("Available Modules")).not.toBeInTheDocument();
   });
 
+  it("supports keyboard expansion with Enter and Space on the card", () => {
+    const { container } = render(<PluginItem {...mockProps} />);
+    const card = container.firstChild as HTMLElement;
+
+    expect(screen.queryByText("Available Modules")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(card, { key: "Enter" });
+    expect(screen.getByText("Available Modules")).toBeInTheDocument();
+
+    fireEvent.keyDown(card, { key: " " });
+    expect(screen.queryByText("Available Modules")).not.toBeInTheDocument();
+  });
+
   it("shows circular progress during active download", () => {
     const props = {
       ...mockProps,

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { handleActionKey } from "../utils/a11y";
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -414,13 +415,33 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
     hasPhpExtManager ||
     hasHeidiOpen;
 
+  const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement | null;
+    if (target?.closest("button, a, input, select, textarea, [role='button']:not([data-card-root]), [data-no-card-toggle]")) {
+      return;
+    }
+    if (hasExtraActions) {
+      onToggleAccordion(service.name, hasExtraActions);
+    }
+  };
+
   return (
     <div
-      onClick={() => {
-        if (hasExtraActions) {
-          onToggleAccordion(service.name, hasExtraActions);
-        }
-      }}
+      data-card-root="true"
+      role={hasExtraActions ? "button" : undefined}
+      tabIndex={hasExtraActions ? 0 : undefined}
+      aria-expanded={hasExtraActions ? isExpanded : undefined}
+      aria-label={hasExtraActions ? `${service.name} service card` : undefined}
+      onClick={handleCardClick}
+      onKeyDown={
+        hasExtraActions
+          ? handleActionKey((e: any) => {
+              if (e.target === e.currentTarget) {
+                onToggleAccordion(service.name, hasExtraActions);
+              }
+            })
+          : undefined
+      }
       className={cn(
         "w-full text-left bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all flex flex-col relative shadow-sm dark:shadow-lg",
         hasExtraActions && "cursor-pointer hover:bg-slate-50/80 dark:hover:bg-slate-900/60",
@@ -446,7 +467,7 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
             <ServiceStatus service={service} />
           </button>
 
-          <div onClick={(e) => e.stopPropagation()}>
+          <div>
             <VersionSwitcher
               service={service}
               task={task}
@@ -455,7 +476,7 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
           </div>
         </div>
 
-        <div onClick={(e) => e.stopPropagation()}>
+        <div>
           <MainActions
             isInstalled={isInstalled}
             service={service}
@@ -468,7 +489,7 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
       </div>
 
       {hasExtraActions && (
-        <div onClick={(e) => e.stopPropagation()}>
+        <div data-no-card-toggle="true">
           <ServiceExtraActions
             service={service}
             isExpanded={isExpanded}

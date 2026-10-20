@@ -76,6 +76,17 @@ describe("ServiceItem Component", () => {
     expect(mockProps.onToggleAccordion).toHaveBeenCalledWith("Apache", true);
   });
 
+  it("supports keyboard expansion with Enter and Space on the card", () => {
+    const { container } = render(<ServiceItem {...mockProps} />);
+    const card = container.firstChild as HTMLElement;
+
+    fireEvent.keyDown(card, { key: "Enter" });
+    expect(mockProps.onToggleAccordion).toHaveBeenCalledWith("Apache", true);
+
+    fireEvent.keyDown(card, { key: " " });
+    expect(mockProps.onToggleAccordion).toHaveBeenCalledTimes(2);
+  });
+
   it("calls handleToggleService when main action button is clicked", () => {
     render(<ServiceItem {...mockProps} />);
 

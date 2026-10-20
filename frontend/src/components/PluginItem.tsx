@@ -53,13 +53,33 @@ function PluginItem({
 
   const hasModules = Boolean(task.modules && task.modules.length > 0);
 
+  const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement | null;
+    if (target?.closest("button, a, input, select, textarea, [role='button']:not([data-card-root]), [data-no-card-toggle]")) {
+      return;
+    }
+    if (hasModules) {
+      setIsModulesExpanded((prev) => !prev);
+    }
+  };
+
   return (
     <div
-      onClick={() => {
-        if (hasModules) {
-          setIsModulesExpanded(!isModulesExpanded);
-        }
-      }}
+      data-card-root="true"
+      role={hasModules ? "button" : undefined}
+      tabIndex={hasModules ? 0 : undefined}
+      aria-expanded={hasModules ? isModulesExpanded : undefined}
+      aria-label={hasModules ? `${task.name} plugin card` : undefined}
+      onClick={handleCardClick}
+      onKeyDown={
+        hasModules
+          ? handleActionKey((e: any) => {
+              if (e.target === e.currentTarget) {
+                setIsModulesExpanded((prev) => !prev);
+              }
+            })
+          : undefined
+      }
       className={cn(
         "bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all group flex flex-col gap-0 relative shadow-sm dark:shadow-lg",
         hasModules && "cursor-pointer hover:bg-slate-50/80 dark:hover:bg-slate-900/60",
@@ -148,10 +168,7 @@ function PluginItem({
           </button>
         )}
 
-        <div
-          className="flex items-center gap-6 shrink-0"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="flex items-center gap-6 shrink-0">
           {isActive && (
             <div className="animate-in fade-in slide-in-from-right-2 duration-300">
               <CircularProgress
@@ -185,8 +202,8 @@ function PluginItem({
 
       {isModulesExpanded && hasModules && (
         <div
+          data-no-card-toggle="true"
           className="mt-4 pt-4 border-t border-slate-200 dark:border-white/5 space-y-2 animate-in slide-in-from-top-2 duration-200 cursor-default"
-          onClick={(e) => e.stopPropagation()}
         >
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">
             Available Modules
