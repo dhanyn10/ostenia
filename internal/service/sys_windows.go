@@ -43,21 +43,8 @@ func findOsteniaPIDsWindows(exeName, binPath string) []int {
 	var pids []int
 	for {
 		name := windows.UTF16ToString(entry.ExeFile[:])
-		if strings.EqualFold(name, exeName) {
-			pid := int(entry.ProcessID)
-			hProc, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, entry.ProcessID)
-			if err == nil {
-				buf := make([]uint16, 1024)
-				size := uint32(len(buf))
-				err = windows.QueryFullProcessImageName(hProc, 0, &buf[0], &size)
-				windows.CloseHandle(hProc)
-				if err == nil {
-					exePath := windows.UTF16ToString(buf[:size])
-					if IsPathInside(exePath, binPath) {
-						pids = append(pids, pid)
-					}
-				}
-			}
+		if strings.EqualFold(name, exeName) && isProcessInBinPath(entry.ProcessID, binPath) {
+			pids = append(pids, int(entry.ProcessID))
 		}
 
 		if err := windows.Process32Next(snapshot, &entry); err != nil {
@@ -65,4 +52,27 @@ func findOsteniaPIDsWindows(exeName, binPath string) []int {
 		}
 	}
 	return pids
+}
+
+func isProcessInBinPath(pid uint32, binPath string) bool {
+	exePath, err := getProcessImagePath(pid)
+	if err != nil {
+		return false
+	}
+	return IsPathInside(exePath, binPath)
+}
+
+func getProcessImagePath(pid uint32) (string, error) {
+	hProc, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, pid)
+	if err != nil {
+		return "", err
+	}
+	defer windows.CloseHandle(hProc)
+
+	buf := make([]uint16, 1024)
+	size := uint32(len(buf))
+	if err := windows.QueryFullProcessImageName(hProc, 0, &buf[0], &size); err != nil {
+		return "", err
+	}
+	return windows.UTF16ToString(buf[:size]), nil
 }

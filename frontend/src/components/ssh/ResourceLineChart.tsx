@@ -78,8 +78,17 @@ export const ResourceLineChart: React.FC<ResourceLineChartProps> = ({ data, metr
   const segments = buildSparklineSegments(paddedData, metric, width, height, pointsCount);
   const { linePath, areaPath } = buildSparklinePaths(segments, height);
 
+  const chartTitle = `${metric.toUpperCase()} usage chart`;
+
   return (
-    <svg width={width} height={height} className="overflow-hidden border border-mui-grey-200 dark:border-white/10 rounded bg-white dark:bg-mui-grey-950">
+    <svg
+      role="img"
+      aria-label={chartTitle}
+      width={width}
+      height={height}
+      className="overflow-hidden border border-mui-grey-200 dark:border-white/10 rounded bg-white dark:bg-mui-grey-950"
+    >
+      <title>{chartTitle}</title>
       {/* Horizontal grid lines */}
       <line x1={0} y1={height / 3} x2={width} y2={height / 3} stroke="rgba(156, 163, 175, 0.12)" strokeDasharray="1,1" />
       <line x1={0} y1={(2 * height) / 3} x2={width} y2={(2 * height) / 3} stroke="rgba(156, 163, 175, 0.12)" strokeDasharray="1,1" />

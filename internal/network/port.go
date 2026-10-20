@@ -58,28 +58,40 @@ func GetPortOwner(port int) (*PortOwner, error) {
 }
 
 func parsePortOwnerFromNetstat(output string, targetPort int) (int, error) {
-	lines := strings.Split(output, "\n")
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || !strings.Contains(line, "LISTENING") {
+	for _, rawLine := range strings.Split(output, "\n") {
+		line := strings.TrimSpace(rawLine)
+		if !strings.Contains(line, "LISTENING") {
 			continue
 		}
 
 		fields := strings.Fields(line)
-		if len(fields) >= 5 && fields[3] == "LISTENING" {
-			localAddr := fields[1]
-			lastColon := strings.LastIndex(localAddr, ":")
-			if lastColon != -1 {
-				p, err := strconv.Atoi(localAddr[lastColon+1:])
-				if err == nil && p == targetPort {
-					pid, err := strconv.Atoi(fields[len(fields)-1])
-					if err == nil && pid > 0 {
-						return pid, nil
-					}
-				}
-			}
+		if pid, ok := extractPIDFromNetstatFields(fields, targetPort); ok {
+			return pid, nil
 		}
 	}
 	return 0, fmt.Errorf("no process found listening on port %d", targetPort)
+}
+
+func extractPIDFromNetstatFields(fields []string, targetPort int) (int, bool) {
+	if len(fields) < 5 || fields[3] != "LISTENING" {
+		return 0, false
+	}
+
+	localAddr := fields[1]
+	lastColon := strings.LastIndex(localAddr, ":")
+	if lastColon == -1 {
+		return 0, false
+	}
+
+	port, err := strconv.Atoi(localAddr[lastColon+1:])
+	if err != nil || port != targetPort {
+		return 0, false
+	}
+
+	pid, err := strconv.Atoi(fields[len(fields)-1])
+	if err != nil || pid <= 0 {
+		return 0, false
+	}
+
+	return pid, true
 }

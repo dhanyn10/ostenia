@@ -49,6 +49,7 @@ describe('ResourceLineChart and MetricItem', () => {
         />
       );
       expect(container.querySelector('svg')).toBeInTheDocument();
+      expect(screen.getByRole('img', { name: 'CPU usage chart' })).toBeInTheDocument();
     });
 
     it('renders SVG paths when data is provided', () => {
