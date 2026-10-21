@@ -11,7 +11,7 @@ const GlobalConfigCategory: React.FC<GlobalConfigCategoryProps> = ({ appConfig, 
   const [installedApps, setInstalledApps] = useState<any[]>([]);
 
   useEffect(() => {
-    loadInstalledApps();
+    void loadInstalledApps();
   }, []);
 
   const loadInstalledApps = async () => {
@@ -19,6 +19,33 @@ const GlobalConfigCategory: React.FC<GlobalConfigCategoryProps> = ({ appConfig, 
       const apps = await AppBackend.GetInstalledApps();
       setInstalledApps(apps || []);
     } catch (err) { console.error(err); }
+  };
+
+  const handleSelectServerRoot = async () => {
+    const selected = await AppBackend.SelectServerRoot();
+    if (selected && initApp) initApp();
+  };
+
+  const handleSelectWWWRoot = async () => {
+    const selected = await AppBackend.SelectWWWRoot();
+    if (selected && initApp) initApp();
+  };
+
+  const handleEditorChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (e.target.value) {
+      await AppBackend.SetDefaultEditor(e.target.value);
+      if (initApp) initApp();
+    }
+  };
+
+  const handleSelectDefaultEditor = async () => {
+    await AppBackend.SelectDefaultEditor();
+    if (initApp) initApp();
+  };
+
+  const handleClearDefaultEditor = async () => {
+    await AppBackend.SetDefaultEditor("");
+    if (initApp) initApp();
   };
 
   return (
@@ -42,9 +69,8 @@ const GlobalConfigCategory: React.FC<GlobalConfigCategoryProps> = ({ appConfig, 
             />
             <button
               type="button"
-              onClick={async () => {
-                const selected = await AppBackend.SelectServerRoot();
-                if (selected && initApp) initApp();
+              onClick={() => {
+                void handleSelectServerRoot();
               }}
               className="px-4 py-2 bg-mui-blue-500 text-white rounded text-xs font-bold hover:bg-mui-blue-600 transition-colors"
             >
@@ -66,9 +92,8 @@ const GlobalConfigCategory: React.FC<GlobalConfigCategoryProps> = ({ appConfig, 
             />
             <button
               type="button"
-              onClick={async () => {
-                const selected = await AppBackend.SelectWWWRoot();
-                if (selected && initApp) initApp();
+              onClick={() => {
+                void handleSelectWWWRoot();
               }}
               className="px-4 py-2 bg-mui-blue-500 text-white rounded text-xs font-bold hover:bg-mui-blue-600 transition-colors"
             >
@@ -86,11 +111,8 @@ const GlobalConfigCategory: React.FC<GlobalConfigCategoryProps> = ({ appConfig, 
               <div className="flex gap-2">
                 <select
                   value={installedApps.find(a => a.path === appConfig?.defaultEditor)?.path || ""}
-                  onChange={async (e) => {
-                    if (e.target.value) {
-                      await AppBackend.SetDefaultEditor(e.target.value);
-                      if (initApp) initApp();
-                    }
+                  onChange={(e) => {
+                    void handleEditorChange(e);
                   }}
                   className="flex-1 bg-mui-grey-50 dark:bg-white/5 border border-mui-grey-200 dark:border-white/10 rounded px-3 py-2 text-sm outline-none text-mui-grey-700 dark:text-mui-grey-200 appearance-none cursor-pointer"
                 >
@@ -104,9 +126,8 @@ const GlobalConfigCategory: React.FC<GlobalConfigCategoryProps> = ({ appConfig, 
                 </div>
                 <button
                   type="button"
-                  onClick={async () => {
-                    await AppBackend.SelectDefaultEditor();
-                    if (initApp) initApp();
+                  onClick={() => {
+                    void handleSelectDefaultEditor();
                   }}
                   className="px-4 py-2 bg-mui-blue-500 text-white rounded text-xs font-bold hover:bg-mui-blue-600 transition-colors whitespace-nowrap"
                 >
@@ -122,9 +143,8 @@ const GlobalConfigCategory: React.FC<GlobalConfigCategoryProps> = ({ appConfig, 
                   </div>
                   <button
                     type="button"
-                    onClick={async () => {
-                      await AppBackend.SetDefaultEditor("");
-                      if (initApp) initApp();
+                    onClick={() => {
+                      void handleClearDefaultEditor();
                     }}
                     className="p-1.5 hover:bg-rose-500/10 rounded text-mui-grey-400 hover:text-rose-500 transition-colors"
                   >

@@ -32,7 +32,7 @@ const SSHManagementCategory: React.FC = () => {
   });
 
   useEffect(() => {
-    loadSSHSessions();
+    void loadSSHSessions();
   }, []);
 
   const loadSSHSessions = async () => {

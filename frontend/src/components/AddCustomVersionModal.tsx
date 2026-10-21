@@ -63,7 +63,7 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
         if (paths?.length > 0) {
           const path = paths[0];
           setSelectedPath(path);
-          processPath(path);
+          void processPath(path);
         }
       }, true);
     }
@@ -235,7 +235,9 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
             onDragEnter={handleDrag}
             onDragOver={handleDrag}
             onDragLeave={handleDrag}
-            onDrop={handleDrop}
+            onDrop={(e) => {
+              void handleDrop(e);
+            }}
             style={{ "--wails-drop-target": "drop" } as React.CSSProperties}
             data-file-drop-target="drop"
             className={`wails-drop-target border-2 border-dashed rounded-sm p-8 flex flex-col items-center justify-center gap-4 transition-all ${
@@ -280,7 +282,9 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
             <button
               type="button"
               disabled={processing}
-              onClick={handleSelectFile}
+              onClick={() => {
+                void handleSelectFile();
+              }}
               className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-sm text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none shadow-lg shadow-blue-500/20"
             >
               <FileArchive size={14} />
@@ -289,7 +293,9 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
             <button
               type="button"
               disabled={processing}
-              onClick={handleSelectFolder}
+              onClick={() => {
+                void handleSelectFolder();
+              }}
               className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-sm text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none shadow-lg shadow-emerald-500/20"
             >
               <Folder size={14} />

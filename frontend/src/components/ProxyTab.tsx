@@ -40,7 +40,7 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
   };
 
   useEffect(() => {
-    fetchApps();
+    void fetchApps();
 
     if (window.runtime) {
       return EventsOn("proxy_status", (data) => {
@@ -164,7 +164,7 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
                         <button
                           type="button"
                           onClick={() => {
-                            AppBackend.OpenProxyTerminal(app.name, "cmd");
+                            void AppBackend.OpenProxyTerminal(app.name, "cmd");
                             setOpenTerminalDropdown(null);
                           }}
                           className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all text-left"
@@ -174,7 +174,7 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
                         <button
                           type="button"
                           onClick={() => {
-                            AppBackend.OpenProxyTerminal(
+                            void AppBackend.OpenProxyTerminal(
                               app.name,
                               "powershell",
                             );
@@ -208,7 +208,9 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
                   />
                   <button
                     type="button"
-                    onClick={() => handleSave(app.name, app.port)}
+                    onClick={() => {
+                      void handleSave(app.name, app.port);
+                    }}
                     disabled={savingMap[app.name]}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-blue-900/20 disabled:opacity-50"
                   >

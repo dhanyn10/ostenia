@@ -76,7 +76,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
 
   // Load saved configurations upon mounting
   useEffect(() => {
-    loadSessions();
+    void loadSessions();
   }, []);
 
   // Dismiss context menu when clicking anywhere else
@@ -121,7 +121,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
    * Requests backend disconnection and removes the target tab from the layout.
    */
   const handleCloseSession = (id: string) => {
-    AppBackend.DisconnectSSH(id);
+    void AppBackend.DisconnectSSH(id);
     const nextActive = activeSessionIds.filter((sid) => sid !== id);
     setActiveSessionIds(nextActive);
 
@@ -146,7 +146,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
     setDeleteSessionId(null);
     try {
       await AppBackend.DeleteSSHSession(id);
-      loadSessions();
+      await loadSessions();
       addToast("Success", "Session deleted successfully", "success");
     } catch (err) {
       addToast("Error", "Failed to delete session", "error");
@@ -599,7 +599,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
           onClose={() => setShowForm(false)}
           onSave={() => {
             setShowForm(false);
-            loadSessions();
+            void loadSessions();
           }}
           addToast={addToast}
         />
@@ -633,7 +633,9 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
         type="danger"
         confirmText="Delete"
         cancelText="Cancel"
-        onConfirm={handleConfirmDelete}
+        onConfirm={() => {
+          void handleConfirmDelete();
+        }}
         onCancel={handleCancelDelete}
       />
     </div>

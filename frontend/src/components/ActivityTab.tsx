@@ -58,7 +58,7 @@ function ActivityTab({
 
   useEffect(() => {
     if (activeAccordion === "PHP") {
-      fetchPHPExtensions();
+      void fetchPHPExtensions();
     }
   }, [activeAccordion]);
 
@@ -70,7 +70,7 @@ function ActivityTab({
         extensions={phpExtensions}
         onToggle={async (name, enable) => {
           await TogglePHPExtension(name, enable);
-          fetchPHPExtensions();
+          await fetchPHPExtensions();
         }}
         serviceName="PHP"
       />
@@ -167,12 +167,12 @@ function ActivityTab({
                 renderIcon={renderIcon}
                 handleToggleService={handleToggleService}
                 handleRemoveFromHome={handleRemoveFromHome}
-                handleSwitchVersion={async (name, ver) =>
-                  await SwitchServiceVersion(name, ver)
-                }
-                handleOpenLocalTerminal={(name, type) =>
-                  OpenServiceTerminal(name, type)
-                }
+                handleSwitchVersion={(name, ver) => {
+                  void SwitchServiceVersion(name, ver);
+                }}
+                handleOpenLocalTerminal={(name, type) => {
+                  void OpenServiceTerminal(name, type);
+                }}
                 handleToggleHttps={handleToggleHttps}
                 openTerminalDropdown={openTerminalDropdown}
                 setOpenTerminalDropdown={setOpenTerminalDropdown}
