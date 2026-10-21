@@ -571,5 +571,28 @@ describe("LogViewer Component", () => {
       expect(targetCard).toHaveClass("ring-2");
       expect(targetCard).toHaveClass("ring-blue-500");
     });
+
+    it("renders pagination dots when there are many pages", () => {
+      const manyLogs = generateManyLogs(200);
+      render(<LogViewer logs={manyLogs} />);
+
+      // Switch to complete mode to see bottom pagination
+      const completeBtn = screen.getByRole("button", { name: /complete log/i });
+      fireEvent.click(completeBtn);
+
+      // Pagination dots should be in document
+      const dots = screen.getAllByText("...");
+      expect(dots.length).toBeGreaterThan(0);
+    });
+
+    it("handles OpenLogsFolder button click and rejection", () => {
+      vi.mocked(AppBackend.OpenLogsFolder).mockRejectedValueOnce(new Error("Cannot open"));
+      render(<LogViewer logs={mockLogs} />);
+
+      const openFolderBtn = screen.getByRole("button", { name: /open folder/i });
+      fireEvent.click(openFolderBtn);
+
+      expect(AppBackend.OpenLogsFolder).toHaveBeenCalled();
+    });
   });
 });

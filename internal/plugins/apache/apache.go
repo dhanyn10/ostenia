@@ -1,7 +1,7 @@
 package apache
 
 import (
-	_ "embed"
+	_ "embed" // Required for go:embed directive
 	"ostenia/internal/plugins/utils"
 	"regexp"
 	"runtime"

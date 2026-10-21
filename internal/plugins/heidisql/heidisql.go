@@ -1,7 +1,7 @@
 package heidisql
 
 import (
-	_ "embed"
+	_ "embed" // Required for go:embed directive
 )
 
 //go:embed heidisql.svg

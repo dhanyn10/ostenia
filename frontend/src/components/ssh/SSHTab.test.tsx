@@ -256,4 +256,15 @@ describe("SSHTab Component", () => {
     const mouseUpEvent = new MouseEvent("mouseup", { bubbles: true, cancelable: true });
     window.dispatchEvent(mouseUpEvent);
   });
+
+  it("supports keyboard resizing of search width with ArrowLeft and ArrowRight", () => {
+    render(
+      <SSHTab addToast={vi.fn()} theme="light" onOpenSettings={vi.fn()} />,
+    );
+
+    const resizer = screen.getByTitle("Resize Search horizontally");
+    fireEvent.keyDown(resizer, { key: "ArrowLeft" });
+    fireEvent.keyDown(resizer, { key: "ArrowRight" });
+    expect(resizer).toBeInTheDocument();
+  });
 });

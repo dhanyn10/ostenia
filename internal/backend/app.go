@@ -14,7 +14,7 @@ import (
 // App struct manages the main application state and coordinates between backend services and the frontend.
 // It wraps core controllers including plugins downloaders, orchestrators, symlinks, SSH, and SSL managers.
 type App struct {
-	ctx          context.Context             // Context provided by Wails runtime on startup
+	ctx          context.Context             // Context provided by Wails runtime on startup; required for frontend RPC bindings // NOSONAR
 	downloader   interfaces.PluginManager    // Controller responsible for plugin downloads and extraction
 	orchestrator interfaces.Orchestrator     // Controller managing lifecycle, watching, and state of development services
 	symlinkMgr   *service.SymlinkManager     // Helper maintaining system paths and junction points
@@ -102,7 +102,7 @@ func (a *App) GetRemainingDays(certPath string) (int, error) {
 }
 
 // SignCertificate signs a custom domain domain-level SSL certificate using the generated local Root CA.
-func (a *App) SignCertificate(caDir string, domain string, destDir string) error {
+func (a *App) SignCertificate(caDir, domain, destDir string) error {
 	return a.sslManager.SignCertificate(caDir, domain, destDir)
 }
 

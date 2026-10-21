@@ -1,7 +1,7 @@
 package python
 
 import (
-	_ "embed"
+	_ "embed" // Required for go:embed directive
 	"fmt"
 	"os"
 	"ostenia/internal/plugins/utils"

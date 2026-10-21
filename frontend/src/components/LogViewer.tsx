@@ -105,11 +105,9 @@ const LogCheckbox = ({ isSelected, onToggleSelect, className }: Readonly<LogChec
 const LogRowWrapper = ({
   id,
   log,
-  isSelected,
   isSelectMode,
   onRowContextMenu,
   onToggleSelect,
-  onClick,
   className,
   children,
 }: Readonly<LogRowWrapperProps>) => {
@@ -124,27 +122,6 @@ const LogRowWrapper = ({
       >
         {children}
       </button>
-    );
-  }
-
-  if (onClick) {
-    return (
-      <div
-        id={id}
-        role="button"
-        tabIndex={0}
-        onContextMenu={(e) => onRowContextMenu(e, log)}
-        onClick={(e) => onClick(e, log)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            onClick(e as any, log);
-          }
-        }}
-        className={className}
-      >
-        {children}
-      </div>
     );
   }
 
@@ -614,44 +591,62 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
                 isSelectMode={isSelectMode}
                 onRowContextMenu={handleRowContextMenu}
                 onToggleSelect={toggleSelectLog}
-                onClick={(_e, l) => handleSimpleLogClick(l)}
                 className={cn(
-                  "flex items-center justify-between gap-3 group h-7 py-1 px-3 border rounded transition-all select-none cursor-pointer overflow-hidden",
+                  "flex items-center justify-between gap-3 group h-7 py-1 px-3 border rounded transition-all select-none overflow-hidden",
                   isSelected
                     ? "bg-blue-50/80 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/50"
                     : "border-transparent hover:border-slate-200 dark:hover:border-white/10 hover:bg-slate-100/70 dark:hover:bg-slate-800/50"
                 )}
               >
-                <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
-                  {isSelectMode && (
+                {isSelectMode ? (
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
                     <LogCheckbox
                       isSelected={isSelected}
                       onToggleSelect={(isShift) => toggleSelectLog(log.id, isShift)}
                       className="self-center shrink-0"
                     />
-                  )}
-                  <span className="text-slate-400 dark:text-slate-500 font-mono text-[9px] select-none shrink-0">
-                    [{log.time}]
-                  </span>
-                  <span
-                    title={cleanText}
-                    className={cn(
-                      "truncate whitespace-nowrap overflow-hidden text-ellipsis text-[10px] min-w-0 flex-1 font-mono",
-                      colorClass
-                    )}
-                  >
-                    {cleanText}
-                  </span>
-                </div>
-                {!isSelectMode && (
-                  <CopyLogButton
-                    isCopied={isCopied}
-                    onCopy={(e) => {
-                      e.preventDefault();
-                      handleCopyLog(log);
-                    }}
-                    title="Copy Log"
-                  />
+                    <span className="text-slate-400 dark:text-slate-500 font-mono text-[9px] select-none shrink-0">
+                      [{log.time}]
+                    </span>
+                    <span
+                      title={cleanText}
+                      className={cn(
+                        "truncate whitespace-nowrap overflow-hidden text-ellipsis text-[10px] min-w-0 flex-1 font-mono",
+                        colorClass
+                      )}
+                    >
+                      {cleanText}
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleSimpleLogClick(log)}
+                      className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden bg-transparent border-none p-0 text-left cursor-pointer outline-none focus:ring-1 focus:ring-blue-500/40 rounded-sm"
+                    >
+                      <span className="text-slate-400 dark:text-slate-500 font-mono text-[9px] select-none shrink-0">
+                        [{log.time}]
+                      </span>
+                      <span
+                        title={cleanText}
+                        className={cn(
+                          "truncate whitespace-nowrap overflow-hidden text-ellipsis text-[10px] min-w-0 flex-1 font-mono",
+                          colorClass
+                        )}
+                      >
+                        {cleanText}
+                      </span>
+                    </button>
+                    <CopyLogButton
+                      isCopied={isCopied}
+                      onCopy={(e) => {
+                        e.preventDefault();
+                        handleCopyLog(log);
+                      }}
+                      title="Copy Log"
+                    />
+                  </>
                 )}
               </LogRowWrapper>
             );

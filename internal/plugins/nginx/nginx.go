@@ -1,7 +1,7 @@
 package nginx
 
 import (
-	_ "embed"
+	_ "embed" // Required for go:embed directive
 	"fmt"
 	"ostenia/internal/plugins/utils"
 	"regexp"

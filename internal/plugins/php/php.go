@@ -2,7 +2,7 @@ package php
 
 import (
 	"context"
-	_ "embed"
+	_ "embed" // Required for go:embed directive
 	"fmt"
 	"os"
 	"ostenia/internal/plugins/utils"
