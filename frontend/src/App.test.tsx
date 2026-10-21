@@ -49,6 +49,10 @@ vi.mock('../wailsjs/go/backend/App', () => ({
   GetPHPExtensions: vi.fn().mockResolvedValue([]),
   TogglePHPExtension: vi.fn().mockResolvedValue(null),
   SaveLogToFile: vi.fn().mockResolvedValue(null),
+  SaveLogEntry: vi.fn().mockResolvedValue(null),
+  GetRecentLogs: vi.fn().mockResolvedValue([]),
+  OpenLogsFolder: vi.fn().mockResolvedValue(null),
+  ClearLogs: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock('../wailsjs/runtime/runtime', () => ({
@@ -211,6 +215,16 @@ describe('App Component', () => {
     const stopAllBtn = screen.getByRole('button', { name: /Stop All/i });
     fireEvent.click(stopAllBtn);
     expect(AppBackend.StopAllServices).toHaveBeenCalled();
+  });
+
+  it('loads persisted logs from backend and supports opening logs folder', async () => {
+    (AppBackend.GetRecentLogs as any).mockResolvedValueOnce([
+      { id: 'p-1', time: '11:00:00', msg: '[SYS] Restored from JSONL', type: 'info', isServiceLog: false }
+    ]);
+    render(<App />);
+    await waitFor(() => {
+      expect(AppBackend.GetRecentLogs).toHaveBeenCalledWith(200);
+    });
   });
 
   it('handles events triggered from Wails runtime', async () => {

@@ -263,3 +263,28 @@ func TestEncryptDecrypt_AESError(t *testing.T) {
 		t.Error("Expected Decrypt to fail with short key")
 	}
 }
+
+
+func TestGetLogsDir(t *testing.T) {
+	// 1. OSTENIA_LOGS_DIR priority
+	tmpDir := t.TempDir()
+	oldLogsDir := os.Getenv("OSTENIA_LOGS_DIR")
+	os.Setenv("OSTENIA_LOGS_DIR", tmpDir)
+	defer os.Setenv("OSTENIA_LOGS_DIR", oldLogsDir)
+
+	if GetLogsDir() != tmpDir {
+		t.Errorf("GetLogsDir() = %v, want %v", GetLogsDir(), tmpDir)
+	}
+
+	// 2. LOCALAPPDATA priority when OSTENIA_LOGS_DIR is unset
+	os.Unsetenv("OSTENIA_LOGS_DIR")
+	oldLocalApp := os.Getenv("LOCALAPPDATA")
+	mockLocalApp := filepath.Join(tmpDir, "localapp")
+	os.Setenv("LOCALAPPDATA", mockLocalApp)
+	defer os.Setenv("LOCALAPPDATA", oldLocalApp)
+
+	expected := filepath.Join(mockLocalApp, "Ostenia", "logs")
+	if GetLogsDir() != expected {
+		t.Errorf("GetLogsDir() = %v, want %v", GetLogsDir(), expected)
+	}
+}

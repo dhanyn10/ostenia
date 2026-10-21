@@ -115,6 +115,11 @@ function App() {
  const handleOpenAppsLocationFolder = () => AppBackend.OpenAppsLocationFolder();
  const handleCancelDownload = (name: string) => AppBackend.CancelDownload(name);
  const handleOpenPluginFolder = (name: string) => AppBackend.OpenPluginFolder(name);
+ const handleOpenLogsFolder = () => {
+   if (AppBackend && (AppBackend as any).OpenLogsFolder) {
+     (AppBackend as any).OpenLogsFolder();
+   }
+ };
 
  const addLog = useCallback((msg: string, type = 'info', isServiceLog = false) => {
    if (isLogging) return;
@@ -133,23 +138,25 @@ function App() {
      const { caller, rawStack } = isServiceLog ? { caller: undefined, rawStack: '' } : parseStackTrace(stackTrace);
 
      const formattedMsg = `[${prefix}] ${msg}`;
-     if (AppBackend && (AppBackend as any).SaveLogToFile) {
+     const entry = {
+       id,
+       time,
+       timestamp: new Date().toISOString(),
+       msg: formattedMsg,
+       cleanMsg: msg,
+       type,
+       isServiceLog,
+       caller,
+       rawStack,
+     };
+
+     if (AppBackend && (AppBackend as any).SaveLogEntry) {
+       (AppBackend as any).SaveLogEntry(entry).catch(() => {});
+     } else if (AppBackend && (AppBackend as any).SaveLogToFile) {
        (AppBackend as any).SaveLogToFile(formattedMsg).catch(() => {});
      }
 
-     setLogs(prev => [
-       {
-         id,
-         time,
-         msg: formattedMsg,
-         cleanMsg: msg,
-         type,
-         isServiceLog,
-         caller,
-         rawStack,
-       },
-       ...prev
-     ].slice(0, 1000));
+     setLogs(prev => [entry, ...prev].slice(0, 1000));
    } finally {
      isLogging = false;
    }
@@ -240,10 +247,26 @@ function App() {
    } catch (err) { console.error(err); }
  };
 
+ const loadPersistedLogs = async () => {
+   if (!(AppBackend as any).GetRecentLogs) return;
+   try {
+     const persisted = await (AppBackend as any).GetRecentLogs(200);
+     if (Array.isArray(persisted) && persisted.length > 0) {
+       setLogs(prev => {
+         const existingIds = new Set(prev.map(l => l.id));
+         const newEntries = persisted.filter((l: any) => !existingIds.has(l.id));
+         return [...prev, ...newEntries].slice(0, 1000);
+       });
+     }
+   } catch (err) {
+     // ignore
+   }
+ };
+
  const initApp = async () => {
    setLoading(true);
    try {
-     await Promise.all([refreshPrerequisites(), loadInitialData()]);
+     await Promise.all([refreshPrerequisites(), loadInitialData(), loadPersistedLogs()]);
    } catch (err) {
      console.error("Initialization failed:", err);
    } finally {
@@ -535,7 +558,7 @@ function App() {
  </div>
 
  <div className={cn("h-full flex flex-col", activeTab !== 'logs' && "hidden")}>
- <LogViewer logs={logs} isActive={activeTab === 'logs'} />
+ <LogViewer logs={logs} isActive={activeTab === 'logs'} onOpenLogsFolder={handleOpenLogsFolder} />
  </div>
  </div>
  </main>

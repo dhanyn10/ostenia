@@ -90,6 +90,15 @@ describe("LogViewer Component", () => {
     expect(screen.getByText(/No activity recorded yet/i)).toBeInTheDocument();
   });
 
+  it("renders Open Folder button and calls onOpenLogsFolder when clicked", () => {
+    const onOpenLogsFolder = vi.fn();
+    render(<LogViewer logs={[]} onOpenLogsFolder={onOpenLogsFolder} />);
+    const openBtn = screen.getByRole("button", { name: /open folder/i });
+    expect(openBtn).toBeInTheDocument();
+    fireEvent.click(openBtn);
+    expect(onOpenLogsFolder).toHaveBeenCalledTimes(1);
+  });
+
   it("renders simple log mode by default and allows toggling to complete log mode", () => {
     render(<LogViewer logs={mockLogs} />);
 

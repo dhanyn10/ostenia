@@ -1,5 +1,5 @@
 import React from "react";
-import { List, Copy as CopyIcon, Check, ArrowUp, CheckSquare, X } from "lucide-react";
+import { List, Copy as CopyIcon, Check, ArrowUp, CheckSquare, X, FolderOpen } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -28,6 +28,7 @@ interface LogEntry {
 interface LogViewerProps {
   readonly logs: LogEntry[];
   readonly isActive?: boolean;
+  readonly onOpenLogsFolder?: () => void;
 }
 
 interface CopyLogButtonProps {
@@ -183,7 +184,7 @@ function getPaginationRange(currentPage: number, totalPages: number, siblingCoun
   return [];
 }
 
-function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
+function LogViewer({ logs, isActive = false, onOpenLogsFolder }: Readonly<LogViewerProps>) {
   const [viewMode, setViewMode] = React.useState<"simple" | "complete">("simple");
   const [copiedId, setCopiedId] = React.useState<string | number | null>(null);
   const [showBatchCopiedTooltip, setShowBatchCopiedTooltip] = React.useState(false);
@@ -740,6 +741,17 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
 
           {/* Select Button Toggle */}
           <div className="flex items-center gap-2">
+            {onOpenLogsFolder && (
+              <button
+                type="button"
+                onClick={onOpenLogsFolder}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-all uppercase tracking-wider border border-slate-200 dark:border-white/10"
+                title="Open Local Logs Folder in Explorer"
+              >
+                <FolderOpen size={13} />
+                <span>Open Folder</span>
+              </button>
+            )}
             {!isSelectMode ? (
               <button
                 type="button"

@@ -45,6 +45,31 @@ func GetBaseDir() string {
 	return filepath.Dir(exePath)
 }
 
+// GetLogsDir returns the directory where Ostenia stores persistent application logs.
+// It prioritizes the OSTENIA_LOGS_DIR environment variable (useful for testing and overrides),
+// then uses %LOCALAPPDATA%\Ostenia\logs on Windows,
+// falls back to user config directory / user home directory,
+// and finally falls back to a logs directory inside GetBaseDir().
+func GetLogsDir() string {
+	if envDir := os.Getenv("OSTENIA_LOGS_DIR"); envDir != "" {
+		return envDir
+	}
+
+	if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
+		return filepath.Join(localAppData, "Ostenia", "logs")
+	}
+
+	if configDir, err := os.UserConfigDir(); err == nil && configDir != "" {
+		return filepath.Join(configDir, "ostenia", "logs")
+	}
+
+	if homeDir, err := os.UserHomeDir(); err == nil && homeDir != "" {
+		return filepath.Join(homeDir, ".ostenia", "logs")
+	}
+
+	return filepath.Join(GetBaseDir(), "logs")
+}
+
 func getConfigPath() string {
 	if configPathOverride != "" {
 		return configPathOverride
