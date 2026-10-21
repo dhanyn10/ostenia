@@ -417,12 +417,46 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
     hasPhpExtManager ||
     hasHeidiOpen;
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (!hasExtraActions) return;
+
+    const target = e.target as HTMLElement;
+    // Don't toggle if the user clicked inside any button or interactive element, or extra actions panel
+    if (
+      target.closest("button:not([data-card-expand])") ||
+      target.closest("a") ||
+      target.closest("input") ||
+      target.closest("[data-no-card-toggle]")
+    ) {
+      return;
+    }
+
+    onToggleAccordion(service.name, hasExtraActions);
+  };
+
   return (
     <div
       data-card-root="true"
+      onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (!hasExtraActions) return;
+        const target = e.target as HTMLElement;
+        if (
+          target.closest("button:not([data-card-expand])") ||
+          target.closest("a") ||
+          target.closest("input") ||
+          target.closest("[data-no-card-toggle]")
+        ) {
+          return;
+        }
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onToggleAccordion(service.name, hasExtraActions);
+        }
+      }}
       className={cn(
         "w-full text-left bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all flex flex-col relative shadow-sm dark:shadow-lg",
-        hasExtraActions && "hover:bg-slate-50/80 dark:hover:bg-slate-900/60",
+        hasExtraActions && "hover:bg-slate-50/80 dark:hover:bg-slate-900/60 cursor-pointer",
         isExpanded ? "z-[100] ring-1 ring-blue-500/20" : "z-10",
       )}
     >
@@ -436,12 +470,15 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
               : `Expand ${service.name} actions`
           }
           aria-expanded={isExpanded}
-          onClick={() => onToggleAccordion(service.name, hasExtraActions)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleAccordion(service.name, hasExtraActions);
+          }}
           className="absolute inset-0 w-full h-full cursor-pointer bg-transparent border-none p-0 z-0 focus:outline-none focus:ring-1 focus:ring-blue-500/40 rounded-sm"
         />
       )}
 
-      <div className="flex items-center gap-5 relative z-10 pointer-events-none">
+      <div className="flex items-center gap-5 w-full relative z-10 pointer-events-auto">
         <div className="flex-1 min-w-0 flex items-center gap-3 flex-wrap px-2 pointer-events-auto">
           <button
             type="button"
@@ -482,7 +519,11 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
       </div>
 
       {hasExtraActions && (
-        <div data-no-card-toggle="true" className="relative z-10 pointer-events-auto">
+        <div
+          data-no-card-toggle="true"
+          onClick={(e) => e.stopPropagation()}
+          className="relative z-10 pointer-events-auto"
+        >
           <ServiceExtraActions
             service={service}
             isExpanded={isExpanded}

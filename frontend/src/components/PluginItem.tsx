@@ -157,6 +157,7 @@ const PluginModuleList: React.FC<PluginModuleListProps> = ({
 }) => (
   <div
     data-no-card-toggle="true"
+    onClick={(e) => e.stopPropagation()}
     className="mt-4 pt-4 border-t border-slate-200 dark:border-white/5 space-y-2 animate-in slide-in-from-top-2 duration-200 cursor-default relative z-10 pointer-events-auto"
   >
     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">
@@ -215,12 +216,46 @@ function PluginItem({
 
   const hasModules = Boolean(task.modules && task.modules.length > 0);
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (!hasModules) return;
+
+    const target = e.target as HTMLElement;
+    // Don't toggle if the user clicked inside any interactive button (excluding card-expand buttons) or module list
+    if (
+      target.closest("button:not([data-card-expand])") ||
+      target.closest("a") ||
+      target.closest("input") ||
+      target.closest("[data-no-card-toggle]")
+    ) {
+      return;
+    }
+
+    setIsModulesExpanded((prev) => !prev);
+  };
+
   return (
     <div
       data-card-root="true"
+      onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (!hasModules) return;
+        const target = e.target as HTMLElement;
+        if (
+          target.closest("button:not([data-card-expand])") ||
+          target.closest("a") ||
+          target.closest("input") ||
+          target.closest("[data-no-card-toggle]")
+        ) {
+          return;
+        }
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          setIsModulesExpanded((prev) => !prev);
+        }
+      }}
       className={cn(
         "bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all group flex flex-col gap-0 relative shadow-sm dark:shadow-lg",
-        hasModules && "hover:bg-slate-50/80 dark:hover:bg-slate-900/60",
+        hasModules && "hover:bg-slate-50/80 dark:hover:bg-slate-900/60 cursor-pointer",
         isDropdownOpen ? "z-[100]" : "z-0",
       )}
     >
@@ -234,12 +269,15 @@ function PluginItem({
               : `Expand ${task.name} modules`
           }
           aria-expanded={isModulesExpanded}
-          onClick={() => setIsModulesExpanded((prev) => !prev)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsModulesExpanded((prev) => !prev);
+          }}
           className="absolute inset-0 w-full h-full cursor-pointer bg-transparent border-none p-0 z-0 focus:outline-none focus:ring-1 focus:ring-blue-500/40 rounded-sm"
         />
       )}
 
-      <div className="flex items-center gap-6 w-full relative z-10 pointer-events-none">
+      <div className="flex items-center gap-6 w-full relative z-10 pointer-events-auto">
         <div
           className={cn(
             "w-10 h-10 rounded-sm flex items-center justify-center shadow-lg transition-transform group-hover:scale-105 shrink-0",
@@ -306,6 +344,7 @@ function PluginItem({
         {hasModules && (
           <button
             type="button"
+            data-card-expand="true"
             onClick={(e) => {
               e.stopPropagation();
               setIsModulesExpanded(!isModulesExpanded);
@@ -313,7 +352,7 @@ function PluginItem({
             aria-label={
               isModulesExpanded ? "Collapse modules" : "Expand modules"
             }
-            className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-sm transition-all text-slate-400 hover:text-slate-900 dark:hover:text-white pointer-events-auto"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-sm transition-all text-slate-400 hover:text-slate-900 dark:hover:text-white pointer-events-auto cursor-pointer"
           >
             {isModulesExpanded ? (
               <ChevronUp size={16} />
@@ -340,12 +379,15 @@ function PluginItem({
             <button
               type="button"
               disabled={isSelectedInstalled}
-              onClick={() => !isSelectedInstalled && onInstall(task)}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isSelectedInstalled) onInstall(task);
+              }}
               className={cn(
                 "px-5 py-2 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg",
                 isSelectedInstalled
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 border border-emerald-500/20 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-500 text-white hover:scale-105",
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 border border-emerald-500/20 cursor-pointer pointer-events-none"
+                  : "bg-blue-600 hover:bg-blue-500 text-white hover:scale-105 cursor-pointer",
               )}
             >
               {isSelectedInstalled && <CheckCircle2 size={14} />}
