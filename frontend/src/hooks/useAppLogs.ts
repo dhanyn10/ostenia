@@ -5,6 +5,7 @@ import { parseStackTrace } from '../utils/stackParser';
 export interface LogItem {
   id: string;
   time: string;
+  timestamp?: string;
   msg: string;
   cleanMsg: string;
   type: string;
@@ -27,6 +28,7 @@ export function useAppLogs() {
     isLogging = true;
     try {
       const time = new Date().toLocaleTimeString();
+      const timestamp = new Date().toISOString();
       const id = crypto.randomUUID();
       let prefix = 'SYS';
       if (type === 'error') {
@@ -39,26 +41,65 @@ export function useAppLogs() {
       const { caller, rawStack } = isServiceLog ? { caller: undefined, rawStack: '' } : parseStackTrace(stackTrace);
 
       const formattedMsg = `[${prefix}] ${msg}`;
-      if (AppBackend && (AppBackend as any).SaveLogToFile) {
-        (AppBackend as any).SaveLogToFile(formattedMsg).catch(() => {});
+      const logItem: LogItem = {
+        id,
+        time,
+        timestamp,
+        msg: formattedMsg,
+        cleanMsg: msg,
+        type,
+        isServiceLog,
+        caller,
+        rawStack,
+      };
+
+      if (AppBackend && (AppBackend as any).SaveLogEntry) {
+        try {
+          const p = (AppBackend as any).SaveLogEntry(logItem);
+          if (p && typeof p.catch === 'function') p.catch(() => {});
+        } catch (_) {}
+      } else if (AppBackend && (AppBackend as any).SaveLogToFile) {
+        try {
+          const p = (AppBackend as any).SaveLogToFile(formattedMsg);
+          if (p && typeof p.catch === 'function') p.catch(() => {});
+        } catch (_) {}
       }
 
       setLogs(prev => [
-        {
-          id,
-          time,
-          msg: formattedMsg,
-          cleanMsg: msg,
-          type,
-          isServiceLog,
-          caller,
-          rawStack,
-        },
+        logItem,
         ...prev
       ].slice(0, 1000));
     } finally {
       isLogging = false;
     }
+  }, []);
+
+  const loadRecentLogs = useCallback(async (limit = 500) => {
+    if (AppBackend && (AppBackend as any).GetRecentLogs) {
+      try {
+        const recent = await (AppBackend as any).GetRecentLogs(limit);
+        if (Array.isArray(recent) && recent.length > 0) {
+          setLogs(prev => {
+            const existingIds = new Set(prev.map(l => l.id));
+            const newEntries = (recent as LogItem[]).filter(l => !existingIds.has(l.id));
+            return [...prev, ...newEntries].slice(0, 1000);
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load recent logs:', err);
+      }
+    }
+  }, []);
+
+  const clearAppLogs = useCallback(async () => {
+    if (AppBackend && (AppBackend as any).ClearLogs) {
+      try {
+        await (AppBackend as any).ClearLogs();
+      } catch (err) {
+        console.error('Failed to clear logs:', err);
+      }
+    }
+    setLogs([]);
   }, []);
 
   const setupConsoleOverrides = useCallback((originalLog: any, originalWarn: any, originalError: any) => {
@@ -76,5 +117,5 @@ export function useAppLogs() {
     };
   }, [addLog]);
 
-  return { logs, setLogs, addLog, setupConsoleOverrides };
+  return { logs, setLogs, addLog, loadRecentLogs, clearAppLogs, setupConsoleOverrides };
 }

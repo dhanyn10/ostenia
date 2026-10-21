@@ -49,6 +49,10 @@ vi.mock('../wailsjs/go/backend/App', () => ({
   GetPHPExtensions: vi.fn().mockResolvedValue([]),
   TogglePHPExtension: vi.fn().mockResolvedValue(null),
   SaveLogToFile: vi.fn().mockResolvedValue(null),
+  SaveLogEntry: vi.fn().mockResolvedValue(null),
+  GetRecentLogs: vi.fn().mockResolvedValue([]),
+  ClearLogs: vi.fn().mockResolvedValue(null),
+  OpenLogsFolder: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock('../wailsjs/runtime/runtime', () => ({

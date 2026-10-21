@@ -1,7 +1,12 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import LogViewer from "./LogViewer";
+import LogViewer, { formatCompleteLog } from "./LogViewer";
 import React from "react";
+import * as AppBackend from "../../wailsjs/go/backend/App";
+
+vi.mock("../../wailsjs/go/backend/App", () => ({
+  OpenLogsFolder: vi.fn().mockResolvedValue(undefined),
+}));
 
 const generateManyLogs = (count: number) => {
   return Array.from({ length: count }, (_, idx) => ({
@@ -94,7 +99,7 @@ describe("LogViewer Component", () => {
     render(<LogViewer logs={mockLogs} />);
 
     // Default should be simple mode
-    expect(screen.getByText("[SYS] Server starting")).toBeInTheDocument();
+    expect(screen.getByText("Server starting")).toBeInTheDocument();
     // In simple mode, caller info shouldn't be visible
     expect(screen.queryByText("initServer()")).not.toBeInTheDocument();
 
@@ -309,8 +314,11 @@ describe("LogViewer Component", () => {
       fireEvent.click(copyBtn);
       await act(async () => {});
 
-      // Verify exact WhatsApp-style text format [time] msg
-      const expectedText = "[12:00:00] [SYS] Server starting\n[12:00:05] [WRN] Low disk space";
+      // Verify Complete Log format for selected logs
+      const expectedText = [
+        formatCompleteLog(mockLogs[0]),
+        formatCompleteLog(mockLogs[1])
+      ].join("\n\n---\n\n");
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expectedText);
 
       // Verify Copied! tooltip feedback appeared
@@ -343,7 +351,33 @@ describe("LogViewer Component", () => {
       fireEvent.click(copyMenuBtn);
       await act(async () => {});
 
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith("[12:00:10] [ERR] Database connection failed");
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(formatCompleteLog(mockLogs[2]));
+    });
+
+    it("copies complete log version whether initiated from simple log or complete log", async () => {
+      const testLog = mockLogs[0];
+      const { unmount } = render(<LogViewer logs={[testLog]} />);
+
+      // In Simple mode: click copy
+      const simpleCopyBtn = screen.getByTitle("Copy Log");
+      fireEvent.click(simpleCopyBtn);
+      await act(async () => {});
+
+      const expectedCompleteLog = formatCompleteLog(testLog);
+      expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith(expectedCompleteLog);
+
+      unmount();
+
+      // In Complete mode: click copy
+      render(<LogViewer logs={[testLog]} />);
+      const completeModeBtn = screen.getByRole("button", { name: /complete log/i });
+      fireEvent.click(completeModeBtn);
+
+      const completeCopyBtn = screen.getByTitle("Copy Laravel-Style Log");
+      fireEvent.click(completeCopyBtn);
+      await act(async () => {});
+
+      expect(navigator.clipboard.writeText).toHaveBeenLastCalledWith(expectedCompleteLog);
     });
   });
 
@@ -482,6 +516,60 @@ describe("LogViewer Component", () => {
       rerender(<LogViewer logs={clearedLogs} isActive={true} />);
       expect(screen.queryByText("Log 1")).not.toBeInTheDocument();
       expect(screen.getByText(/No activity recorded yet/i)).toBeInTheDocument();
+    });
+
+    it("handles Open Folder button click", () => {
+      render(<LogViewer logs={mockLogs} />);
+      const openFolderBtn = screen.getByTitle("Open logs folder in AppData");
+      expect(openFolderBtn).toBeInTheDocument();
+      fireEvent.click(openFolderBtn);
+      expect(AppBackend.OpenLogsFolder).toHaveBeenCalled();
+    });
+
+    it("renders and calls onClearLogs when Clear button is clicked", () => {
+      const handleClear = vi.fn();
+      render(<LogViewer logs={mockLogs} onClearLogs={handleClear} />);
+      const clearBtn = screen.getByTitle("Clear all logs");
+      expect(clearBtn).toBeInTheDocument();
+      fireEvent.click(clearBtn);
+      expect(handleClear).toHaveBeenCalledTimes(1);
+    });
+    it("simple log stays strictly 1 line with text-ellipsis and type colors", () => {
+      const customLogs = [
+        { id: "1", time: "12:00:00", msg: "[ERR] Error message", cleanMsg: "Error message", type: "error" },
+        { id: "2", time: "12:00:01", msg: "[WRN] Warn text", cleanMsg: "Warn text", type: "warn" },
+      ];
+      render(<LogViewer logs={customLogs} />);
+
+      const errorSpan = screen.getByText("Error message");
+      expect(errorSpan).toBeInTheDocument();
+      expect(errorSpan).toHaveClass("text-rose-600");
+      expect(errorSpan).toHaveClass("whitespace-nowrap");
+      expect(errorSpan).toHaveClass("overflow-hidden");
+
+      const warnSpan = screen.getByText("Warn text");
+      expect(warnSpan).toBeInTheDocument();
+      expect(warnSpan).toHaveClass("text-amber-600");
+    });
+
+    it("switches to complete log mode and highlights the clicked log when clicked in simple mode", () => {
+      render(<LogViewer logs={mockLogs} />);
+
+      // Starts in simple mode
+      expect(screen.getByRole("button", { name: /simple log/i })).toHaveClass("bg-white");
+
+      // Click on the second simple log entry ("Low disk space")
+      const simpleRow = screen.getByText("Low disk space");
+      fireEvent.click(simpleRow);
+
+      // Should now be switched to Complete Log
+      expect(screen.getByRole("button", { name: /complete log/i })).toHaveClass("bg-white");
+
+      // The corresponding complete card should have highlight class
+      const targetCard = document.getElementById("log-card-2");
+      expect(targetCard).toBeInTheDocument();
+      expect(targetCard).toHaveClass("ring-2");
+      expect(targetCard).toHaveClass("ring-blue-500");
     });
   });
 });

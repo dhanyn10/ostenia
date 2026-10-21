@@ -52,7 +52,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('activity');
   const { theme, setTheme, toggleTheme } = useTheme();
   const { toasts, addToast, removeToast } = useToast();
-  const { logs, addLog, setupConsoleOverrides } = useAppLogs();
+  const { logs, addLog, loadRecentLogs, clearAppLogs, setupConsoleOverrides } = useAppLogs();
 
   const [services, setServices] = useState<ServiceInfo[]>([
   { name: 'Apache', status: 'Stopped', pid: 0, port: 0, ports: [], activeVersion: '' },
@@ -180,7 +180,7 @@ function App() {
  const initApp = async () => {
    setLoading(true);
    try {
-     await Promise.all([refreshPrerequisites(), loadInitialData()]);
+     await Promise.all([refreshPrerequisites(), loadInitialData(), loadRecentLogs()]);
    } catch (err) {
      console.error("Initialization failed:", err);
    } finally {
@@ -446,7 +446,7 @@ function App() {
  </div>
 
  <div className={cn("h-full flex flex-col", activeTab !== 'logs' && "hidden")}>
- <LogViewer logs={logs} isActive={activeTab === 'logs'} />
+ <LogViewer logs={logs} isActive={activeTab === 'logs'} onClearLogs={clearAppLogs} />
  </div>
  </div>
  </main>
