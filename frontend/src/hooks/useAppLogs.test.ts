@@ -119,4 +119,45 @@ describe('useAppLogs hook', () => {
     expect(AppBackend.ClearLogs).toHaveBeenCalledTimes(1);
     expect(result.current.logs).toHaveLength(0);
   });
+
+  it('handles backend error in clearAppLogs', async () => {
+    vi.mocked(AppBackend.ClearLogs).mockRejectedValueOnce(new Error('Clear error'));
+    const { result } = renderHook(() => useAppLogs());
+
+    await act(async () => {
+      await result.current.clearAppLogs();
+    });
+    expect(result.current.logs).toHaveLength(0);
+  });
+
+  it('handles backend error in loadRecentLogs', async () => {
+    vi.mocked(AppBackend.GetRecentLogs).mockRejectedValueOnce(new Error('Load error'));
+    const { result } = renderHook(() => useAppLogs());
+
+    await act(async () => {
+      await result.current.loadRecentLogs(10);
+    });
+    expect(result.current.logs).toEqual([]);
+  });
+
+  it('handles console.warn and console.error overrides', () => {
+    const { result } = renderHook(() => useAppLogs());
+    const origLog = vi.fn();
+    const origWarn = vi.fn();
+    const origError = vi.fn();
+
+    act(() => {
+      result.current.setupConsoleOverrides(origLog, origWarn, origError);
+    });
+
+    act(() => {
+      console.warn('Warning test');
+      console.error('Error test');
+    });
+
+    expect(origWarn).toHaveBeenCalledWith('Warning test');
+    expect(origError).toHaveBeenCalledWith('Error test');
+    expect(result.current.logs.some(l => l.type === 'warn')).toBe(true);
+    expect(result.current.logs.some(l => l.type === 'error')).toBe(true);
+  });
 });

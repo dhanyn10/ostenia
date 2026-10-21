@@ -18,5 +18,17 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test-setup.js',
     exclude: ['**/node_modules/**', '**/dist/**', '**/cypress/**', '**/.{idea,git,cache,output,temp}/**', '**/e2e/**'],
+    coverage: {
+      provider: 'v8',
+      exclude: [
+        '**/node_modules/**',
+        '**/dist/**',
+        '**/wailsjs/**',
+        '**/e2e/**',
+        '**/*.config.*',
+        'src/main.tsx',
+        'src/test-setup.js',
+      ],
+    },
   },
 })

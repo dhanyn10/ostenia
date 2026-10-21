@@ -12,6 +12,7 @@ import (
 	plugins_utils "ostenia/internal/plugins/utils"
 	"ostenia/internal/ssl"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	wruntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -788,5 +789,140 @@ func TestApp_SwitchVersion_EdgeCases(t *testing.T) {
 	err := app.SwitchServiceVersion("PHP", "9.0.0")
 	if err != nil {
 		t.Errorf("Expected SwitchServiceVersion to succeed with MockPluginManager, got: %v", err)
+	}
+}
+
+type ZeroPortOrchestrator struct {
+	MockOrchestrator
+}
+
+func (z *ZeroPortOrchestrator) GetDetailedInfo(name string) interfaces.ServiceDetailedInfo {
+	return interfaces.ServiceDetailedInfo{Name: name, Port: 0}
+}
+
+func TestDefaultSSLManager(t *testing.T) {
+	tempDir := t.TempDir()
+	sslMgr := &DefaultSSLManager{}
+
+	// Test GenerateRootCA
+	err := sslMgr.GenerateRootCA(tempDir)
+	if err != nil {
+		t.Fatalf("GenerateRootCA failed: %v", err)
+	}
+
+	// Test GetRemainingDays with generated ca.crt
+	caCertPath := filepath.Join(tempDir, "ca.crt")
+	days, err := sslMgr.GetRemainingDays(caCertPath)
+	if err != nil {
+		t.Fatalf("GetRemainingDays failed: %v", err)
+	}
+	if days <= 0 {
+		t.Errorf("Expected days > 0, got %d", days)
+	}
+
+	// Test SignCertificate
+	destDir := filepath.Join(tempDir, "signed")
+	_ = os.MkdirAll(destDir, 0755)
+	err = sslMgr.SignCertificate(tempDir, "example.test", destDir)
+	if err != nil {
+		t.Fatalf("SignCertificate failed: %v", err)
+	}
+}
+
+func TestApp_CheckPortConflict(t *testing.T) {
+	app := &App{
+		orchestrator: &ZeroPortOrchestrator{},
+	}
+
+	// Unknown service with port <= 0 should return nil, nil
+	owner, err := app.CheckPortConflict("NonExistentService")
+	if err != nil || owner != nil {
+		t.Errorf("Expected nil, nil for unknown service, got owner: %v, err: %v", owner, err)
+	}
+
+	// Known service with default port (e.g. MySQL 3306)
+	_, _ = app.CheckPortConflict("MySQL")
+}
+
+func TestApp_TogglePHPExtension_ServiceRestart(t *testing.T) {
+	tempDir := t.TempDir()
+	origHome := os.Getenv("OSTENIA_HOME")
+	os.Setenv("OSTENIA_HOME", tempDir)
+	defer os.Setenv("OSTENIA_HOME", origHome)
+
+	cfg := &config.Config{BaseDir: tempDir}
+	_ = config.SaveConfig(cfg)
+
+	phpCurrent := filepath.Join(tempDir, "bin", "php", "current")
+	_ = os.MkdirAll(phpCurrent, 0755)
+	iniPath := filepath.Join(phpCurrent, "php.ini")
+	_ = os.WriteFile(iniPath, []byte(";extension=curl\n"), 0644)
+	_ = os.WriteFile(filepath.Join(phpCurrent, "php-cgi.exe"), []byte("mock binary"), 0755)
+
+	orchestrator := &MockOrchestrator{Running: map[string]bool{"PHP": true}}
+	app := &App{
+		cfg:          cfg,
+		orchestrator: orchestrator,
+	}
+
+	// Toggle extension when PHP is running (should stop and restart)
+	err := app.TogglePHPExtension("curl", true)
+	if err != nil {
+		t.Errorf("TogglePHPExtension failed: %v", err)
+	}
+	if !orchestrator.Running["PHP"] {
+		t.Error("Expected PHP to be restarted and running")
+	}
+}
+
+func TestApp_ProcessCustomVersion_Archive_Errors(t *testing.T) {
+	tempDir := t.TempDir()
+	app := &App{
+		cfg:          &config.Config{BaseDir: tempDir},
+		orchestrator: &MockOrchestrator{Running: make(map[string]bool)},
+	}
+
+	// Unsupported extension
+	unsupportedFile := filepath.Join(tempDir, "test.tar.gz")
+	_ = os.WriteFile(unsupportedFile, []byte("fake tar content"), 0644)
+
+	err := app.ProcessCustomVersion("Apache", unsupportedFile)
+	if err == nil || !strings.Contains(err.Error(), "unsupported file format") {
+		t.Errorf("Expected unsupported file format error, got: %v", err)
+	}
+
+	// Non-existent path
+	err = app.ProcessCustomVersion("Apache", filepath.Join(tempDir, "non_existent.zip"))
+	if err == nil {
+		t.Error("Expected error for non-existent path")
+	}
+}
+
+func TestApp_SaveProxyPort(t *testing.T) {
+	tempDir := t.TempDir()
+	cfg := &config.Config{
+		BaseDir: tempDir,
+		Proxies: map[string]int{"app1": 3000},
+	}
+	app := &App{
+		cfg:          cfg,
+		orchestrator: &MockOrchestrator{Running: make(map[string]bool)},
+	}
+
+	err := app.SaveProxyPort("app1", 3001)
+	if err != nil {
+		t.Errorf("SaveProxyPort failed: %v", err)
+	}
+	if cfg.Proxies["app1"] != 3001 {
+		t.Errorf("Expected port 3001, got %d", cfg.Proxies["app1"])
+	}
+
+	// Deleting port by setting <= 0
+	err = app.SaveProxyPort("app1", 0)
+	if err != nil {
+		t.Errorf("SaveProxyPort with port 0 failed: %v", err)
+	}
+	if _, exists := cfg.Proxies["app1"]; exists {
+		t.Errorf("Expected port for app1 to be deleted")
 	}
 }
