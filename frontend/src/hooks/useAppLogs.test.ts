@@ -1,9 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useAppLogs, formatLogArgs } from './useAppLogs';
+import * as AppBackend from '../../wailsjs/go/backend/App';
 
 vi.mock('../../wailsjs/go/backend/App', () => ({
   SaveLogToFile: vi.fn().mockResolvedValue(undefined),
+  SaveLogEntry: vi.fn().mockResolvedValue(undefined),
+  GetRecentLogs: vi.fn().mockResolvedValue([]),
+  ClearLogs: vi.fn().mockResolvedValue(undefined),
+  OpenLogsFolder: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe('useAppLogs hook', () => {
@@ -21,7 +26,7 @@ describe('useAppLogs hook', () => {
     expect(result.current.logs).toEqual([]);
   });
 
-  it('adds logs with appropriate prefixes', () => {
+  it('adds logs with appropriate prefixes and calls SaveLogEntry', () => {
     const { result } = renderHook(() => useAppLogs());
 
     act(() => {
@@ -31,6 +36,7 @@ describe('useAppLogs hook', () => {
     expect(result.current.logs).toHaveLength(1);
     expect(result.current.logs[0].msg).toContain('[SYS] General message');
     expect(result.current.logs[0].type).toBe('info');
+    expect(AppBackend.SaveLogEntry).toHaveBeenCalledTimes(1);
 
     act(() => {
       result.current.addLog('Warning message', 'warn');
@@ -64,5 +70,53 @@ describe('useAppLogs hook', () => {
 
     expect(origLog).toHaveBeenCalledWith('Console test');
     expect(result.current.logs.some(l => l.cleanMsg === 'Console test')).toBe(true);
+  });
+
+  it('loads recent logs via loadRecentLogs', async () => {
+    const mockRecentLogs = [
+      {
+        id: 'rec-1',
+        time: '10:00:00',
+        msg: '[SYS] Restored log 1',
+        cleanMsg: 'Restored log 1',
+        type: 'info',
+        isServiceLog: false,
+      },
+      {
+        id: 'rec-2',
+        time: '10:01:00',
+        msg: '[ERR] Restored log 2',
+        cleanMsg: 'Restored log 2',
+        type: 'error',
+        isServiceLog: false,
+      },
+    ];
+    vi.mocked(AppBackend.GetRecentLogs).mockResolvedValueOnce(mockRecentLogs as any);
+
+    const { result } = renderHook(() => useAppLogs());
+
+    await act(async () => {
+      await result.current.loadRecentLogs(50);
+    });
+
+    expect(AppBackend.GetRecentLogs).toHaveBeenCalledWith(50);
+    expect(result.current.logs).toHaveLength(2);
+    expect(result.current.logs[0].id).toBe('rec-1');
+  });
+
+  it('clears logs and calls ClearLogs on backend', async () => {
+    const { result } = renderHook(() => useAppLogs());
+
+    act(() => {
+      result.current.addLog('Some log', 'info');
+    });
+    expect(result.current.logs).toHaveLength(1);
+
+    await act(async () => {
+      await result.current.clearAppLogs();
+    });
+
+    expect(AppBackend.ClearLogs).toHaveBeenCalledTimes(1);
+    expect(result.current.logs).toHaveLength(0);
   });
 });

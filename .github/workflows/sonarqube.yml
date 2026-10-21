@@ -14,6 +14,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar-${{ hashFiles('**/sonar-project.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-sonar-
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -48,7 +56,7 @@ jobs:
         run: |
           New-Item -Path "frontend/dist" -ItemType Directory -Force
           "dummy" | Out-File -FilePath "frontend/dist/index.html"
-          go test -v -coverprofile coverage-backend.out ./...
+          go test -coverprofile coverage-backend.out ./...
         shell: pwsh
 
       - name: Run Frontend Tests
@@ -56,7 +64,7 @@ jobs:
           $env:PATH += ";C:\Users\runneradmin\go\bin"
           wails generate module
           cd frontend
-          pnpm install --no-frozen-lockfile
+          pnpm install --frozen-lockfile --prefer-offline
           pnpm vitest run --coverage.enabled --coverage.reporter=lcov --coverage.reportsDirectory=./coverage
         shell: pwsh
 

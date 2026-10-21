@@ -203,4 +203,42 @@ describe("PluginItem Component", () => {
 
     expect(screen.getByText("45%")).toBeInTheDocument();
   });
+
+  it("auto-expands modules when clicking anywhere on the card (title, info, card root)", () => {
+    const { container } = render(<PluginItem {...mockProps} />);
+
+    expect(screen.queryByText("Available Modules")).not.toBeInTheDocument();
+
+    // 1. Click on plugin title "PHP" -> expands
+    fireEvent.click(screen.getByText("PHP"));
+    expect(screen.getByText("Available Modules")).toBeInTheDocument();
+
+    // 2. Click on card root -> collapses
+    const cardRoot = container.querySelector('[data-card-root="true"]') as HTMLElement;
+    fireEvent.click(cardRoot);
+    expect(screen.queryByText("Available Modules")).not.toBeInTheDocument();
+
+    // 3. Click on info badge "Highly recommended" -> expands
+    fireEvent.click(screen.getByText("Highly recommended"));
+    expect(screen.getByText("Available Modules")).toBeInTheDocument();
+
+    // 4. Clicking inside module list does NOT collapse the card
+    fireEvent.click(screen.getByText("Available Modules"));
+    expect(screen.getByText("Available Modules")).toBeInTheDocument();
+  });
+
+  it("does not toggle card expansion when interactive controls like version dropdown or delete version are clicked", () => {
+    render(<PluginItem {...mockProps} />);
+
+    // Click version dropdown
+    fireEvent.click(screen.getByText("v8.2"));
+    expect(mockProps.onDropdownToggle).toHaveBeenCalled();
+    expect(screen.queryByText("Available Modules")).not.toBeInTheDocument();
+
+    // Click delete version button
+    const deleteBtn = screen.getByTitle("Delete v8.1");
+    fireEvent.click(deleteBtn);
+    expect(mockProps.onDeleteVersion).toHaveBeenCalledWith("PHP", "8.1");
+    expect(screen.queryByText("Available Modules")).not.toBeInTheDocument();
+  });
 });

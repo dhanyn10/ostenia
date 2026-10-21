@@ -76,6 +76,15 @@ describe("ServiceItem Component", () => {
     expect(mockProps.onToggleAccordion).toHaveBeenCalledWith("Apache", true);
   });
 
+  it("calls onToggleAccordion when clicking anywhere on the card root", () => {
+    const { container } = render(<ServiceItem {...mockProps} />);
+
+    const cardRoot = container.querySelector('[data-card-root="true"]') as HTMLElement;
+    fireEvent.click(cardRoot);
+
+    expect(mockProps.onToggleAccordion).toHaveBeenCalledWith("Apache", true);
+  });
+
   it("supports keyboard expansion with Enter and Space on the card", () => {
     const { container } = render(<ServiceItem {...mockProps} />);
     const card = container.querySelector('[data-card-expand]') as HTMLElement;

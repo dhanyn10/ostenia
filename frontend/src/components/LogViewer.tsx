@@ -1,5 +1,6 @@
 import React from "react";
-import { List, Copy as CopyIcon, Check, ArrowUp, CheckSquare, X } from "lucide-react";
+import { List, Copy as CopyIcon, Check, ArrowUp, CheckSquare, X, FolderOpen, Trash2 } from "lucide-react";
+import * as AppBackend from "../../wailsjs/go/backend/App";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -14,8 +15,12 @@ interface CallerInfo {
   column: string;
 }
 
+export type LogId = string | number;
+export type LogLevel = "SERVICE" | "ERROR" | "WARN" | "INFO";
+export type LogViewMode = "simple" | "complete";
+
 interface LogEntry {
-  id: string | number;
+  id: LogId;
   time: string;
   msg: string;
   cleanMsg?: string;
@@ -28,6 +33,7 @@ interface LogEntry {
 interface LogViewerProps {
   readonly logs: LogEntry[];
   readonly isActive?: boolean;
+  readonly onClearLogs?: () => void;
 }
 
 interface CopyLogButtonProps {
@@ -43,11 +49,13 @@ interface LogCheckboxProps {
 }
 
 interface LogRowWrapperProps {
+  readonly id?: string;
   readonly log: LogEntry;
   readonly isSelected: boolean;
   readonly isSelectMode: boolean;
   readonly onRowContextMenu: (e: React.MouseEvent, log: LogEntry) => void;
-  readonly onToggleSelect: (id: string | number, isShiftKey: boolean) => void;
+  readonly onToggleSelect: (id: LogId, isShiftKey: boolean) => void;
+  readonly onClick?: (e: React.MouseEvent, log: LogEntry) => void;
   readonly className: string;
   readonly children: React.ReactNode;
 }
@@ -62,7 +70,10 @@ const CopyLogButton = ({ isCopied, onCopy, title }: Readonly<CopyLogButtonProps>
   return (
     <button
       type="button"
-      onClick={onCopy}
+      onClick={(e) => {
+        e.stopPropagation();
+        onCopy(e);
+      }}
       className={cn(
         "shrink-0 p-1 rounded border transition-all relative",
         isCopied
@@ -92,16 +103,20 @@ const LogCheckbox = ({ isSelected, onToggleSelect, className }: Readonly<LogChec
 };
 
 const LogRowWrapper = ({
+  id,
   log,
+  isSelected,
   isSelectMode,
   onRowContextMenu,
   onToggleSelect,
+  onClick,
   className,
   children,
 }: Readonly<LogRowWrapperProps>) => {
   if (isSelectMode) {
     return (
       <button
+        id={id}
         type="button"
         onContextMenu={(e) => onRowContextMenu(e, log)}
         onClick={(e) => onToggleSelect(log.id, e.shiftKey)}
@@ -112,8 +127,30 @@ const LogRowWrapper = ({
     );
   }
 
+  if (onClick) {
+    return (
+      <div
+        id={id}
+        role="button"
+        tabIndex={0}
+        onContextMenu={(e) => onRowContextMenu(e, log)}
+        onClick={(e) => onClick(e, log)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onClick(e as any, log);
+          }
+        }}
+        className={className}
+      >
+        {children}
+      </div>
+    );
+  }
+
   return (
     <div
+      id={id}
       onContextMenu={(e) => onRowContextMenu(e, log)}
       className={className}
     >
@@ -183,15 +220,59 @@ function getPaginationRange(currentPage: number, totalPages: number, siblingCoun
   return [];
 }
 
-function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
-  const [viewMode, setViewMode] = React.useState<"simple" | "complete">("simple");
-  const [copiedId, setCopiedId] = React.useState<string | number | null>(null);
+export const getLogLevel = (log: LogEntry): LogLevel => {
+  if (log.isServiceLog) return "SERVICE";
+  const type = (log.type || "").toLowerCase();
+  if (type === "error" || type === "err") return "ERROR";
+  if (type === "warn" || type === "wrn") return "WARN";
+
+  // Fallback to checking the msg
+  const msg = (log.msg || "").toLowerCase();
+  if (
+    msg.includes("[err]") ||
+    msg.includes("error") ||
+    msg.includes("failed") ||
+    msg.includes("crash") ||
+    msg.includes("fatal") ||
+    msg.includes("panic") ||
+    msg.includes("exception")
+  ) return "ERROR";
+  if (msg.includes("[wrn]")) return "WARN";
+  return "INFO";
+};
+
+export const formatCompleteLog = (log: LogEntry): string => {
+  const level = getLogLevel(log);
+  const timeStr = log.time || "";
+
+  let message = log.cleanMsg || log.msg || "";
+  if (message.startsWith("[SYS] ") || message.startsWith("[ERR] ") || message.startsWith("[WRN] ")) {
+    message = message.substring(6);
+  }
+
+  const callerFunc = log.caller ? `${log.caller.functionName}()` : "N/A";
+  const fileInfo = log.caller ? `${log.caller.fileName}:${log.caller.line}:${log.caller.column}` : "N/A";
+  const stackTraceText = log.rawStack ? log.rawStack : "N/A";
+
+  return [
+    `Timestamp: [${timeStr}]`,
+    `Level: ${level}`,
+    `Message: ${message}`,
+    `Caller Function: ${callerFunc}`,
+    `File: ${fileInfo}`,
+    `Stack Trace:\n${stackTraceText}`
+  ].join("\n");
+};
+
+function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerProps>) {
+  const [viewMode, setViewMode] = React.useState<LogViewMode>("simple");
+  const [copiedId, setCopiedId] = React.useState<LogId | null>(null);
   const [showBatchCopiedTooltip, setShowBatchCopiedTooltip] = React.useState(false);
 
   // Selection states (Gmail style with Shift+Click)
   const [isSelectMode, setIsSelectMode] = React.useState(false);
-  const [selectedIds, setSelectedIds] = React.useState<Set<string | number>>(new Set());
-  const lastSelectedIdRef = React.useRef<string | number | null>(null);
+  const [selectedIds, setSelectedIds] = React.useState<Set<LogId>>(new Set());
+  const lastSelectedIdRef = React.useRef<LogId | null>(null);
 
   // Context menu state & ref
   const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; targetLog: LogEntry } | null>(null);
@@ -200,6 +281,26 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
   // Pagination states
   const [currentPage, setCurrentPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
+  const [highlightedLogId, setHighlightedLogId] = React.useState<LogId | null>(null);
+
+  const handleSimpleLogClick = (log: LogEntry) => {
+    const logIndex = displayedLogs.findIndex(l => l.id === log.id);
+    if (logIndex !== -1) {
+      const targetPage = Math.floor(logIndex / pageSize) + 1;
+      setCurrentPage(targetPage);
+    }
+    setViewMode("complete");
+    setHighlightedLogId(log.id);
+    setTimeout(() => {
+      const el = document.getElementById(`log-card-${log.id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 50);
+    setTimeout(() => {
+      setHighlightedLogId(prev => (prev === log.id ? null : prev));
+    }, 2500);
+  };
 
   // Buffering states for real-time logs when active
   const [displayedLogs, setDisplayedLogs] = React.useState<LogEntry[]>([]);
@@ -294,6 +395,23 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
     }
   };
 
+  const getSimpleLogColorClass = (type?: string, isServiceLog?: boolean) => {
+    if (isServiceLog) {
+      return "text-blue-600 dark:text-blue-400 font-medium";
+    }
+    const lowerType = (type || "").toLowerCase();
+    if (lowerType === "error" || lowerType === "err") {
+      return "text-rose-600 dark:text-rose-400 font-medium";
+    }
+    if (lowerType === "warn" || lowerType === "wrn" || lowerType === "warning") {
+      return "text-amber-600 dark:text-amber-400 font-medium";
+    }
+    if (lowerType === "success") {
+      return "text-emerald-600 dark:text-emerald-400 font-medium";
+    }
+    return "text-slate-700 dark:text-slate-300";
+  };
+
   const getLogColorClass = (msg: string, type?: string) => {
     const lowerMsg = (msg || "").toLowerCase();
     const lowerType = (type || "").toLowerCase();
@@ -324,27 +442,6 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
     return "text-slate-600 dark:text-slate-400";
   };
 
-  const getLogLevel = (log: LogEntry): "SERVICE" | "ERROR" | "WARN" | "INFO" => {
-    if (log.isServiceLog) return "SERVICE";
-    const type = (log.type || "").toLowerCase();
-    if (type === "error" || type === "err") return "ERROR";
-    if (type === "warn" || type === "wrn") return "WARN";
-
-    // Fallback to checking the msg
-    const msg = (log.msg || "").toLowerCase();
-    if (
-      msg.includes("[err]") ||
-      msg.includes("error") ||
-      msg.includes("failed") ||
-      msg.includes("crash") ||
-      msg.includes("fatal") ||
-      msg.includes("panic") ||
-      msg.includes("exception")
-    ) return "ERROR";
-    if (msg.includes("[wrn]")) return "WARN";
-    return "INFO";
-  };
-
   const copyToClipboardText = (text: string, callback?: () => void) => {
     if (navigator.clipboard?.writeText) {
       void navigator.clipboard.writeText(text).then(() => {
@@ -368,26 +465,7 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
   };
 
   const handleCopyLog = (log: LogEntry) => {
-    const level = getLogLevel(log);
-    const timeStr = log.time || "";
-
-    let message = log.cleanMsg || log.msg || "";
-    if (message.startsWith("[SYS] ") || message.startsWith("[ERR] ") || message.startsWith("[WRN] ")) {
-      message = message.substring(6);
-    }
-
-    const callerFunc = log.caller ? `${log.caller.functionName}()` : "N/A";
-    const fileInfo = log.caller ? `${log.caller.fileName}:${log.caller.line}:${log.caller.column}` : "N/A";
-    const stackTraceText = log.rawStack ? log.rawStack : "N/A";
-
-    const copyText = [
-      `Timestamp: [${timeStr}]`,
-      `Level: ${level}`,
-      `Message: ${message}`,
-      `Caller Function: ${callerFunc}`,
-      `File: ${fileInfo}`,
-      `Stack Trace:\n${stackTraceText}`
-    ].join("\n");
+    const copyText = formatCompleteLog(log);
 
     copyToClipboardText(copyText, () => {
       setCopiedId(log.id);
@@ -405,7 +483,7 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
   const paginatedLogs = displayedLogs.slice(startIndex, endIndex);
 
   // Selection Helper Methods with Shift+Click Range Selection support
-  const toggleSelectLog = (id: string | number, isShiftKey: boolean = false) => {
+  const toggleSelectLog = (id: LogId, isShiftKey: boolean = false) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
 
@@ -468,9 +546,8 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
     const selectedLogs = displayedLogs.filter(log => selectedIds.has(log.id));
     if (selectedLogs.length === 0) return;
 
-    // Exact WhatsApp / raw format as requested: [time] message
-    const lines = selectedLogs.map(log => `[${log.time}] ${log.msg}`);
-    const copyText = lines.join("\n");
+    // Format all selected logs as Complete Log version
+    const copyText = selectedLogs.map(log => formatCompleteLog(log)).join("\n\n---\n\n");
 
     copyToClipboardText(copyText, () => {
       setContextMenu(null);
@@ -521,43 +598,49 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
 
     if (viewMode === "simple") {
       return (
-        <div className="flex flex-col min-h-full space-y-1.5">
+        <div className="flex flex-col min-h-full space-y-1">
           {paginatedLogs.map((log) => {
             const isCopied = copiedId === log.id;
             const isSelected = selectedIds.has(log.id);
+            const cleanText = log.cleanMsg || log.msg || "";
+            const colorClass = getSimpleLogColorClass(log.type, log.isServiceLog);
+
             return (
               <LogRowWrapper
                 key={log.id}
+                id={`simple-log-${log.id}`}
                 log={log}
                 isSelected={isSelected}
                 isSelectMode={isSelectMode}
                 onRowContextMenu={handleRowContextMenu}
                 onToggleSelect={toggleSelectLog}
+                onClick={(_e, l) => handleSimpleLogClick(l)}
                 className={cn(
-                  "flex items-center justify-between gap-4 group py-1 px-2 border rounded transition-all select-none cursor-pointer",
+                  "flex items-center justify-between gap-3 group h-7 py-1 px-3 border rounded transition-all select-none cursor-pointer overflow-hidden",
                   isSelected
                     ? "bg-blue-50/80 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/50"
-                    : "border-transparent hover:border-slate-100 dark:hover:border-white/5 hover:bg-slate-50 dark:hover:bg-slate-900/40"
+                    : "border-transparent hover:border-slate-200 dark:hover:border-white/10 hover:bg-slate-100/70 dark:hover:bg-slate-800/50"
                 )}
               >
-                <div className="flex gap-3 items-baseline min-w-0 flex-1">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
                   {isSelectMode && (
                     <LogCheckbox
                       isSelected={isSelected}
                       onToggleSelect={(isShift) => toggleSelectLog(log.id, isShift)}
-                      className="self-center"
+                      className="self-center shrink-0"
                     />
                   )}
-                  <span className="text-slate-400 dark:text-slate-600 select-none shrink-0 w-20">
+                  <span className="text-slate-400 dark:text-slate-500 font-mono text-[9px] select-none shrink-0">
                     [{log.time}]
                   </span>
                   <span
+                    title={cleanText}
                     className={cn(
-                      "flex-1 break-all leading-relaxed min-w-0",
-                      getLogColorClass(log.msg, log.type)
+                      "truncate whitespace-nowrap overflow-hidden text-ellipsis text-[10px] min-w-0 flex-1 font-mono",
+                      colorClass
                     )}
                   >
-                    {log.msg}
+                    {cleanText}
                   </span>
                 </div>
                 {!isSelectMode && (
@@ -594,19 +677,28 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
 
           const currentBadgeClass = badgeClasses[level] || badgeClasses.INFO;
 
+          let cardHighlightClass =
+            "bg-slate-50/50 dark:bg-slate-900/20 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700";
+          if (highlightedLogId === log.id) {
+            cardHighlightClass =
+              "ring-2 ring-blue-500 border-blue-400 dark:border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 shadow-md";
+          } else if (isSelected) {
+            cardHighlightClass =
+              "bg-blue-50/80 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/50";
+          }
+
           return (
             <LogRowWrapper
               key={log.id}
+              id={`log-card-${log.id}`}
               log={log}
               isSelected={isSelected}
               isSelectMode={isSelectMode}
               onRowContextMenu={handleRowContextMenu}
               onToggleSelect={toggleSelectLog}
               className={cn(
-                "p-4 rounded-lg border text-[10px] transition-all shadow-sm flex flex-col gap-3 select-none cursor-pointer",
-                isSelected
-                  ? "bg-blue-50/80 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/50"
-                  : "bg-slate-50/50 dark:bg-slate-900/20 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700"
+                "p-4 rounded-lg border text-[10px] transition-all shadow-sm flex flex-col gap-3 select-none",
+                cardHighlightClass
               )}
             >
               {/* Top line with metadata */}
@@ -740,6 +832,39 @@ function LogViewer({ logs, isActive = false }: Readonly<LogViewerProps>) {
 
           {/* Select Button Toggle */}
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (AppBackend && (AppBackend as any).OpenLogsFolder) {
+                  try {
+                    const p = (AppBackend as any).OpenLogsFolder();
+                    if (p && typeof p.catch === "function") {
+                      p.catch(() => {
+                        // Ignored: opening folder failed
+                      });
+                    }
+                  } catch {
+                    // Ignored: failure invoking backend open logs folder
+                  }
+                }
+              }}
+              title="Open logs folder in AppData"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-all uppercase tracking-wider border border-slate-200 dark:border-white/10"
+            >
+              <FolderOpen size={13} />
+              <span>Open Folder</span>
+            </button>
+            {onClearLogs && (
+              <button
+                type="button"
+                onClick={onClearLogs}
+                title="Clear all logs"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold bg-slate-100 hover:bg-rose-100 dark:bg-slate-800 dark:hover:bg-rose-950/40 text-slate-700 hover:text-rose-600 dark:text-slate-300 dark:hover:text-rose-400 transition-all uppercase tracking-wider border border-slate-200 dark:border-white/10 hover:border-rose-300 dark:hover:border-rose-800/40"
+              >
+                <Trash2 size={13} />
+                <span>Clear</span>
+              </button>
+            )}
             {!isSelectMode ? (
               <button
                 type="button"
