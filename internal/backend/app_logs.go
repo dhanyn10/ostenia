@@ -28,7 +28,10 @@ var (
 	lastCleanTime  time.Time
 )
 
-const logRetentionDays = 14
+const (
+	logRetentionDays = 14
+	jsonlExt         = ".jsonl"
+)
 
 // CallerInfo details where a frontend or backend log was triggered.
 type CallerInfo struct {
@@ -114,7 +117,7 @@ func findLatestJsonlFile(logsDir, dateStr string) (string, int, int, error) {
 	}
 
 	prefix := fmt.Sprintf("ostenia-%s-", dateStr)
-	suffix := ".jsonl"
+	suffix := jsonlExt
 	maxSeq := 0
 	var latestFile string
 
@@ -158,7 +161,7 @@ func cleanOldLogs(logsDir string) {
 			continue
 		}
 		name := entry.Name()
-		if strings.HasSuffix(name, ".jsonl") || strings.HasSuffix(name, ".log") {
+		if strings.HasSuffix(name, jsonlExt) || strings.HasSuffix(name, ".log") {
 			fullPath := filepath.Join(logsDir, name)
 			info, err := entry.Info()
 			if err == nil && info.ModTime().Before(cutoff) {
@@ -203,7 +206,7 @@ func (a *App) SaveLogEntry(entry LogEntry) error {
 
 		if latestFile == "" || lines >= maxLinesPerFile {
 			activeLogSeq = maxSeq + 1
-			activeLogFile = filepath.Join(logsDir, fmt.Sprintf("ostenia-%s-%02d.jsonl", dateStr, activeLogSeq))
+			activeLogFile = filepath.Join(logsDir, fmt.Sprintf("ostenia-%s-%02d%s", dateStr, activeLogSeq, jsonlExt))
 			activeLogLines = 0
 		} else {
 			activeLogFile = latestFile
@@ -269,7 +272,7 @@ func (a *App) GetRecentLogs(limit int) ([]LogEntry, error) {
 
 	var jsonlFiles []string
 	for _, entry := range files {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".jsonl") {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), jsonlExt) {
 			jsonlFiles = append(jsonlFiles, filepath.Join(logsDir, entry.Name()))
 		}
 	}
@@ -343,7 +346,7 @@ func (a *App) ClearLogs() error {
 	}
 
 	for _, entry := range files {
-		if !entry.IsDir() && (strings.HasSuffix(entry.Name(), ".jsonl") || strings.HasSuffix(entry.Name(), ".log")) {
+		if !entry.IsDir() && (strings.HasSuffix(entry.Name(), jsonlExt) || strings.HasSuffix(entry.Name(), ".log")) {
 			_ = os.Remove(filepath.Join(logsDir, entry.Name()))
 		}
 	}

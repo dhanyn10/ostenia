@@ -49,8 +49,13 @@ export function usePrerequisites({ addToast, addLog }: UsePrerequisitesOptions) 
     }
   }, [updateSelectedVersions]);
 
-  const handleDeleteVersion = useCallback((name: string, ver: string) => {
-    return AppBackend.DeleteVersion(name, ver).then(refreshPrerequisites);
+  const handleDeleteVersion = useCallback(async (name: string, ver: string) => {
+    try {
+      await AppBackend.DeleteVersion(name, ver);
+      await refreshPrerequisites();
+    } catch (err) {
+      console.error(err);
+    }
   }, [refreshPrerequisites]);
 
   const handleDownloadProgress = useCallback((data: any) => {
@@ -60,7 +65,7 @@ export function usePrerequisites({ addToast, addLog }: UsePrerequisitesOptions) 
       if (addLog) addLog(`Installation Failed: ${data.name} - ${data.status}`, 'error');
     }
     if (data.percentage === 100 && (data.status === 'Completed' || data.status === 'Ready')) {
-      refreshPrerequisites();
+      void refreshPrerequisites();
     }
   }, [addToast, addLog, refreshPrerequisites]);
 
@@ -98,18 +103,18 @@ export function usePrerequisites({ addToast, addLog }: UsePrerequisitesOptions) 
   const handleUninstallModule = useCallback(async (parentName: string, modName: string) => {
     try {
       await AppBackend.UninstallPluginModule(parentName, modName);
-      refreshPrerequisites();
+      await refreshPrerequisites();
     } catch (e: any) {
       addToast('Error', e.toString(), 'error');
     }
   }, [addToast, refreshPrerequisites]);
 
   const handleCancelDownload = useCallback((name: string) => {
-    return AppBackend.CancelDownload(name);
+    void AppBackend.CancelDownload(name);
   }, []);
 
   const handleOpenPluginFolder = useCallback((name: string) => {
-    return AppBackend.OpenPluginFolder(name);
+    void AppBackend.OpenPluginFolder(name);
   }, []);
 
   return {

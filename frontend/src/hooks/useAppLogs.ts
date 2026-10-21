@@ -20,6 +20,72 @@ export function formatLogArgs(args: any[]): string {
   return args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
 }
 
+function getLogPrefix(type: string): string {
+  if (type === 'error') return 'ERR';
+  if (type === 'warn') return 'WRN';
+  return 'SYS';
+}
+
+function persistLog(logItem: LogItem, formattedMsg: string): void {
+  if (AppBackend && (AppBackend as any).SaveLogEntry) {
+    try {
+      const p = (AppBackend as any).SaveLogEntry(logItem);
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => {
+          // Ignored: best-effort background log persistence
+        });
+      }
+    } catch {
+      // Ignored: backend call failure should not disrupt the application
+    }
+  } else if (AppBackend && (AppBackend as any).SaveLogToFile) {
+    try {
+      const p = (AppBackend as any).SaveLogToFile(formattedMsg);
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => {
+          // Ignored: best-effort background log persistence
+        });
+      }
+    } catch {
+      // Ignored: backend call failure should not disrupt the application
+    }
+  }
+}
+
+function createLogEntry(
+  msg: string,
+  type: string,
+  isServiceLog: boolean
+): { logItem: LogItem; formattedMsg: string } {
+  const time = new Date().toLocaleTimeString();
+  const timestamp = new Date().toISOString();
+  const id = crypto.randomUUID();
+  const prefix = getLogPrefix(type);
+  const formattedMsg = `[${prefix}] ${msg}`;
+
+  let caller;
+  let rawStack = '';
+  if (!isServiceLog) {
+    const trace = parseStackTrace(new Error('Trace capture').stack);
+    caller = trace.caller;
+    rawStack = trace.rawStack;
+  }
+
+  const logItem: LogItem = {
+    id,
+    time,
+    timestamp,
+    msg: formattedMsg,
+    cleanMsg: msg,
+    type,
+    isServiceLog,
+    caller,
+    rawStack,
+  };
+
+  return { logItem, formattedMsg };
+}
+
 export function useAppLogs() {
   const [logs, setLogs] = useState<LogItem[]>([]);
 
@@ -27,48 +93,9 @@ export function useAppLogs() {
     if (isLogging) return;
     isLogging = true;
     try {
-      const time = new Date().toLocaleTimeString();
-      const timestamp = new Date().toISOString();
-      const id = crypto.randomUUID();
-      let prefix = 'SYS';
-      if (type === 'error') {
-        prefix = 'ERR';
-      } else if (type === 'warn') {
-        prefix = 'WRN';
-      }
-
-      const stackTrace = isServiceLog ? '' : new Error('Trace capture').stack;
-      const { caller, rawStack } = isServiceLog ? { caller: undefined, rawStack: '' } : parseStackTrace(stackTrace);
-
-      const formattedMsg = `[${prefix}] ${msg}`;
-      const logItem: LogItem = {
-        id,
-        time,
-        timestamp,
-        msg: formattedMsg,
-        cleanMsg: msg,
-        type,
-        isServiceLog,
-        caller,
-        rawStack,
-      };
-
-      if (AppBackend && (AppBackend as any).SaveLogEntry) {
-        try {
-          const p = (AppBackend as any).SaveLogEntry(logItem);
-          if (p && typeof p.catch === 'function') p.catch(() => {});
-        } catch (_) {}
-      } else if (AppBackend && (AppBackend as any).SaveLogToFile) {
-        try {
-          const p = (AppBackend as any).SaveLogToFile(formattedMsg);
-          if (p && typeof p.catch === 'function') p.catch(() => {});
-        } catch (_) {}
-      }
-
-      setLogs(prev => [
-        logItem,
-        ...prev
-      ].slice(0, 1000));
+      const { logItem, formattedMsg } = createLogEntry(msg, type, isServiceLog);
+      persistLog(logItem, formattedMsg);
+      setLogs(prev => [logItem, ...prev].slice(0, 1000));
     } finally {
       isLogging = false;
     }

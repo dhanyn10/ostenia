@@ -437,6 +437,10 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
   return (
     <div
       data-card-root="true"
+      role={hasExtraActions ? "button" : undefined}
+      aria-label={hasExtraActions ? `${service.name} service` : undefined}
+      tabIndex={hasExtraActions ? 0 : undefined}
+      aria-expanded={hasExtraActions ? isExpanded : undefined}
       onClick={handleCardClick}
       onKeyDown={(e) => {
         if (!hasExtraActions) return;
@@ -521,7 +525,6 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
       {hasExtraActions && (
         <div
           data-no-card-toggle="true"
-          onClick={(e) => e.stopPropagation()}
           className="relative z-10 pointer-events-auto"
         >
           <ServiceExtraActions

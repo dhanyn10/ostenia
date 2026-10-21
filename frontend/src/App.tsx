@@ -62,8 +62,8 @@ function App() {
       message:
         'Are you sure you want to uninstall HeidiSQL from your system? This will remove the application but your database data should remain intact.',
       type: 'danger',
-      onConfirm: async () => {
-        await onConfirm();
+      onConfirm: () => {
+        onConfirm();
         handleCloseConfirmModal();
       },
     });
@@ -128,7 +128,7 @@ function App() {
   }, []);
 
   const handleTerminal = useCallback((type: string) => {
-    AppBackend.OpenTerminal(type);
+    void AppBackend.OpenTerminal(type);
     setIsTerminalOpen(false);
   }, []);
 
@@ -167,7 +167,9 @@ function App() {
       EventsOn('service_log', handleServiceLog);
       EventsOn('service_status', handleServiceStatus);
       EventsOn('download_progress', handleDownloadProgress);
-      EventsOn('environment_changed', initApp);
+      EventsOn('environment_changed', () => {
+        void initApp();
+      });
     }
 
     return () => {
@@ -297,7 +299,9 @@ function App() {
           nginxHttps,
           defaultEditor,
         }}
-        initApp={initApp}
+        initApp={() => {
+          void initApp();
+        }}
         theme={theme}
       />
 
@@ -314,7 +318,9 @@ function App() {
         isOpen={customVersionModal.isOpen}
         onClose={() => setCustomVersionModal((prev) => ({ ...prev, isOpen: false }))}
         serviceName={customVersionModal.serviceName}
-        onSuccess={refreshPrerequisites}
+        onSuccess={() => {
+          void refreshPrerequisites();
+        }}
         appsLocation={appsLocation}
       />
     </div>

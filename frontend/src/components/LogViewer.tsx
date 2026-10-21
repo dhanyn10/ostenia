@@ -15,8 +15,12 @@ interface CallerInfo {
   column: string;
 }
 
+export type LogId = string | number;
+export type LogLevel = "SERVICE" | "ERROR" | "WARN" | "INFO";
+export type LogViewMode = "simple" | "complete";
+
 interface LogEntry {
-  id: string | number;
+  id: LogId;
   time: string;
   msg: string;
   cleanMsg?: string;
@@ -50,7 +54,7 @@ interface LogRowWrapperProps {
   readonly isSelected: boolean;
   readonly isSelectMode: boolean;
   readonly onRowContextMenu: (e: React.MouseEvent, log: LogEntry) => void;
-  readonly onToggleSelect: (id: string | number, isShiftKey: boolean) => void;
+  readonly onToggleSelect: (id: LogId, isShiftKey: boolean) => void;
   readonly onClick?: (e: React.MouseEvent, log: LogEntry) => void;
   readonly className: string;
   readonly children: React.ReactNode;
@@ -123,13 +127,31 @@ const LogRowWrapper = ({
     );
   }
 
+  if (onClick) {
+    return (
+      <div
+        id={id}
+        role="button"
+        tabIndex={0}
+        onContextMenu={(e) => onRowContextMenu(e, log)}
+        onClick={(e) => onClick(e, log)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onClick(e as any, log);
+          }
+        }}
+        className={className}
+      >
+        {children}
+      </div>
+    );
+  }
+
   return (
     <div
       id={id}
       onContextMenu={(e) => onRowContextMenu(e, log)}
-      onClick={(e) => {
-        if (onClick) onClick(e, log);
-      }}
       className={className}
     >
       {children}
@@ -198,7 +220,7 @@ function getPaginationRange(currentPage: number, totalPages: number, siblingCoun
   return [];
 }
 
-export const getLogLevel = (log: LogEntry): "SERVICE" | "ERROR" | "WARN" | "INFO" => {
+export const getLogLevel = (log: LogEntry): LogLevel => {
   if (log.isServiceLog) return "SERVICE";
   const type = (log.type || "").toLowerCase();
   if (type === "error" || type === "err") return "ERROR";
@@ -243,14 +265,14 @@ export const formatCompleteLog = (log: LogEntry): string => {
 };
 
 function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerProps>) {
-  const [viewMode, setViewMode] = React.useState<"simple" | "complete">("simple");
-  const [copiedId, setCopiedId] = React.useState<string | number | null>(null);
+  const [viewMode, setViewMode] = React.useState<LogViewMode>("simple");
+  const [copiedId, setCopiedId] = React.useState<LogId | null>(null);
   const [showBatchCopiedTooltip, setShowBatchCopiedTooltip] = React.useState(false);
 
   // Selection states (Gmail style with Shift+Click)
   const [isSelectMode, setIsSelectMode] = React.useState(false);
-  const [selectedIds, setSelectedIds] = React.useState<Set<string | number>>(new Set());
-  const lastSelectedIdRef = React.useRef<string | number | null>(null);
+  const [selectedIds, setSelectedIds] = React.useState<Set<LogId>>(new Set());
+  const lastSelectedIdRef = React.useRef<LogId | null>(null);
 
   // Context menu state & ref
   const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; targetLog: LogEntry } | null>(null);
@@ -259,7 +281,7 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
   // Pagination states
   const [currentPage, setCurrentPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(20);
-  const [highlightedLogId, setHighlightedLogId] = React.useState<string | number | null>(null);
+  const [highlightedLogId, setHighlightedLogId] = React.useState<LogId | null>(null);
 
   const handleSimpleLogClick = (log: LogEntry) => {
     const logIndex = displayedLogs.findIndex(l => l.id === log.id);
@@ -461,7 +483,7 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
   const paginatedLogs = displayedLogs.slice(startIndex, endIndex);
 
   // Selection Helper Methods with Shift+Click Range Selection support
-  const toggleSelectLog = (id: string | number, isShiftKey: boolean = false) => {
+  const toggleSelectLog = (id: LogId, isShiftKey: boolean = false) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
 
@@ -655,6 +677,16 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
 
           const currentBadgeClass = badgeClasses[level] || badgeClasses.INFO;
 
+          let cardHighlightClass =
+            "bg-slate-50/50 dark:bg-slate-900/20 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700";
+          if (highlightedLogId === log.id) {
+            cardHighlightClass =
+              "ring-2 ring-blue-500 border-blue-400 dark:border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 shadow-md";
+          } else if (isSelected) {
+            cardHighlightClass =
+              "bg-blue-50/80 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/50";
+          }
+
           return (
             <LogRowWrapper
               key={log.id}
@@ -665,12 +697,8 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
               onRowContextMenu={handleRowContextMenu}
               onToggleSelect={toggleSelectLog}
               className={cn(
-                "p-4 rounded-lg border text-[10px] transition-all shadow-sm flex flex-col gap-3 select-none cursor-pointer",
-                highlightedLogId === log.id
-                  ? "ring-2 ring-blue-500 border-blue-400 dark:border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 shadow-md"
-                  : isSelected
-                  ? "bg-blue-50/80 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/50"
-                  : "bg-slate-50/50 dark:bg-slate-900/20 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700"
+                "p-4 rounded-lg border text-[10px] transition-all shadow-sm flex flex-col gap-3 select-none",
+                cardHighlightClass
               )}
             >
               {/* Top line with metadata */}
@@ -811,9 +839,13 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
                   try {
                     const p = (AppBackend as any).OpenLogsFolder();
                     if (p && typeof p.catch === "function") {
-                      p.catch(() => {});
+                      p.catch(() => {
+                        // Ignored: opening folder failed
+                      });
                     }
-                  } catch (_) {}
+                  } catch {
+                    // Ignored: failure invoking backend open logs folder
+                  }
                 }
               }}
               title="Open logs folder in AppData"

@@ -42,7 +42,7 @@ export function useAppConfig({ onConfigChanged }: UseAppConfigOptions = {}) {
     }
   }, [onConfigChanged]);
 
-  const handleToggleHttps = useCallback(async (name: string) => {
+  const handleToggleHttps = useCallback((name: string) => {
     if (name === 'Apache') {
       setApacheHttps((prev) => {
         const next = !prev;
@@ -59,11 +59,11 @@ export function useAppConfig({ onConfigChanged }: UseAppConfigOptions = {}) {
   }, []);
 
   const handleOpenServerRootFolder = useCallback(() => {
-    return AppBackend.OpenServerRootFolder();
+    void AppBackend.OpenServerRootFolder();
   }, []);
 
   const handleOpenAppsLocationFolder = useCallback(() => {
-    return AppBackend.OpenAppsLocationFolder();
+    void AppBackend.OpenAppsLocationFolder();
   }, []);
 
   return {

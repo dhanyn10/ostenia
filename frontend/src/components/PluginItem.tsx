@@ -157,7 +157,6 @@ const PluginModuleList: React.FC<PluginModuleListProps> = ({
 }) => (
   <div
     data-no-card-toggle="true"
-    onClick={(e) => e.stopPropagation()}
     className="mt-4 pt-4 border-t border-slate-200 dark:border-white/5 space-y-2 animate-in slide-in-from-top-2 duration-200 cursor-default relative z-10 pointer-events-auto"
   >
     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">
@@ -236,6 +235,10 @@ function PluginItem({
   return (
     <div
       data-card-root="true"
+      role={hasModules ? "button" : undefined}
+      aria-label={hasModules ? `${task.name} plugin` : undefined}
+      tabIndex={hasModules ? 0 : undefined}
+      aria-expanded={hasModules ? isModulesExpanded : undefined}
       onClick={handleCardClick}
       onKeyDown={(e) => {
         if (!hasModules) return;
