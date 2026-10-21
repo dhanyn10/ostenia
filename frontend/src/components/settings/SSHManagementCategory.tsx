@@ -109,7 +109,7 @@ const SSHManagementCategory: React.FC = () => {
             <input
               type="checkbox"
               checked={zoomEnabled}
-              onChange={(e) => handleToggleZoom(e.target.checked)}
+              onChange={(event) => handleToggleZoom(event.target.checked)}
               className="rounded border-mui-grey-300 dark:border-white/10 text-mui-blue-600 focus:ring-mui-blue-500"
             />
             <span className="font-bold text-xs">Enable Terminal Zoom (Ctrl +/-)</span>
@@ -130,7 +130,7 @@ const SSHManagementCategory: React.FC = () => {
             <input
               type="checkbox"
               checked={monitorEnabled}
-              onChange={(e) => handleToggleMonitorEnabled(e.target.checked)}
+              onChange={(event) => handleToggleMonitorEnabled(event.target.checked)}
               className="rounded border-mui-grey-300 dark:border-white/10 text-mui-blue-600 focus:ring-mui-blue-500"
             />
             <span className="font-bold text-xs">Enable Resource Tracking</span>
@@ -148,7 +148,7 @@ const SSHManagementCategory: React.FC = () => {
                 max={60}
                 disabled={!monitorEnabled}
                 value={monitorInterval}
-                onChange={(e) => handleIntervalChange(e.target.value)}
+                onChange={(event) => handleIntervalChange(event.target.value)}
                 className="w-full px-2 py-1 bg-white dark:bg-mui-grey-900 border border-mui-grey-200 dark:border-white/10 rounded outline-none text-xs text-mui-grey-900 dark:text-white focus:border-mui-blue-500 font-bold disabled:opacity-50"
               />
             </div>
@@ -161,7 +161,7 @@ const SSHManagementCategory: React.FC = () => {
                 id="monitor-display-select"
                 disabled={!monitorEnabled}
                 value={displayMode}
-                onChange={(e) => handleDisplayModeChange(e.target.value)}
+                onChange={(event) => handleDisplayModeChange(event.target.value)}
                 className="w-full px-2 py-1 bg-white dark:bg-mui-grey-900 border border-mui-grey-200 dark:border-white/10 rounded outline-none text-xs text-mui-grey-700 dark:text-mui-grey-200 focus:border-mui-blue-500 font-bold cursor-pointer disabled:opacity-50"
               >
                 <option value="tooltip">Tooltip</option>
@@ -189,7 +189,7 @@ const SSHManagementCategory: React.FC = () => {
                 type="number"
                 min={1}
                 value={maxTimeout}
-                onChange={(e) => handleMaxTimeoutChange(e.target.value)}
+                onChange={(event) => handleMaxTimeoutChange(event.target.value)}
                 className="w-full px-2 py-1 bg-white dark:bg-mui-grey-900 border border-mui-grey-200 dark:border-white/10 rounded outline-none text-xs text-mui-grey-900 dark:text-white focus:border-mui-blue-500 font-bold"
               />
             </div>
@@ -203,7 +203,7 @@ const SSHManagementCategory: React.FC = () => {
                 type="number"
                 min={1}
                 value={maxRetries}
-                onChange={(e) => handleMaxRetriesChange(e.target.value)}
+                onChange={(event) => handleMaxRetriesChange(event.target.value)}
                 className="w-full px-2 py-1 bg-white dark:bg-mui-grey-900 border border-mui-grey-200 dark:border-white/10 rounded outline-none text-xs text-mui-grey-900 dark:text-white focus:border-mui-blue-500 font-bold"
               />
             </div>

@@ -31,9 +31,9 @@ const GlobalConfigCategory: React.FC<GlobalConfigCategoryProps> = ({ appConfig, 
     if (selected && initApp) initApp();
   };
 
-  const handleEditorChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    if (e.target.value) {
-      await AppBackend.SetDefaultEditor(e.target.value);
+  const handleEditorChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
+    if (event.target.value) {
+      await AppBackend.SetDefaultEditor(event.target.value);
       if (initApp) initApp();
     }
   };
@@ -110,14 +110,14 @@ const GlobalConfigCategory: React.FC<GlobalConfigCategoryProps> = ({ appConfig, 
             <div className="space-y-3">
               <div className="flex gap-2">
                 <select
-                  value={installedApps.find(a => a.path === appConfig?.defaultEditor)?.path || ""}
-                  onChange={(e) => {
-                    void handleEditorChange(e);
+                  value={installedApps.find(app => app.path === appConfig?.defaultEditor)?.path || ""}
+                  onChange={(event) => {
+                    void handleEditorChange(event);
                   }}
                   className="flex-1 bg-mui-grey-50 dark:bg-white/5 border border-mui-grey-200 dark:border-white/10 rounded px-3 py-2 text-sm outline-none text-mui-grey-700 dark:text-mui-grey-200 appearance-none cursor-pointer"
                 >
                   <option value="">Select from installed apps...</option>
-                  {installedApps.toSorted((a,b) => a.name.localeCompare(b.name)).map((app) => (
+                  {installedApps.toSorted((appA, appB) => appA.name.localeCompare(appB.name)).map((app) => (
                     <option key={app.path || app.name} value={app.path}>{app.name}</option>
                   ))}
                 </select>

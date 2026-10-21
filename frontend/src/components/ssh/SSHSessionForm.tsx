@@ -46,8 +46,8 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
         if (active && distros) {
           setWslDistros(distros);
         }
-      } catch (err) {
-        console.error("Failed to load WSL distros:", err);
+      } catch (error) {
+        console.error("Failed to load WSL distros:", error);
       }
     };
     void fetchDistros();
@@ -56,8 +56,8 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
     };
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setSaving(true);
     try {
       if (session) {
@@ -71,8 +71,8 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
         "success",
       );
       onSave();
-    } catch (err: any) {
-      addToast("Error", "Failed to save session: " + err, "error");
+    } catch (error: any) {
+      addToast("Error", "Failed to save session: " + error, "error");
     } finally {
       setSaving(false);
     }
@@ -96,8 +96,8 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
       </div>
 
       <form
-        onSubmit={(e) => {
-          void handleSubmit(e);
+        onSubmit={(event) => {
+          void handleSubmit(event);
         }}
         className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar"
       >
@@ -116,8 +116,8 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
               placeholder="e.g. Production Web"
               className="w-full px-3 py-2 bg-mui-grey-50 dark:bg-white/5 border border-transparent focus:border-mui-blue-500 focus:bg-white dark:focus:bg-mui-grey-900 rounded-md outline-none text-mui-grey-900 dark:text-white transition-all text-sm"
               value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
+              onChange={(event) =>
+                setFormData({ ...formData, name: event.target.value })
               }
             />
           </div>
@@ -137,8 +137,8 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
                 placeholder="1.2.3.4 or example.com"
                 className="w-full px-3 py-2 bg-mui-grey-50 dark:bg-white/5 border border-transparent focus:border-mui-blue-500 focus:bg-white dark:focus:bg-mui-grey-900 rounded-md outline-none text-mui-grey-900 dark:text-white transition-all text-sm"
                 value={formData.host}
-                onChange={(e) =>
-                  setFormData({ ...formData, host: e.target.value })
+                onChange={(event) =>
+                  setFormData({ ...formData, host: event.target.value })
                 }
               />
             </div>
@@ -155,10 +155,10 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
                 type="number"
                 className="w-full px-2 py-2 bg-mui-grey-50 dark:bg-white/5 border border-transparent focus:border-mui-blue-500 focus:bg-white dark:focus:bg-mui-grey-900 rounded-md outline-none text-mui-grey-900 dark:text-white transition-all text-sm text-center"
                 value={formData.port}
-                onChange={(e) =>
+                onChange={(event) =>
                   setFormData({
                     ...formData,
-                    port: Number.parseInt(e.target.value),
+                    port: Number.parseInt(event.target.value),
                   })
                 }
               />
@@ -177,11 +177,11 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
                 id="wsl-distro-select"
                 className="w-full px-3 py-2 bg-mui-grey-50 dark:bg-white/5 border border-transparent focus:border-mui-blue-500 focus:bg-white dark:focus:bg-mui-grey-900 rounded-md outline-none text-mui-grey-900 dark:text-white transition-all text-sm"
                 value={formData.host.startsWith("wsl://") ? formData.host.replace("wsl://", "") : ""}
-                onChange={(e) => {
-                  const val = e.target.value;
+                onChange={(event) => {
+                  const selectedValue = event.target.value;
                   setFormData({
                     ...formData,
-                    host: val ? `wsl://${val}` : "",
+                    host: selectedValue ? `wsl://${selectedValue}` : "",
                   });
                 }}
               >
@@ -209,8 +209,8 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
               placeholder="root"
               className="w-full px-3 py-2 bg-mui-grey-50 dark:bg-white/5 border border-transparent focus:border-mui-blue-500 focus:bg-white dark:focus:bg-mui-grey-900 rounded-md outline-none text-mui-grey-900 dark:text-white transition-all text-sm"
               value={formData.user}
-              onChange={(e) =>
-                setFormData({ ...formData, user: e.target.value })
+              onChange={(event) =>
+                setFormData({ ...formData, user: event.target.value })
               }
             />
           </div>
@@ -264,8 +264,8 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
                 placeholder="••••••••"
                 className="w-full px-3 py-2 bg-mui-grey-50 dark:bg-white/5 border border-transparent focus:border-mui-blue-500 focus:bg-white dark:focus:bg-mui-grey-900 rounded-md outline-none text-mui-grey-900 dark:text-white transition-all text-sm"
                 value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
+                onChange={(event) =>
+                  setFormData({ ...formData, password: event.target.value })
                 }
               />
             </div>
@@ -285,8 +285,8 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
                   placeholder="e.g. /home/user/.ssh/id_rsa"
                   className="w-full px-3 py-2 bg-mui-grey-50 dark:bg-white/5 border border-transparent focus:border-mui-blue-500 focus:bg-white dark:focus:bg-mui-grey-900 rounded-md outline-none text-mui-grey-900 dark:text-white transition-all text-sm"
                   value={formData.keyPath}
-                  onChange={(e) =>
-                    setFormData({ ...formData, keyPath: e.target.value })
+                  onChange={(event) =>
+                    setFormData({ ...formData, keyPath: event.target.value })
                   }
                 />
               </div>
@@ -303,8 +303,8 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
                   placeholder="optional"
                   className="w-full px-3 py-2 bg-mui-grey-50 dark:bg-white/5 border border-transparent focus:border-mui-blue-500 focus:bg-white dark:focus:bg-mui-grey-900 rounded-md outline-none text-mui-grey-900 dark:text-white transition-all text-sm"
                   value={formData.passphrase}
-                  onChange={(e) =>
-                    setFormData({ ...formData, passphrase: e.target.value })
+                  onChange={(event) =>
+                    setFormData({ ...formData, passphrase: event.target.value })
                   }
                 />
               </div>
@@ -323,8 +323,8 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
         </button>
         <button
           type="submit"
-          onClick={(e) => {
-            void handleSubmit(e);
+          onClick={(event) => {
+            void handleSubmit(event);
           }}
           disabled={saving}
           className="flex-1 py-2 bg-mui-blue-600 hover:bg-mui-blue-700 text-white text-xs font-bold rounded-md flex items-center justify-center gap-2 transition-all disabled:opacity-50"

@@ -148,8 +148,8 @@ function App() {
         refreshServicesStatus(),
         loadRecentLogs(),
       ]);
-    } catch (err) {
-      console.error('Initialization failed:', err);
+    } catch (error) {
+      console.error('Initialization failed:', error);
     } finally {
       setTimeout(() => setLoading(false), 600);
     }
@@ -181,7 +181,7 @@ function App() {
 
   const renderIcon = useCallback(
     (name: string, size = 20, className = '') => {
-      const task = prerequisites?.find((p) => p.name === name);
+      const task = prerequisites?.find((prereq) => prereq.name === name);
       return task?.iconSvg ? (
         <Icons.Raw svgString={task.iconSvg} size={size} className={className} />
       ) : null;

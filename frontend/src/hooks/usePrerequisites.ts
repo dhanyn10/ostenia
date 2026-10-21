@@ -70,42 +70,42 @@ export function usePrerequisites({ addToast, addLog }: UsePrerequisitesOptions) 
   }, [addToast, addLog, refreshPrerequisites]);
 
   const handleInstallSingle = useCallback(async (task: any) => {
-    const selectedVer = selectedVersions[task.name] || task.version;
+    const selectedVersion = selectedVersions[task.name] || task.version;
     setDownloadProgress((prev) => ({
       ...prev,
       [task.name]: { name: task.name, percentage: 0, status: 'Starting...' },
     }));
 
-    const modifiedTask = resolvePrerequisiteTask(task, selectedVer);
+    const modifiedTask = resolvePrerequisiteTask(task, selectedVersion);
     try {
       await AppBackend.InstallPrerequisite(modifiedTask);
-    } catch (e: any) {
-      addToast('Error', e.toString(), 'error');
+    } catch (error: any) {
+      addToast('Error', error.toString(), 'error');
     }
   }, [selectedVersions, addToast]);
 
-  const handleInstallModule = useCallback(async (parentName: string, modName: string) => {
+  const handleInstallModule = useCallback(async (parentName: string, moduleName: string) => {
     setDownloadProgress((prev) => ({
       ...prev,
-      [modName]: { name: modName, percentage: 0, status: 'Starting...' },
+      [moduleName]: { name: moduleName, percentage: 0, status: 'Starting...' },
     }));
     try {
-      await AppBackend.InstallPluginModule(parentName, modName);
-    } catch (e: any) {
-      addToast('Error', e.toString(), 'error');
+      await AppBackend.InstallPluginModule(parentName, moduleName);
+    } catch (error: any) {
+      addToast('Error', error.toString(), 'error');
       setDownloadProgress((prev) => ({
         ...prev,
-        [modName]: { name: modName, percentage: 0, status: 'Error: ' + e.toString() },
+        [moduleName]: { name: moduleName, percentage: 0, status: 'Error: ' + error.toString() },
       }));
     }
   }, [addToast]);
 
-  const handleUninstallModule = useCallback(async (parentName: string, modName: string) => {
+  const handleUninstallModule = useCallback(async (parentName: string, moduleName: string) => {
     try {
-      await AppBackend.UninstallPluginModule(parentName, modName);
+      await AppBackend.UninstallPluginModule(parentName, moduleName);
       await refreshPrerequisites();
-    } catch (e: any) {
-      addToast('Error', e.toString(), 'error');
+    } catch (error: any) {
+      addToast('Error', error.toString(), 'error');
     }
   }, [addToast, refreshPrerequisites]);
 

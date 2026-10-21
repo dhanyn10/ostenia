@@ -46,8 +46,8 @@ const PromptModal: React.FC<PromptModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
     if (value.trim()) {
       onConfirm(value);
     }
@@ -94,7 +94,7 @@ const PromptModal: React.FC<PromptModalProps> = ({
               ref={inputRef}
               type="text"
               value={value}
-              onChange={(e) => setValue(e.target.value)}
+              onChange={(event) => setValue(event.target.value)}
               placeholder={placeholder}
               className={cn(
                 "w-full px-3 py-2 text-xs border rounded-sm outline-none transition-all",

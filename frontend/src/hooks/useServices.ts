@@ -30,24 +30,24 @@ export function useServices({ addToast, onRequireConfirmHeidiSQL }: UseServicesO
       // Query status for all services in parallel
       const current = await Promise.all(INITIAL_SERVICES.map(fetchServiceStatus));
       setServices((prev) =>
-        prev.map((s) => {
-          const updated = current.find((c) => c.name === s.name);
-          return updated ? { ...s, ...updated } : s;
+        prev.map((service) => {
+          const updated = current.find((currentService) => currentService.name === service.name);
+          return updated ? { ...service, ...updated } : service;
         })
       );
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
     }
   }, []);
 
   const handleServiceStatus = useCallback((data: any) => {
     setServices((prev) => {
       const next: ServiceInfo[] = [];
-      for (const s of prev) {
-        if (s.name === data.name) {
-          next.push({ ...s, ...data });
+      for (const service of prev) {
+        if (service.name === data.name) {
+          next.push({ ...service, ...data });
         } else {
-          next.push(s);
+          next.push(service);
         }
       }
       return next;
@@ -134,7 +134,7 @@ export function useServices({ addToast, onRequireConfirmHeidiSQL }: UseServicesO
   }, []);
 
   const handleRemoveFromHome = useCallback((name: string) => {
-    setServices((prev) => prev.filter((s) => s.name !== name));
+    setServices((prev) => prev.filter((service) => service.name !== name));
   }, []);
 
   return {

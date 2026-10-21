@@ -122,30 +122,30 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   type="text"
                   placeholder="Search settings..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(event) => setSearchQuery(event.target.value)}
                   className="w-full bg-white dark:bg-white/5 border border-mui-grey-200 dark:border-white/10 rounded-lg pl-9 pr-3 py-2 text-xs outline-none focus:border-mui-blue-500 transition-all shadow-sm text-mui-grey-700 dark:text-mui-grey-200"
                 />
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto px-2 space-y-1">
-              {filteredCategories.map((cat) => (
+              {filteredCategories.map((category) => (
                 <button
                   type="button"
-                  key={cat.id}
-                  onClick={() => setActiveCategory(cat.id)}
+                  key={category.id}
+                  onClick={() => setActiveCategory(category.id)}
                   className={cn(
                     "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all group bg-transparent border-none",
-                    activeCategory === cat.id
+                    activeCategory === category.id
                       ? "bg-mui-blue-500 text-white shadow-lg shadow-mui-blue-500/30"
                       : "text-mui-grey-600 dark:text-mui-grey-400 hover:bg-white dark:hover:bg-white/5",
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    <cat.icon size={16} />
-                    <span>{cat.label}</span>
+                    <category.icon size={16} />
+                    <span>{category.label}</span>
                   </div>
-                  {activeCategory === cat.id && <ChevronRight size={14} />}
+                  {activeCategory === category.id && <ChevronRight size={14} />}
                 </button>
               ))}
             </div>

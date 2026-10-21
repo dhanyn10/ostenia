@@ -58,7 +58,7 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
 
   useEffect(() => {
     if (isOpen && (window as any)?.runtime) {
-      OnFileDrop((x, y, paths) => {
+      OnFileDrop((_x, _y, paths) => {
         if (!isOpenRef.current) return;
         if (paths?.length > 0) {
           const path = paths[0];
@@ -76,12 +76,12 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
+  const handleDrag = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.type === "dragenter" || event.type === "dragover") {
       setDragActive(true);
-    } else if (e.type === "dragleave") {
+    } else if (event.type === "dragleave") {
       setDragActive(false);
     }
   };
@@ -99,22 +99,22 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
         setSelectedPath("");
         onClose();
       }, 2000);
-    } catch (err: any) {
-      setError(err.message || err.toString());
+    } catch (error: any) {
+      setError(error.message || error.toString());
     } finally {
       setProcessing(false);
     }
   };
 
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleDrop = async (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
     setDragActive(false);
 
     if (processing) return;
 
-    if (e.dataTransfer?.files?.[0]) {
-      const file = e.dataTransfer.files[0];
+    if (event.dataTransfer?.files?.[0]) {
+      const file = event.dataTransfer.files[0];
       const lowerName = file.name.toLowerCase();
 
       // If it's a ZIP/Nupkg, process its bytes directly! This is 100% immune to OS path issues!
@@ -137,8 +137,8 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
             setSelectedPath("");
             onClose();
           }, 2000);
-        } catch (err: any) {
-          setError(err.message || err.toString());
+        } catch (error: any) {
+          setError(error.message || error.toString());
         } finally {
           setProcessing(false);
         }
@@ -152,7 +152,7 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
     if (processing) return;
     setError(null);
     try {
-      const res = await AppBackend.OpenFileDialog({
+      const selectedFile = await AppBackend.OpenFileDialog({
         Title: `Select Custom ${serviceName} ZIP File`,
         Filters: [
           {
@@ -161,12 +161,12 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
           },
         ],
       });
-      if (res) {
-        setSelectedPath(res);
-        await processPath(res);
+      if (selectedFile) {
+        setSelectedPath(selectedFile);
+        await processPath(selectedFile);
       }
-    } catch (err: any) {
-      setError(err.message || err.toString());
+    } catch (error: any) {
+      setError(error.message || error.toString());
     }
   };
 
@@ -175,16 +175,16 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
     setError(null);
     try {
       const { defaultDir } = getCategoryAndDefaultDir();
-      const res = await AppBackend.OpenDirectoryDialog({
+      const selectedDirectory = await AppBackend.OpenDirectoryDialog({
         Title: `Select Custom ${serviceName} Folder`,
         DefaultDirectory: defaultDir,
       });
-      if (res) {
-        setSelectedPath(res);
-        await processPath(res);
+      if (selectedDirectory) {
+        setSelectedPath(selectedDirectory);
+        await processPath(selectedDirectory);
       }
-    } catch (err: any) {
-      setError(err.message || err.toString());
+    } catch (error: any) {
+      setError(error.message || error.toString());
     }
   };
 
@@ -235,8 +235,8 @@ const AddCustomVersionModal: React.FC<AddCustomVersionModalProps> = ({
             onDragEnter={handleDrag}
             onDragOver={handleDrag}
             onDragLeave={handleDrag}
-            onDrop={(e) => {
-              void handleDrop(e);
+            onDrop={(event) => {
+              void handleDrop(event);
             }}
             style={{ "--wails-drop-target": "drop" } as React.CSSProperties}
             data-file-drop-target="drop"

@@ -17,7 +17,7 @@ type App struct {
 	contextProvider func() context.Context   // Provider returning active context for runtime operations
 	downloader      interfaces.PluginManager // Controller responsible for plugin downloads and extraction
 	orchestrator    interfaces.Orchestrator  // Controller managing lifecycle, watching, and state of development services
-	symlinkMgr      *service.SymlinkManager  // Helper maintaining system paths and junction points
+	symlinkManager  *service.SymlinkManager  // Helper maintaining system paths and junction points
 	sshManager      interfaces.SSHManager    // Controller executing SSH/WSL connection streams
 	sslManager      interfaces.SSLManager    // Controller orchestrating local Root CAs and signed certs
 	cfg             *config.Config           // Global persistent configuration settings of Ostenia
@@ -151,8 +151,8 @@ func (a *App) Startup(ctx context.Context) {
 	if a.orchestrator == nil {
 		a.orchestrator = service.NewOrchestrator()
 	}
-	if a.symlinkMgr == nil {
-		a.symlinkMgr = service.NewSymlinkManager()
+	if a.symlinkManager == nil {
+		a.symlinkManager = service.NewSymlinkManager()
 	}
 	if a.sshManager == nil {
 		a.sshManager = service.NewSSHManager()

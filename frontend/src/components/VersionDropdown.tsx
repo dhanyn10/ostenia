@@ -11,7 +11,7 @@ function cn(...inputs: ClassValue[]) {
 interface VersionDropdownProps {
   current: string;
   options: string[];
-  onChange: (v: string) => void;
+  onChange: (version: string) => void;
   isOpen: boolean;
   onToggle: () => void;
   allowCustom?: boolean;
@@ -31,8 +31,8 @@ const VersionDropdown: React.FC<VersionDropdownProps> = ({
     <div className="relative">
       <button
         type="button"
-        onClick={(e) => {
-          e.stopPropagation();
+        onClick={(event) => {
+          event.stopPropagation();
           onToggle();
         }}
         className="flex items-center gap-1.5 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-sm px-1.5 py-0.5 hover:border-blue-500/30 transition-colors group cursor-pointer"
@@ -55,34 +55,34 @@ const VersionDropdown: React.FC<VersionDropdownProps> = ({
             type="button"
             className="fixed inset-0 z-[60] w-full h-full bg-transparent border-none p-0 cursor-default focus:outline-none"
             onKeyDown={handleActionKey(onToggle)}
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={(event) => {
+              event.stopPropagation();
               onToggle();
             }}
           />
           <div className="absolute top-full left-0 mt-1 w-32 max-h-56 overflow-y-auto bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-white/10 rounded-sm z-[70] animate-in fade-in zoom-in-95 duration-200">
             <div className="p-1 space-y-0.5">
-              {options.map((v) => (
+              {options.map((version) => (
                 <button
                   type="button"
-                  key={v}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onChange(v);
+                  key={version}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onChange(version);
                     onToggle();
                   }}
                   onKeyDown={handleActionKey(() => {
-                    onChange(v);
+                    onChange(version);
                     onToggle();
                   })}
                   className={cn(
                     "w-full text-left px-2 py-1 rounded-sm text-[9px] font-bold cursor-pointer transition-all outline-none bg-transparent border-none",
-                    v === current
+                    version === current
                       ? "bg-blue-600 text-white"
                       : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white focus:bg-slate-100 dark:focus:bg-white/10",
                   )}
                 >
-                  v{v}
+                  v{version}
                 </button>
               ))}
 
@@ -90,8 +90,8 @@ const VersionDropdown: React.FC<VersionDropdownProps> = ({
                 <div className="border-t border-slate-100 dark:border-white/5 mt-1 pt-1">
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={(event) => {
+                      event.stopPropagation();
                       onCustomClick?.();
                       onToggle();
                     }}

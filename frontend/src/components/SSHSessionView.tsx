@@ -56,13 +56,13 @@ const calculateContextMenuY = (clientY: number, menuHeight: number): number => {
 /**
  * Checks if an SFTP listing error is expected/ignorable during background sync.
  */
-const isIgnorableSFTPError = (err: any): boolean => {
-  const errStr = String(err).toLowerCase();
+const isIgnorableSFTPError = (error: any): boolean => {
+  const errorString = String(error).toLowerCase();
   return (
-    errStr.includes("eof") ||
-    errStr.includes("session not found") ||
-    errStr.includes("session not connected") ||
-    errStr.includes("sftp not connected")
+    errorString.includes("eof") ||
+    errorString.includes("session not found") ||
+    errorString.includes("session not connected") ||
+    errorString.includes("sftp not connected")
   );
 };
 
@@ -140,10 +140,10 @@ const filterAndSortFiles = (
   sortConfig: { key: string; direction: "asc" | "desc" }
 ) => {
   return [...files]
-    .filter((f) => {
-      const matchesSearch = f.name.toLowerCase().includes(searchQuery.toLowerCase());
+    .filter((file) => {
+      const matchesSearch = file.name.toLowerCase().includes(searchQuery.toLowerCase());
       if (!showHiddenFiles) {
-        return matchesSearch && !f.name.startsWith(".");
+        return matchesSearch && !file.name.startsWith(".");
       }
       return matchesSearch;
     })
@@ -334,8 +334,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           setResourceUsage(usage);
           setHistory((prev) => [...prev, { cpu: usage.cpu, mem: usage.mem, disk: usage.disk }].slice(-30));
         }
-      } catch (e) {
-        console.error("Failed to fetch SSH resource usage", e);
+      } catch (error) {
+        console.error("Failed to fetch SSH resource usage", error);
         if (isMounted) {
           setResourceUsage(null);
           setHistory((prev) => [...prev, { cpu: null, mem: null, disk: null }].slice(-30));
@@ -364,8 +364,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
 
   // Close context menus when clicking outside
   useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (contextMenuRef.current?.contains(e.target as Node)) {
+    const handleClick = (event: MouseEvent) => {
+      if (contextMenuRef.current?.contains(event.target as Node)) {
         return;
       }
       setFileContextMenu(null);
@@ -380,13 +380,13 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
    * Triggers the custom contextual action menu on remote files/folders.
    * Adjusts top Y position upwards near viewport limits to prevent layout clipping.
    */
-  const handleFileContextMenu = (e: React.MouseEvent, file: any) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleFileContextMenu = (event: React.MouseEvent, file: any) => {
+    event.preventDefault();
+    event.stopPropagation();
 
     setFileContextMenu({
-      x: e.clientX,
-      y: calculateContextMenuY(e.clientY, 180),
+      x: event.clientX,
+      y: calculateContextMenuY(event.clientY, 180),
       file: file,
     });
     setExplorerContextMenu(null);
@@ -397,12 +397,12 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
    * Triggers the custom background action menu for the SFTP explorer.
    * Adjusts Y positioning near bottom edges.
    */
-  const handleExplorerContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleExplorerContextMenu = (event: React.MouseEvent) => {
+    event.preventDefault();
 
     setExplorerContextMenu({
-      x: e.clientX,
-      y: calculateContextMenuY(e.clientY, 130),
+      x: event.clientX,
+      y: calculateContextMenuY(event.clientY, 130),
     });
     setFileContextMenu(null);
     setTerminalContextMenu(null);
@@ -412,12 +412,12 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
    * Triggers the custom terminal utilities action menu (Copy/Paste/Refresh layout).
    * Adjusts Y positioning near bottom edges.
    */
-  const handleTerminalContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleTerminalContextMenu = (event: React.MouseEvent) => {
+    event.preventDefault();
 
     setTerminalContextMenu({
-      x: e.clientX,
-      y: calculateContextMenuY(e.clientY, 100),
+      x: event.clientX,
+      y: calculateContextMenuY(event.clientY, 100),
     });
     setFileContextMenu(null);
     setExplorerContextMenu(null);
@@ -445,9 +445,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       if (text) {
         void AppBackend.SendSSHInput(session.id, text);
       }
-    } catch (e: any) {
-      console.error("Clipboard paste error:", e);
-      addToast("Error", `Clipboard permission denied: ${e?.message || e}`, "error");
+    } catch (error: any) {
+      console.error("Clipboard paste error:", error);
+      addToast("Error", `Clipboard permission denied: ${error?.message || error}`, "error");
     }
   };
 
@@ -472,8 +472,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         void AppBackend.ResizeSSHTerminal(session.id, safeCols, safeRows);
         setTimeout(() => xterm.current?.focus(), 50);
       }
-    } catch (e) {
-      console.error("Fit error:", e);
+    } catch (error) {
+      console.error("Fit error:", error);
     }
   };
 
@@ -713,8 +713,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       .then(() => {
         connectionSucceeded = true;
       })
-      .catch((err) => {
-        connectionError = err;
+      .catch((error) => {
+        connectionError = error;
       });
 
     await Promise.resolve();
@@ -728,8 +728,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     if (!connectionSucceeded && !connectionError) {
       try {
         await connectPromise;
-      } catch (err) {
-        connectionError = err;
+      } catch (error) {
+        connectionError = error;
       }
     }
 
@@ -810,8 +810,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const handleReconnect = async () => {
     try {
       await AppBackend.DisconnectSSH(session.id);
-    } catch (e) {
-      console.error("Disconnect error on reconnect:", e);
+    } catch (error) {
+      console.error("Disconnect error on reconnect:", error);
     }
     xterm.current?.clear();
     await connectSSH();
@@ -820,18 +820,18 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   /**
    * Helper to handle file loading errors separately to minimize Cognitive Complexity.
    */
-  const handleLoadFilesError = (err: any, isManualEntry: boolean, isAutoSync: boolean) => {
+  const handleLoadFilesError = (error: any, isManualEntry: boolean, isAutoSync: boolean) => {
     if (isManualEntry) {
       addToast("Navigation", "Directory not available", "error");
       setEditingPath(remotePath);
       return;
     }
 
-    if (isAutoSync || isIgnorableSFTPError(err)) {
+    if (isAutoSync || isIgnorableSFTPError(error)) {
       return;
     }
 
-    addToast("Explorer", "Failed to list files: " + err, "error");
+    addToast("Explorer", "Failed to list files: " + error, "error");
   };
 
   /**
@@ -1060,12 +1060,12 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   };
 
   const handleManualNavigation = (path: string) => {
-    const p = path.trim();
-    if (p && p !== remotePath) {
-      void loadRemoteFiles(p, true).then(() => {
-        void AppBackend.SendSSHInput(session.id, `cd "${p}"\r`);
-      }).catch((err) => {
-        console.error(err);
+    const trimmedPath = path.trim();
+    if (trimmedPath && trimmedPath !== remotePath) {
+      void loadRemoteFiles(trimmedPath, true).then(() => {
+        void AppBackend.SendSSHInput(session.id, `cd "${trimmedPath}"\r`);
+      }).catch((error) => {
+        console.error(error);
       });
     }
   };

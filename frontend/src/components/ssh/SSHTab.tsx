@@ -57,9 +57,9 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
   useEffect(() => {
     if (!isResizing) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMouseMove = (event: MouseEvent) => {
       // Find search input wrapper or use relative change
-      setSearchWidth((prev) => Math.max(100, Math.min(600, prev + e.movementX)));
+      setSearchWidth((prev) => Math.max(100, Math.min(600, prev + event.movementX)));
     };
 
     const handleMouseUp = () => {
@@ -81,8 +81,8 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
 
   // Dismiss context menu when clicking anywhere else
   useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (contextMenuRef.current?.contains(e.target as Node)) {
+    const handleClick = (event: MouseEvent) => {
+      if (contextMenuRef.current?.contains(event.target as Node)) {
         return;
       }
       setContextMenu(null);
@@ -99,8 +99,8 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
     try {
       const data = await AppBackend.GetSSHSessions();
       setSessions(data || []);
-    } catch (err) {
-      console.error("Failed to load SSH sessions:", err);
+    } catch (error) {
+      console.error("Failed to load SSH sessions:", error);
       addToast("Error", "Failed to load SSH sessions", "error");
     } finally {
       setLoading(false);
@@ -122,7 +122,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
    */
   const handleCloseSession = (id: string) => {
     void AppBackend.DisconnectSSH(id);
-    const nextActive = activeSessionIds.filter((sid) => sid !== id);
+    const nextActive = activeSessionIds.filter((sessionId) => sessionId !== id);
     setActiveSessionIds(nextActive);
 
     // Autofocus another active tab or default to main Dashboard
@@ -148,9 +148,9 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
       await AppBackend.DeleteSSHSession(id);
       await loadSessions();
       addToast("Success", "Session deleted successfully", "success");
-    } catch (err: any) {
-      console.error("Failed to delete session:", err);
-      addToast("Error", `Failed to delete session: ${err?.message || err}`, "error");
+    } catch (error: any) {
+      console.error("Failed to delete session:", error);
+      addToast("Error", `Failed to delete session: ${error?.message || error}`, "error");
     }
   };
 
@@ -161,11 +161,11 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
   /**
    * Spawns a custom contextual action menu on right-click.
    */
-  const handleContextMenu = (e: React.MouseEvent, session: any) => {
-    e.preventDefault();
+  const handleContextMenu = (event: React.MouseEvent, session: any) => {
+    event.preventDefault();
     setContextMenu({
-      x: e.clientX,
-      y: e.clientY,
+      x: event.clientX,
+      y: event.clientY,
       sessionId: session.id,
     });
   };
@@ -186,11 +186,11 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
     if (activeSessionIds.includes(session.id)) {
       addToast("Info", `${session.name || session.host} is already open in another tab.`, "info");
       setCurrentSessionId(session.id);
-      setActiveSessionIds(activeSessionIds.filter((id) => id !== virtualTabId));
+      setActiveSessionIds(activeSessionIds.filter((sessionId) => sessionId !== virtualTabId));
       return;
     }
 
-    const nextActive = activeSessionIds.map((id) => (id === virtualTabId ? session.id : id));
+    const nextActive = activeSessionIds.map((sessionId) => (sessionId === virtualTabId ? session.id : sessionId));
     setActiveSessionIds(nextActive);
     setCurrentSessionId(session.id);
   };
@@ -351,7 +351,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                 type="button"
                 onDoubleClick={() => handleConnect(session)}
                 onKeyDown={handleActionKey(() => handleConnect(session))}
-                onContextMenu={(e) => handleContextMenu(e, session)}
+                onContextMenu={(event) => handleContextMenu(event, session)}
                 className="flex-1 flex items-center gap-3 outline-none text-left min-w-0 bg-transparent border-none p-0 cursor-pointer"
               >
                 <div className="bg-mui-blue-600 text-white p-2 rounded-md shrink-0">
@@ -377,8 +377,8 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={(event) => {
+                    event.stopPropagation();
                     setEditingSession(session);
                     setShowForm(true);
                   }}
@@ -420,7 +420,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
 
             {/* Render dynamically created connection tabs */}
             {activeSessionIds.map((id) => {
-              const session = sessions.find((s) => s.id === id);
+              const session = sessions.find((sessionItem) => sessionItem.id === id);
               const isVirtualTab = id.startsWith("new-tab-");
               const isActive = currentSessionId === id;
               const displayName = isVirtualTab ? "New Tab" : (session?.name || session?.host || id);
@@ -451,8 +451,8 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                   </button>
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={(event) => {
+                      event.stopPropagation();
                       handleCloseSession(id);
                     }}
                     className="p-0.5 rounded-full transition-all ml-2 opacity-50 group-hover:opacity-100 hover:bg-mui-grey-200 dark:hover:bg-white/10 flex items-center justify-center cursor-pointer select-none border-none bg-transparent"
@@ -511,7 +511,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                     type="text"
                     placeholder="Search host..."
                     value={hostSearchQuery}
-                    onChange={(e) => setHostSearchQuery(e.target.value)}
+                    onChange={(event) => setHostSearchQuery(event.target.value)}
                     className="w-full px-3 py-1 text-xs rounded border border-transparent bg-white dark:bg-mui-grey-900 text-mui-grey-900 dark:text-white focus:outline-none"
                   />
                   {hostSearchQuery && (
@@ -529,16 +529,16 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                 <button
                   type="button"
                   aria-label="Resize search input"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
+                  onMouseDown={(event) => {
+                    event.preventDefault();
                     setIsResizing(true);
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === "ArrowLeft") {
-                      e.preventDefault();
+                  onKeyDown={(event) => {
+                    if (event.key === "ArrowLeft") {
+                      event.preventDefault();
                       setSearchWidth((prev) => Math.max(100, Math.min(600, prev - 10)));
-                    } else if (e.key === "ArrowRight") {
-                      e.preventDefault();
+                    } else if (event.key === "ArrowRight") {
+                      event.preventDefault();
                       setSearchWidth((prev) => Math.max(100, Math.min(600, prev + 10)));
                     }
                   }}
@@ -578,7 +578,7 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
                     </div>
                   ) : (
                     <SSHSessionView
-                      session={sessions.find((s) => s.id === id)}
+                      session={sessions.find((sessionItem) => sessionItem.id === id)}
                       onClose={() => handleCloseSession(id)}
                       addToast={addToast}
                       isActive={currentSessionId === id}

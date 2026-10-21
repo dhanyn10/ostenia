@@ -23,8 +23,8 @@ interface SSHFileExplorerProps {
   loadingFiles: boolean;
   sortedFiles: any[];
   onFileDoubleClick: (file: any) => void;
-  onFileContextMenu: (e: React.MouseEvent, file: any) => void;
-  onExplorerContextMenu: (e: React.MouseEvent) => void;
+  onFileContextMenu: (event: React.MouseEvent, file: any) => void;
+  onExplorerContextMenu: (event: React.MouseEvent) => void;
   formatSize: (bytes: number) => string;
   toggleSort: (key: string) => void;
   sortConfig: { key: string; direction: "asc" | "desc" };
@@ -70,12 +70,12 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
             type="text"
             className="flex-1 min-w-0 px-1 py-0.5 bg-transparent text-[10px] text-mui-grey-700 dark:text-mui-grey-300 font-mono outline-none focus:text-mui-blue-600 dark:focus:text-mui-blue-400 transition-colors"
             value={editingPath}
-            onChange={(e) => setEditingPath(e.target.value)}
-            onContextMenu={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
+            onChange={(event) => setEditingPath(event.target.value)}
+            onContextMenu={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
                 onManualNavigation(editingPath);
-              } else if (e.key === "Escape") {
+              } else if (event.key === "Escape") {
                 setEditingPath(remotePath);
               }
             }}
@@ -100,8 +100,8 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
             placeholder="Search..."
             className="w-full bg-mui-grey-50 dark:bg-mui-grey-800 border border-mui-grey-200 dark:border-mui-grey-700 rounded py-1 pl-7 pr-2 text-[11px] text-mui-grey-700 dark:text-mui-grey-300 outline-none focus:border-mui-blue-500 transition-all"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onContextMenu={(e) => e.stopPropagation()}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            onContextMenu={(event) => event.stopPropagation()}
           />
         </div>
 
@@ -192,7 +192,7 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
                   className="flex-1 flex items-center gap-2 outline-none text-left min-w-0 bg-transparent border-none p-0"
                   onDoubleClick={() => onFileDoubleClick(file)}
                   onKeyDown={handleActionKey(() => onFileDoubleClick(file))}
-                  onContextMenu={(e) => onFileContextMenu(e, file)}
+                  onContextMenu={(event) => onFileContextMenu(event, file)}
                 >
                   {file.isDir ? (
                     <Folder
@@ -219,9 +219,9 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onFileContextMenu(e, file);
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onFileContextMenu(event, file);
                     }}
                     className="p-1 text-mui-grey-400 hover:text-mui-blue-600 opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
                   >
