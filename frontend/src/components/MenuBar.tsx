@@ -152,16 +152,20 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const [isMaximized, setIsMaximized] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
 
-  const handleMinimize = () => AppBackend.Minimize();
+  const handleMinimize = () => {
+    void AppBackend.Minimize();
+  };
   const handleMaximize = () => {
     if (isMaximized) {
-      AppBackend.Unmaximize();
+      void AppBackend.Unmaximize();
     } else {
-      AppBackend.Maximize();
+      void AppBackend.Maximize();
     }
     setIsMaximized(!isMaximized);
   };
-  const handleClose = () => AppBackend.Close();
+  const handleClose = () => {
+    void AppBackend.Close();
+  };
 
   const handleOpenCategory = (category: string) => {
     onOpenSettings(category);
@@ -188,11 +192,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
           label="Toggle Developer Tools"
           icon={Monitor}
           onClick={() => {
-            AppBackend.ToggleDevTools();
+            void AppBackend.ToggleDevTools();
             setOpenMenu(null);
           }}
           onKeyDown={handleActionKey(() => {
-            AppBackend.ToggleDevTools();
+            void AppBackend.ToggleDevTools();
             setOpenMenu(null);
           })}
           shortcut="F12"

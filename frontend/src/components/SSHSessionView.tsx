@@ -346,9 +346,11 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     };
 
     // Initial fetch instantly
-    fetchUsage();
+    void fetchUsage();
 
-    const intervalId = setInterval(fetchUsage, monitorInterval * 1000);
+    const intervalId = setInterval(() => {
+      void fetchUsage();
+    }, monitorInterval * 1000);
 
     return () => {
       isMounted = false;
@@ -441,7 +443,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     try {
       const text = await navigator.clipboard.readText();
       if (text) {
-        AppBackend.SendSSHInput(session.id, text);
+        void AppBackend.SendSSHInput(session.id, text);
       }
     } catch (e: any) {
       addToast("Error", "Clipboard permission denied", "error");
@@ -466,7 +468,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       if (dims && dims.cols >= 20 && dims.rows >= 2) {
         const safeCols = Math.max(dims.cols, 120);
         const safeRows = Math.max(dims.rows, 24);
-        AppBackend.ResizeSSHTerminal(session.id, safeCols, safeRows);
+        void AppBackend.ResizeSSHTerminal(session.id, safeCols, safeRows);
         setTimeout(() => xterm.current?.focus(), 50);
       }
     } catch (e) {
@@ -554,11 +556,13 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     setTimeout(performFit, 500);
 
     // Forward local user keystrokes straight to back-end shell stream
-    xterm.current.onData((data) => AppBackend.SendSSHInput(session.id, data));
+    xterm.current.onData((data) => {
+      void AppBackend.SendSSHInput(session.id, data);
+    });
     xterm.current.onTitleChange((title) => {
       const potentialPath = extractPathFromTitle(title);
       if (potentialPath) {
-        syncExplorer(potentialPath);
+        void syncExplorer(potentialPath);
       }
     });
 
@@ -569,7 +573,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     const handlePathChange = (event: any) => {
       if (event.sessionId === session.id) {
         setRemotePath((prev) => {
-          if (event.path !== prev) loadRemoteFiles(event.path, false, true);
+          if (event.path !== prev) {
+            void loadRemoteFiles(event.path, false, true);
+          }
           return event.path;
         });
       }
@@ -587,7 +593,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     EventsOn("ssh_output", handleOutput);
     EventsOn("ssh_path_changed", handlePathChange);
     EventsOn("ssh_disconnected", handleDisconnect);
-    connectSSH();
+    void connectSSH();
 
     return () => {
       activeConnectIdRef.current = null; // Cancel any active connection loops!
@@ -644,7 +650,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     console.log(`SSH Connection attempt ${attempt}/${maxRetries} succeeded in ${dur}ms`);
     setConnecting(false);
     performFit();
-    loadRemoteFiles("", false, true);
+    void loadRemoteFiles("", false, true);
   };
 
   const handleAttemptFailure = (attempt: number, maxRetries: number, startTime: number, connectionError: any) => {
@@ -786,7 +792,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       console.error("Disconnect error on reconnect:", e);
     }
     xterm.current?.clear();
-    connectSSH();
+    await connectSSH();
   };
 
   /**
@@ -855,7 +861,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
 
       if (isManualTrigger) {
         lastTerminalPathRef.current = normalized;
-        loadRemoteFiles(normalized, false, false);
+        void loadRemoteFiles(normalized, false, false);
         return;
       }
 
@@ -865,7 +871,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       const shouldLoad = prevPath === "" ? normalized !== currentPathRef.current : true;
       lastTerminalPathRef.current = normalized;
       if (shouldLoad) {
-        loadRemoteFiles(normalized, false, true);
+        void loadRemoteFiles(normalized, false, true);
       }
     } catch (e) {}
   };
@@ -879,10 +885,10 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       const newPath = current.endsWith("/")
         ? `${current}${file.name}`
         : `${current}/${file.name}`;
-      loadRemoteFiles(newPath);
-      AppBackend.SendSSHInput(session.id, `cd "${newPath}"\r`);
+      void loadRemoteFiles(newPath);
+      void AppBackend.SendSSHInput(session.id, `cd "${newPath}"\r`);
     } else {
-      handleEdit(file);
+      void handleEdit(file);
     }
   };
 
@@ -897,8 +903,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     const parts = normalized.split("/");
     parts.pop();
     const newPath = parts.join("/") || "/";
-    loadRemoteFiles(newPath);
-    AppBackend.SendSSHInput(session.id, `cd "${newPath}"\r`);
+    void loadRemoteFiles(newPath);
+    void AppBackend.SendSSHInput(session.id, `cd "${newPath}"\r`);
   };
 
   /**
@@ -926,7 +932,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       await measureActivity("handleUpload", async () => {
         await AppBackend.UploadRemoteFile(session.id, remotePath);
         addToast("Success", "File uploaded successfully", "success");
-        loadRemoteFiles(remotePath);
+        await loadRemoteFiles(remotePath);
       });
     } catch (err: any) {
       addToast("Error", "Upload failed: " + err, "error");
@@ -942,7 +948,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         addToast("Editor", "Opening " + file.name + "...", "info");
         await AppBackend.EditRemoteFile(session.id, `${remotePath}/${file.name}`);
         addToast("Success", "File saved and uploaded", "success");
-        loadRemoteFiles(remotePath);
+        await loadRemoteFiles(remotePath);
       });
     } catch (err: any) {
       addToast("Error", "Edit failed: " + err, "error");
@@ -966,7 +972,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         if (successMsg) {
           addToast("Success", successMsg, "success");
         }
-        loadRemoteFiles(remotePath);
+        await loadRemoteFiles(remotePath);
       });
     } catch (err: any) {
       addToast("Error", `${activityName} failed: ${err?.message || err}`, "error");
@@ -976,7 +982,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   /**
    * Deletes target files/folders recursively on the remote machine.
    */
-  const handleDelete = async (file: any) => {
+  const handleDelete = (file: any) => {
     setDeleteFile(file);
   };
 
@@ -1032,8 +1038,10 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   const handleManualNavigation = (path: string) => {
     const p = path.trim();
     if (p && p !== remotePath) {
-      loadRemoteFiles(p, true).then(() => {
-        AppBackend.SendSSHInput(session.id, `cd "${p}"\r`);
+      void loadRemoteFiles(p, true).then(() => {
+        void AppBackend.SendSSHInput(session.id, `cd "${p}"\r`);
+      }).catch((err) => {
+        console.error(err);
       });
     }
   };
@@ -1236,7 +1244,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  handleEdit(fileContextMenu.file);
+                  void handleEdit(fileContextMenu.file);
                   setFileContextMenu(null);
                 }}
                 className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
@@ -1260,7 +1268,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  handleDownload(fileContextMenu.file);
+                  void handleDownload(fileContextMenu.file);
                   setFileContextMenu(null);
                 }}
                 className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
@@ -1305,7 +1313,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           <button
             type="button"
             onClick={() => {
-              loadRemoteFiles(remotePath);
+              void loadRemoteFiles(remotePath);
               setExplorerContextMenu(null);
             }}
             className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
@@ -1341,7 +1349,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           <button
             type="button"
             onClick={() => {
-              handleTerminalCopy();
+              void handleTerminalCopy();
               setTerminalContextMenu(null);
             }}
             className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
@@ -1352,7 +1360,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           <button
             type="button"
             onClick={() => {
-              handleTerminalPaste();
+              void handleTerminalPaste();
               setTerminalContextMenu(null);
             }}
             className="w-full px-4 py-2 text-left text-[11px] font-bold text-mui-grey-700 dark:text-mui-grey-300 hover:bg-mui-grey-100 dark:hover:bg-white/5 flex items-center gap-2"
@@ -1380,7 +1388,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         type="danger"
         confirmText="Delete"
         cancelText="Cancel"
-        onConfirm={handleConfirmDelete}
+        onConfirm={() => {
+          void handleConfirmDelete();
+        }}
         onCancel={() => setDeleteFile(null)}
       />
 
@@ -1391,7 +1401,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         placeholder="Folder Name"
         confirmText="Create"
         cancelText="Cancel"
-        onConfirm={handleConfirmNewFolder}
+        onConfirm={(name) => {
+          void handleConfirmNewFolder(name);
+        }}
         onCancel={() => setNewFolderModalOpen(false)}
       />
 
@@ -1403,7 +1415,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         placeholder="New Name"
         confirmText="Rename"
         cancelText="Cancel"
-        onConfirm={handleConfirmRename}
+        onConfirm={(name) => {
+          void handleConfirmRename(name);
+        }}
         onCancel={() => setRenameFile(null)}
       />
     </div>

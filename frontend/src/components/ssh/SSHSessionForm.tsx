@@ -50,7 +50,7 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
         console.error("Failed to load WSL distros:", err);
       }
     };
-    fetchDistros();
+    void fetchDistros();
     return () => {
       active = false;
     };
@@ -96,7 +96,9 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
       </div>
 
       <form
-        onSubmit={handleSubmit}
+        onSubmit={(e) => {
+          void handleSubmit(e);
+        }}
         className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar"
       >
         <div className="space-y-4">
@@ -321,7 +323,9 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
         </button>
         <button
           type="submit"
-          onClick={handleSubmit}
+          onClick={(e) => {
+            void handleSubmit(e);
+          }}
           disabled={saving}
           className="flex-1 py-2 bg-mui-blue-600 hover:bg-mui-blue-700 text-white text-xs font-bold rounded-md flex items-center justify-center gap-2 transition-all disabled:opacity-50"
         >

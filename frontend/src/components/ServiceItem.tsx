@@ -369,29 +369,35 @@ const ServiceExtraActions: React.FC<any> = ({
   </div>
 );
 
-const ServiceItem: React.FC<ServiceItemProps> = ({
-  service,
-  task,
-  isExpanded,
-  onToggleAccordion,
-  renderIcon,
-  handleToggleService,
-  handleRemoveFromHome,
-  handleSwitchVersion,
-  handleOpenLocalTerminal,
-  handleToggleHttps,
-  openTerminalDropdown,
-  setOpenTerminalDropdown,
-  setIsModalOpen,
-  apacheHttps,
-  nginxHttps,
-  isOpenSslEnabled,
-  setActiveTab,
-  handleOpenPluginFolder,
-  isTransitioning,
-}) => {
+function shouldIgnoreCardToggle(target: HTMLElement): boolean {
+  return Boolean(
+    target.closest("button:not([data-card-expand])") ||
+    target.closest("a") ||
+    target.closest("input") ||
+    target.closest("[data-no-card-toggle]"),
+  );
+}
+
+interface ServiceActionFlags {
+  isInstalled: boolean;
+  isHttpsEnabled: boolean;
+  hasOpenFolder: boolean;
+  hasTerminal: boolean;
+  hasHttpsToggle: boolean;
+  hasPhpExtManager: boolean;
+  hasHeidiOpen: boolean;
+  hasExtraActions: boolean;
+}
+
+function getServiceActionFlags(
+  service: any,
+  task: any,
+  apacheHttps: boolean,
+  nginxHttps: boolean,
+  isOpenSslEnabled: boolean,
+): ServiceActionFlags {
   const isInstalled =
-    (task?.installedVers && task.installedVers.length > 0) ||
+    Boolean(task?.installedVers && task.installedVers.length > 0) ||
     service.name === "OpenSSL";
   const isWebServer = service.name === "Apache" || service.name === "Nginx";
 
@@ -417,21 +423,69 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
     hasPhpExtManager ||
     hasHeidiOpen;
 
+  return {
+    isInstalled,
+    isHttpsEnabled,
+    hasOpenFolder,
+    hasTerminal,
+    hasHttpsToggle,
+    hasPhpExtManager,
+    hasHeidiOpen,
+    hasExtraActions,
+  };
+}
+
+const ServiceItem: React.FC<ServiceItemProps> = ({
+  service,
+  task,
+  isExpanded,
+  onToggleAccordion,
+  renderIcon,
+  handleToggleService,
+  handleRemoveFromHome,
+  handleSwitchVersion,
+  handleOpenLocalTerminal,
+  handleToggleHttps,
+  openTerminalDropdown,
+  setOpenTerminalDropdown,
+  setIsModalOpen,
+  apacheHttps,
+  nginxHttps,
+  isOpenSslEnabled,
+  setActiveTab,
+  handleOpenPluginFolder,
+  isTransitioning,
+}) => {
+  const {
+    isInstalled,
+    isHttpsEnabled,
+    hasOpenFolder,
+    hasTerminal,
+    hasHttpsToggle,
+    hasPhpExtManager,
+    hasHeidiOpen,
+    hasExtraActions,
+  } = getServiceActionFlags(
+    service,
+    task,
+    apacheHttps,
+    nginxHttps,
+    isOpenSslEnabled,
+  );
+
+  const toggleAccordion = () => onToggleAccordion(service.name, hasExtraActions);
+
   const handleCardClick = (e: React.MouseEvent) => {
-    if (!hasExtraActions) return;
+    if (!hasExtraActions || shouldIgnoreCardToggle(e.target as HTMLElement)) return;
+    toggleAccordion();
+  };
 
-    const target = e.target as HTMLElement;
-    // Don't toggle if the user clicked inside any button or interactive element, or extra actions panel
-    if (
-      target.closest("button:not([data-card-expand])") ||
-      target.closest("a") ||
-      target.closest("input") ||
-      target.closest("[data-no-card-toggle]")
-    ) {
-      return;
+  const handleCardKeyDown = (e: React.KeyboardEvent) => {
+    if (!hasExtraActions || shouldIgnoreCardToggle(e.target as HTMLElement)) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleAccordion();
     }
-
-    onToggleAccordion(service.name, hasExtraActions);
   };
 
   return (
@@ -442,22 +496,7 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
       tabIndex={hasExtraActions ? 0 : undefined}
       aria-expanded={hasExtraActions ? isExpanded : undefined}
       onClick={handleCardClick}
-      onKeyDown={(e) => {
-        if (!hasExtraActions) return;
-        const target = e.target as HTMLElement;
-        if (
-          target.closest("button:not([data-card-expand])") ||
-          target.closest("a") ||
-          target.closest("input") ||
-          target.closest("[data-no-card-toggle]")
-        ) {
-          return;
-        }
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onToggleAccordion(service.name, hasExtraActions);
-        }
-      }}
+      onKeyDown={handleCardKeyDown}
       className={cn(
         "w-full text-left bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all flex flex-col relative shadow-sm dark:shadow-lg",
         hasExtraActions && "hover:bg-slate-50/80 dark:hover:bg-slate-900/60 cursor-pointer",
@@ -476,7 +515,7 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
           aria-expanded={isExpanded}
           onClick={(e) => {
             e.stopPropagation();
-            onToggleAccordion(service.name, hasExtraActions);
+            toggleAccordion();
           }}
           className="absolute inset-0 w-full h-full cursor-pointer bg-transparent border-none p-0 z-0 focus:outline-none focus:ring-1 focus:ring-blue-500/40 rounded-sm"
         />
@@ -494,7 +533,7 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
             )}
             onClick={(e) => {
               e.stopPropagation();
-              onToggleAccordion(service.name, hasExtraActions);
+              toggleAccordion();
             }}
           >
             <ServiceIdentity service={service} renderIcon={renderIcon} />
