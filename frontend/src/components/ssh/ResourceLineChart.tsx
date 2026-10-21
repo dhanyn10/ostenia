@@ -113,7 +113,7 @@ export interface MetricItemProps {
   color: string;
   fillColor: string;
   hoveredMetric: ResourceMetricType | null;
-  setHoveredMetric: (m: ResourceMetricType | null) => void;
+  setHoveredMetric: (metric: ResourceMetricType | null) => void;
   displayMode: string;
   history: ResourceDataPoint[];
   minWidthClass?: string;

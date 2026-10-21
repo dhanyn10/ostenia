@@ -38,21 +38,21 @@ function ActivityTab({
   const [phpExtensions, setPhpExtensions] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const openSslService = services?.find((s) => s.name === "OpenSSL");
+  const openSslService = services?.find((service) => service.name === "OpenSSL");
   const isOpenSslEnabled = openSslService?.status === "Running";
 
-  const toggleAccordion = (name, hasExtra) => {
-    if (!hasExtra) return;
-    setActiveAccordion(activeAccordion === name ? null : name);
+  const toggleAccordion = (serviceName, hasExtraActions) => {
+    if (!hasExtraActions) return;
+    setActiveAccordion(activeAccordion === serviceName ? null : serviceName);
     setOpenTerminalDropdown(null);
   };
 
   const fetchPHPExtensions = async () => {
     try {
-      const exts = await GetPHPExtensions();
-      setPhpExtensions(exts || []);
-    } catch (err) {
-      console.error("Failed to fetch PHP extensions:", err);
+      const extensions = await GetPHPExtensions();
+      setPhpExtensions(extensions || []);
+    } catch (error) {
+      console.error("Failed to fetch PHP extensions:", error);
     }
   };
 
@@ -161,17 +161,17 @@ function ActivityTab({
               <ServiceItem
                 key={service.name}
                 service={service}
-                task={prerequisites?.find((p) => p.name === service.name)}
+                task={prerequisites?.find((prereq) => prereq.name === service.name)}
                 isExpanded={activeAccordion === service.name}
                 onToggleAccordion={toggleAccordion}
                 renderIcon={renderIcon}
                 handleToggleService={handleToggleService}
                 handleRemoveFromHome={handleRemoveFromHome}
-                handleSwitchVersion={(name, ver) => {
-                  void SwitchServiceVersion(name, ver);
+                handleSwitchVersion={(serviceName, version) => {
+                  void SwitchServiceVersion(serviceName, version);
                 }}
-                handleOpenLocalTerminal={(name, type) => {
-                  void OpenServiceTerminal(name, type);
+                handleOpenLocalTerminal={(serviceName, terminalType) => {
+                  void OpenServiceTerminal(serviceName, terminalType);
                 }}
                 handleToggleHttps={handleToggleHttps}
                 openTerminalDropdown={openTerminalDropdown}

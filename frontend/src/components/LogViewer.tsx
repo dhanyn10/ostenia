@@ -38,7 +38,7 @@ interface LogViewerProps {
 
 interface CopyLogButtonProps {
   readonly isCopied: boolean;
-  readonly onCopy: (e: React.MouseEvent) => void;
+  readonly onCopy: (event: React.MouseEvent) => void;
   readonly title: string;
 }
 
@@ -53,9 +53,9 @@ interface LogRowWrapperProps {
   readonly log: LogEntry;
   readonly isSelected: boolean;
   readonly isSelectMode: boolean;
-  readonly onRowContextMenu: (e: React.MouseEvent, log: LogEntry) => void;
+  readonly onRowContextMenu: (event: React.MouseEvent, log: LogEntry) => void;
   readonly onToggleSelect: (id: LogId, isShiftKey: boolean) => void;
-  readonly onClick?: (e: React.MouseEvent, log: LogEntry) => void;
+  readonly onClick?: (event: React.MouseEvent, log: LogEntry) => void;
   readonly className: string;
   readonly children: React.ReactNode;
 }
@@ -70,9 +70,9 @@ const CopyLogButton = ({ isCopied, onCopy, title }: Readonly<CopyLogButtonProps>
   return (
     <button
       type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        onCopy(e);
+      onClick={(event) => {
+        event.stopPropagation();
+        onCopy(event);
       }}
       className={cn(
         "shrink-0 p-1 rounded border transition-all relative",
@@ -92,9 +92,9 @@ const LogCheckbox = ({ isSelected, onToggleSelect, className }: Readonly<LogChec
     <input
       type="checkbox"
       checked={isSelected}
-      onClick={(e) => e.stopPropagation()}
-      onChange={(e) => {
-        const nativeEvent = e.nativeEvent as MouseEvent;
+      onClick={(event) => event.stopPropagation()}
+      onChange={(event) => {
+        const nativeEvent = event.nativeEvent as MouseEvent;
         onToggleSelect(nativeEvent.shiftKey);
       }}
       className={cn("shrink-0 accent-blue-600 rounded cursor-pointer", className)}
@@ -116,8 +116,8 @@ const LogRowWrapper = ({
       <button
         id={id}
         type="button"
-        onContextMenu={(e) => onRowContextMenu(e, log)}
-        onClick={(e) => onToggleSelect(log.id, e.shiftKey)}
+        onContextMenu={(event) => onRowContextMenu(event, log)}
+        onClick={(event) => onToggleSelect(log.id, event.shiftKey)}
         className={cn(className, "w-full text-left")}
       >
         {children}
@@ -128,7 +128,7 @@ const LogRowWrapper = ({
   return (
     <div
       id={id}
-      onContextMenu={(e) => onRowContextMenu(e, log)}
+      onContextMenu={(event) => onRowContextMenu(event, log)}
       className={className}
     >
       {children}
@@ -261,7 +261,7 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
   const [highlightedLogId, setHighlightedLogId] = React.useState<LogId | null>(null);
 
   const handleSimpleLogClick = (log: LogEntry) => {
-    const logIndex = displayedLogs.findIndex(l => l.id === log.id);
+    const logIndex = displayedLogs.findIndex(logEntry => logEntry.id === log.id);
     if (logIndex !== -1) {
       const targetPage = Math.floor(logIndex / pageSize) + 1;
       setCurrentPage(targetPage);
@@ -288,8 +288,8 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
 
   // Close context menu on outside click or scroll
   React.useEffect(() => {
-    const handleCloseMenu = (e: MouseEvent) => {
-      if (menuRef.current?.contains(e.target as Node)) {
+    const handleCloseMenu = (event: MouseEvent) => {
+      if (menuRef.current?.contains(event.target as Node)) {
         return;
       }
       setContextMenu(null);
@@ -316,7 +316,7 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
       return;
     }
 
-    const displayedIds = new Set(displayedLogs.map(l => l.id));
+    const displayedIds = new Set(displayedLogs.map(logEntry => logEntry.id));
 
     if (displayedLogs.length === 0) {
       setDisplayedLogs(logs);
@@ -325,7 +325,7 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
     }
 
     // Check for a complete reload or clear (no overlap between previous displayed and new logs)
-    const hasOverlap = logs.some(l => displayedIds.has(l.id));
+    const hasOverlap = logs.some(logEntry => displayedIds.has(logEntry.id));
     if (!hasOverlap) {
       setDisplayedLogs(logs);
       setPendingLogs([]);
@@ -333,26 +333,26 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
     }
 
     // Find new logs that are in `logs` but not in `displayedLogs`
-    const newLogs = logs.filter(l => !displayedIds.has(l.id));
+    const newLogs = logs.filter(logEntry => !displayedIds.has(logEntry.id));
 
     if (newLogs.length > 0) {
-      const pendingIds = new Set(pendingLogs.map(l => l.id));
-      const actuallyNew = newLogs.filter(l => !pendingIds.has(l.id));
+      const pendingIds = new Set(pendingLogs.map(logEntry => logEntry.id));
+      const actuallyNew = newLogs.filter(logEntry => !pendingIds.has(logEntry.id));
 
       if (actuallyNew.length > 0) {
         setPendingLogs(() => {
           // Keep the exact same descending order as in the logs array
-          return logs.filter(l => !displayedIds.has(l.id));
+          return logs.filter(logEntry => !displayedIds.has(logEntry.id));
         });
       }
     } else {
       // If logs decreased or some were removed, filter them accordingly
-      const logIds = new Set(logs.map(l => l.id));
-      const stillValidDisplayed = displayedLogs.filter(l => logIds.has(l.id));
+      const logIds = new Set(logs.map(logEntry => logEntry.id));
+      const stillValidDisplayed = displayedLogs.filter(logEntry => logIds.has(logEntry.id));
       if (stillValidDisplayed.length !== displayedLogs.length) {
         setDisplayedLogs(stillValidDisplayed);
       }
-      const stillValidPending = pendingLogs.filter(l => logIds.has(l.id));
+      const stillValidPending = pendingLogs.filter(logEntry => logIds.has(logEntry.id));
       if (stillValidPending.length !== pendingLogs.length) {
         setPendingLogs(stillValidPending);
       }
@@ -466,15 +466,15 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
 
       if (isShiftKey && lastSelectedIdRef.current !== null) {
         const lastId = lastSelectedIdRef.current;
-        const lastIndex = paginatedLogs.findIndex((l) => l.id === lastId);
-        const currentIndex = paginatedLogs.findIndex((l) => l.id === id);
+        const lastIndex = paginatedLogs.findIndex((logEntry) => logEntry.id === lastId);
+        const currentIndex = paginatedLogs.findIndex((logEntry) => logEntry.id === id);
 
         if (lastIndex !== -1 && currentIndex !== -1) {
           const start = Math.min(lastIndex, currentIndex);
           const end = Math.max(lastIndex, currentIndex);
           const rangeLogs = paginatedLogs.slice(start, end + 1);
 
-          rangeLogs.forEach((l) => next.add(l.id));
+          rangeLogs.forEach((logEntry) => next.add(logEntry.id));
           lastSelectedIdRef.current = id;
           return next;
         }
@@ -535,23 +535,23 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
     });
   };
 
-  const handleRowContextMenu = (e: React.MouseEvent, log: LogEntry) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleRowContextMenu = (event: React.MouseEvent, log: LogEntry) => {
+    event.preventDefault();
+    event.stopPropagation();
     if (!isSelectMode) {
-      setContextMenu({ x: e.clientX, y: e.clientY, targetLog: log });
+      setContextMenu({ x: event.clientX, y: event.clientY, targetLog: log });
     } else {
       // If current log is not selected yet, select it
       if (!selectedIds.has(log.id)) {
         setSelectedIds(prev => new Set(prev).add(log.id));
         lastSelectedIdRef.current = log.id;
       }
-      setContextMenu({ x: e.clientX, y: e.clientY, targetLog: log });
+      setContextMenu({ x: event.clientX, y: event.clientY, targetLog: log });
     }
   };
 
-  const handleContextMenuSelectLogOption = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleContextMenuSelectLogOption = (event: React.MouseEvent) => {
+    event.stopPropagation();
     if (contextMenu) {
       const targetId = contextMenu.targetLog.id;
       lastSelectedIdRef.current = targetId;
@@ -640,8 +640,8 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
                     </button>
                     <CopyLogButton
                       isCopied={isCopied}
-                      onCopy={(e) => {
-                        e.preventDefault();
+                      onCopy={(event) => {
+                        event.preventDefault();
                         handleCopyLog(log);
                       }}
                       title="Copy Log"
@@ -730,8 +730,8 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
                 {!isSelectMode && (
                   <CopyLogButton
                     isCopied={isCopied}
-                    onCopy={(e) => {
-                      e.preventDefault();
+                    onCopy={(event) => {
+                      event.preventDefault();
                       handleCopyLog(log);
                     }}
                     title="Copy Laravel-Style Log"
@@ -778,8 +778,8 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
           {isSelectMode ? (
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
+              onClick={(event) => {
+                event.stopPropagation();
                 copyFormattedSelectedLogs();
               }}
               disabled={selectedIds.size === 0}
@@ -801,8 +801,8 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
 
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={(event) => {
+              event.stopPropagation();
               handleCancelSelection();
             }}
             className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-rose-600 dark:text-rose-400 font-semibold"
@@ -832,9 +832,9 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
               onClick={() => {
                 if (AppBackend && (AppBackend as any).OpenLogsFolder) {
                   try {
-                    const p = (AppBackend as any).OpenLogsFolder();
-                    if (p && typeof p.catch === "function") {
-                      p.catch(() => {
+                    const promise = (AppBackend as any).OpenLogsFolder();
+                    if (promise && typeof promise.catch === "function") {
+                      promise.catch(() => {
                         // Ignored: opening folder failed
                       });
                     }
@@ -1009,8 +1009,8 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
               <select
                 id="log-page-size"
                 value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
+                onChange={(event) => {
+                  setPageSize(Number(event.target.value));
                   setCurrentPage(1);
                 }}
                 className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded px-1.5 py-1 text-slate-700 dark:text-slate-300 font-bold outline-none cursor-pointer"

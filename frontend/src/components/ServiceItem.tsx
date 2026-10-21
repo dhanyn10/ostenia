@@ -71,25 +71,25 @@ const VersionSwitcher: React.FC<any> = ({
 
   return (
     <div className="flex items-center gap-1 ml-1">
-      {installedVersions.map((ver: string) => {
+      {installedVersions.map((version: string) => {
         const systemString = (service.activeVersion || "")
           .toString()
           .toLowerCase()
           .trim();
-        const cleanVer = ver
+        const cleanedVersion = version
           .toString()
           .replace(/^v/, "")
           .replace(/^[a-z. ]+-/, "")
           .trim();
-        const isActive = systemString.includes(cleanVer.toLowerCase());
+        const isActive = systemString.includes(cleanedVersion.toLowerCase());
 
         return (
           <button
-            key={ver}
+            key={version}
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleSwitchVersion(service.name, ver);
+            onClick={(event) => {
+              event.stopPropagation();
+              handleSwitchVersion(service.name, version);
             }}
             className={cn(
               "px-1.5 py-0.5 rounded-sm text-[8px] font-black uppercase tracking-widest border transition-all",
@@ -99,7 +99,7 @@ const VersionSwitcher: React.FC<any> = ({
             )}
           >
             {isActive && <CheckCircle2 size={8} className="inline mr-1" />}
-            {cleanVer}
+            {cleanedVersion}
           </button>
         );
       })}
@@ -170,8 +170,8 @@ const MainActions: React.FC<any> = ({
     {!isInstalled && service.name !== "OpenSSL" ? (
       <button
         type="button"
-        onClick={(e) => {
-          e.stopPropagation();
+        onClick={(event) => {
+          event.stopPropagation();
           setActiveTab("plugins");
         }}
         className="px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-blue-500/20"
@@ -182,8 +182,8 @@ const MainActions: React.FC<any> = ({
       <button
         type="button"
         disabled={isTransitioning}
-        onClick={(e) => {
-          e.stopPropagation();
+        onClick={(event) => {
+          event.stopPropagation();
           handleToggleService(service.name, service.status);
         }}
         className={cn(
@@ -219,8 +219,8 @@ const MainActions: React.FC<any> = ({
       type="button"
       title="Remove from home"
       aria-label="Remove from home"
-      onClick={(e) => {
-        e.stopPropagation();
+      onClick={(event) => {
+        event.stopPropagation();
         handleRemoveFromHome(service.name);
       }}
       className="h-6 px-3 bg-slate-100 dark:bg-white/5 hover:bg-rose-500/10 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-sm text-[9px] font-black uppercase tracking-widest transition-all border border-slate-200 dark:border-white/5"
@@ -476,11 +476,11 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
   const cardRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    const cardEl = cardRef.current;
-    if (!cardEl) return;
+    const cardElement = cardRef.current;
+    if (!cardElement) return;
 
-    const onCardClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
+    const onCardClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
       if (
         !hasExtraActions ||
         target.closest("[data-card-expand]") ||
@@ -491,9 +491,9 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
       toggleAccordion();
     };
 
-    cardEl.addEventListener("click", onCardClick);
+    cardElement.addEventListener("click", onCardClick);
     return () => {
-      cardEl.removeEventListener("click", onCardClick);
+      cardElement.removeEventListener("click", onCardClick);
     };
   }, [hasExtraActions, service.name]);
 
@@ -517,8 +517,8 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
               : `Expand ${service.name} actions`
           }
           aria-expanded={isExpanded}
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={(event) => {
+            event.stopPropagation();
             toggleAccordion();
           }}
           className="absolute inset-0 w-full h-full cursor-pointer bg-transparent border-none p-0 z-0 focus:outline-none focus:ring-1 focus:ring-blue-500/40 rounded-sm"
@@ -535,8 +535,8 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
                 ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5"
                 : "cursor-default",
             )}
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={(event) => {
+              event.stopPropagation();
               toggleAccordion();
             }}
           >

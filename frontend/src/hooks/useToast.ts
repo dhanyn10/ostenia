@@ -13,9 +13,9 @@ export function useToast() {
   const removeToast = useCallback((id: string) => {
     setToasts(prev => {
       const next: ToastItem[] = [];
-      for (const t of prev) {
-        if (t.id !== id) {
-          next.push(t);
+      for (const toast of prev) {
+        if (toast.id !== id) {
+          next.push(toast);
         }
       }
       return next;

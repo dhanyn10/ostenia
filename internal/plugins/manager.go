@@ -233,19 +233,23 @@ func (m *Manager) postProcessExtraction(task DownloadTask, extractTmp, targetDir
 		}
 	}
 
-	// Handle nested folders
-	es, _ := os.ReadDir(extractTmp)
-	if len(es) == 1 && es[0].IsDir() {
-		sDir := filepath.Join(extractTmp, es[0].Name())
-		ses, _ := os.ReadDir(sDir)
-		for _, se := range ses {
-			_ = os.Rename(filepath.Join(sDir, se.Name()), filepath.Join(extractTmp, se.Name()))
-		}
-		_ = os.Remove(sDir)
-	}
-
+	flattenNestedDir(extractTmp)
 	_ = os.RemoveAll(targetDir)
 	return os.Rename(extractTmp, targetDir)
+}
+
+// flattenNestedDir promotes the contents of a single nested subdirectory up to the parent.
+// If dir contains exactly one directory, its children are moved to dir.
+func flattenNestedDir(dir string) {
+	entries, _ := os.ReadDir(dir)
+	if len(entries) == 1 && entries[0].IsDir() {
+		subDir := filepath.Join(dir, entries[0].Name())
+		subEntries, _ := os.ReadDir(subDir)
+		for _, subEntry := range subEntries {
+			_ = os.Rename(filepath.Join(subDir, subEntry.Name()), filepath.Join(dir, subEntry.Name()))
+		}
+		_ = os.Remove(subDir)
+	}
 }
 
 // DownloadFileManual downloads a file without context-based cancellation
@@ -273,16 +277,7 @@ func (m *Manager) ensureCurrentLink(task DownloadTask) error {
 
 // PostProcessExtractionManual promotes nested directories to parent for custom plugin addition
 func (m *Manager) PostProcessExtractionManual(extractTmp, targetDir string) error {
-	es, _ := os.ReadDir(extractTmp)
-	if len(es) == 1 && es[0].IsDir() {
-		sDir := filepath.Join(extractTmp, es[0].Name())
-		ses, _ := os.ReadDir(sDir)
-		for _, se := range ses {
-			_ = os.Rename(filepath.Join(sDir, se.Name()), filepath.Join(extractTmp, se.Name()))
-		}
-		_ = os.Remove(sDir)
-	}
-
+	flattenNestedDir(extractTmp)
 	_ = os.RemoveAll(targetDir)
 	return os.Rename(extractTmp, targetDir)
 }

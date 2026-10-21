@@ -32,13 +32,13 @@ function PluginsTab({
                 setOpenDropdown(openDropdown === task.name ? null : task.name)
               }
               selectedVersion={selectedVersions[task.name]}
-              onVersionChange={(v) =>
-                setSelectedVersions((prev) => ({ ...prev, [task.name]: v }))
+              onVersionChange={(version) =>
+                setSelectedVersions((prev) => ({ ...prev, [task.name]: version }))
               }
               onDeleteVersion={handleDeleteVersion}
               onInstall={handleInstallSingle}
               onCancel={handleCancel}
-              onOpenFolder={(name) => onAddCustomVersion(name)}
+              onOpenFolder={(serviceName) => onAddCustomVersion(serviceName)}
               renderIcon={renderIcon}
               onInstallModule={handleInstallModule}
               onUninstallModule={handleUninstallModule}

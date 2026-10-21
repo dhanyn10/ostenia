@@ -32,8 +32,8 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
     try {
       const data = await AppBackend.GetProxyApps();
       setApps(data || []);
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -53,23 +53,23 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
     }
   }, []);
 
-  const handlePortChange = (name, value) => {
+  const handlePortChange = (appName, portValue) => {
     setApps((prev) =>
       prev.map((app) =>
-        app.name === name ? { ...app, port: Number.parseInt(value) || 0 } : app,
+        app.name === appName ? { ...app, port: Number.parseInt(portValue) || 0 } : app,
       ),
     );
   };
 
-  const handleSave = async (name, port) => {
-    setSavingMap((prev) => ({ ...prev, [name]: true }));
+  const handleSave = async (appName, proxyPort) => {
+    setSavingMap((prev) => ({ ...prev, [appName]: true }));
     try {
-      await AppBackend.SaveProxyPort(name, port);
-      addToast("Success", `Proxy for ${name} updated to port ${port}`, "info");
-    } catch (err) {
-      addToast("Error", err.toString(), "error");
+      await AppBackend.SaveProxyPort(appName, proxyPort);
+      addToast("Success", `Proxy for ${appName} updated to port ${proxyPort}`, "info");
+    } catch (error) {
+      addToast("Error", error.toString(), "error");
     } finally {
-      setSavingMap((prev) => ({ ...prev, [name]: false }));
+      setSavingMap((prev) => ({ ...prev, [appName]: false }));
     }
   };
 
@@ -204,7 +204,7 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
                     placeholder="e.g. 3000"
                     className="flex-1 px-4 py-2 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-mono"
                     value={app.port || ""}
-                    onChange={(e) => handlePortChange(app.name, e.target.value)}
+                    onChange={(event) => handlePortChange(app.name, event.target.value)}
                   />
                   <button
                     type="button"
@@ -252,7 +252,7 @@ const ProxyTab: React.FC<ProxyTabProps> = ({ addToast }) => {
             placeholder="Search folders..."
             className="pl-10 pr-4 py-2 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all w-64"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(event) => setSearchTerm(event.target.value)}
           />
         </div>
       </div>

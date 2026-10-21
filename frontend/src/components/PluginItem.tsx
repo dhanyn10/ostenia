@@ -17,7 +17,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 interface PluginModuleItemProps {
-  mod: any;
+  module: any;
   taskName: string;
   taskInstalled: boolean;
   progress: any;
@@ -26,27 +26,27 @@ interface PluginModuleItemProps {
 }
 
 const PluginModuleItem: React.FC<PluginModuleItemProps> = ({
-  mod,
+  module,
   taskName,
   taskInstalled,
   progress,
   onInstallModule,
   onUninstallModule,
 }) => {
-  const modProgress = progress[mod.name];
-  const isModActive =
-    Boolean(modProgress) &&
-    modProgress.status !== "Ready" &&
-    modProgress.status !== "Completed" &&
-    !modProgress.status?.startsWith("Error");
-  const isModInstalled =
-    Boolean(mod.isInstalled) ||
-    mod.status === "Ready" ||
-    mod.status === "Completed";
+  const moduleProgress = progress[module.name];
+  const isModuleActive =
+    Boolean(moduleProgress) &&
+    moduleProgress.status !== "Ready" &&
+    moduleProgress.status !== "Completed" &&
+    !moduleProgress.status?.startsWith("Error");
+  const isModuleInstalled =
+    Boolean(module.isInstalled) ||
+    module.status === "Ready" ||
+    module.status === "Completed";
 
   let buttonClass = "text-blue-500 hover:bg-blue-500/10 hover:scale-110";
-  let buttonTitle = `Install ${mod.name}`;
-  if (isModInstalled) {
+  let buttonTitle = `Install ${module.name}`;
+  if (isModuleInstalled) {
     buttonClass = "text-emerald-500 cursor-not-allowed";
     buttonTitle = "Installed";
   } else if (!taskInstalled) {
@@ -60,59 +60,59 @@ const PluginModuleItem: React.FC<PluginModuleItemProps> = ({
         <div
           className={cn(
             "w-6 h-6 rounded-sm flex items-center justify-center text-[10px] font-black",
-            isModInstalled
+            isModuleInstalled
               ? "bg-emerald-500/10 text-emerald-600"
               : "bg-blue-500/10 text-blue-600",
           )}
         >
-          {mod.name[0]}
+          {module.name[0]}
         </div>
         <div className="flex items-center gap-3">
           <div className="flex flex-col">
             <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-              {mod.name}
+              {module.name}
             </span>
             <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter mt-0.5">
-              {mod.status}
+              {module.status}
             </p>
           </div>
 
-          {mod.version && (
+          {module.version && (
             <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded-sm h-fit">
-              v{mod.version}
+              v{module.version}
             </span>
           )}
         </div>
       </div>
 
       <div className="flex items-center gap-4">
-        {isModActive && (
+        {isModuleActive && (
           <div className="flex items-center gap-3">
             <div className="flex flex-col items-end">
               <span className="text-[8px] font-black text-blue-500 uppercase">
-                {modProgress.status}
+                {moduleProgress.status}
               </span>
               <span className="text-[7px] text-slate-400 font-bold">
-                {modProgress.percentage.toFixed(0)}%
+                {moduleProgress.percentage.toFixed(0)}%
               </span>
             </div>
             <div className="w-8 h-8">
               <CircularProgress
-                percentage={modProgress.percentage}
+                percentage={moduleProgress.percentage}
                 size={32}
               />
             </div>
           </div>
         )}
 
-        {!isModActive && (
+        {!isModuleActive && (
           <div className="flex items-center gap-2">
-            {isModInstalled && (
+            {isModuleInstalled && (
               <button
                 type="button"
-                onClick={() => onUninstallModule(taskName, mod.name)}
+                onClick={() => onUninstallModule(taskName, module.name)}
                 className="p-1.5 bg-slate-100 dark:bg-white/5 hover:bg-rose-500/10 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-sm transition-all border border-slate-200 dark:border-white/5"
-                title={`Uninstall ${mod.name}`}
+                title={`Uninstall ${module.name}`}
               >
                 <Trash2 size={12} />
               </button>
@@ -120,12 +120,12 @@ const PluginModuleItem: React.FC<PluginModuleItemProps> = ({
 
             <button
               type="button"
-              disabled={isModInstalled || !taskInstalled}
-              onClick={() => onInstallModule(taskName, mod.name)}
+              disabled={isModuleInstalled || !taskInstalled}
+              onClick={() => onInstallModule(taskName, module.name)}
               className={cn("p-2 rounded-sm transition-all", buttonClass)}
               title={buttonTitle}
             >
-              {isModInstalled ? (
+              {isModuleInstalled ? (
                 <CheckCircle2 size={16} />
               ) : (
                 <Download size={16} />
@@ -163,10 +163,10 @@ const PluginModuleList: React.FC<PluginModuleListProps> = ({
       Available Modules
     </p>
     <div className="grid grid-cols-1 gap-2">
-      {modules.map((mod) => (
+      {modules.map((module) => (
         <PluginModuleItem
-          key={mod.name}
-          mod={mod}
+          key={module.name}
+          module={module}
           taskName={taskName}
           taskInstalled={taskInstalled}
           progress={progress}
@@ -244,29 +244,34 @@ function PluginItem({
   const hasModules = Boolean(task.modules && task.modules.length > 0);
 
   const toggleModules = () => setIsModulesExpanded((prev) => !prev);
+  const cardRef = React.useRef<HTMLDivElement>(null);
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    if (!hasModules || shouldIgnoreCardToggle(e.target as HTMLElement)) return;
-    toggleModules();
-  };
+  React.useEffect(() => {
+    const cardElement = cardRef.current;
+    if (!cardElement) return;
 
-  const handleCardKeyDown = (e: React.KeyboardEvent) => {
-    if (!hasModules || shouldIgnoreCardToggle(e.target as HTMLElement)) return;
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
+    const onCardClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (
+        !hasModules ||
+        target.closest("[data-card-expand]") ||
+        shouldIgnoreCardToggle(target)
+      ) {
+        return;
+      }
       toggleModules();
-    }
-  };
+    };
+
+    cardElement.addEventListener("click", onCardClick);
+    return () => {
+      cardElement.removeEventListener("click", onCardClick);
+    };
+  }, [hasModules]);
 
   return (
     <div
+      ref={cardRef}
       data-card-root="true"
-      role={hasModules ? "button" : undefined}
-      aria-label={hasModules ? `${task.name} plugin` : undefined}
-      tabIndex={hasModules ? 0 : undefined}
-      aria-expanded={hasModules ? isModulesExpanded : undefined}
-      onClick={handleCardClick}
-      onKeyDown={handleCardKeyDown}
       className={cn(
         "bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all group flex flex-col gap-0 relative shadow-sm dark:shadow-lg",
         hasModules && "hover:bg-slate-50/80 dark:hover:bg-slate-900/60 cursor-pointer",
@@ -283,8 +288,8 @@ function PluginItem({
               : `Expand ${task.name} modules`
           }
           aria-expanded={isModulesExpanded}
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={(event) => {
+            event.stopPropagation();
             setIsModulesExpanded((prev) => !prev);
           }}
           className="absolute inset-0 w-full h-full cursor-pointer bg-transparent border-none p-0 z-0 focus:outline-none focus:ring-1 focus:ring-blue-500/40 rounded-sm"
@@ -331,25 +336,25 @@ function PluginItem({
               </span>
             )}
 
-            {installedVersions.map((ver) => (
+            {installedVersions.map((version) => (
               <button
                 type="button"
-                key={ver}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDeleteVersion(task.name, ver);
+                key={version}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDeleteVersion(task.name, version);
                 }}
                 onKeyDown={handleActionKey(() =>
-                  onDeleteVersion(task.name, ver),
+                  onDeleteVersion(task.name, version),
                 )}
                 className="group/tag flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 text-[8px] font-bold uppercase tracking-widest rounded-sm hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400 transition-all cursor-pointer shadow-sm outline-none focus:ring-1 focus:ring-rose-500/40"
-                title={`Delete v${ver}`}
+                title={`Delete v${version}`}
               >
                 <Trash2
                   size={10}
                   className="w-0 opacity-0 group-hover/tag:w-2.5 group-hover/tag:opacity-100 transition-all text-rose-500"
                 />
-                {ver}
+                {version}
               </button>
             ))}
           </div>
@@ -359,8 +364,8 @@ function PluginItem({
           <button
             type="button"
             data-card-expand="true"
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={(event) => {
+              event.stopPropagation();
               setIsModulesExpanded(!isModulesExpanded);
             }}
             aria-label={
@@ -393,8 +398,8 @@ function PluginItem({
             <button
               type="button"
               disabled={isSelectedInstalled}
-              onClick={(e) => {
-                e.stopPropagation();
+              onClick={(event) => {
+                event.stopPropagation();
                 if (!isSelectedInstalled) onInstall(task);
               }}
               className={cn(

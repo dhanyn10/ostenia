@@ -14,20 +14,22 @@ import (
 // App struct manages the main application state and coordinates between backend services and the frontend.
 // It wraps core controllers including plugins downloaders, orchestrators, symlinks, SSH, and SSL managers.
 type App struct {
-	ctx          context.Context             // Context provided by Wails runtime on startup; required for frontend RPC bindings // NOSONAR
-	downloader   interfaces.PluginManager    // Controller responsible for plugin downloads and extraction
-	orchestrator interfaces.Orchestrator     // Controller managing lifecycle, watching, and state of development services
-	symlinkMgr   *service.SymlinkManager     // Helper maintaining system paths and junction points
-	sshManager   interfaces.SSHManager       // Controller executing SSH/WSL connection streams
-	sslManager   interfaces.SSLManager       // Controller orchestrating local Root CAs and signed certs
-	cfg          *config.Config              // Global persistent configuration settings of Ostenia
-	runtime      interfaces.Runtime          // Wrapper to trigger Wails window, dialog, and event operations
+	contextProvider func() context.Context   // Provider returning active context for runtime operations
+	downloader      interfaces.PluginManager // Controller responsible for plugin downloads and extraction
+	orchestrator    interfaces.Orchestrator  // Controller managing lifecycle, watching, and state of development services
+	symlinkManager  *service.SymlinkManager  // Helper maintaining system paths and junction points
+	sshManager      interfaces.SSHManager    // Controller executing SSH/WSL connection streams
+	sslManager      interfaces.SSLManager    // Controller orchestrating local Root CAs and signed certs
+	cfg             *config.Config           // Global persistent configuration settings of Ostenia
+	runtime         interfaces.Runtime       // Wrapper to trigger Wails window, dialog, and event operations
 }
 
 // getContext returns the active Wails context or falls back to context.Background() if uninitialized.
 func (a *App) getContext() context.Context {
-	if a.ctx != nil {
-		return a.ctx
+	if a.contextProvider != nil {
+		if ctx := a.contextProvider(); ctx != nil {
+			return ctx
+		}
 	}
 	return context.Background()
 }
@@ -139,7 +141,7 @@ func (s *DefaultSSLManager) SignCertificate(caDir, domain, destDir string) error
 // Startup is called when the application initializes.
 // Instantiates standard production dependencies.
 func (a *App) Startup(ctx context.Context) {
-	a.ctx = ctx
+	a.contextProvider = func() context.Context { return ctx }
 	if a.runtime == nil {
 		a.runtime = &WailsRuntime{}
 	}
@@ -149,8 +151,8 @@ func (a *App) Startup(ctx context.Context) {
 	if a.orchestrator == nil {
 		a.orchestrator = service.NewOrchestrator()
 	}
-	if a.symlinkMgr == nil {
-		a.symlinkMgr = service.NewSymlinkManager()
+	if a.symlinkManager == nil {
+		a.symlinkManager = service.NewSymlinkManager()
 	}
 	if a.sshManager == nil {
 		a.sshManager = service.NewSSHManager()

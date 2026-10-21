@@ -10,7 +10,7 @@ function cn(...inputs: ClassValue[]) {
 
 const StatusBar = ({ services }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const activeServices = services.filter((s) => s.status === "Running");
+  const activeServices = services.filter((service) => service.status === "Running");
   const dropdownRef = useRef(null);
 
   useEffect(() => {

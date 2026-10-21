@@ -15,14 +15,14 @@ export function useAppConfig({ onConfigChanged }: UseAppConfigOptions = {}) {
   const loadConfig = useCallback(async () => {
     if (!AppBackend.GetConfig) return;
     try {
-      const cfg = await AppBackend.GetConfig();
-      setServerRootState(cfg?.wwwRoot ?? '');
-      setAppsLocation(cfg?.baseDir ?? '');
-      setApacheHttps(cfg?.apacheHttps ?? false);
-      setNginxHttps(cfg?.nginxHttps ?? false);
-      setDefaultEditor(cfg?.defaultEditor ?? '');
-    } catch (err) {
-      console.error(err);
+      const config = await AppBackend.GetConfig();
+      setServerRootState(config?.wwwRoot ?? '');
+      setAppsLocation(config?.baseDir ?? '');
+      setApacheHttps(config?.apacheHttps ?? false);
+      setNginxHttps(config?.nginxHttps ?? false);
+      setDefaultEditor(config?.defaultEditor ?? '');
+    } catch (error) {
+      console.error(error);
     }
   }, []);
 
