@@ -244,29 +244,34 @@ function PluginItem({
   const hasModules = Boolean(task.modules && task.modules.length > 0);
 
   const toggleModules = () => setIsModulesExpanded((prev) => !prev);
+  const cardRef = React.useRef<HTMLDivElement>(null);
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    if (!hasModules || shouldIgnoreCardToggle(e.target as HTMLElement)) return;
-    toggleModules();
-  };
+  React.useEffect(() => {
+    const cardEl = cardRef.current;
+    if (!cardEl) return;
 
-  const handleCardKeyDown = (e: React.KeyboardEvent) => {
-    if (!hasModules || shouldIgnoreCardToggle(e.target as HTMLElement)) return;
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
+    const onCardClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        !hasModules ||
+        target.closest("[data-card-expand]") ||
+        shouldIgnoreCardToggle(target)
+      ) {
+        return;
+      }
       toggleModules();
-    }
-  };
+    };
+
+    cardEl.addEventListener("click", onCardClick);
+    return () => {
+      cardEl.removeEventListener("click", onCardClick);
+    };
+  }, [hasModules]);
 
   return (
     <div
+      ref={cardRef}
       data-card-root="true"
-      role={hasModules ? "button" : undefined}
-      aria-label={hasModules ? `${task.name} plugin` : undefined}
-      tabIndex={hasModules ? 0 : undefined}
-      aria-expanded={hasModules ? isModulesExpanded : undefined}
-      onClick={handleCardClick}
-      onKeyDown={handleCardKeyDown}
       className={cn(
         "bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all group flex flex-col gap-0 relative shadow-sm dark:shadow-lg",
         hasModules && "hover:bg-slate-50/80 dark:hover:bg-slate-900/60 cursor-pointer",

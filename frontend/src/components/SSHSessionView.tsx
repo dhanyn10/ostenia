@@ -446,7 +446,8 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
         void AppBackend.SendSSHInput(session.id, text);
       }
     } catch (e: any) {
-      addToast("Error", "Clipboard permission denied", "error");
+      console.error("Clipboard paste error:", e);
+      addToast("Error", `Clipboard permission denied: ${e?.message || e}`, "error");
     }
   };
 
