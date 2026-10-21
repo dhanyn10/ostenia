@@ -610,37 +610,57 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     currentCallId: string,
     maxTimeout: number,
     getState: () => { connectionSucceeded: boolean; connectionError: any }
-  ) => {
-    const tickRateMs = 100;
-    const totalTicks = maxTimeout * 10;
-    const isTestEnv = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
-
-    for (let tick = 0; tick <= totalTicks; tick++) {
-      if (activeConnectIdRef.current !== currentCallId) return;
-
-      const { connectionSucceeded, connectionError } = getState();
-      if (connectionSucceeded || (isTestEnv && connectionError)) {
-        break;
+  ): Promise<void> => {
+    return new Promise((resolve) => {
+      const isTestEnv = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+      const initial = getState();
+      if (initial.connectionSucceeded || (isTestEnv && initial.connectionError)) {
+        resolve();
+        return;
       }
 
-      const elapsedSec = tick * 0.1;
-      const timeLeftSec = Math.max(maxTimeout - elapsedSec, 0);
-      setConnectingTimeLeft(timeLeftSec);
+      const tickRateMs = 100;
+      const totalTicks = maxTimeout * 10;
+      let tick = 0;
 
-      if (connectionSucceeded || (isTestEnv && connectionError)) {
-        break;
-      }
-      await new Promise((resolve) => setTimeout(resolve, tickRateMs));
-    }
+      const timer = setInterval(() => {
+        if (activeConnectIdRef.current !== currentCallId) {
+          clearInterval(timer);
+          resolve();
+          return;
+        }
+
+        const { connectionSucceeded, connectionError } = getState();
+        if (connectionSucceeded || (isTestEnv && connectionError) || tick >= totalTicks) {
+          clearInterval(timer);
+          resolve();
+          return;
+        }
+
+        tick++;
+        const elapsedSec = tick * 0.1;
+        const timeLeftSec = Math.max(maxTimeout - elapsedSec, 0);
+        setConnectingTimeLeft(timeLeftSec);
+      }, tickRateMs);
+    });
   };
 
-  const waitForDelay = async (currentCallId: string, ms: number) => {
-    const steps = Math.ceil(ms / 100);
-    for (let i = 0; i < steps; i++) {
-      if (activeConnectIdRef.current !== currentCallId) return false;
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-    return true;
+  const waitForDelay = (currentCallId: string, ms: number): Promise<boolean> => {
+    if (ms <= 0) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      let elapsed = 0;
+      const step = 100;
+      const timer = setInterval(() => {
+        elapsed += step;
+        if (activeConnectIdRef.current !== currentCallId) {
+          clearInterval(timer);
+          resolve(false);
+        } else if (elapsed >= ms) {
+          clearInterval(timer);
+          resolve(true);
+        }
+      }, step);
+    });
   };
 
   const handleConnectionSuccess = (attempt: number, maxRetries: number, startTime: number) => {
@@ -746,7 +766,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
     await measureActivity("connectSSH", async () => {
       let finalErr: any = null;
 
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const runAttempt = async (attempt: number): Promise<void> => {
         if (activeConnectIdRef.current !== currentCallId) return;
 
         const { success, error } = await executeSingleAttempt(
@@ -769,16 +789,17 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           xterm.current?.write("Retrying in 1s...\r\n");
           const ok = await waitForDelay(currentCallId, 1000);
           if (!ok) return;
+          return runAttempt(attempt + 1);
         }
-      }
 
-      if (activeConnectIdRef.current !== currentCallId) return;
+        setConnecting(false);
+        setConnectionFailed(true);
+        xterm.current?.write(`\x1b[31mConnection failed after ${maxRetries} attempts.\x1b[0m\r\n`);
+        addToast("Error", "SSH connection failed after maximum attempts: " + finalErr, "error");
+        throw new Error(`Connection failed after ${maxRetries} attempts: ${finalErr}`);
+      };
 
-      setConnecting(false);
-      setConnectionFailed(true);
-      xterm.current?.write(`\x1b[31mConnection failed after ${maxRetries} attempts.\x1b[0m\r\n`);
-      addToast("Error", "SSH connection failed after maximum attempts: " + finalErr, "error");
-      throw new Error(`Connection failed after ${maxRetries} attempts: ${finalErr}`);
+      await runAttempt(1);
     });
   };
 
@@ -873,7 +894,9 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
       if (shouldLoad) {
         void loadRemoteFiles(normalized, false, true);
       }
-    } catch (e) {}
+    } catch (_err) {
+      // Ignored: silent failure when querying remote current path during terminal activity while disconnected or busy.
+    }
   };
 
   /**

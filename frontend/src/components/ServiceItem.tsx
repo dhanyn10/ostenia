@@ -474,29 +474,34 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
   );
 
   const toggleAccordion = () => onToggleAccordion(service.name, hasExtraActions);
+  const cardRef = React.useRef<HTMLDivElement>(null);
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    if (!hasExtraActions || shouldIgnoreCardToggle(e.target as HTMLElement)) return;
-    toggleAccordion();
-  };
+  React.useEffect(() => {
+    const cardEl = cardRef.current;
+    if (!cardEl) return;
 
-  const handleCardKeyDown = (e: React.KeyboardEvent) => {
-    if (!hasExtraActions || shouldIgnoreCardToggle(e.target as HTMLElement)) return;
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
+    const onCardClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        !hasExtraActions ||
+        target.closest("[data-card-expand]") ||
+        shouldIgnoreCardToggle(target)
+      ) {
+        return;
+      }
       toggleAccordion();
-    }
-  };
+    };
+
+    cardEl.addEventListener("click", onCardClick);
+    return () => {
+      cardEl.removeEventListener("click", onCardClick);
+    };
+  }, [hasExtraActions, service.name]);
 
   return (
     <div
+      ref={cardRef}
       data-card-root="true"
-      role={hasExtraActions ? "button" : undefined}
-      aria-label={hasExtraActions ? `${service.name} service` : undefined}
-      tabIndex={hasExtraActions ? 0 : undefined}
-      aria-expanded={hasExtraActions ? isExpanded : undefined}
-      onClick={handleCardClick}
-      onKeyDown={handleCardKeyDown}
       className={cn(
         "w-full text-left bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all flex flex-col relative shadow-sm dark:shadow-lg",
         hasExtraActions && "hover:bg-slate-50/80 dark:hover:bg-slate-900/60 cursor-pointer",
