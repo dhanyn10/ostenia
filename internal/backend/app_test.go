@@ -121,9 +121,9 @@ func (m *MockSSHManager) GetSessions() ([]config.SSHSession, error) {
 func (m *MockSSHManager) SaveSessions(sessions []config.SSHSession) error              { return nil }
 func (m *MockSSHManager) Connect(ctx context.Context, session config.SSHSession) error { return nil }
 func (m *MockSSHManager) Disconnect(sessionID string)                                  {}
-func (m *MockSSHManager) SendInput(sessionID string, input string) error               { return nil }
+func (m *MockSSHManager) SendInput(sessionID, input string) error                      { return nil }
 func (m *MockSSHManager) ResizeTerminal(sessionID string, cols, rows int) error        { return nil }
-func (m *MockSSHManager) ListFiles(sessionID string, path string) ([]interfaces.RemoteFile, error) {
+func (m *MockSSHManager) ListFiles(sessionID, path string) ([]interfaces.RemoteFile, error) {
 	return []interfaces.RemoteFile{}, nil
 }
 func (m *MockSSHManager) ExecuteSFTPAction(sessionID, action, path, newPath string) error { return nil }

@@ -102,7 +102,7 @@ func (a *App) GetRemainingDays(certPath string) (int, error) {
 }
 
 // SignCertificate signs a custom domain domain-level SSL certificate using the generated local Root CA.
-func (a *App) SignCertificate(caDir string, domain string, destDir string) error {
+func (a *App) SignCertificate(caDir, domain, destDir string) error {
 	return a.sslManager.SignCertificate(caDir, domain, destDir)
 }
 

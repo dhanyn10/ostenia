@@ -1,7 +1,7 @@
 package openssl
 
 import (
-	_ "embed"
+	_ "embed" // Required for go:embed directive
 	"os"
 	"os/exec"
 	"ostenia/internal/config"

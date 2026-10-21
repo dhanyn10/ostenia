@@ -1,7 +1,7 @@
 package mysql
 
 import (
-	_ "embed"
+	_ "embed" // Required for go:embed directive
 	"strings"
 )
 

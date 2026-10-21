@@ -8,7 +8,7 @@ describe("stackParser Utility Table-Driven Tests", () => {
       { input: "http://localhost:5173/src/App.tsx", expected: "App.tsx" },
       { input: "http://localhost:5173/src/App.tsx?t=123456789", expected: "App.tsx" },
       { input: "http://localhost:5173/src/App.tsx#section", expected: "App.tsx" },
-      { input: "C:\\projects\\ostenia\\src\\main.tsx", expected: "main.tsx" },
+      { input: String.raw`C:\projects\ostenia\src\main.tsx`, expected: "main.tsx" },
       { input: "/home/user/ostenia/src/main.tsx", expected: "main.tsx" },
       { input: "", expected: "" },
     ];

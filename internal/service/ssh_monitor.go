@@ -1,7 +1,7 @@
 package service
 
 import (
-	_ "embed"
+	_ "embed" // Required for go:embed directive
 	"fmt"
 	"io"
 	"ostenia/internal/backend/interfaces"

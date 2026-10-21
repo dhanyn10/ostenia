@@ -148,8 +148,9 @@ const SSHTab: React.FC<SSHTabProps> = ({ addToast, theme, onOpenSettings }) => {
       await AppBackend.DeleteSSHSession(id);
       await loadSessions();
       addToast("Success", "Session deleted successfully", "success");
-    } catch (err) {
-      addToast("Error", "Failed to delete session", "error");
+    } catch (err: any) {
+      console.error("Failed to delete session:", err);
+      addToast("Error", `Failed to delete session: ${err?.message || err}`, "error");
     }
   };
 
