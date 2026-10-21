@@ -25,6 +25,14 @@ func TestGetHostsPath(t *testing.T) {
 	}
 }
 
+func TestGetHostsPath_Default(t *testing.T) {
+	hostsPathOverride = ""
+	path := GetHostsPath()
+	if path == "" {
+		t.Error("GetHostsPath() default returned empty string")
+	}
+}
+
 func TestAddHost(t *testing.T) {
 	tempName := setupHostsTempFile(t)
 	defer os.Remove(tempName)

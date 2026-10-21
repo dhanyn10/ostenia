@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { handleActionKey } from "../utils/a11y";
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -217,6 +218,8 @@ const MainActions: React.FC<any> = ({
 
     <button
       type="button"
+      title="Remove from home"
+      aria-label="Remove from home"
       onClick={(e) => {
         e.stopPropagation();
         handleRemoveFromHome(service.name);
@@ -416,13 +419,30 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
 
   return (
     <div
+      data-card-root="true"
       className={cn(
         "w-full text-left bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all flex flex-col relative shadow-sm dark:shadow-lg",
+        hasExtraActions && "hover:bg-slate-50/80 dark:hover:bg-slate-900/60",
         isExpanded ? "z-[100] ring-1 ring-blue-500/20" : "z-10",
       )}
     >
-      <div className="flex items-center gap-5">
-        <div className="flex-1 min-w-0 flex items-center gap-3 flex-wrap px-2">
+      {hasExtraActions && (
+        <button
+          type="button"
+          data-card-expand="true"
+          aria-label={
+            isExpanded
+              ? `Collapse ${service.name} actions`
+              : `Expand ${service.name} actions`
+          }
+          aria-expanded={isExpanded}
+          onClick={() => onToggleAccordion(service.name, hasExtraActions)}
+          className="absolute inset-0 w-full h-full cursor-pointer bg-transparent border-none p-0 z-0 focus:outline-none focus:ring-1 focus:ring-blue-500/40 rounded-sm"
+        />
+      )}
+
+      <div className="flex items-center gap-5 relative z-10 pointer-events-none">
+        <div className="flex-1 min-w-0 flex items-center gap-3 flex-wrap px-2 pointer-events-auto">
           <button
             type="button"
             className={cn(
@@ -431,46 +451,55 @@ const ServiceItem: React.FC<ServiceItemProps> = ({
                 ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5"
                 : "cursor-default",
             )}
-            onClick={() => onToggleAccordion(service.name, hasExtraActions)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleAccordion(service.name, hasExtraActions);
+            }}
           >
             <ServiceIdentity service={service} renderIcon={renderIcon} />
             <ServiceStatus service={service} />
           </button>
 
-          <VersionSwitcher
-            service={service}
-            task={task}
-            handleSwitchVersion={handleSwitchVersion}
-          />
+          <div>
+            <VersionSwitcher
+              service={service}
+              task={task}
+              handleSwitchVersion={handleSwitchVersion}
+            />
+          </div>
         </div>
 
-        <MainActions
-          isInstalled={isInstalled}
-          service={service}
-          handleToggleService={handleToggleService}
-          handleRemoveFromHome={handleRemoveFromHome}
-          setActiveTab={setActiveTab}
-          isTransitioning={isTransitioning}
-        />
+        <div className="pointer-events-auto">
+          <MainActions
+            isInstalled={isInstalled}
+            service={service}
+            handleToggleService={handleToggleService}
+            handleRemoveFromHome={handleRemoveFromHome}
+            setActiveTab={setActiveTab}
+            isTransitioning={isTransitioning}
+          />
+        </div>
       </div>
 
       {hasExtraActions && (
-        <ServiceExtraActions
-          service={service}
-          isExpanded={isExpanded}
-          hasPhpExtManager={hasPhpExtManager}
-          hasOpenFolder={hasOpenFolder}
-          hasHeidiOpen={hasHeidiOpen}
-          hasTerminal={hasTerminal}
-          hasHttpsToggle={hasHttpsToggle}
-          setIsModalOpen={setIsModalOpen}
-          handleOpenPluginFolder={handleOpenPluginFolder}
-          openTerminalDropdown={openTerminalDropdown}
-          setOpenTerminalDropdown={setOpenTerminalDropdown}
-          handleOpenLocalTerminal={handleOpenLocalTerminal}
-          handleToggleHttps={handleToggleHttps}
-          isHttpsEnabled={isHttpsEnabled}
-        />
+        <div data-no-card-toggle="true" className="relative z-10 pointer-events-auto">
+          <ServiceExtraActions
+            service={service}
+            isExpanded={isExpanded}
+            hasPhpExtManager={hasPhpExtManager}
+            hasOpenFolder={hasOpenFolder}
+            hasHeidiOpen={hasHeidiOpen}
+            hasTerminal={hasTerminal}
+            hasHttpsToggle={hasHttpsToggle}
+            setIsModalOpen={setIsModalOpen}
+            handleOpenPluginFolder={handleOpenPluginFolder}
+            openTerminalDropdown={openTerminalDropdown}
+            setOpenTerminalDropdown={setOpenTerminalDropdown}
+            handleOpenLocalTerminal={handleOpenLocalTerminal}
+            handleToggleHttps={handleToggleHttps}
+            isHttpsEnabled={isHttpsEnabled}
+          />
+        </div>
       )}
     </div>
   );

@@ -7,7 +7,6 @@ import (
 	"ostenia/internal/plugins/utils"
 	"ostenia/internal/testutil"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 )
@@ -232,24 +231,42 @@ func TestTrustRootCA(t *testing.T) {
 	// Reset override to test real logic
 	TrustRootCAOverride = nil
 
-	if runtime.GOOS == "windows" {
-		// On real Windows, we don't want to actually modify the system store during unit tests
-		// unless it's a dedicated integration test.
-		// For now, we rely on the manual TrustRootCAOverride in other tests.
-	} else {
-		// Test mocked Windows branch on Linux
-		origGOOS := RuntimeGOOS
-		defer func() { RuntimeGOOS = origGOOS }()
-		RuntimeGOOS = "windows"
+	origExecutor := utils.Executor
+	defer func() { utils.Executor = origExecutor }()
+	utils.Executor = &testutil.MockExecutor{Output: ""}
 
-		origExecutor := utils.Executor
-		defer func() { utils.Executor = origExecutor }()
-		utils.Executor = &testutil.MockExecutor{Output: ""}
+	origGOOS := RuntimeGOOS
+	defer func() { RuntimeGOOS = origGOOS }()
 
-		err := TrustRootCA("any/path")
-		if err != nil {
-			t.Errorf("TrustRootCA failed on non-Windows: %v", err)
-		}
+	// Test Windows execution branch with MockExecutor
+	RuntimeGOOS = "windows"
+	err := TrustRootCA("any/path")
+	if err != nil {
+		t.Errorf("TrustRootCA failed on windows branch: %v", err)
+	}
+
+	// Test non-Windows branch
+	RuntimeGOOS = "linux"
+	err = TrustRootCA("any/path")
+	if err != nil {
+		t.Errorf("TrustRootCA failed on non-windows branch: %v", err)
+	}
+}
+
+func TestSignCertificate_Errors(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// 1. Missing ca.crt
+	err := signCertificate(tempDir, "test.local", tempDir)
+	if err == nil {
+		t.Error("Expected error when ca.crt is missing")
+	}
+
+	// 2. ca.crt exists but ca.key is missing
+	_ = os.WriteFile(filepath.Join(tempDir, "ca.crt"), []byte("invalid cert"), 0600)
+	err = signCertificate(tempDir, "test.local", tempDir)
+	if err == nil {
+		t.Error("Expected error when ca.key is missing")
 	}
 }
 

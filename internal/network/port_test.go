@@ -43,3 +43,174 @@ func TestGetAvailablePort(t *testing.T) {
 		}
 	})
 }
+
+func TestGetPortOwner_AvailablePort(t *testing.T) {
+	// Pick an available port by asking the OS for one, then closing it
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Failed to listen: %v", err)
+	}
+	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
+	port, _ := strconv.Atoi(portStr)
+	ln.Close()
+
+	owner, err := GetPortOwner(port)
+	if err != nil {
+		t.Fatalf("GetPortOwner() error = %v", err)
+	}
+	if owner.InUse {
+		t.Errorf("Expected port %d to not be in use", port)
+	}
+}
+
+func TestGetPortOwner_OccupiedPort(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Failed to listen: %v", err)
+	}
+	defer ln.Close()
+	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
+	port, _ := strconv.Atoi(portStr)
+
+	owner, err := GetPortOwner(port)
+	if err != nil {
+		t.Fatalf("GetPortOwner() error = %v", err)
+	}
+	if !owner.InUse {
+		t.Errorf("Expected port %d to be marked in use", port)
+	}
+}
+
+func TestParsePortOwnerFromNetstat(t *testing.T) {
+	sampleNetstat := `
+  Proto  Local Address          Foreign Address        State           PID
+  TCP    0.0.0.0:135            0.0.0.0:0              LISTENING       1840
+  TCP    0.0.0.0:3306           0.0.0.0:0              LISTENING       16912
+  TCP    0.0.0.0:33060          0.0.0.0:0              LISTENING       9999
+  TCP    [::]:80                [::]:0                 LISTENING       4
+  TCP    127.0.0.1:3306         127.0.0.1:50000        ESTABLISHED     16912
+`
+
+	t.Run("Match port 3306", func(t *testing.T) {
+		pid, err := parsePortOwnerFromNetstat(sampleNetstat, 3306)
+		if err != nil {
+			t.Fatalf("Expected match, got error: %v", err)
+		}
+		if pid != 16912 {
+			t.Errorf("Expected PID 16912, got %d", pid)
+		}
+	})
+
+	t.Run("Match port 33060 (no prefix collision with 3306)", func(t *testing.T) {
+		pid, err := parsePortOwnerFromNetstat(sampleNetstat, 33060)
+		if err != nil {
+			t.Fatalf("Expected match, got error: %v", err)
+		}
+		if pid != 9999 {
+			t.Errorf("Expected PID 9999, got %d", pid)
+		}
+	})
+
+	t.Run("Match IPv6 port 80", func(t *testing.T) {
+		pid, err := parsePortOwnerFromNetstat(sampleNetstat, 80)
+		if err != nil {
+			t.Fatalf("Expected match, got error: %v", err)
+		}
+		if pid != 4 {
+			t.Errorf("Expected PID 4, got %d", pid)
+		}
+	})
+
+	t.Run("Port not listening", func(t *testing.T) {
+		_, err := parsePortOwnerFromNetstat(sampleNetstat, 9000)
+		if err == nil {
+			t.Errorf("Expected error for non-listening port, got nil")
+		}
+	})
+}
+
+func TestExtractPIDFromNetstatFields(t *testing.T) {
+	tests := []struct {
+		name       string
+		fields     []string
+		targetPort int
+		wantPID    int
+		wantOk     bool
+	}{
+		{
+			name:       "too few fields",
+			fields:     []string{"TCP", "0.0.0.0:80", "0.0.0.0:0"},
+			targetPort: 80,
+			wantPID:    0,
+			wantOk:     false,
+		},
+		{
+			name:       "not listening state",
+			fields:     []string{"TCP", "0.0.0.0:80", "0.0.0.0:0", "CLOSE_WAIT", "1234"},
+			targetPort: 80,
+			wantPID:    0,
+			wantOk:     false,
+		},
+		{
+			name:       "no colon in local address",
+			fields:     []string{"TCP", "invalidaddress", "0.0.0.0:0", "LISTENING", "1234"},
+			targetPort: 80,
+			wantPID:    0,
+			wantOk:     false,
+		},
+		{
+			name:       "invalid port format",
+			fields:     []string{"TCP", "0.0.0.0:abc", "0.0.0.0:0", "LISTENING", "1234"},
+			targetPort: 80,
+			wantPID:    0,
+			wantOk:     false,
+		},
+		{
+			name:       "port mismatch",
+			fields:     []string{"TCP", "0.0.0.0:8080", "0.0.0.0:0", "LISTENING", "1234"},
+			targetPort: 80,
+			wantPID:    0,
+			wantOk:     false,
+		},
+		{
+			name:       "non-numeric pid",
+			fields:     []string{"TCP", "0.0.0.0:80", "0.0.0.0:0", "LISTENING", "abc"},
+			targetPort: 80,
+			wantPID:    0,
+			wantOk:     false,
+		},
+		{
+			name:       "zero pid",
+			fields:     []string{"TCP", "0.0.0.0:80", "0.0.0.0:0", "LISTENING", "0"},
+			targetPort: 80,
+			wantPID:    0,
+			wantOk:     false,
+		},
+		{
+			name:       "negative pid",
+			fields:     []string{"TCP", "0.0.0.0:80", "0.0.0.0:0", "LISTENING", "-1"},
+			targetPort: 80,
+			wantPID:    0,
+			wantOk:     false,
+		},
+		{
+			name:       "valid match",
+			fields:     []string{"TCP", "0.0.0.0:80", "0.0.0.0:0", "LISTENING", "5678"},
+			targetPort: 80,
+			wantPID:    5678,
+			wantOk:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pid, ok := extractPIDFromNetstatFields(tt.fields, tt.targetPort)
+			if ok != tt.wantOk {
+				t.Errorf("extractPIDFromNetstatFields() ok = %v, wantOk %v", ok, tt.wantOk)
+			}
+			if pid != tt.wantPID {
+				t.Errorf("extractPIDFromNetstatFields() pid = %v, wantPID %v", pid, tt.wantPID)
+			}
+		})
+	}
+}

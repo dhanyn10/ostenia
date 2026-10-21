@@ -16,6 +16,168 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+interface PluginModuleItemProps {
+  mod: any;
+  taskName: string;
+  taskInstalled: boolean;
+  progress: any;
+  onInstallModule: (taskName: string, moduleName: string) => void;
+  onUninstallModule: (taskName: string, moduleName: string) => void;
+}
+
+const PluginModuleItem: React.FC<PluginModuleItemProps> = ({
+  mod,
+  taskName,
+  taskInstalled,
+  progress,
+  onInstallModule,
+  onUninstallModule,
+}) => {
+  const modProgress = progress[mod.name];
+  const isModActive =
+    Boolean(modProgress) &&
+    modProgress.status !== "Ready" &&
+    modProgress.status !== "Completed" &&
+    !modProgress.status?.startsWith("Error");
+  const isModInstalled =
+    Boolean(mod.isInstalled) ||
+    mod.status === "Ready" ||
+    mod.status === "Completed";
+
+  let buttonClass = "text-blue-500 hover:bg-blue-500/10 hover:scale-110";
+  let buttonTitle = `Install ${mod.name}`;
+  if (isModInstalled) {
+    buttonClass = "text-emerald-500 cursor-not-allowed";
+    buttonTitle = "Installed";
+  } else if (!taskInstalled) {
+    buttonClass = "text-slate-300 cursor-not-allowed";
+    buttonTitle = `Install ${taskName} first`;
+  }
+
+  return (
+    <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-sm border border-slate-100 dark:border-white/5 group/mod">
+      <div className="flex items-center gap-3">
+        <div
+          className={cn(
+            "w-6 h-6 rounded-sm flex items-center justify-center text-[10px] font-black",
+            isModInstalled
+              ? "bg-emerald-500/10 text-emerald-600"
+              : "bg-blue-500/10 text-blue-600",
+          )}
+        >
+          {mod.name[0]}
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+              {mod.name}
+            </span>
+            <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter mt-0.5">
+              {mod.status}
+            </p>
+          </div>
+
+          {mod.version && (
+            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded-sm h-fit">
+              v{mod.version}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4">
+        {isModActive && (
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col items-end">
+              <span className="text-[8px] font-black text-blue-500 uppercase">
+                {modProgress.status}
+              </span>
+              <span className="text-[7px] text-slate-400 font-bold">
+                {modProgress.percentage.toFixed(0)}%
+              </span>
+            </div>
+            <div className="w-8 h-8">
+              <CircularProgress
+                percentage={modProgress.percentage}
+                size={32}
+              />
+            </div>
+          </div>
+        )}
+
+        {!isModActive && (
+          <div className="flex items-center gap-2">
+            {isModInstalled && (
+              <button
+                type="button"
+                onClick={() => onUninstallModule(taskName, mod.name)}
+                className="p-1.5 bg-slate-100 dark:bg-white/5 hover:bg-rose-500/10 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-sm transition-all border border-slate-200 dark:border-white/5"
+                title={`Uninstall ${mod.name}`}
+              >
+                <Trash2 size={12} />
+              </button>
+            )}
+
+            <button
+              type="button"
+              disabled={isModInstalled || !taskInstalled}
+              onClick={() => onInstallModule(taskName, mod.name)}
+              className={cn("p-2 rounded-sm transition-all", buttonClass)}
+              title={buttonTitle}
+            >
+              {isModInstalled ? (
+                <CheckCircle2 size={16} />
+              ) : (
+                <Download size={16} />
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+interface PluginModuleListProps {
+  modules: any[];
+  taskName: string;
+  taskInstalled: boolean;
+  progress: any;
+  onInstallModule: (taskName: string, moduleName: string) => void;
+  onUninstallModule: (taskName: string, moduleName: string) => void;
+}
+
+const PluginModuleList: React.FC<PluginModuleListProps> = ({
+  modules,
+  taskName,
+  taskInstalled,
+  progress,
+  onInstallModule,
+  onUninstallModule,
+}) => (
+  <div
+    data-no-card-toggle="true"
+    className="mt-4 pt-4 border-t border-slate-200 dark:border-white/5 space-y-2 animate-in slide-in-from-top-2 duration-200 cursor-default relative z-10 pointer-events-auto"
+  >
+    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">
+      Available Modules
+    </p>
+    <div className="grid grid-cols-1 gap-2">
+      {modules.map((mod) => (
+        <PluginModuleItem
+          key={mod.name}
+          mod={mod}
+          taskName={taskName}
+          taskInstalled={taskInstalled}
+          progress={progress}
+          onInstallModule={onInstallModule}
+          onUninstallModule={onUninstallModule}
+        />
+      ))}
+    </div>
+  </div>
+);
+
 function PluginItem({
   task,
   progress,
@@ -51,14 +213,33 @@ function PluginItem({
       ? task.isInstalled
       : installedVersions.includes(selectedVersion || task.version);
 
+  const hasModules = Boolean(task.modules && task.modules.length > 0);
+
   return (
     <div
+      data-card-root="true"
       className={cn(
         "bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all group flex flex-col gap-0 relative shadow-sm dark:shadow-lg",
+        hasModules && "hover:bg-slate-50/80 dark:hover:bg-slate-900/60",
         isDropdownOpen ? "z-[100]" : "z-0",
       )}
     >
-      <div className="flex items-center gap-6 w-full">
+      {hasModules && (
+        <button
+          type="button"
+          data-card-expand="true"
+          aria-label={
+            isModulesExpanded
+              ? `Collapse ${task.name} modules`
+              : `Expand ${task.name} modules`
+          }
+          aria-expanded={isModulesExpanded}
+          onClick={() => setIsModulesExpanded((prev) => !prev)}
+          className="absolute inset-0 w-full h-full cursor-pointer bg-transparent border-none p-0 z-0 focus:outline-none focus:ring-1 focus:ring-blue-500/40 rounded-sm"
+        />
+      )}
+
+      <div className="flex items-center gap-6 w-full relative z-10 pointer-events-none">
         <div
           className={cn(
             "w-10 h-10 rounded-sm flex items-center justify-center shadow-lg transition-transform group-hover:scale-105 shrink-0",
@@ -70,7 +251,7 @@ function PluginItem({
           {renderIcon(task.name, 18, "text-slate-900 dark:text-white")}
         </div>
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 pointer-events-auto">
           <div className="flex items-center gap-3 flex-wrap">
             <h3 className="text-base font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">
               {task.name}
@@ -122,11 +303,17 @@ function PluginItem({
           </div>
         </div>
 
-        {task.modules && task.modules.length > 0 && (
+        {hasModules && (
           <button
             type="button"
-            onClick={() => setIsModulesExpanded(!isModulesExpanded)}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-sm transition-all text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsModulesExpanded(!isModulesExpanded);
+            }}
+            aria-label={
+              isModulesExpanded ? "Collapse modules" : "Expand modules"
+            }
+            className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-sm transition-all text-slate-400 hover:text-slate-900 dark:hover:text-white pointer-events-auto"
           >
             {isModulesExpanded ? (
               <ChevronUp size={16} />
@@ -136,7 +323,7 @@ function PluginItem({
           </button>
         )}
 
-        <div className="flex items-center gap-6 shrink-0">
+        <div className="flex items-center gap-6 shrink-0 pointer-events-auto">
           {isActive && (
             <div className="animate-in fade-in slide-in-from-right-2 duration-300">
               <CircularProgress
@@ -168,135 +355,15 @@ function PluginItem({
         </div>
       </div>
 
-      {isModulesExpanded && task.modules && task.modules.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-white/5 space-y-2 animate-in slide-in-from-top-2 duration-200">
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">
-            Available Modules
-          </p>
-          <div className="grid grid-cols-1 gap-2">
-            {task.modules.map((mod) => {
-              const modProgress = progress[mod.name];
-              const isModActive =
-                modProgress &&
-                modProgress.status !== "Ready" &&
-                modProgress.status !== "Completed" &&
-                !modProgress.status?.startsWith("Error");
-              const isModInstalled =
-                mod.isInstalled ||
-                mod.status === "Ready" ||
-                mod.status === "Completed";
-
-              return (
-                <div
-                  key={mod.name}
-                  className="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-sm border border-slate-100 dark:border-white/5 group/mod"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        "w-6 h-6 rounded-sm flex items-center justify-center text-[10px] font-black",
-                        isModInstalled
-                          ? "bg-emerald-500/10 text-emerald-600"
-                          : "bg-blue-500/10 text-blue-600",
-                      )}
-                    >
-                      {mod.name[0]}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                          {mod.name}
-                        </span>
-                        <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter mt-0.5">
-                          {mod.status}
-                        </p>
-                      </div>
-
-                      {mod.version && (
-                        <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded-sm h-fit">
-                          v{mod.version}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    {isModActive && (
-                      <div className="flex items-center gap-3">
-                        <div className="flex flex-col items-end">
-                          <span className="text-[8px] font-black text-blue-500 uppercase">
-                            {modProgress.status}
-                          </span>
-                          <span className="text-[7px] text-slate-400 font-bold">
-                            {modProgress.percentage.toFixed(0)}%
-                          </span>
-                        </div>
-                        <div className="w-8 h-8">
-                          <CircularProgress
-                            percentage={modProgress.percentage}
-                            size={32}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {!isModActive && (
-                      <div className="flex items-center gap-2">
-                        {isModInstalled && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onUninstallModule(task.name, mod.name)
-                            }
-                            className="p-1.5 bg-slate-100 dark:bg-white/5 hover:bg-rose-500/10 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-sm transition-all border border-slate-200 dark:border-white/5"
-                            title={`Uninstall ${mod.name}`}
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        )}
-
-                        {(() => {
-                          let buttonClass =
-                            "text-blue-500 hover:bg-blue-500/10 hover:scale-110";
-                          let buttonTitle = `Install ${mod.name}`;
-
-                          if (isModInstalled) {
-                            buttonClass = "text-emerald-500 cursor-not-allowed";
-                            buttonTitle = "Installed";
-                          } else if (!task.isInstalled) {
-                            buttonClass = "text-slate-300 cursor-not-allowed";
-                            buttonTitle = `Install ${task.name} first`;
-                          }
-
-                          return (
-                            <button
-                              type="button"
-                              disabled={isModInstalled || !task.isInstalled}
-                              onClick={() =>
-                                onInstallModule(task.name, mod.name)
-                              }
-                              className={cn(
-                                "p-2 rounded-sm transition-all",
-                                buttonClass,
-                              )}
-                              title={buttonTitle}
-                            >
-                              {isModInstalled ? (
-                                <CheckCircle2 size={16} />
-                              ) : (
-                                <Download size={16} />
-                              )}
-                            </button>
-                          );
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+      {isModulesExpanded && hasModules && (
+        <PluginModuleList
+          modules={task.modules}
+          taskName={task.name}
+          taskInstalled={task.isInstalled}
+          progress={progress}
+          onInstallModule={onInstallModule}
+          onUninstallModule={onUninstallModule}
+        />
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import ActivityTab from "./ActivityTab";
 import React from "react";
@@ -98,5 +98,51 @@ describe("ActivityTab Component", () => {
   it("shows empty state when no services", () => {
     render(<ActivityTab {...defaultProps} services={[]} />);
     expect(screen.getByText("No services active")).toBeInTheDocument();
+  });
+
+  it("handles version switching, terminal opening, and extension toggling", async () => {
+    const propsWithMultipleVersions = {
+      ...defaultProps,
+      prerequisites: [
+        {
+          name: "PHP",
+          version: "8.2",
+          installedVers: ["8.2.0", "8.3.0"],
+          status: "Ready",
+        },
+      ],
+    };
+
+    render(<ActivityTab {...propsWithMultipleVersions} />);
+
+    // Expand PHP accordion
+    fireEvent.click(screen.getByText("PHP"));
+
+    // 1. Version switching
+    await waitFor(() => {
+      expect(screen.getByText("8.3.0")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText("8.3.0"));
+    expect(AppBackend.SwitchServiceVersion).toHaveBeenCalledWith("PHP", "8.3.0");
+
+    // 2. Open local terminal
+    const terminalBtn = screen.getByTitle("Terminal");
+    fireEvent.click(terminalBtn);
+    expect(screen.getByText("CMD")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("CMD"));
+    expect(AppBackend.OpenServiceTerminal).toHaveBeenCalledWith("PHP", "cmd");
+
+    // 3. Open Extensions modal and toggle
+    fireEvent.click(screen.getByText("Extensions"));
+    await waitFor(() => {
+      expect(screen.getByText("mysqli")).toBeInTheDocument();
+    });
+
+    // Find the toggle button inside ExtensionModal
+    const extToggle = screen.getByRole("checkbox", { hidden: true }) || screen.getByText("mysqli");
+    await act(async () => {
+      fireEvent.click(extToggle);
+    });
+    expect(AppBackend.TogglePHPExtension).toHaveBeenCalled();
   });
 });

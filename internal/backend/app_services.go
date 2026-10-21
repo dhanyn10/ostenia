@@ -167,14 +167,38 @@ func (a *App) startMySQLService(binDir string) error {
 	if mysqlBin == "" {
 		return fmt.Errorf("%s not found", exeMySQL)
 	}
+	if a.orchestrator.IsRunning("MySQL") {
+		return fmt.Errorf("service MySQL is already running")
+	}
+	_ = a.orchestrator.StopService(ctx, "MySQL")
+
+	// 1. Pre-flight check: validate data directory and ibdata1 lock/permissions
+	dataDir := filepath.Join(mysqlBase, "data")
+	if err := service.ValidateMySQLDataDir(dataDir); err != nil {
+		return err
+	}
+
+	// 2. Determine target port and check for external port conflicts
 	port := a.orchestrator.GetDetailedInfo("MySQL").Port
 	if port <= 0 {
-		p, err := network.GetAvailablePort([]int{3306, 3307, 3308})
-		if err != nil {
-			return err
-		}
-		port = p
+		port = 3306
 	}
+
+	owner, err := network.GetPortOwner(port)
+	if err == nil && owner != nil && owner.InUse {
+		binPath := filepath.Join(config.GetBaseDir(), "bin")
+		if !service.IsPathInside(owner.ExecPath, binPath) {
+			procDesc := owner.ProcessName
+			if owner.PID > 0 {
+				procDesc = fmt.Sprintf("%s (PID %d)", owner.ProcessName, owner.PID)
+			}
+			if owner.ExecPath != "" {
+				procDesc += fmt.Sprintf(" at '%s'", owner.ExecPath)
+			}
+			return fmt.Errorf("port %d is already in use by another application: %s. Please stop that application to run MySQL on this port", port, procDesc)
+		}
+	}
+
 	_ = os.Setenv("PATH", filepath.Dir(mysqlBin)+";"+os.Getenv("PATH")) // NOSONAR
 	if err := a.updateMySQLConfig(mysqlBase, port); err != nil {
 		return err
@@ -195,12 +219,21 @@ func (a *App) startApacheService(binDir string) error {
 	}
 	port := a.orchestrator.GetDetailedInfo("Apache").Port
 	if port <= 0 {
-		p, err := network.GetAvailablePort([]int{80, 8080, 8081, 9000})
-		if err != nil {
-			return err
-		}
-		port = p
+		port = 80
 	}
+
+	owner, err := network.GetPortOwner(port)
+	if err == nil && owner != nil && owner.InUse {
+		binPath := filepath.Join(config.GetBaseDir(), "bin")
+		if !service.IsPathInside(owner.ExecPath, binPath) {
+			procDesc := owner.ProcessName
+			if owner.PID > 0 {
+				procDesc = fmt.Sprintf("%s (PID %d)", owner.ProcessName, owner.PID)
+			}
+			return fmt.Errorf("port %d is already in use by another application: %s. Please stop that application to run Apache on this port", port, procDesc)
+		}
+	}
+
 	_, _, phpPath := a.getPluginPaths("PHP")
 	_, _, nodePath := a.getPluginPaths(serviceNodeJS)
 	_ = os.Setenv("PATH", phpPath+";"+os.Getenv("PATH")+";"+nodePath) // NOSONAR
@@ -222,12 +255,21 @@ func (a *App) startNginxService(binDir string) error {
 	}
 	port := a.orchestrator.GetDetailedInfo("Nginx").Port
 	if port <= 0 {
-		p, err := network.GetAvailablePort([]int{80, 8080, 8081, 9000})
-		if err != nil {
-			return err
-		}
-		port = p
+		port = 80
 	}
+
+	owner, err := network.GetPortOwner(port)
+	if err == nil && owner != nil && owner.InUse {
+		binPath := filepath.Join(config.GetBaseDir(), "bin")
+		if !service.IsPathInside(owner.ExecPath, binPath) {
+			procDesc := owner.ProcessName
+			if owner.PID > 0 {
+				procDesc = fmt.Sprintf("%s (PID %d)", owner.ProcessName, owner.PID)
+			}
+			return fmt.Errorf("port %d is already in use by another application: %s. Please stop that application to run Nginx on this port", port, procDesc)
+		}
+	}
+
 	if err := a.updateNginxConfig(nginxBase, port); err != nil {
 		return err
 	}
@@ -410,4 +452,22 @@ func (a *App) OpenServiceTerminal(serviceName, terminalType string) error {
 	}
 	a.OpenTerminalAtPath(terminalType, targetDir)
 	return nil
+}
+
+// CheckPortConflict checks if the port for a service is in use by another app
+func (a *App) CheckPortConflict(serviceName string) (*network.PortOwner, error) {
+	portMap := map[string]int{
+		"MySQL":  3306,
+		"Apache": 80,
+		"Nginx":  80,
+		"PHP":    9000,
+	}
+	port := a.orchestrator.GetDetailedInfo(serviceName).Port
+	if port <= 0 {
+		port = portMap[serviceName]
+	}
+	if port <= 0 {
+		return nil, nil
+	}
+	return network.GetPortOwner(port)
 }

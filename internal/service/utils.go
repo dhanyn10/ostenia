@@ -77,3 +77,22 @@ func AddHostWithElevation(ip, hostname string) error {
 
 	return fmt.Errorf("elevation required but not supported on this platform")
 }
+
+// IsPathInside returns true if path equals parentDir or is located within parentDir
+func IsPathInside(path, parentDir string) bool {
+	if path == "" || parentDir == "" {
+		return false
+	}
+	cleanPath := strings.ToLower(filepath.Clean(path))
+	cleanParent := strings.ToLower(filepath.Clean(parentDir))
+	if cleanPath == cleanParent || strings.HasPrefix(cleanPath, cleanParent+string(filepath.Separator)) {
+		return true
+	}
+	if resolvedParent, err := filepath.EvalSymlinks(cleanParent); err == nil {
+		cleanResolved := strings.ToLower(filepath.Clean(resolvedParent))
+		if cleanPath == cleanResolved || strings.HasPrefix(cleanPath, cleanResolved+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
+}
