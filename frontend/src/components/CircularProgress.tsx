@@ -34,11 +34,14 @@ const CircularProgress: React.FC<CircularProgressProps> = ({
     <div className="flex flex-col items-center gap-2">
       <button
         type="button"
+        aria-label={onCancel ? "Cancel progress" : "Progress indicator"}
         className="relative group/progress cursor-pointer overflow-hidden p-0.5 rounded-sm outline-none focus:ring-1 focus:ring-blue-500/40 bg-transparent border-none"
         onClick={onCancel}
         onKeyDown={onCancel ? handleActionKey(onCancel) : undefined}
       >
         <svg
+          aria-hidden="true"
+          role="presentation"
           width={size}
           height={size}
           className={cn(

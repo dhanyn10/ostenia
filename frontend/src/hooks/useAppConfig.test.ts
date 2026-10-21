@@ -60,17 +60,17 @@ describe('useAppConfig hook', () => {
     expect(onConfigChanged).toHaveBeenCalledTimes(2);
   });
 
-  it('toggles HTTPS for Apache and Nginx', async () => {
+  it('toggles HTTPS for Apache and Nginx', () => {
     const { result } = renderHook(() => useAppConfig());
 
-    await act(async () => {
-      await result.current.handleToggleHttps('Apache');
+    act(() => {
+      result.current.handleToggleHttps('Apache');
     });
     expect(result.current.apacheHttps).toBe(true);
     expect(AppBackend.SetApacheHTTPS).toHaveBeenCalledWith(true);
 
-    await act(async () => {
-      await result.current.handleToggleHttps('Nginx');
+    act(() => {
+      result.current.handleToggleHttps('Nginx');
     });
     expect(result.current.nginxHttps).toBe(true);
     expect(AppBackend.SetNginxHTTPS).toHaveBeenCalledWith(true);

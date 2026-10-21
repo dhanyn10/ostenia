@@ -178,6 +178,39 @@ const PluginModuleList: React.FC<PluginModuleListProps> = ({
   </div>
 );
 
+function shouldIgnoreCardToggle(target: HTMLElement): boolean {
+  return Boolean(
+    target.closest("button:not([data-card-expand])") ||
+    target.closest("a") ||
+    target.closest("input") ||
+    target.closest("[data-no-card-toggle]"),
+  );
+}
+
+function isCustomVersionAllowed(taskName: string): boolean {
+  return taskName !== "HeidiSQL" && taskName !== "OpenSSL";
+}
+
+function isParentTaskActive(progressObj: any): boolean {
+  return Boolean(
+    progressObj &&
+    progressObj.status !== "Ready" &&
+    progressObj.status !== "Completed" &&
+    !progressObj.status?.startsWith("Error"),
+  );
+}
+
+function isTaskVersionInstalled(
+  task: any,
+  selectedVersion?: string,
+  installedVersions: string[] = [],
+): boolean {
+  if (task.name === "OpenSSL" || task.name === "HeidiSQL") {
+    return Boolean(task.isInstalled);
+  }
+  return installedVersions.includes(selectedVersion || task.version);
+}
+
 function PluginItem({
   task,
   progress,
@@ -199,37 +232,30 @@ function PluginItem({
   const dropdownOptions = [
     ...new Set([...availableVersions, ...installedVersions]),
   ];
-  const isCustomAllowed = task.name !== "HeidiSQL" && task.name !== "OpenSSL";
+  const isCustomAllowed = isCustomVersionAllowed(task.name);
 
   const parentProgress = progress[task.name];
-  const isActive =
-    parentProgress &&
-    parentProgress.status !== "Ready" &&
-    parentProgress.status !== "Completed" &&
-    !parentProgress.status?.startsWith("Error");
-
-  const isSelectedInstalled =
-    task.name === "OpenSSL" || task.name === "HeidiSQL"
-      ? task.isInstalled
-      : installedVersions.includes(selectedVersion || task.version);
-
+  const isActive = isParentTaskActive(parentProgress);
+  const isSelectedInstalled = isTaskVersionInstalled(
+    task,
+    selectedVersion,
+    installedVersions,
+  );
   const hasModules = Boolean(task.modules && task.modules.length > 0);
 
+  const toggleModules = () => setIsModulesExpanded((prev) => !prev);
+
   const handleCardClick = (e: React.MouseEvent) => {
-    if (!hasModules) return;
+    if (!hasModules || shouldIgnoreCardToggle(e.target as HTMLElement)) return;
+    toggleModules();
+  };
 
-    const target = e.target as HTMLElement;
-    // Don't toggle if the user clicked inside any interactive button (excluding card-expand buttons) or module list
-    if (
-      target.closest("button:not([data-card-expand])") ||
-      target.closest("a") ||
-      target.closest("input") ||
-      target.closest("[data-no-card-toggle]")
-    ) {
-      return;
+  const handleCardKeyDown = (e: React.KeyboardEvent) => {
+    if (!hasModules || shouldIgnoreCardToggle(e.target as HTMLElement)) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleModules();
     }
-
-    setIsModulesExpanded((prev) => !prev);
   };
 
   return (
@@ -240,22 +266,7 @@ function PluginItem({
       tabIndex={hasModules ? 0 : undefined}
       aria-expanded={hasModules ? isModulesExpanded : undefined}
       onClick={handleCardClick}
-      onKeyDown={(e) => {
-        if (!hasModules) return;
-        const target = e.target as HTMLElement;
-        if (
-          target.closest("button:not([data-card-expand])") ||
-          target.closest("a") ||
-          target.closest("input") ||
-          target.closest("[data-no-card-toggle]")
-        ) {
-          return;
-        }
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          setIsModulesExpanded((prev) => !prev);
-        }
-      }}
+      onKeyDown={handleCardKeyDown}
       className={cn(
         "bg-white/70 dark:bg-slate-900/40 rounded-sm p-4 border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-all group flex flex-col gap-0 relative shadow-sm dark:shadow-lg",
         hasModules && "hover:bg-slate-50/80 dark:hover:bg-slate-900/60 cursor-pointer",

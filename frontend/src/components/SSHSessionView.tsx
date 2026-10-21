@@ -982,7 +982,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
   /**
    * Deletes target files/folders recursively on the remote machine.
    */
-  const handleDelete = async (file: any) => {
+  const handleDelete = (file: any) => {
     setDeleteFile(file);
   };
 
@@ -1281,7 +1281,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
           <button
             type="button"
             onClick={() => {
-              void handleDelete(fileContextMenu.file);
+              handleDelete(fileContextMenu.file);
               setFileContextMenu(null);
             }}
             className="w-full px-4 py-2 text-left text-[11px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2 transition-all"
