@@ -37,7 +37,7 @@ describe('SSHManagementCategory Component', () => {
     });
 
     // Check that sensitive fields are masked with "***"
-    const preElement = screen.getByText((content, element) => {
+    const preElement = await screen.findByText((content, element) => {
       return element?.tagName.toLowerCase() === 'pre' && content.includes('"password": "***"');
     });
     expect(preElement).toBeInTheDocument();
@@ -63,7 +63,7 @@ describe('SSHManagementCategory Component', () => {
       expect(screen.getByRole('button', { name: /mask passwords/i })).toBeInTheDocument();
     });
 
-    const preElement = screen.getByText((content, element) => {
+    const preElement = await screen.findByText((content, element) => {
       return element?.tagName.toLowerCase() === 'pre' && content.includes('"password": "supersecretpassword"');
     });
     expect(preElement).toBeInTheDocument();

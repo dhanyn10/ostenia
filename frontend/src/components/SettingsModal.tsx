@@ -8,15 +8,11 @@ import {
   ChevronRight,
   Settings,
 } from "lucide-react";
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
 import ProfileCategory from "@/components/settings/ProfileCategory";
 import GlobalConfigCategory from "@/components/settings/GlobalConfigCategory";
 import SSHManagementCategory from "@/components/settings/SSHManagementCategory";
+import { cn } from "@/utils/utils";
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 interface SettingsModalProps {
   isOpen: boolean;

@@ -8,7 +8,7 @@ import {
   File,
   MoreVertical,
 } from "lucide-react";
-import { handleActionKey } from "@/utils/a11y";
+import { formatSize, handleActionKey } from "@/utils/utils";
 
 interface SSHFileExplorerProps {
   remotePath: string;
@@ -25,7 +25,6 @@ interface SSHFileExplorerProps {
   onFileDoubleClick: (file: any) => void;
   onFileContextMenu: (event: React.MouseEvent, file: any) => void;
   onExplorerContextMenu: (event: React.MouseEvent) => void;
-  formatSize: (bytes: number) => string;
   toggleSort: (key: string) => void;
   sortConfig: { key: string; direction: "asc" | "desc" };
   onManualNavigation: (path: string) => void;
@@ -46,7 +45,6 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
   onFileDoubleClick,
   onFileContextMenu,
   onExplorerContextMenu,
-  formatSize,
   toggleSort,
   sortConfig,
   onManualNavigation,

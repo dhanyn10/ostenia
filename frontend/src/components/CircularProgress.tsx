@@ -1,12 +1,7 @@
 import React from "react";
 import { X, Loader2 } from "lucide-react";
-import { handleActionKey } from "@/utils/a11y";
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { cn, handleActionKey } from "@/utils/utils";
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 interface CircularProgressProps {
   percentage: number;

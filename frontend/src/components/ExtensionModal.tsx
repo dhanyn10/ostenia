@@ -1,12 +1,7 @@
 import React from "react";
 import { X, Settings2, Search } from "lucide-react";
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
-import { handleActionKey } from "@/utils/a11y";
+import { cn, handleActionKey } from "@/utils/utils";
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 function ExtensionModal({
   isOpen,

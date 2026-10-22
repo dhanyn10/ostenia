@@ -1,18 +1,10 @@
 import { useState, useCallback } from 'react';
 import * as AppBackend from '@/wailsjs/go/backend/App';
-import { parseStackTrace } from '@/utils/stackParser';
+import { parseStackTrace } from "@/utils/utils";
 
-export interface LogItem {
-  id: string;
-  time: string;
-  timestamp?: string;
-  msg: string;
-  cleanMsg: string;
-  type: string;
-  isServiceLog: boolean;
-  caller?: any;
-  rawStack?: string;
-}
+import type { LogItem } from '@/types/logs';
+export type { LogEntry } from '@/types/logs';
+export type { LogItem };
 
 let isLogging = false;
 

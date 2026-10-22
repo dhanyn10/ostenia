@@ -1,12 +1,7 @@
 import React from "react";
 import { Plus } from "lucide-react";
-import { clsx } from "clsx";
-import { handleActionKey } from "@/utils/a11y";
-import { twMerge } from "tailwind-merge";
+import { cn, handleActionKey } from "@/utils/utils";
 
-function cn(...inputs) {
-  return twMerge(clsx(inputs));
-}
 
 function AddPluginAction({
   isAddingPlugin,

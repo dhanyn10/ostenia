@@ -8,13 +8,15 @@ import {
 } from "lucide-react";
 import VersionDropdown from "@/components/VersionDropdown";
 import CircularProgress from "@/components/CircularProgress";
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
-import { handleActionKey } from "@/utils/a11y";
+import {
+  cn,
+  handleActionKey,
+  shouldIgnoreCardToggle,
+  isCustomVersionAllowed,
+  isParentTaskActive,
+  isTaskVersionInstalled,
+} from "@/utils/utils";
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 interface PluginModuleItemProps {
   module: any;
@@ -178,38 +180,7 @@ const PluginModuleList: React.FC<PluginModuleListProps> = ({
   </div>
 );
 
-function shouldIgnoreCardToggle(target: HTMLElement): boolean {
-  return Boolean(
-    target.closest("button:not([data-card-expand])") ||
-    target.closest("a") ||
-    target.closest("input") ||
-    target.closest("[data-no-card-toggle]"),
-  );
-}
 
-function isCustomVersionAllowed(taskName: string): boolean {
-  return taskName !== "HeidiSQL" && taskName !== "OpenSSL";
-}
-
-function isParentTaskActive(progressObj: any): boolean {
-  return Boolean(
-    progressObj &&
-    progressObj.status !== "Ready" &&
-    progressObj.status !== "Completed" &&
-    !progressObj.status?.startsWith("Error"),
-  );
-}
-
-function isTaskVersionInstalled(
-  task: any,
-  selectedVersion?: string,
-  installedVersions: string[] = [],
-): boolean {
-  if (task.name === "OpenSSL" || task.name === "HeidiSQL") {
-    return Boolean(task.isInstalled);
-  }
-  return installedVersions.includes(selectedVersion || task.version);
-}
 
 function PluginItem({
   task,

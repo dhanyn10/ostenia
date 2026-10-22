@@ -1,75 +1,14 @@
 import React from "react";
 
-export type ResourceMetricType = "cpu" | "mem" | "disk";
+import {
+  buildSparklineSegments,
+  buildSparklinePaths,
+  type ResourceMetricType,
+  type ResourceDataPoint,
+} from "@/utils/utils";
 
-export interface ResourceDataPoint {
-  cpu: number | null;
-  mem: number | null;
-  disk: number | null;
-}
-
-export interface ResourceLineChartProps {
-  /** Sequential historical data of resource metrics containing CPU, Memory, and Disk ratios */
-  data: ResourceDataPoint[];
-  /** Metric type to parse and plot */
-  metric: ResourceMetricType;
-  /** Stroke color of the plotted sparkline */
-  color: string;
-  /** Background area gradient or fill color of the sparkline */
-  fillColor: string;
-}
-
-export const buildSparklineSegments = (
-  paddedData: ResourceDataPoint[],
-  metric: ResourceMetricType,
-  width: number,
-  height: number,
-  pointsCount: number
-) => {
-  const getX = (index: number) => (index / (pointsCount - 1)) * width;
-  const getY = (val: number | null) => (val === null ? height : height - 1 - (val / 100) * (height - 2));
-
-  let currentSegment: Array<[number, number]> = [];
-  const segments: Array<Array<[number, number]>> = [];
-
-  paddedData.forEach((d, i) => {
-    const val = d[metric];
-    if (val !== null) {
-      currentSegment.push([getX(i), getY(val)]);
-    } else if (currentSegment.length > 0) {
-      segments.push(currentSegment);
-      currentSegment = [];
-    }
-  });
-  if (currentSegment.length > 0) {
-    segments.push(currentSegment);
-  }
-  return segments;
-};
-
-export const buildSparklinePaths = (segments: Array<Array<[number, number]>>, height: number) => {
-  let linePath = "";
-  let areaPath = "";
-
-  segments.forEach((seg) => {
-    if (seg.length === 0) return;
-
-    let segLine = `M ${seg[0][0]} ${seg[0][1]}`;
-    let segArea = `M ${seg[0][0]} ${height} L ${seg[0][0]} ${seg[0][1]}`;
-
-    for (let j = 1; j < seg.length; j++) {
-      segLine += ` L ${seg[j][0]} ${seg[j][1]}`;
-      segArea += ` L ${seg[j][0]} ${seg[j][1]}`;
-    }
-
-    segArea += ` L ${seg.at(-1)![0]} ${height} Z`;
-
-    linePath += " " + segLine;
-    areaPath += " " + segArea;
-  });
-
-  return { linePath, areaPath };
-};
+export { buildSparklineSegments, buildSparklinePaths };
+export type { ResourceMetricType, ResourceDataPoint };
 
 export const ResourceLineChart: React.FC<ResourceLineChartProps> = ({ data, metric, color, fillColor }) => {
   const width = 120;

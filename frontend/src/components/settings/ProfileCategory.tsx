@@ -1,7 +1,7 @@
 import React from 'react';
 import { Upload, Download } from 'lucide-react';
 import * as AppBackend from '@/wailsjs/go/backend/App';
-import { handleActionKey } from "@/utils/a11y";
+import { handleActionKey } from "@/utils/utils";
 
 interface ProfileCategoryProps {
   initApp?: () => void;

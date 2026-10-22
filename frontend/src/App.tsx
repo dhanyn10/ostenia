@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { EventsOn } from '@/wailsjs/runtime/runtime';
 import * as AppBackend from '@/wailsjs/go/backend/App';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 
 // Hooks
 import { useTheme } from '@/hooks/useTheme';
@@ -27,10 +25,8 @@ import SSHTab from '@/components/ssh/SSHTab';
 import Icons from '@/components/Icons';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import AddCustomVersionModal from '@/components/AddCustomVersionModal';
+import { cn } from "@/utils/utils";
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 function App() {
   const [activeTab, setActiveTab] = useState('activity');

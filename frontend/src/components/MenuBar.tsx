@@ -15,15 +15,11 @@ import {
   Sliders,
   type LucideIcon,
 } from "lucide-react";
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
 import * as AppBackend from "@/wailsjs/go/backend/App";
-import { handleActionKey } from "@/utils/a11y";
-import AlertModal from "@/components/AlertModal";
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import AlertModal from "@/components/AlertModal";
+import { cn, handleActionKey } from "@/utils/utils";
+
 
 interface MenuItemProps {
   label: string;

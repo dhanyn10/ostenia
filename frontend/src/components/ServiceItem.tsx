@@ -14,11 +14,11 @@ import {
   Settings2,
   Loader2,
 } from "lucide-react";
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import {
+  cn,
+  shouldIgnoreCardToggle,
+  getServiceActionFlags,
+} from "@/utils/utils";
 
 interface ServiceItemProps {
   service: any;
@@ -368,71 +368,7 @@ const ServiceExtraActions: React.FC<any> = ({
   </div>
 );
 
-function shouldIgnoreCardToggle(target: HTMLElement): boolean {
-  return Boolean(
-    target.closest("button:not([data-card-expand])") ||
-    target.closest("a") ||
-    target.closest("input") ||
-    target.closest("[data-no-card-toggle]"),
-  );
-}
 
-interface ServiceActionFlags {
-  isInstalled: boolean;
-  isHttpsEnabled: boolean;
-  hasOpenFolder: boolean;
-  hasTerminal: boolean;
-  hasHttpsToggle: boolean;
-  hasPhpExtManager: boolean;
-  hasHeidiOpen: boolean;
-  hasExtraActions: boolean;
-}
-
-function getServiceActionFlags(
-  service: any,
-  task: any,
-  apacheHttps: boolean,
-  nginxHttps: boolean,
-  isOpenSslEnabled: boolean,
-): ServiceActionFlags {
-  const isInstalled =
-    Boolean(task?.installedVers && task.installedVers.length > 0) ||
-    service.name === "OpenSSL";
-  const isWebServer = service.name === "Apache" || service.name === "Nginx";
-
-  let isHttpsEnabled = false;
-  if (service.name === "Apache") {
-    isHttpsEnabled = apacheHttps;
-  } else if (service.name === "Nginx") {
-    isHttpsEnabled = nginxHttps;
-  }
-
-  const hasTerminalFacility =
-    service.name !== "HeidiSQL" && service.name !== "OpenSSL";
-  const hasOpenFolder =
-    isInstalled && service.name !== "OpenSSL" && service.name !== "HeidiSQL";
-  const hasTerminal = isInstalled && hasTerminalFacility;
-  const hasHttpsToggle = isWebServer && isOpenSslEnabled;
-  const hasPhpExtManager = service.name === "PHP";
-  const hasHeidiOpen = service.name === "HeidiSQL" && isInstalled;
-  const hasExtraActions =
-    hasOpenFolder ||
-    hasTerminal ||
-    hasHttpsToggle ||
-    hasPhpExtManager ||
-    hasHeidiOpen;
-
-  return {
-    isInstalled,
-    isHttpsEnabled,
-    hasOpenFolder,
-    hasTerminal,
-    hasHttpsToggle,
-    hasPhpExtManager,
-    hasHeidiOpen,
-    hasExtraActions,
-  };
-}
 
 const ServiceItem: React.FC<ServiceItemProps> = ({
   service,

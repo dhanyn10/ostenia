@@ -1,11 +1,7 @@
 import React, { useState } from "react";
 import { XCircle, CheckCircle2, AlertCircle, X, Copy, Check } from "lucide-react";
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { cn } from "@/utils/utils";
 
-function cn(...inputs) {
-  return twMerge(clsx(inputs));
-}
 
 function getToastClasses(type: string) {
   if (type === "error") {

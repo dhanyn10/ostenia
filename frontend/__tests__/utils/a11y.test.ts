@@ -1,4 +1,4 @@
-import { handleActionKey } from "@/utils/a11y";
+import { handleActionKey } from "@/utils/utils";
 import { describe, it, expect, vi } from "vitest";
 
 describe("a11y utilities", () => {

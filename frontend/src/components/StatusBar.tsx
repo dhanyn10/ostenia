@@ -1,13 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Circle, ChevronUp, Server } from "lucide-react";
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
-import { handleActionKey } from "@/utils/a11y";
 import * as AppBackend from "@/wailsjs/go/backend/App";
+import { cn, handleActionKey } from "@/utils/utils";
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 interface StatusBarProps {
   services: any[];

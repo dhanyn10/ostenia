@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import * as AppBackend from '@/wailsjs/go/backend/App';
-import { resolvePrerequisiteTask } from '@/utils/pluginHelpers';
+import { resolvePrerequisiteTask } from "@/utils/utils";
 
 interface UsePrerequisitesOptions {
   addToast: (title: string, message: string, type: 'success' | 'error' | 'info') => void;

@@ -1,11 +1,7 @@
 import React from "react";
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
 import pluginsSvg from "@/assets/icons/plugins.svg"; // Static import for UI icons
+import { cn } from "@/utils/utils";
 
-function cn(...inputs) {
-  return twMerge(clsx(inputs));
-}
 
 const BaseIcon = ({ src, size = 20, className }) => (
   <div
