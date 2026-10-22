@@ -26,136 +26,15 @@ import PromptModal from "@/components/PromptModal";
 import { measureActivity } from "@/utils/activityLogger";
 import { MetricItem } from "@/components/ssh/ResourceLineChart";
 
-/**
- * Checks whether a given filename represents a known archive file format.
- */
-const isArchiveFile = (fileName?: string): boolean => {
-  if (!fileName) return false;
-  const name = fileName.toLowerCase();
-  return (
-    name.endsWith(".zip") ||
-    name.endsWith(".tar") ||
-    name.endsWith(".gz") ||
-    name.endsWith(".7z") ||
-    name.endsWith(".rar") ||
-    name.endsWith(".bz2") ||
-    name.endsWith(".xz")
-  );
-};
-
-/**
- * Calculates Y position for custom context menus to avoid viewport clipping.
- */
-const calculateContextMenuY = (clientY: number, menuHeight: number): number => {
-  if (clientY + menuHeight > window.innerHeight) {
-    return Math.max(10, clientY - menuHeight);
-  }
-  return clientY;
-};
-
-/**
- * Checks if an SFTP listing error is expected/ignorable during background sync.
- */
-const isIgnorableSFTPError = (error: any): boolean => {
-  const errorString = String(error).toLowerCase();
-  return (
-    errorString.includes("eof") ||
-    errorString.includes("session not found") ||
-    errorString.includes("session not connected") ||
-    errorString.includes("sftp not connected")
-  );
-};
-
-/**
- * Extracts timeout and retry options from localStorage.
- */
-const getSSHConfigFromStorage = () => {
-  const timeout = Number.parseInt(localStorage.getItem('ostenia_ssh_max_timeout') || '10', 10);
-  const retries = Number.parseInt(localStorage.getItem('ostenia_ssh_max_retries') || '3', 10);
-  return {
-    maxTimeout: Number.isNaN(timeout) || timeout < 1 ? 10 : timeout,
-    maxRetries: Number.isNaN(retries) || retries < 1 ? 3 : retries,
-  };
-};
-
-/**
- * Extracts target path from xterm title string if valid.
- */
-const extractPathFromTitle = (title: string): string | null => {
-  if (!title.includes(":")) return null;
-  const parts = title.split(":");
-  const potentialPath = parts.at(-1)?.trim() || "";
-  return potentialPath.startsWith("/") ? potentialPath : null;
-};
-
-/**
- * Attaches custom keyboard handlers for zoom shortcuts in xterm.
- */
-const setupZoomKeyHandler = (
-  term: XTerm,
-  handlersRef: React.RefObject<{ handleZoomIn: () => void; handleZoomOut: () => void; handleZoomReset: () => void }>
-) => {
-  term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
-    if (event.type !== "keydown") return true;
-    const isCtrlOrCmd = event.ctrlKey || event.metaKey;
-    if (!isCtrlOrCmd) return true;
-    const enabled = localStorage.getItem('ostenia_ssh_zoom_enabled') !== 'false';
-    if (!enabled) return true;
-
-    if (event.key === "=" || event.key === "+") {
-      handlersRef.current?.handleZoomIn();
-      return false;
-    }
-    if (event.key === "-") {
-      handlersRef.current?.handleZoomOut();
-      return false;
-    }
-    if (event.key === "0") {
-      handlersRef.current?.handleZoomReset();
-      return false;
-    }
-    return true;
-  });
-};
-
-/**
- * Helper utility to convert raw file sizes into readable units.
- */
-const formatSize = (bytes: number) => {
-  if (!bytes) return "-";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let size = bytes;
-  let unitIndex = 0;
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024;
-    unitIndex++;
-  }
-  return `${size.toFixed(1)} ${units[unitIndex]}`;
-};
-
-const filterAndSortFiles = (
-  files: any[],
-  searchQuery: string,
-  showHiddenFiles: boolean,
-  sortConfig: { key: string; direction: "asc" | "desc" }
-) => {
-  return [...files]
-    .filter((file) => {
-      const matchesSearch = file.name.toLowerCase().includes(searchQuery.toLowerCase());
-      if (!showHiddenFiles) {
-        return matchesSearch && !file.name.startsWith(".");
-      }
-      return matchesSearch;
-    })
-    .sort((a, b) => {
-      if (a.isDir !== b.isDir) return b.isDir ? 1 : -1;
-      const comparison =
-        sortConfig.key === "name"
-          ? a.name.localeCompare(b.name)
-          : (a.size || 0) - (b.size || 0);
-      return sortConfig.direction === "asc" ? comparison : -comparison;
-    });
-};
+import {
+  isArchiveFile,
+  calculateContextMenuY,
+  isIgnorableSFTPError,
+  getSSHConfigFromStorage,
+  extractPathFromTitle,
+  setupZoomKeyHandler,
+  filterAndSortFiles,
+} from "@/utils/sshUtils";
 
 interface SSHSessionViewProps {
   /** The current active SSH/WSL session profile */
@@ -1098,7 +977,6 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             onFileDoubleClick={handleFileDoubleClick}
             onFileContextMenu={handleFileContextMenu}
             onExplorerContextMenu={handleExplorerContextMenu}
-            formatSize={formatSize}
             toggleSort={toggleSort}
             sortConfig={sortConfig}
             onManualNavigation={handleManualNavigation}

@@ -12,7 +12,6 @@ describe("SSHFileExplorer Component", () => {
   const onNewFolderMock = vi.fn();
   const onFileDoubleClickMock = vi.fn();
   const onFileContextMenuMock = vi.fn();
-  const formatSizeMock = vi.fn((bytes) => `${bytes} B`);
   const toggleSortMock = vi.fn();
   const onManualNavigationMock = vi.fn();
 
@@ -41,7 +40,6 @@ describe("SSHFileExplorer Component", () => {
         sortedFiles={mockFiles}
         onFileDoubleClick={onFileDoubleClickMock}
         onFileContextMenu={onFileContextMenuMock}
-        formatSize={formatSizeMock}
         toggleSort={toggleSortMock}
         sortConfig={{ key: "name", direction: "asc" }}
         onManualNavigation={onManualNavigationMock}
@@ -51,7 +49,7 @@ describe("SSHFileExplorer Component", () => {
     expect(screen.getByDisplayValue("/var/www")).toBeInTheDocument();
     expect(screen.getByText("folder-1")).toBeInTheDocument();
     expect(screen.getByText("file-1.txt")).toBeInTheDocument();
-    expect(screen.getByText("1024 B")).toBeInTheDocument();
+    expect(screen.getByText("1.0 KB")).toBeInTheDocument();
   });
 
   it("handles custom input for editing path and Enter/Escape actions", () => {
@@ -70,7 +68,6 @@ describe("SSHFileExplorer Component", () => {
         sortedFiles={mockFiles}
         onFileDoubleClick={onFileDoubleClickMock}
         onFileContextMenu={onFileContextMenuMock}
-        formatSize={formatSizeMock}
         toggleSort={toggleSortMock}
         sortConfig={{ key: "name", direction: "asc" }}
         onManualNavigation={onManualNavigationMock}
@@ -104,7 +101,6 @@ describe("SSHFileExplorer Component", () => {
         sortedFiles={mockFiles}
         onFileDoubleClick={onFileDoubleClickMock}
         onFileContextMenu={onFileContextMenuMock}
-        formatSize={formatSizeMock}
         toggleSort={toggleSortMock}
         sortConfig={{ key: "name", direction: "asc" }}
         onManualNavigation={onManualNavigationMock}
@@ -136,7 +132,6 @@ describe("SSHFileExplorer Component", () => {
         sortedFiles={mockFiles}
         onFileDoubleClick={onFileDoubleClickMock}
         onFileContextMenu={onFileContextMenuMock}
-        formatSize={formatSizeMock}
         toggleSort={toggleSortMock}
         sortConfig={{ key: "name", direction: "asc" }}
         onManualNavigation={onManualNavigationMock}
@@ -168,7 +163,6 @@ describe("SSHFileExplorer Component", () => {
         sortedFiles={[]}
         onFileDoubleClick={onFileDoubleClickMock}
         onFileContextMenu={onFileContextMenuMock}
-        formatSize={formatSizeMock}
         toggleSort={toggleSortMock}
         sortConfig={{ key: "name", direction: "asc" }}
         onManualNavigation={onManualNavigationMock}
