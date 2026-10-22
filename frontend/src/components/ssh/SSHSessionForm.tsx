@@ -261,7 +261,7 @@ const SSHSessionForm: React.FC<SSHSessionFormProps> = ({
                 id="session-password"
                 required
                 type="password"
-                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                placeholder="password"
                 className="w-full px-3 py-2 bg-mui-grey-50 dark:bg-white/5 border border-transparent focus:border-mui-blue-500 focus:bg-white dark:focus:bg-mui-grey-900 rounded-md outline-none text-mui-grey-900 dark:text-white transition-all text-sm"
                 value={formData.password}
                 onChange={(event) =>

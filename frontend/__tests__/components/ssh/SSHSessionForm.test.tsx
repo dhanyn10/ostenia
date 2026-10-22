@@ -41,15 +41,17 @@ describe("SSHSessionForm Component", () => {
     vi.clearAllMocks();
   });
 
-  it("renders in New Connection mode by default", () => {
-    render(
+  it("renders in New Connection mode by default", async () => {
+    await act(async () => {
+      render(
       <SSHSessionForm
         session={null}
         onClose={onCloseMock}
         onSave={onSaveMock}
         addToast={addToastMock}
-      />,
-    );
+        />,
+      );
+    });
 
     expect(screen.getByText("New Connection")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("e.g. Production Web")).toHaveValue("");
@@ -60,15 +62,17 @@ describe("SSHSessionForm Component", () => {
     expect(screen.getByPlaceholderText("root")).toHaveValue("root");
   });
 
-  it("renders with loaded session data in Edit Connection mode", () => {
-    render(
+  it("renders with loaded session data in Edit Connection mode", async () => {
+    await act(async () => {
+      render(
       <SSHSessionForm
         session={mockSession}
         onClose={onCloseMock}
         onSave={onSaveMock}
         addToast={addToastMock}
-      />,
-    );
+        />,
+      );
+    });
 
     expect(screen.getByText("Edit Connection")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("e.g. Production Web")).toHaveValue(
@@ -79,20 +83,20 @@ describe("SSHSessionForm Component", () => {
     );
     expect(screen.getByLabelText("Port")).toHaveValue(22);
     expect(screen.getByPlaceholderText("root")).toHaveValue("ubuntu");
-    expect(screen.getByPlaceholderText("ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢")).toHaveValue(
-      "mypassword123",
-    );
+    expect(screen.getByPlaceholderText("password")).toHaveValue("mypassword123");
   });
 
   it("allows toggling auth methods between Password and Key File", async () => {
-    render(
+    await act(async () => {
+      render(
       <SSHSessionForm
         session={null}
         onClose={onCloseMock}
         onSave={onSaveMock}
         addToast={addToastMock}
-      />,
-    );
+        />,
+      );
+    });
 
     // Toggle to Key File
     const keyFileBtn = screen.getByRole("button", { name: "Key File" });
@@ -107,20 +111,21 @@ describe("SSHSessionForm Component", () => {
     const passwordBtn = screen.getByRole("button", { name: "Password" });
     fireEvent.click(passwordBtn);
 
-    expect(screen.getByPlaceholderText("ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("password")).toBeInTheDocument();
   });
 
   it("submits a new connection successfully", async () => {
     AppBackend.AddSSHSession.mockResolvedValue(true);
-
-    render(
+    await act(async () => {
+      render(
       <SSHSessionForm
         session={null}
         onClose={onCloseMock}
         onSave={onSaveMock}
         addToast={addToastMock}
-      />,
-    );
+        />,
+      );
+    });
 
     fireEvent.change(screen.getByPlaceholderText("e.g. Production Web"), {
       target: { value: "My Test Server" },
@@ -134,9 +139,7 @@ describe("SSHSessionForm Component", () => {
     fireEvent.change(screen.getByPlaceholderText("root"), {
       target: { value: "admin" },
     });
-    fireEvent.change(screen.getByPlaceholderText("ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢"), {
-      target: { value: "secret" },
-    });
+    fireEvent.change(screen.getByPlaceholderText("password"), { target: { value: "secret" } });
 
     const saveBtn = screen.getByRole("button", { name: "Save" });
     fireEvent.click(saveBtn);
@@ -154,15 +157,16 @@ describe("SSHSessionForm Component", () => {
 
   it("submits update successfully for an existing connection", async () => {
     AppBackend.UpdateSSHSession.mockResolvedValue(true);
-
-    render(
+    await act(async () => {
+      render(
       <SSHSessionForm
         session={mockSession}
         onClose={onCloseMock}
         onSave={onSaveMock}
         addToast={addToastMock}
-      />,
-    );
+        />,
+      );
+    });
 
     const updateBtn = screen.getByRole("button", { name: "Update" });
     fireEvent.click(updateBtn);
@@ -185,15 +189,16 @@ describe("SSHSessionForm Component", () => {
 
   it("displays a toast message on form submission error", async () => {
     AppBackend.UpdateSSHSession.mockRejectedValue(new Error("Backend offline"));
-
-    render(
+    await act(async () => {
+      render(
       <SSHSessionForm
         session={mockSession}
         onClose={onCloseMock}
         onSave={onSaveMock}
         addToast={addToastMock}
-      />,
-    );
+        />,
+      );
+    });
 
     const updateBtn = screen.getByRole("button", { name: "Update" });
     fireEvent.click(updateBtn);
