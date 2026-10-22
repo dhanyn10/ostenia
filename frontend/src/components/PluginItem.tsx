@@ -8,7 +8,14 @@ import {
 } from "lucide-react";
 import VersionDropdown from "@/components/VersionDropdown";
 import CircularProgress from "@/components/CircularProgress";
-import { cn, handleActionKey, shouldIgnoreCardToggle } from "@/utils/utils";
+import {
+  cn,
+  handleActionKey,
+  shouldIgnoreCardToggle,
+  isCustomVersionAllowed,
+  isParentTaskActive,
+  isTaskVersionInstalled,
+} from "@/utils/utils";
 
 
 interface PluginModuleItemProps {
@@ -174,29 +181,6 @@ const PluginModuleList: React.FC<PluginModuleListProps> = ({
 );
 
 
-function isCustomVersionAllowed(taskName: string): boolean {
-  return taskName !== "HeidiSQL" && taskName !== "OpenSSL";
-}
-
-function isParentTaskActive(progressObj: any): boolean {
-  return Boolean(
-    progressObj &&
-    progressObj.status !== "Ready" &&
-    progressObj.status !== "Completed" &&
-    !progressObj.status?.startsWith("Error"),
-  );
-}
-
-function isTaskVersionInstalled(
-  task: any,
-  selectedVersion?: string,
-  installedVersions: string[] = [],
-): boolean {
-  if (task.name === "OpenSSL" || task.name === "HeidiSQL") {
-    return Boolean(task.isInstalled);
-  }
-  return installedVersions.includes(selectedVersion || task.version);
-}
 
 function PluginItem({
   task,

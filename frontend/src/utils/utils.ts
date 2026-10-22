@@ -102,6 +102,91 @@ export function resolvePrerequisiteTask(task: any, selectedVersion?: string) {
   return modifiedTask;
 }
 
+export function isCustomVersionAllowed(taskName: string): boolean {
+  return taskName !== "HeidiSQL" && taskName !== "OpenSSL";
+}
+
+export function isParentTaskActive(progressObj: any): boolean {
+  return Boolean(
+    progressObj &&
+      progressObj.status !== "Ready" &&
+      progressObj.status !== "Completed" &&
+      !progressObj.status?.startsWith("Error"),
+  );
+}
+
+export function isTaskVersionInstalled(
+  task: any,
+  selectedVersion?: string,
+  installedVersions: string[] = [],
+): boolean {
+  if (task.name === "OpenSSL" || task.name === "HeidiSQL") {
+    return Boolean(task.isInstalled);
+  }
+  return installedVersions.includes(selectedVersion || task.version);
+}
+
+// ============================================================================
+// 5. SERVICE HELPERS
+// ============================================================================
+
+export interface ServiceActionFlags {
+  isInstalled: boolean;
+  isHttpsEnabled: boolean;
+  hasOpenFolder: boolean;
+  hasTerminal: boolean;
+  hasHttpsToggle: boolean;
+  hasPhpExtManager: boolean;
+  hasHeidiOpen: boolean;
+  hasExtraActions: boolean;
+}
+
+export function getServiceActionFlags(
+  service: any,
+  task: any,
+  apacheHttps: boolean,
+  nginxHttps: boolean,
+  isOpenSslEnabled: boolean,
+): ServiceActionFlags {
+  const isInstalled =
+    Boolean(task?.installedVers && task.installedVers.length > 0) ||
+    service.name === "OpenSSL";
+  const isWebServer = service.name === "Apache" || service.name === "Nginx";
+
+  let isHttpsEnabled = false;
+  if (service.name === "Apache") {
+    isHttpsEnabled = apacheHttps;
+  } else if (service.name === "Nginx") {
+    isHttpsEnabled = nginxHttps;
+  }
+
+  const hasTerminalFacility =
+    service.name !== "HeidiSQL" && service.name !== "OpenSSL";
+  const hasOpenFolder =
+    isInstalled && service.name !== "OpenSSL" && service.name !== "HeidiSQL";
+  const hasTerminal = isInstalled && hasTerminalFacility;
+  const hasHttpsToggle = isWebServer && isOpenSslEnabled;
+  const hasPhpExtManager = service.name === "PHP";
+  const hasHeidiOpen = service.name === "HeidiSQL" && isInstalled;
+  const hasExtraActions =
+    hasOpenFolder ||
+    hasTerminal ||
+    hasHttpsToggle ||
+    hasPhpExtManager ||
+    hasHeidiOpen;
+
+  return {
+    isInstalled,
+    isHttpsEnabled,
+    hasOpenFolder,
+    hasTerminal,
+    hasHttpsToggle,
+    hasPhpExtManager,
+    hasHeidiOpen,
+    hasExtraActions,
+  };
+}
+
 // ============================================================================
 // 5. CHART & SPARKLINE UTILS
 // ============================================================================

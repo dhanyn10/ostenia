@@ -14,7 +14,12 @@ import {
   Settings2,
   Loader2,
 } from "lucide-react";
-import { cn, shouldIgnoreCardToggle } from "@/utils/utils";
+import {
+  cn,
+  shouldIgnoreCardToggle,
+  getServiceActionFlags,
+  type ServiceActionFlags,
+} from "@/utils/utils";
 
 interface ServiceItemProps {
   service: any;
@@ -365,62 +370,6 @@ const ServiceExtraActions: React.FC<any> = ({
 );
 
 
-interface ServiceActionFlags {
-  isInstalled: boolean;
-  isHttpsEnabled: boolean;
-  hasOpenFolder: boolean;
-  hasTerminal: boolean;
-  hasHttpsToggle: boolean;
-  hasPhpExtManager: boolean;
-  hasHeidiOpen: boolean;
-  hasExtraActions: boolean;
-}
-
-function getServiceActionFlags(
-  service: any,
-  task: any,
-  apacheHttps: boolean,
-  nginxHttps: boolean,
-  isOpenSslEnabled: boolean,
-): ServiceActionFlags {
-  const isInstalled =
-    Boolean(task?.installedVers && task.installedVers.length > 0) ||
-    service.name === "OpenSSL";
-  const isWebServer = service.name === "Apache" || service.name === "Nginx";
-
-  let isHttpsEnabled = false;
-  if (service.name === "Apache") {
-    isHttpsEnabled = apacheHttps;
-  } else if (service.name === "Nginx") {
-    isHttpsEnabled = nginxHttps;
-  }
-
-  const hasTerminalFacility =
-    service.name !== "HeidiSQL" && service.name !== "OpenSSL";
-  const hasOpenFolder =
-    isInstalled && service.name !== "OpenSSL" && service.name !== "HeidiSQL";
-  const hasTerminal = isInstalled && hasTerminalFacility;
-  const hasHttpsToggle = isWebServer && isOpenSslEnabled;
-  const hasPhpExtManager = service.name === "PHP";
-  const hasHeidiOpen = service.name === "HeidiSQL" && isInstalled;
-  const hasExtraActions =
-    hasOpenFolder ||
-    hasTerminal ||
-    hasHttpsToggle ||
-    hasPhpExtManager ||
-    hasHeidiOpen;
-
-  return {
-    isInstalled,
-    isHttpsEnabled,
-    hasOpenFolder,
-    hasTerminal,
-    hasHttpsToggle,
-    hasPhpExtManager,
-    hasHeidiOpen,
-    hasExtraActions,
-  };
-}
 
 const ServiceItem: React.FC<ServiceItemProps> = ({
   service,
