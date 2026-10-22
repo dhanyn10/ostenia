@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import * as AppBackend from '../../wailsjs/go/backend/App';
-import { ServiceInfo, INITIAL_SERVICES } from '../types/service';
+import * as AppBackend from '@/wailsjs/go/backend/App';
+import { ServiceInfo, INITIAL_SERVICES } from '@/types/service';
 
 interface UseServicesOptions {
   addToast: (title: string, message: string, type: 'success' | 'error' | 'info') => void;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import * as AppBackend from "../../../wailsjs/go/backend/App";
+import * as AppBackend from "@/wailsjs/go/backend/App";
 import {
   Plus,
   Trash2,
@@ -9,11 +9,11 @@ import {
   ChevronRight,
   RefreshCw,
 } from "lucide-react";
-import SSHSessionView from "../SSHSessionView";
-import SSHSessionForm from "./SSHSessionForm";
+import SSHSessionView from "@/components/SSHSessionView";
+import SSHSessionForm from "@/components/ssh/SSHSessionForm";
 import { clsx } from "clsx";
-import ConfirmationModal from "../ConfirmationModal";
-import { handleActionKey } from "../../utils/a11y";
+import ConfirmationModal from "@/components/ConfirmationModal";
+import { handleActionKey } from "@/utils/a11y";
 
 interface SSHTabProps {
   /** Callback to trigger user-visible toast notifications */

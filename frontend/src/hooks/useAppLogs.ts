@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import * as AppBackend from '../../wailsjs/go/backend/App';
-import { parseStackTrace } from '../utils/stackParser';
+import * as AppBackend from '@/wailsjs/go/backend/App';
+import { parseStackTrace } from '@/utils/stackParser';
 
 export interface LogItem {
   id: string;

@@ -4,6 +4,7 @@ import (
 	"embed"
 	"os"
 	"ostenia/internal/backend"
+	"ostenia/internal/config"
 	"ostenia/internal/network"
 
 	"github.com/wailsapp/wails/v2"
@@ -14,7 +15,12 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+//go:embed wails.json
+var wailsJSON []byte
+
 func main() {
+	config.SetEmbeddedWailsJSON(wailsJSON)
+
 	// Check for admin helper command
 	if len(os.Args) >= 4 && os.Args[1] == "--add-host" {
 		ip := os.Args[2]

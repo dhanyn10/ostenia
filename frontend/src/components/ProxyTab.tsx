@@ -8,9 +8,9 @@ import {
   ChevronDown,
   Monitor,
 } from "lucide-react";
-import { EventsOn } from "../../wailsjs/runtime/runtime";
-import * as AppBackend from "../../wailsjs/go/backend/App";
-import { handleActionKey } from "../utils/a11y";
+import { EventsOn } from "@/wailsjs/runtime/runtime";
+import * as AppBackend from "@/wailsjs/go/backend/App";
+import { handleActionKey } from "@/utils/a11y";
 
 interface ProxyTabProps {
   addToast: (

@@ -103,6 +103,8 @@ const mockApp = {
   UploadRemoteFile: vi.fn().mockResolvedValue(null),
   EditRemoteFile: vi.fn().mockResolvedValue(null),
   ExecuteSFTPAction: vi.fn().mockResolvedValue(null),
+  GetAppVersion: vi.fn().mockResolvedValue("v0.10.0"),
+  CheckForAppUpdates: vi.fn().mockResolvedValue({ currentVersion: "v0.10.0", latestVersion: "v0.10.0", hasUpdate: false }),
 };
 
 // Mock Wails go globals
@@ -122,3 +124,6 @@ globalThis.go = {
 // Since components are in frontend/src/components, they use ../../wailsjs
 vi.mock('../../wailsjs/runtime/runtime', () => mockRuntime);
 vi.mock('../../wailsjs/go/backend/App', () => mockApp);
+
+vi.mock('@/wailsjs/runtime/runtime', () => mockRuntime);
+vi.mock('@/wailsjs/go/backend/App', () => mockApp);

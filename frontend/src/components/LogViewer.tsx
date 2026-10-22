@@ -1,6 +1,6 @@
 import React from "react";
 import { List, Copy as CopyIcon, Check, ArrowUp, CheckSquare, X, FolderOpen, Trash2 } from "lucide-react";
-import * as AppBackend from "../../wailsjs/go/backend/App";
+import * as AppBackend from "@/wailsjs/go/backend/App";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -751,7 +751,7 @@ function LogViewer({ logs, isActive = false, onClearLogs }: Readonly<LogViewerPr
               {!isService && log.rawStack && (
                 <details className="group/details text-[10px] text-slate-500 dark:text-slate-400">
                   <summary className="cursor-pointer font-bold select-none hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1 outline-none">
-                    <span className="inline-block transition-transform duration-100 group-open/details:rotate-90">▶</span>
+                    <span className="inline-block transition-transform duration-100 group-open/details:rotate-90">â–¶</span>
                     {" "}View Stack Trace
                   </summary>
                   <pre className="bg-black text-rose-400/90 dark:text-rose-300 p-4 rounded-md overflow-x-auto text-[9px] mt-2 font-mono border border-slate-800 leading-normal whitespace-pre">

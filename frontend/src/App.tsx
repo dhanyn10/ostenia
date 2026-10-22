@@ -1,32 +1,32 @@
 import { useState, useEffect, useCallback } from 'react';
-import { EventsOn } from '../wailsjs/runtime/runtime';
-import * as AppBackend from '../wailsjs/go/backend/App';
+import { EventsOn } from '@/wailsjs/runtime/runtime';
+import * as AppBackend from '@/wailsjs/go/backend/App';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 // Hooks
-import { useTheme } from './hooks/useTheme';
-import { useToast } from './hooks/useToast';
-import { useAppLogs } from './hooks/useAppLogs';
-import { useServices } from './hooks/useServices';
-import { usePrerequisites } from './hooks/usePrerequisites';
-import { useAppConfig } from './hooks/useAppConfig';
+import { useTheme } from '@/hooks/useTheme';
+import { useToast } from '@/hooks/useToast';
+import { useAppLogs } from '@/hooks/useAppLogs';
+import { useServices } from '@/hooks/useServices';
+import { usePrerequisites } from '@/hooks/usePrerequisites';
+import { useAppConfig } from '@/hooks/useAppConfig';
 
 // Components
-import MenuBar from './components/MenuBar';
-import StatusBar from './components/StatusBar';
-import VerticalNav from './components/VerticalNav';
-import AppHeader from './components/AppHeader';
-import SettingsModal from './components/SettingsModal';
-import Toast from './components/Toast';
-import LogViewer from './components/LogViewer';
-import ActivityTab from './components/ActivityTab';
-import PluginsTab from './components/PluginsTab';
-import ProxyTab from './components/ProxyTab';
-import SSHTab from './components/ssh/SSHTab';
-import Icons from './components/Icons';
-import ConfirmationModal from './components/ConfirmationModal';
-import AddCustomVersionModal from './components/AddCustomVersionModal';
+import MenuBar from '@/components/MenuBar';
+import StatusBar from '@/components/StatusBar';
+import VerticalNav from '@/components/VerticalNav';
+import AppHeader from '@/components/AppHeader';
+import SettingsModal from '@/components/SettingsModal';
+import Toast from '@/components/Toast';
+import LogViewer from '@/components/LogViewer';
+import ActivityTab from '@/components/ActivityTab';
+import PluginsTab from '@/components/PluginsTab';
+import ProxyTab from '@/components/ProxyTab';
+import SSHTab from '@/components/ssh/SSHTab';
+import Icons from '@/components/Icons';
+import ConfirmationModal from '@/components/ConfirmationModal';
+import AddCustomVersionModal from '@/components/AddCustomVersionModal';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -36,6 +36,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('activity');
   const [loading, setLoading] = useState(true);
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+  const [appVersion, setAppVersion] = useState("");
   const [isAddingPlugin, setIsAddingPlugin] = useState(false);
   const [customVersionModal, setCustomVersionModal] = useState({ isOpen: false, serviceName: '' });
   const [settingsModal, setSettingsModal] = useState({ isOpen: false, category: 'profile' });
@@ -179,6 +180,29 @@ function App() {
     };
   }, [setupConsoleOverrides, initApp, handleServiceLog, handleServiceStatus, handleDownloadProgress]);
 
+  useEffect(() => {
+    const autoCheckUpdates = async () => {
+      try {
+        const ver = await AppBackend.GetAppVersion();
+        if (ver) {
+          setAppVersion(ver);
+        }
+        const updateInfo = await AppBackend.CheckForAppUpdates();
+        if (updateInfo?.hasUpdate) {
+          addToast(
+            'Update Available',
+            `A new version (${updateInfo.latestVersion}) is available! Go to Help -> Check for Updates to view details.`,
+            'info'
+          );
+        }
+      } catch (err) {
+        console.debug('Auto-detect update error:', err);
+      }
+    };
+    void autoCheckUpdates();
+  }, [addToast]);
+
+
   const renderIcon = useCallback(
     (name: string, size = 20, className = '') => {
       const task = prerequisites?.find((prereq) => prereq.name === name);
@@ -196,7 +220,7 @@ function App() {
         theme === 'dark' ? 'bg-mui-dark-bg text-mui-grey-200' : 'bg-mui-grey-50 text-mui-grey-900'
       )}
     >
-      <MenuBar theme={theme} setTheme={setTheme} onOpenSettings={handleOpenSettings} />
+      <MenuBar theme={theme} setTheme={setTheme} onOpenSettings={handleOpenSettings} appVersion={appVersion} />
 
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
         <Toast toasts={toasts} removeToast={removeToast} />
@@ -286,7 +310,7 @@ function App() {
         </div>
       </div>
 
-      <StatusBar services={services} />
+      <StatusBar services={services} appVersion={appVersion} />
 
       <SettingsModal
         isOpen={settingsModal.isOpen}

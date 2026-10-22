@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, ZoomIn, Activity, Settings } from 'lucide-react';
-import { handleActionKey } from "../../utils/a11y";
-import * as AppBackend from '../../../wailsjs/go/backend/App';
+import { handleActionKey } from "@/utils/a11y";
+import * as AppBackend from '@/wailsjs/go/backend/App';
 
 const SSHManagementCategory: React.FC = () => {
   const [sshSessions, setSshSessions] = useState<any[]>([]);

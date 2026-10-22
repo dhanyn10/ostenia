@@ -2,13 +2,36 @@ import React, { useState, useEffect, useRef } from "react";
 import { Circle, ChevronUp, Server } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { handleActionKey } from "../utils/a11y";
+import { handleActionKey } from "@/utils/a11y";
+import * as AppBackend from "@/wailsjs/go/backend/App";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const StatusBar = ({ services }) => {
+interface StatusBarProps {
+  services: any[];
+  appVersion?: string;
+}
+
+const StatusBar: React.FC<StatusBarProps> = ({ services, appVersion }) => {
+  const [version, setVersion] = useState(appVersion || "");
+
+  useEffect(() => {
+    if (appVersion) {
+      setVersion(appVersion);
+      return;
+    }
+    const fetchVersion = async () => {
+      try {
+        const v = await AppBackend.GetAppVersion();
+        if (v) setVersion(v);
+      } catch {
+        // Ignore fallback if backend not available (e.g. browser environment)
+      }
+    };
+    void fetchVersion();
+  }, [appVersion]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const activeServices = services.filter((service) => service.status === "Running");
   const dropdownRef = useRef(null);
@@ -113,7 +136,7 @@ const StatusBar = ({ services }) => {
           UTF-8
         </div>
         <div className="hover:bg-white/10 px-2 h-full flex items-center transition-colors cursor-default">
-          Ostenia Environment
+          {version ? `Ostenia ${version}` : "Ostenia"}
         </div>
       </div>
     </div>

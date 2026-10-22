@@ -1,9 +1,16 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: [
+      { find: /^@\/wailsjs(.*)$/, replacement: path.resolve(__dirname, './wailsjs') + '$1' },
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+    ],
+  },
   build: {
     rollupOptions: {
       output: {
@@ -17,6 +24,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test-setup.js',
+    include: ['__tests__/**/*.test.{ts,tsx}'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/cypress/**', '**/.{idea,git,cache,output,temp}/**', '**/e2e/**'],
     coverage: {
       provider: 'v8',

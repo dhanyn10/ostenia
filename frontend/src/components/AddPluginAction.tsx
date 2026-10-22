@@ -1,7 +1,7 @@
 import React from "react";
 import { Plus } from "lucide-react";
 import { clsx } from "clsx";
-import { handleActionKey } from "../utils/a11y";
+import { handleActionKey } from "@/utils/a11y";
 import { twMerge } from "tailwind-merge";
 
 function cn(...inputs) {

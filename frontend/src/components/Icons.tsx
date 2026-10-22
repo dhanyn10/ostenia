@@ -1,7 +1,7 @@
 import React from "react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import pluginsSvg from "../assets/icons/plugins.svg"; // Static import for UI icons
+import pluginsSvg from "@/assets/icons/plugins.svg"; // Static import for UI icons
 
 function cn(...inputs) {
   return twMerge(clsx(inputs));

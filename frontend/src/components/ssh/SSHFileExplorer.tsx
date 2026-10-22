@@ -8,7 +8,7 @@ import {
   File,
   MoreVertical,
 } from "lucide-react";
-import { handleActionKey } from "../../utils/a11y";
+import { handleActionKey } from "@/utils/a11y";
 
 interface SSHFileExplorerProps {
   remotePath: string;
@@ -133,7 +133,7 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
           Name
           {sortConfig.key === "name" && (
             <span className="text-mui-blue-500">
-              {sortConfig.direction === "asc" ? "↑" : "↓"}
+              {sortConfig.direction === "asc" ? "â†‘" : "â†“"}
             </span>
           )}
         </button>
@@ -145,7 +145,7 @@ const SSHFileExplorer: React.FC<SSHFileExplorerProps> = ({
           Size
           {sortConfig.key === "size" && (
             <span className="text-mui-blue-500">
-              {sortConfig.direction === "asc" ? "↑" : "↓"}
+              {sortConfig.direction === "asc" ? "â†‘" : "â†“"}
             </span>
           )}
         </button>
