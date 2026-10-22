@@ -18,7 +18,6 @@ import {
   cn,
   shouldIgnoreCardToggle,
   getServiceActionFlags,
-  type ServiceActionFlags,
 } from "@/utils/utils";
 
 interface ServiceItemProps {

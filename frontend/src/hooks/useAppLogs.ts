@@ -2,8 +2,9 @@ import { useState, useCallback } from 'react';
 import * as AppBackend from '@/wailsjs/go/backend/App';
 import { parseStackTrace } from "@/utils/utils";
 
-import type { LogItem, LogEntry } from '@/types/logs';
-export type { LogItem, LogEntry };
+import type { LogItem } from '@/types/logs';
+export type { LogEntry } from '@/types/logs';
+export type { LogItem };
 
 let isLogging = false;
 
