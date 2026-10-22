@@ -1,12 +1,8 @@
 import React from "react";
 import { Info, X } from "lucide-react";
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
 import { handleActionKey } from "@/utils/a11y";
+import { cn } from "@/utils/utils";
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 interface AlertModalProps {
   isOpen: boolean;

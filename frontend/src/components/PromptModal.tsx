@@ -1,12 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Edit3, X } from "lucide-react";
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
 import { handleActionKey } from "@/utils/a11y";
+import { cn } from "@/utils/utils";
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 interface PromptModalProps {
   isOpen: boolean;

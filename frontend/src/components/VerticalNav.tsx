@@ -1,11 +1,7 @@
 import React from "react";
 import { Home, List, Sun, Moon, Globe, Server, Wrench } from "lucide-react";
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { cn } from "@/utils/utils";
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 interface VerticalNavProps {
   activeTab: string;

@@ -1,12 +1,8 @@
 import React from "react";
 import { List, Copy as CopyIcon, Check, ArrowUp, CheckSquare, X, FolderOpen, Trash2 } from "lucide-react";
 import * as AppBackend from "@/wailsjs/go/backend/App";
-import { clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { cn } from "@/utils/utils";
 
-function cn(...inputs: any[]) {
-  return twMerge(clsx(inputs));
-}
 
 interface CallerInfo {
   functionName: string;
