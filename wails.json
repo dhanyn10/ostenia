@@ -8,5 +8,8 @@
   "author": {
     "name": "Dhany Nurdiansyah",
     "email": "dhanyn.dhan@gmail.com"
+  },
+  "info": {
+    "productVersion": "0.10.0"
   }
 }

@@ -1194,7 +1194,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             <div className="flex items-center gap-6 text-[10px] font-bold text-mui-grey-600 dark:text-mui-grey-400">
               <MetricItem
                 label="CPU"
-                valueText={resourceUsage ? `${resourceUsage.cpu.toFixed(0)}%` : "â€”"}
+                valueText={resourceUsage ? `${resourceUsage.cpu.toFixed(0)}%` : "\u2014"}
                 metric="cpu"
                 color="#2196f3"
                 fillColor="rgba(33, 150, 243, 0.15)"
@@ -1210,7 +1210,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
                 valueText={
                   resourceUsage
                     ? `${(resourceUsage.memUsed / 1024).toFixed(1)} GB / ${(resourceUsage.memTotal / 1024).toFixed(1)} GB (${resourceUsage.mem.toFixed(0)}%)`
-                    : "â€”"
+                    : "\u2014"
                 }
                 metric="mem"
                 color="#9c27b0"
@@ -1227,7 +1227,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
                 valueText={
                   resourceUsage
                     ? `${(resourceUsage.diskUsed / 1024).toFixed(1)} GB / ${(resourceUsage.diskTotal / 1024).toFixed(1)} GB (${resourceUsage.disk.toFixed(0)}%)`
-                    : "â€”"
+                    : "\u2014"
                 }
                 metric="disk"
                 color="#009688"

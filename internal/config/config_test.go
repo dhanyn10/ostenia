@@ -263,3 +263,48 @@ func TestEncryptDecrypt_AESError(t *testing.T) {
 		t.Error("Expected Decrypt to fail with short key")
 	}
 }
+
+
+func TestGetAppVersion_FromConfig(t *testing.T) {
+	oldGlobal := globalConfig
+	globalConfig = &Config{AppVersion: "0.15.0"}
+	defer func() { globalConfig = oldGlobal }()
+
+	if got := GetAppVersion(); got != "v0.15.0" {
+		t.Errorf("GetAppVersion() = %v, want v0.15.0", got)
+	}
+}
+
+func TestGetAppVersion_FromEmbeddedWails(t *testing.T) {
+	oldGlobal := globalConfig
+	globalConfig = nil
+	oldEmbedded := embeddedWailsJSON
+	defer func() {
+		globalConfig = oldGlobal
+		embeddedWailsJSON = oldEmbedded
+	}()
+
+	SetEmbeddedWailsJSON([]byte(`{"info":{"productVersion":"0.20.0"}}`))
+	if got := extractVersionFromWailsJSON(embeddedWailsJSON); got != "0.20.0" {
+		t.Errorf("extractVersionFromWailsJSON() = %v, want 0.20.0", got)
+	}
+}
+
+func TestFormatVersion(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"0.10.0", "v0.10.0"},
+		{"v0.10.0", "v0.10.0"},
+		{"V1.2.3", "V1.2.3"},
+		{"", ""},
+		{" 1.0.0 ", "v1.0.0"},
+	}
+
+	for _, tt := range tests {
+		if got := FormatVersion(tt.input); got != tt.want {
+			t.Errorf("FormatVersion(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}

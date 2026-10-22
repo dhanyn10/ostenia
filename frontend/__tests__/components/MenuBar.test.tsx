@@ -10,6 +10,8 @@ vi.mock("@/wailsjs/go/backend/App", () => ({
   Unmaximize: vi.fn(),
   Close: vi.fn(),
   ToggleDevTools: vi.fn(),
+  GetAppVersion: vi.fn().mockResolvedValue("v0.10.0"),
+  CheckForAppUpdates: vi.fn().mockResolvedValue({ currentVersion: "v0.10.0", latestVersion: "v0.10.0", hasUpdate: false }),
 }));
 
 describe("MenuBar Component", () => {
@@ -17,6 +19,7 @@ describe("MenuBar Component", () => {
     theme: "light",
     setTheme: vi.fn(),
     onOpenSettings: vi.fn(),
+    appVersion: "v0.10.0",
   };
 
   beforeEach(() => {
@@ -111,7 +114,7 @@ describe("MenuBar Component", () => {
     fireEvent.click(screen.getByText("Help"));
     fireEvent.click(screen.getByText("Documentation"));
     expect(windowOpenSpy).toHaveBeenCalledWith(
-      "https://github.com/dhanyn/ostenia",
+      "https://github.com/dhanyn10/ostenia",
       "_blank",
       "noopener,noreferrer",
     );
@@ -122,6 +125,22 @@ describe("MenuBar Component", () => {
 
     windowOpenSpy.mockRestore();
   });
+  it("handles check for updates menu item", async () => {
+    (AppBackend.CheckForAppUpdates as any).mockResolvedValue({
+      currentVersion: "v0.10.0",
+      latestVersion: "v0.11.0",
+      hasUpdate: true,
+      releaseUrl: "https://github.com/dhanyn10/ostenia/releases/tag/v0.11.0",
+    });
+
+    render(<MenuBar {...mockProps} />);
+
+    fireEvent.click(screen.getByText("Help"));
+    fireEvent.click(screen.getByText("Check for Updates"));
+
+    expect(await screen.findByText("Update Available")).toBeInTheDocument();
+  });
+
 
   it("handles exit in file menu", () => {
     render(<MenuBar {...mockProps} />);

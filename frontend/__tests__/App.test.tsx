@@ -53,6 +53,8 @@ vi.mock('@/wailsjs/go/backend/App', () => ({
   GetRecentLogs: vi.fn().mockResolvedValue([]),
   ClearLogs: vi.fn().mockResolvedValue(null),
   OpenLogsFolder: vi.fn().mockResolvedValue(null),
+  GetAppVersion: vi.fn().mockResolvedValue("v0.10.0"),
+  CheckForAppUpdates: vi.fn().mockResolvedValue({ currentVersion: "v0.10.0", latestVersion: "v0.10.0", hasUpdate: false }),
 }));
 
 vi.mock('@/wailsjs/runtime/runtime', () => ({

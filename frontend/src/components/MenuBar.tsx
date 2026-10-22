@@ -6,6 +6,7 @@ import {
   X,
   Eye,
   HelpCircle,
+  RefreshCw,
   ChevronRight,
   Monitor,
   Terminal as TerminalIcon,
@@ -141,13 +142,26 @@ interface MenuBarProps {
   theme: string;
   setTheme: (theme: string) => void;
   onOpenSettings: (category: string) => void;
+  appVersion?: string;
 }
 
 const MenuBar: React.FC<MenuBarProps> = ({
   theme,
   setTheme,
   onOpenSettings,
+  appVersion,
 }) => {
+  const [version, setVersion] = useState(appVersion || "");
+
+  useEffect(() => {
+    if (appVersion) {
+      setVersion(appVersion);
+    } else {
+      AppBackend.GetAppVersion().then((v: string) => {
+        if (v) setVersion(v);
+      }).catch(() => {});
+    }
+  }, [appVersion]);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
@@ -170,6 +184,43 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const handleOpenCategory = (category: string) => {
     onOpenSettings(category);
     setOpenMenu(null);
+  };
+
+  const [updateModal, setUpdateModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    releaseUrl?: string;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+  });
+
+  const handleCheckUpdates = async () => {
+    try {
+      const updateInfo = await AppBackend.CheckForAppUpdates();
+      if (updateInfo?.hasUpdate) {
+        setUpdateModal({
+          isOpen: true,
+          title: "Update Available",
+          message: `A newer version (${updateInfo.latestVersion}) is available!\n\nCurrent Version: ${updateInfo.currentVersion}\nLatest Version: ${updateInfo.latestVersion}\n\nClick OK to visit the release download page.`,
+          releaseUrl: updateInfo.releaseUrl,
+        });
+      } else {
+        setUpdateModal({
+          isOpen: true,
+          title: "Up to Date",
+          message: `You are already running the latest version of Ostenia (${updateInfo?.currentVersion || version || ""}).`,
+        });
+      }
+    } catch {
+      setUpdateModal({
+        isOpen: true,
+        title: "Check Updates",
+        message: "Failed to check for updates. Please check your internet connection and try again.",
+      });
+    }
   };
 
   const menuItems = [
@@ -249,6 +300,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
       label: "Help",
       content: (
         <>
+                    <SubMenuItem
+            label="Check for Updates"
+            icon={RefreshCw}
+            onClick={() => {
+              void handleCheckUpdates();
+              setOpenMenu(null);
+            }}
+            onKeyDown={handleActionKey(() => {
+              void handleCheckUpdates();
+              setOpenMenu(null);
+            })}
+          />
           <SubMenuItem
             label="About Ostenia"
             icon={HelpCircle}
@@ -266,7 +329,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             icon={ExternalLink}
             onClick={() => {
               window.open(
-                "https://github.com/dhanyn/ostenia",
+                "https://github.com/dhanyn10/ostenia",
                 "_blank",
                 "noopener,noreferrer",
               );
@@ -352,8 +415,19 @@ const MenuBar: React.FC<MenuBarProps> = ({
       <AlertModal
         isOpen={isAboutOpen}
         title="About Ostenia"
-        message={"Ostenia v1.0.0\nPortable Development Environment"}
+        message={`Ostenia ${version || ""}\nPortable Development Environment`.trim()}
         onClose={() => setIsAboutOpen(false)}
+      />
+      <AlertModal
+        isOpen={updateModal.isOpen}
+        title={updateModal.title}
+        message={updateModal.message}
+        onClose={() => {
+          if (updateModal.releaseUrl) {
+            window.open(updateModal.releaseUrl, "_blank", "noopener,noreferrer");
+          }
+          setUpdateModal((prev) => ({ ...prev, isOpen: false }));
+        }}
       />
     </div>
   );

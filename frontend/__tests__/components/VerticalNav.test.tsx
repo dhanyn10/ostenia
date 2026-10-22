@@ -4,7 +4,7 @@ import VerticalNav from "@/components/VerticalNav";
 import React from "react";
 
 // Mock Icons because it might use things that need complex setup
-vi.mock("../components/Icons", () => ({
+vi.mock("@/components/Icons", () => ({
   default: {
     Plugins: () => <div data-testid="plugins-icon" />,
   },

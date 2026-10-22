@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from "vitest";
 import Icons from "@/components/Icons";
 
 // Mock the static assets to avoid any path resolution issue
-vi.mock("../assets/icons/plugins.svg", () => ({
+vi.mock("@/assets/icons/plugins.svg", () => ({
   default: "mock-plugins.svg",
 }));
 

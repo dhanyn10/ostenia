@@ -783,7 +783,7 @@ describe("SSHSessionView Component", () => {
     render(<SSHSessionView {...mockProps} />);
 
     // Initially (before first fetch finishes) should show em-dash
-    expect(screen.getAllByText(/ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â/)).toHaveLength(3);
+    expect(screen.getAllByText(/\u2014/)).toHaveLength(3);
 
     // Wait for the mock values to be loaded
     await waitFor(() => {
@@ -840,10 +840,10 @@ describe("SSHSessionView Component", () => {
     fireEvent.click(reconnectBtn);
 
     await waitFor(() => {
-      expect(screen.getByText("CPU: ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")).toBeInTheDocument();
+      expect(screen.getByText("CPU: \u2014")).toBeInTheDocument();
     });
-    expect(screen.getByText("RAM: ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")).toBeInTheDocument();
-    expect(screen.getByText("DISK: ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")).toBeInTheDocument();
+    expect(screen.getByText("RAM: \u2014")).toBeInTheDocument();
+    expect(screen.getByText("DISK: \u2014")).toBeInTheDocument();
   });
 
   it("handles always-inline display mode rendering", async () => {

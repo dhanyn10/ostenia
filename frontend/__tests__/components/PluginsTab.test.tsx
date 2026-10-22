@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from "vitest";
 import PluginsTab from "@/components/PluginsTab";
 
 // Mock the child component PluginItem to isolate PluginsTab
-vi.mock("./PluginItem", () => ({
+vi.mock("@/components/PluginItem", () => ({
   default: ({ task, onOpenFolder }: any) => (
     <div data-testid={`plugin-item-${task.name}`}>
       <span>Plugin: {task.name}</span>

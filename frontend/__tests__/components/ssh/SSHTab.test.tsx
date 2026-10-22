@@ -15,12 +15,12 @@ import * as AppBackendRaw from "@/wailsjs/go/backend/App";
 const AppBackend = AppBackendRaw as any;
 
 // Mock sub-components to focus on SSHTab logic
-vi.mock("../SSHSessionView", () => ({
+vi.mock("@/components/SSHSessionView", () => ({
   default: () => <div data-testid="ssh-session-view" />,
 }));
 
-vi.mock("./SSHSessionForm", () => ({
-  default: ({ onClose }) => (
+vi.mock("@/components/ssh/SSHSessionForm", () => ({
+  default: ({ onClose }: { onClose: () => void }) => (
     <div data-testid="ssh-session-form">
       <button onClick={onClose}>Close</button>
     </div>
