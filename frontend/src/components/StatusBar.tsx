@@ -20,11 +20,17 @@ const StatusBar: React.FC<StatusBarProps> = ({ services, appVersion }) => {
   useEffect(() => {
     if (appVersion) {
       setVersion(appVersion);
-    } else {
-      AppBackend.GetAppVersion().then((v: string) => {
-        if (v) setVersion(v);
-      }).catch(() => {});
+      return;
     }
+    const fetchVersion = async () => {
+      try {
+        const v = await AppBackend.GetAppVersion();
+        if (v) setVersion(v);
+      } catch {
+        // Ignore fallback if backend not available (e.g. browser environment)
+      }
+    };
+    void fetchVersion();
   }, [appVersion]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const activeServices = services.filter((service) => service.status === "Running");
