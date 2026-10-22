@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Circle, ChevronUp, Server } from "lucide-react";
-import { handleActionKey } from "@/utils/a11y";
 import * as AppBackend from "@/wailsjs/go/backend/App";
-import { cn } from "@/utils/utils";
+import { cn, handleActionKey } from "@/utils/utils";
 
 
 interface StatusBarProps {

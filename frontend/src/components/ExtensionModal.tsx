@@ -1,7 +1,6 @@
 import React from "react";
 import { X, Settings2, Search } from "lucide-react";
-import { handleActionKey } from "@/utils/a11y";
-import { cn } from "@/utils/utils";
+import { cn, handleActionKey } from "@/utils/utils";
 
 
 function ExtensionModal({

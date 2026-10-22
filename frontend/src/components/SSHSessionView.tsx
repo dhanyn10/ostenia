@@ -23,10 +23,11 @@ import SSHToolbar from "@/components/ssh/SSHToolbar";
 import SSHFileExplorer from "@/components/ssh/SSHFileExplorer";
 import ConfirmationModal from "@/components/ConfirmationModal";
 import PromptModal from "@/components/PromptModal";
-import { measureActivity } from "@/utils/activityLogger";
+
 import { MetricItem } from "@/components/ssh/ResourceLineChart";
 
 import {
+  measureActivity,
   isArchiveFile,
   calculateContextMenuY,
   isIgnorableSFTPError,
@@ -34,7 +35,7 @@ import {
   extractPathFromTitle,
   setupZoomKeyHandler,
   filterAndSortFiles,
-} from "@/utils/sshUtils";
+} from "@/utils/utils";
 
 interface SSHSessionViewProps {
   /** The current active SSH/WSL session profile */

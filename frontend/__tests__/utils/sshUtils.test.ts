@@ -8,7 +8,7 @@ import {
   formatSize,
   filterAndSortFiles,
   setupZoomKeyHandler,
-} from "@/utils/sshUtils";
+} from "@/utils/utils";
 
 describe("sshUtils", () => {
   describe("isArchiveFile", () => {

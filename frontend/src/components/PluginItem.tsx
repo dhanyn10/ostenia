@@ -8,8 +8,7 @@ import {
 } from "lucide-react";
 import VersionDropdown from "@/components/VersionDropdown";
 import CircularProgress from "@/components/CircularProgress";
-import { handleActionKey } from "@/utils/a11y";
-import { cn } from "@/utils/utils";
+import { cn, handleActionKey, shouldIgnoreCardToggle } from "@/utils/utils";
 
 
 interface PluginModuleItemProps {
@@ -174,14 +173,6 @@ const PluginModuleList: React.FC<PluginModuleListProps> = ({
   </div>
 );
 
-function shouldIgnoreCardToggle(target: HTMLElement): boolean {
-  return Boolean(
-    target.closest("button:not([data-card-expand])") ||
-    target.closest("a") ||
-    target.closest("input") ||
-    target.closest("[data-no-card-toggle]"),
-  );
-}
 
 function isCustomVersionAllowed(taskName: string): boolean {
   return taskName !== "HeidiSQL" && taskName !== "OpenSSL";

@@ -3,7 +3,7 @@ import {
   getLogLevel,
   formatCompleteLog,
   getPaginationRange,
-} from "@/utils/logFormatters";
+} from "@/utils/utils";
 import type { LogEntry } from "@/types/logs";
 
 describe("logFormatters utility", () => {

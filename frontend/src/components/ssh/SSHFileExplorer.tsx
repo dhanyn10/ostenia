@@ -8,8 +8,7 @@ import {
   File,
   MoreVertical,
 } from "lucide-react";
-import { handleActionKey } from "@/utils/a11y";
-import { formatSize } from "@/utils/sshUtils";
+import { formatSize, handleActionKey } from "@/utils/utils";
 
 interface SSHFileExplorerProps {
   remotePath: string;

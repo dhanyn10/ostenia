@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import * as AppBackend from '@/wailsjs/go/backend/App';
-import { parseStackTrace } from '@/utils/stackParser';
+import { parseStackTrace } from "@/utils/utils";
 
 import type { LogItem, LogEntry } from '@/types/logs';
 export type { LogItem, LogEntry };

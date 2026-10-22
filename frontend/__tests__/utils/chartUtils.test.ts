@@ -3,7 +3,7 @@ import {
   buildSparklineSegments,
   buildSparklinePaths,
   type ResourceDataPoint,
-} from "@/utils/chartUtils";
+} from "@/utils/utils";
 
 describe("chartUtils", () => {
   describe("buildSparklineSegments", () => {

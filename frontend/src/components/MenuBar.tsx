@@ -16,9 +16,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import * as AppBackend from "@/wailsjs/go/backend/App";
-import { handleActionKey } from "@/utils/a11y";
+
 import AlertModal from "@/components/AlertModal";
-import { cn } from "@/utils/utils";
+import { cn, handleActionKey } from "@/utils/utils";
 
 
 interface MenuItemProps {

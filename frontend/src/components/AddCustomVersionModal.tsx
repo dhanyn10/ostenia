@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import * as AppBackend from "@/wailsjs/go/backend/App";
 import { OnFileDrop, OnFileDropOff } from "@/wailsjs/runtime/runtime";
-import { handleActionKey } from "@/utils/a11y";
+import { handleActionKey } from "@/utils/utils";
 
 interface AddCustomVersionModalProps {
   isOpen: boolean;

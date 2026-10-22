@@ -13,7 +13,7 @@ import SSHSessionView from "@/components/SSHSessionView";
 import SSHSessionForm from "@/components/ssh/SSHSessionForm";
 import { clsx } from "clsx";
 import ConfirmationModal from "@/components/ConfirmationModal";
-import { handleActionKey } from "@/utils/a11y";
+import { handleActionKey } from "@/utils/utils";
 
 interface SSHTabProps {
   /** Callback to trigger user-visible toast notifications */

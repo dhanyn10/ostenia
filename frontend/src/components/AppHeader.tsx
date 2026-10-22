@@ -7,8 +7,7 @@ import {
   Monitor,
   ExternalLink,
 } from "lucide-react";
-import { handleActionKey } from "@/utils/a11y";
-import { cn } from "@/utils/utils";
+import { cn, handleActionKey } from "@/utils/utils";
 
 
 function AppHeader({

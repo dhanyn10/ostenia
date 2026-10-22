@@ -14,7 +14,7 @@ import {
   Settings2,
   Loader2,
 } from "lucide-react";
-import { cn } from "@/utils/utils";
+import { cn, shouldIgnoreCardToggle } from "@/utils/utils";
 
 interface ServiceItemProps {
   service: any;
@@ -364,14 +364,6 @@ const ServiceExtraActions: React.FC<any> = ({
   </div>
 );
 
-function shouldIgnoreCardToggle(target: HTMLElement): boolean {
-  return Boolean(
-    target.closest("button:not([data-card-expand])") ||
-    target.closest("a") ||
-    target.closest("input") ||
-    target.closest("[data-no-card-toggle]"),
-  );
-}
 
 interface ServiceActionFlags {
   isInstalled: boolean;

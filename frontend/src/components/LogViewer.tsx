@@ -16,7 +16,7 @@ import {
   getPaginationRange,
   getLogLevel,
   formatCompleteLog,
-} from "@/utils/logFormatters";
+} from "@/utils/utils";
 
 export { getLogLevel, formatCompleteLog, getPaginationRange };
 export type {

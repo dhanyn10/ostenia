@@ -5,7 +5,7 @@ import {
   buildSparklinePaths,
   type ResourceMetricType,
   type ResourceDataPoint,
-} from "@/utils/chartUtils";
+} from "@/utils/utils";
 
 export { buildSparklineSegments, buildSparklinePaths };
 export type { ResourceMetricType, ResourceDataPoint };
