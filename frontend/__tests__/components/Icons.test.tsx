@@ -1,7 +1,7 @@
 import React from "react";
 import { render } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import Icons from "../../src/components/Icons";
+import Icons from "@/components/Icons";
 
 // Mock the static assets to avoid any path resolution issue
 vi.mock("../assets/icons/plugins.svg", () => ({

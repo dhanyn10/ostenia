@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import SSHManagementCategory from '../../../src/components/settings/SSHManagementCategory';
+import SSHManagementCategory from '@/components/settings/SSHManagementCategory';
 
 // Mock AppBackend
 vi.mock('@/wailsjs/go/backend/App', () => ({

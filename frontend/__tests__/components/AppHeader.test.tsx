@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import AppHeader from "../../src/components/AppHeader";
+import AppHeader from "@/components/AppHeader";
 import React from "react";
 
 describe("AppHeader Component", () => {

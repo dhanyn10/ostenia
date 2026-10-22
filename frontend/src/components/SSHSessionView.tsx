@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
-import { EventsOn, EventsOff } from "../../wailsjs/runtime/runtime";
-import * as AppBackend from "../../wailsjs/go/backend/App";
+import { EventsOn, EventsOff } from "@/wailsjs/runtime/runtime";
+import * as AppBackend from "@/wailsjs/go/backend/App";
 import {
   Edit2,
   Edit3,
@@ -19,12 +19,12 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import SSHToolbar from "./ssh/SSHToolbar";
-import SSHFileExplorer from "./ssh/SSHFileExplorer";
-import ConfirmationModal from "./ConfirmationModal";
-import PromptModal from "./PromptModal";
-import { measureActivity } from "../utils/activityLogger";
-import { MetricItem } from "./ssh/ResourceLineChart";
+import SSHToolbar from "@/components/ssh/SSHToolbar";
+import SSHFileExplorer from "@/components/ssh/SSHFileExplorer";
+import ConfirmationModal from "@/components/ConfirmationModal";
+import PromptModal from "@/components/PromptModal";
+import { measureActivity } from "@/utils/activityLogger";
+import { MetricItem } from "@/components/ssh/ResourceLineChart";
 
 /**
  * Checks whether a given filename represents a known archive file format.
@@ -1194,7 +1194,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
             <div className="flex items-center gap-6 text-[10px] font-bold text-mui-grey-600 dark:text-mui-grey-400">
               <MetricItem
                 label="CPU"
-                valueText={resourceUsage ? `${resourceUsage.cpu.toFixed(0)}%` : "—"}
+                valueText={resourceUsage ? `${resourceUsage.cpu.toFixed(0)}%` : "â€”"}
                 metric="cpu"
                 color="#2196f3"
                 fillColor="rgba(33, 150, 243, 0.15)"
@@ -1210,7 +1210,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
                 valueText={
                   resourceUsage
                     ? `${(resourceUsage.memUsed / 1024).toFixed(1)} GB / ${(resourceUsage.memTotal / 1024).toFixed(1)} GB (${resourceUsage.mem.toFixed(0)}%)`
-                    : "—"
+                    : "â€”"
                 }
                 metric="mem"
                 color="#9c27b0"
@@ -1227,7 +1227,7 @@ const SSHSessionView: React.FC<SSHSessionViewProps> = ({
                 valueText={
                   resourceUsage
                     ? `${(resourceUsage.diskUsed / 1024).toFixed(1)} GB / ${(resourceUsage.diskTotal / 1024).toFixed(1)} GB (${resourceUsage.disk.toFixed(0)}%)`
-                    : "—"
+                    : "â€”"
                 }
                 metric="disk"
                 color="#009688"

@@ -6,11 +6,11 @@ import {
   ChevronUp,
   Download,
 } from "lucide-react";
-import VersionDropdown from "./VersionDropdown";
-import CircularProgress from "./CircularProgress";
+import VersionDropdown from "@/components/VersionDropdown";
+import CircularProgress from "@/components/CircularProgress";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { handleActionKey } from "../utils/a11y";
+import { handleActionKey } from "@/utils/a11y";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

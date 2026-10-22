@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
-import StatusBar from "../../src/components/StatusBar";
+import StatusBar from "@/components/StatusBar";
 import React from "react";
 
 describe("StatusBar Component", () => {

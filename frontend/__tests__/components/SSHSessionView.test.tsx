@@ -6,7 +6,7 @@ import {
   act,
 } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
-import SSHSessionView from "../../src/components/SSHSessionView";
+import SSHSessionView from "@/components/SSHSessionView";
 import * as AppBackend from "@/wailsjs/go/backend/App";
 
 let attachedKeyHandler: any = null;
@@ -783,7 +783,7 @@ describe("SSHSessionView Component", () => {
     render(<SSHSessionView {...mockProps} />);
 
     // Initially (before first fetch finishes) should show em-dash
-    expect(screen.getAllByText(/Ã¢â‚¬â€/)).toHaveLength(3);
+    expect(screen.getAllByText(/ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â/)).toHaveLength(3);
 
     // Wait for the mock values to be loaded
     await waitFor(() => {
@@ -840,10 +840,10 @@ describe("SSHSessionView Component", () => {
     fireEvent.click(reconnectBtn);
 
     await waitFor(() => {
-      expect(screen.getByText("CPU: Ã¢â‚¬â€")).toBeInTheDocument();
+      expect(screen.getByText("CPU: ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")).toBeInTheDocument();
     });
-    expect(screen.getByText("RAM: Ã¢â‚¬â€")).toBeInTheDocument();
-    expect(screen.getByText("DISK: Ã¢â‚¬â€")).toBeInTheDocument();
+    expect(screen.getByText("RAM: ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")).toBeInTheDocument();
+    expect(screen.getByText("DISK: ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â")).toBeInTheDocument();
   });
 
   it("handles always-inline display mode rendering", async () => {

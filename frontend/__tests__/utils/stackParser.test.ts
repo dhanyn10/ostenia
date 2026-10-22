@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cleanFileName, parseStackTrace } from "../../src/utils/stackParser";
+import { cleanFileName, parseStackTrace } from "@/utils/stackParser";
 
 describe("stackParser Utility Table-Driven Tests", () => {
   describe("cleanFileName", () => {

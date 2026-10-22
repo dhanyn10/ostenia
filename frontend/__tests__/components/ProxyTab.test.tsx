@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
-import ProxyTab from "../../src/components/ProxyTab";
+import ProxyTab from "@/components/ProxyTab";
 import * as AppBackend from "@/wailsjs/go/backend/App";
 
 // Mock Wails backend functions

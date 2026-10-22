@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
-import SSHFileExplorer from "../../../src/components/ssh/SSHFileExplorer";
+import SSHFileExplorer from "@/components/ssh/SSHFileExplorer";
 
 describe("SSHFileExplorer Component", () => {
   const onNavigateUpMock = vi.fn();

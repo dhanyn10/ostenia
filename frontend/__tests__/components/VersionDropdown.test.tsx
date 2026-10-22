@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import VersionDropdown from "../../src/components/VersionDropdown";
+import VersionDropdown from "@/components/VersionDropdown";
 
 describe("VersionDropdown Component", () => {
   it("renders correctly with current version and closed state", () => {

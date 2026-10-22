@@ -6,7 +6,7 @@ import {
   MetricItem,
   buildSparklineSegments,
   buildSparklinePaths,
-} from '../../../src/components/ssh/ResourceLineChart';
+} from '@/components/ssh/ResourceLineChart';
 
 describe('ResourceLineChart and MetricItem', () => {
   describe('buildSparklineSegments & buildSparklinePaths', () => {

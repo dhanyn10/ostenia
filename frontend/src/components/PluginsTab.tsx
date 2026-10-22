@@ -1,5 +1,5 @@
 import React from "react";
-import PluginItem from "./PluginItem";
+import PluginItem from "@/components/PluginItem";
 
 function PluginsTab({
   prerequisites,

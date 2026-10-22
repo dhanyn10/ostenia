@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import GlobalConfigCategory from '../../../src/components/settings/GlobalConfigCategory';
+import GlobalConfigCategory from '@/components/settings/GlobalConfigCategory';
 
 // Mock AppBackend
 vi.mock('@/wailsjs/go/backend/App', () => ({

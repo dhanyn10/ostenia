@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import React from "react";
-import PromptModal from "../../src/components/PromptModal";
+import PromptModal from "@/components/PromptModal";
 
 describe("PromptModal Component", () => {
   it("renders nothing when isOpen is false", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolvePrerequisiteTask } from '../../src/utils/pluginHelpers';
+import { resolvePrerequisiteTask } from '@/utils/pluginHelpers';
 
 describe('pluginHelpers', () => {
   it('correctly formats task target and version for PHP', () => {

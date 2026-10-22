@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import AddCustomVersionModal from "../../src/components/AddCustomVersionModal";
+import AddCustomVersionModal from "@/components/AddCustomVersionModal";
 import React from "react";
 
 // Mock AppBackend functions

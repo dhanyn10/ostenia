@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useAppLogs, formatLogArgs } from '../../src/hooks/useAppLogs';
+import { useAppLogs, formatLogArgs } from '@/hooks/useAppLogs';
 import * as AppBackend from '@/wailsjs/go/backend/App';
 
 vi.mock('@/wailsjs/go/backend/App', () => ({

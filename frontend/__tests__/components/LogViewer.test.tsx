@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import LogViewer, { formatCompleteLog } from "../../src/components/LogViewer";
+import LogViewer, { formatCompleteLog } from "@/components/LogViewer";
 import React from "react";
 import * as AppBackend from "@/wailsjs/go/backend/App";
 

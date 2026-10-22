@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { usePrerequisites } from '../../src/hooks/usePrerequisites';
+import { usePrerequisites } from '@/hooks/usePrerequisites';
 import * as AppBackend from '@/wailsjs/go/backend/App';
 
 vi.mock('@/wailsjs/go/backend/App', () => ({

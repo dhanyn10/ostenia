@@ -1,32 +1,32 @@
 import { useState, useEffect, useCallback } from 'react';
-import { EventsOn } from '../wailsjs/runtime/runtime';
-import * as AppBackend from '../wailsjs/go/backend/App';
+import { EventsOn } from '@/wailsjs/runtime/runtime';
+import * as AppBackend from '@/wailsjs/go/backend/App';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 // Hooks
-import { useTheme } from './hooks/useTheme';
-import { useToast } from './hooks/useToast';
-import { useAppLogs } from './hooks/useAppLogs';
-import { useServices } from './hooks/useServices';
-import { usePrerequisites } from './hooks/usePrerequisites';
-import { useAppConfig } from './hooks/useAppConfig';
+import { useTheme } from '@/hooks/useTheme';
+import { useToast } from '@/hooks/useToast';
+import { useAppLogs } from '@/hooks/useAppLogs';
+import { useServices } from '@/hooks/useServices';
+import { usePrerequisites } from '@/hooks/usePrerequisites';
+import { useAppConfig } from '@/hooks/useAppConfig';
 
 // Components
-import MenuBar from './components/MenuBar';
-import StatusBar from './components/StatusBar';
-import VerticalNav from './components/VerticalNav';
-import AppHeader from './components/AppHeader';
-import SettingsModal from './components/SettingsModal';
-import Toast from './components/Toast';
-import LogViewer from './components/LogViewer';
-import ActivityTab from './components/ActivityTab';
-import PluginsTab from './components/PluginsTab';
-import ProxyTab from './components/ProxyTab';
-import SSHTab from './components/ssh/SSHTab';
-import Icons from './components/Icons';
-import ConfirmationModal from './components/ConfirmationModal';
-import AddCustomVersionModal from './components/AddCustomVersionModal';
+import MenuBar from '@/components/MenuBar';
+import StatusBar from '@/components/StatusBar';
+import VerticalNav from '@/components/VerticalNav';
+import AppHeader from '@/components/AppHeader';
+import SettingsModal from '@/components/SettingsModal';
+import Toast from '@/components/Toast';
+import LogViewer from '@/components/LogViewer';
+import ActivityTab from '@/components/ActivityTab';
+import PluginsTab from '@/components/PluginsTab';
+import ProxyTab from '@/components/ProxyTab';
+import SSHTab from '@/components/ssh/SSHTab';
+import Icons from '@/components/Icons';
+import ConfirmationModal from '@/components/ConfirmationModal';
+import AddCustomVersionModal from '@/components/AddCustomVersionModal';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

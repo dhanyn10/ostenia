@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
-import SSHToolbar from "../../../src/components/ssh/SSHToolbar";
+import SSHToolbar from "@/components/ssh/SSHToolbar";
 
 describe("SSHToolbar Component", () => {
   const setExplorerVisibleMock = vi.fn();

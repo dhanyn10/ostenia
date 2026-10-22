@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import React from "react";
-import AlertModal from "../../src/components/AlertModal";
+import AlertModal from "@/components/AlertModal";
 
 describe("AlertModal Component", () => {
   it("renders nothing when isOpen is false", () => {

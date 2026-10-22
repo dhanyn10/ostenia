@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import App from '../src/App';
+import App from '@/App';
 import * as AppBackend from '@/wailsjs/go/backend/App';
 
 const eventCallbacks: Record<string, (...args: any[]) => void> = {};

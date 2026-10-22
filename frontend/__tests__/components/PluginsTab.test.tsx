@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import PluginsTab from "../../src/components/PluginsTab";
+import PluginsTab from "@/components/PluginsTab";
 
 // Mock the child component PluginItem to isolate PluginsTab
 vi.mock("./PluginItem", () => ({

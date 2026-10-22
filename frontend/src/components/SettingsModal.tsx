@@ -10,9 +10,9 @@ import {
 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import ProfileCategory from "./settings/ProfileCategory";
-import GlobalConfigCategory from "./settings/GlobalConfigCategory";
-import SSHManagementCategory from "./settings/SSHManagementCategory";
+import ProfileCategory from "@/components/settings/ProfileCategory";
+import GlobalConfigCategory from "@/components/settings/GlobalConfigCategory";
+import SSHManagementCategory from "@/components/settings/SSHManagementCategory";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

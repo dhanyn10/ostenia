@@ -5,10 +5,10 @@ import {
   SwitchServiceVersion,
   GetPHPExtensions,
   TogglePHPExtension,
-} from "../../wailsjs/go/backend/App";
-import ExtensionModal from "./ExtensionModal";
-import ServiceItem from "./ServiceItem";
-import AddPluginAction from "./AddPluginAction";
+} from "@/wailsjs/go/backend/App";
+import ExtensionModal from "@/components/ExtensionModal";
+import ServiceItem from "@/components/ServiceItem";
+import AddPluginAction from "@/components/AddPluginAction";
 
 function ActivityTab({
   serverRoot,

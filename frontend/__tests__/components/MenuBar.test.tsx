@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
-import MenuBar from "../../src/components/MenuBar";
+import MenuBar from "@/components/MenuBar";
 import * as AppBackend from "@/wailsjs/go/backend/App";
 
 // Mock Wails backend functions

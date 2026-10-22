@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import ProfileCategory from '../../../src/components/settings/ProfileCategory';
+import ProfileCategory from '@/components/settings/ProfileCategory';
 
 // Mock AppBackend
 vi.mock('@/wailsjs/go/backend/App', () => ({

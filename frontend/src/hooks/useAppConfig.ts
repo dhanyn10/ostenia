@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import * as AppBackend from '../../wailsjs/go/backend/App';
+import * as AppBackend from '@/wailsjs/go/backend/App';
 
 interface UseAppConfigOptions {
   onConfigChanged?: () => void;

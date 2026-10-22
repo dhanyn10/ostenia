@@ -7,7 +7,7 @@ import {
 } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
-import SSHSessionForm from "../../../src/components/ssh/SSHSessionForm";
+import SSHSessionForm from "@/components/ssh/SSHSessionForm";
 
 // Mock AppBackend
 vi.mock("@/wailsjs/go/backend/App", () => ({
@@ -79,7 +79,7 @@ describe("SSHSessionForm Component", () => {
     );
     expect(screen.getByLabelText("Port")).toHaveValue(22);
     expect(screen.getByPlaceholderText("root")).toHaveValue("ubuntu");
-    expect(screen.getByPlaceholderText("Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢")).toHaveValue(
+    expect(screen.getByPlaceholderText("ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢")).toHaveValue(
       "mypassword123",
     );
   });
@@ -107,7 +107,7 @@ describe("SSHSessionForm Component", () => {
     const passwordBtn = screen.getByRole("button", { name: "Password" });
     fireEvent.click(passwordBtn);
 
-    expect(screen.getByPlaceholderText("Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢")).toBeInTheDocument();
   });
 
   it("submits a new connection successfully", async () => {
@@ -134,7 +134,7 @@ describe("SSHSessionForm Component", () => {
     fireEvent.change(screen.getByPlaceholderText("root"), {
       target: { value: "admin" },
     });
-    fireEvent.change(screen.getByPlaceholderText("Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢"), {
+    fireEvent.change(screen.getByPlaceholderText("ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢"), {
       target: { value: "secret" },
     });
 

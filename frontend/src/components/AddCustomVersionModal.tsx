@@ -8,9 +8,9 @@ import {
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
-import * as AppBackend from "../../wailsjs/go/backend/App";
-import { OnFileDrop, OnFileDropOff } from "../../wailsjs/runtime/runtime";
-import { handleActionKey } from "../utils/a11y";
+import * as AppBackend from "@/wailsjs/go/backend/App";
+import { OnFileDrop, OnFileDropOff } from "@/wailsjs/runtime/runtime";
+import { handleActionKey } from "@/utils/a11y";
 
 interface AddCustomVersionModalProps {
   isOpen: boolean;

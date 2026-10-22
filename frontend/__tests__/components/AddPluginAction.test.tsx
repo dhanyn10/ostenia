@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import AddPluginAction from "../../src/components/AddPluginAction";
+import AddPluginAction from "@/components/AddPluginAction";
 
 describe("AddPluginAction Component", () => {
   const mockPrerequisites = [

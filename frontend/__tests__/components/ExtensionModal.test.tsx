@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import ExtensionModal from "../../src/components/ExtensionModal";
+import ExtensionModal from "@/components/ExtensionModal";
 import React from "react";
 
 describe("ExtensionModal Component", () => {
